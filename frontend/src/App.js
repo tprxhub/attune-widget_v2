@@ -3,28 +3,44 @@
 import React, { useState } from 'react';
 import './App.css';
 
+// Use an env var when the backend is hosted separately (e.g., your Render/Vercel backend)
+// Falls back to "/api" when the backend lives in the same Vercel project as serverless routes
+const API_BASE = process.env.REACT_APP_BACKEND_URL || '/api';
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
+    setError('');
     const userMessage = { role: 'user', content: input };
-    setMessages([...messages, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
 
-    const response = await fetch('/api/ask-attune', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: input })
-    });
+    try {
+      const response = await fetch(`${API_BASE}/ask-attune`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage.content })
+      });
 
-    const data = await response.json();
-    const botMessage = { role: 'assistant', content: data.reply };
-    setMessages((prev) => [...prev, botMessage]);
-    setLoading(false);
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const botMessage = { role: 'assistant', content: data.reply };
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (err) {
+      console.error(err);
+      setError('Sorry — something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,14 +51,16 @@ function App() {
           <div key={idx} className={msg.role}>{msg.content}</div>
         ))}
         {loading && <div className="assistant">Attune is thinking...</div>}
+        {error && <div className="assistant">{error}</div>}
       </div>
       <input
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Ask your question here..."
         onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+        disabled={loading}
       />
-      <button onClick={sendMessage}>Send</button>
+      <button onClick={sendMessage} disabled={loading}>Send</button>
     </div>
   );
 }
