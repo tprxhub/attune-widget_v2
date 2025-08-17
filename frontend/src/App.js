@@ -1,43 +1,35 @@
-// === Step 1: React Frontend (frontend/src/App.js) ===
+import React, { useState } from "react";
+import "./App.css";
 
-import React, { useState } from 'react';
-import './App.css';
-
-// Use an env var when the backend is hosted separately (e.g., your Render/Vercel backend)
-// Falls back to "/api" when the backend lives in the same Vercel project as serverless routes
-const API_BASE = process.env.REACT_APP_BACKEND_URL || '/api';
+const API_BASE = process.env.REACT_APP_BACKEND_URL || "/api";
 
 function App() {
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
-    setError('');
-    const userMessage = { role: 'user', content: input };
+    setError("");
+    const userMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
+    setInput("");
     setLoading(true);
 
     try {
       const response = await fetch(`${API_BASE}/ask-attune`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.content })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage.content }),
       });
-
-      if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
       const data = await response.json();
-      const botMessage = { role: 'assistant', content: data.reply };
+      const botMessage = { role: "assistant", content: data.reply };
       setMessages((prev) => [...prev, botMessage]);
     } catch (err) {
       console.error(err);
-      setError('Sorry — something went wrong. Please try again.');
+      setError("Sorry — something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -57,7 +49,7 @@ function App() {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Ask your question here..."
-        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         disabled={loading}
       />
       <button onClick={sendMessage} disabled={loading}>Send</button>
