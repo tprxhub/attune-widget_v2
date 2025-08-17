@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const ASSISTANT_ID = process.env.ATTUNE_ASSISTANT_ID;
+const ASSISTANT_ID = 'asst_9t8RWI3CIUU5w94NbIcq83F6' //process.env.ATTUNE_ASSISTANT_ID; // set in Vercel env
 
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
