@@ -4,6 +4,12 @@ import './App.css';
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL || '/api';
 const stripCitations = (text = '') => text.replace(/【[^】]*】/g, '');
+const fixInlineEnumerations = (t = "") =>
+  // if a number like " 1. " is NOT at line start, convert to " 1) "
+  t.replace(/(\S)\s(\d+)\.\s/g, (_, prev, num) => `${prev} ${num}) `);
+
+const renderText = (t = "") => fixInlineEnumerations(stripCitations(t));
+
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -51,7 +57,7 @@ function App() {
       <div className="chat-box" ref={boxRef}>
         {messages.map((msg, idx) => (
           <div key={idx} className={`bubble ${msg.role}`}>
-            <ReactMarkdown>{stripCitations(msg.content)}</ReactMarkdown>
+            <ReactMarkdown>{renderText(msg.content)}</ReactMarkdown>
           </div>
         ))}
         {loading && <div className="bubble assistant">Attune is thinking...</div>}
