@@ -13,7 +13,9 @@ h1 { font-weight: 600; letter-spacing: 0.2px; }
 button, input { font: inherit; }  /* ensure controls use the same font */
 
 .chat-container { max-width: 760px; margin: 24px auto; font-family: system-ui, Arial, sans-serif; }
-.chat-box { display: flex; flex-direction: column; gap: 10px; border: 1px solid #eee; border-radius: 14px; padding: 12px; min-height: 260px; max-height: 60vh; overflow-y: auto; background: #fff; }
+/*.chat-box { display: flex; flex-direction: column; gap: 10px; border: 1px solid #eee; border-radius: 14px; padding: 12px; min-height: 260px; max-height: 60vh; overflow-y: auto; background: #fff; }*/
+.chat-box ol, .chat-box ul { margin: .4em 0 .6em; padding-left: 1.2em; }
+.chat-box li { margin: .15em 0; }
 .bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
 .bubble.user { align-self: flex-end; background: #feecd4; }
 .bubble.assistant { align-self: flex-start; background: #F1F0F0; }
