@@ -1,35 +1,40 @@
 import React, { useState } from "react";
+import ReactMarkdown from 'react-markdown';
 import "./App.css";
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL || "/api";
+const stripCitations = (text = '') => text.replace(/【[^】]*】/g, '');
+
 
 function App() {
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
-    setError("");
-    const userMessage = { role: "user", content: input };
+    setError('');
+    const userMessage = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
+    setInput('');
     setLoading(true);
 
     try {
       const response = await fetch(`${API_BASE}/ask-attune`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage.content }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage.content })
       });
-      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+
       const data = await response.json();
-      const botMessage = { role: "assistant", content: data.reply };
+      if (!response.ok) throw new Error(data?.error || `Request failed: ${response.status}`);
+
+      const botMessage = { role: 'assistant', content: data.reply };
       setMessages((prev) => [...prev, botMessage]);
     } catch (err) {
       console.error(err);
-      setError("Sorry — something went wrong. Please try again.");
+      setError('Sorry — something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -40,7 +45,10 @@ function App() {
       <h1>Attune™ by ToyRx</h1>
       <div className="chat-box">
         {messages.map((msg, idx) => (
-          <div key={idx} className={msg.role}>{msg.content}</div>
+          <div key={idx} className={msg.role}>
+            {/* Render Markdown nicely and strip inline citations */}
+            <ReactMarkdown>{stripCitations(msg.content)}</ReactMarkdown>
+          </div>
         ))}
         {loading && <div className="assistant">Attune is thinking...</div>}
         {error && <div className="assistant">{error}</div>}
@@ -49,7 +57,7 @@ function App() {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Ask your question here..."
-        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
         disabled={loading}
       />
       <button onClick={sendMessage} disabled={loading}>Send</button>
