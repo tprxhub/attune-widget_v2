@@ -14,14 +14,17 @@ button, input { font: inherit; }  /* ensure controls use the same font */
 
 .chat-container { max-width: 760px; margin: 24px auto; font-family: system-ui, Arial, sans-serif; }
 /*.chat-box { display: flex; flex-direction: column; gap: 10px; border: 1px solid #eee; border-radius: 14px; padding: 12px; min-height: 260px; max-height: 60vh; overflow-y: auto; background: #fff; }*/
-.chat-box ol {
-  list-style: none;          /* removes 1., 2., etc */
-  padding-left: 0;           /* remove indentation */
-  margin-left: 0;
-}
+/* tighter paragraphs inside bubbles */
+.chat-box p { margin: 0.35em 0; line-height: 1.45; }
+
+/* first/last elements in a bubble shouldn’t add extra space */
+.bubble > :first-child { margin-top: 0; }
+.bubble > :last-child { margin-bottom: 0; }
+
+/* compact lists */
+.chat-box ul, .chat-box ol { margin: 0.35em 0; padding-left: 1.1em; }
+.chat-box li { margin: 0.2em 0; }
  
-.chat-box ul { margin: .4em 0 .6em; padding-left: 1.2em; }
-.chat-box li { margin: .15em 0; }
 .bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
 .bubble.user { align-self: flex-end; background: #feecd4; }
 .bubble.assistant { align-self: flex-start; background: #F1F0F0; }
