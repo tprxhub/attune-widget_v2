@@ -1,16 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import "./App.css";
+import './App.css';
 
-const API_BASE = process.env.REACT_APP_BACKEND_URL || "/api";
+const API_BASE = process.env.REACT_APP_BACKEND_URL || '/api';
 const stripCitations = (text = '') => text.replace(/【[^】]*】/g, '');
-
 
 function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const boxRef = useRef(null);
+
+  // auto-scroll to newest message
+  useEffect(() => {
+    boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight });
+  }, [messages, loading]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -43,24 +48,26 @@ function App() {
   return (
     <div className="chat-container">
       <h1>Attune™ by ToyRx</h1>
-      <div className="chat-box">
+      <div className="chat-box" ref={boxRef}>
         {messages.map((msg, idx) => (
-          <div key={idx} className={msg.role}>
-            {/* Render Markdown nicely and strip inline citations */}
+          <div key={idx} className={`bubble ${msg.role}`}>
             <ReactMarkdown>{stripCitations(msg.content)}</ReactMarkdown>
           </div>
         ))}
-        {loading && <div className="assistant">Attune is thinking...</div>}
-        {error && <div className="assistant">{error}</div>}
+        {loading && <div className="bubble assistant">Attune is thinking...</div>}
+        {error && <div className="bubble assistant">{error}</div>}
       </div>
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Ask your question here..."
-        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-        disabled={loading}
-      />
-      <button onClick={sendMessage} disabled={loading}>Send</button>
+
+      <div className="composer">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask your question here..."
+          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+          disabled={loading}
+        />
+        <button onClick={sendMessage} disabled={loading}>Send</button>
+      </div>
     </div>
   );
 }
