@@ -17,10 +17,6 @@ button, input { font: inherit; }  /* ensure controls use the same font */
 /* tighter paragraphs inside bubbles */
 .chat-box p { margin: 0.35em 0; line-height: 1.45; }
 
-/* first/last elements in a bubble shouldn’t add extra space */
-.bubble > :first-child { margin-top: 0; }
-.bubble > :last-child { margin-bottom: 0; }
-
 /* compact lists */
 .chat-box ul, .chat-box ol { margin: 0.35em 0; padding-left: 1.1em; }
 .chat-box li { margin: 0.2em 0; }
@@ -28,6 +24,19 @@ button, input { font: inherit; }  /* ensure controls use the same font */
 .bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
 .bubble.user { align-self: flex-end; background: #feecd4; }
 .bubble.assistant { align-self: flex-start; background: #F1F0F0; }
+
+/* tighten paragraph spacing inside bubbles */
+.bubble p { margin: 4px 0; }
+.bubble p:first-child { margin-top: 0; }
+.bubble p:last-child { margin-bottom: 0; }
+
+/* list tweaks: keep bullet text on the same line and reduce spacing */
+.bubble ul, .bubble ol { margin: 4px 0; padding-left: 1.1rem; }
+.bubble li { margin: 2px 0; }
+.bubble li > p { display: inline; margin: 0; } /* ensures no extra line right after the bullet */
+
+/* headings inside bubbles */
+.bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 { margin: 6px 0 4px; }
 .composer { display: flex; gap: 8px; margin-top: 10px; }
 .composer input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; }
 .composer button { padding: 10px 14px; border: 0; border-radius: 10px; cursor: pointer; background: #111; color: #fff; }
