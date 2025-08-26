@@ -2,46 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
 
-function normalizeBullets(text = "") {
-  // Normalize line endings
-  const lines = text.replace(/\r\n?/g, "\n").split("\n");
-  const out = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Matches a line that's ONLY a marker: "1." or "-" or "*" or "•"
-    const num = line.match(/^\s*(\d+)\.\s*$/);
-    const sym = line.match(/^\s*([-*•])\s*$/);
-
-    if (num || sym) {
-      // skip blank spacer lines after the marker
-      let j = i + 1;
-      while (j < lines.length && lines[j].trim() === "") j++;
-
-      if (j < lines.length) {
-        const marker = (num ? num[1] + "." : sym[1]).trim();
-        const merged = `${marker} ${lines[j].replace(/^\s+/, "")}`;
-        out.push(merged);
-        i = j; // consume the content line
-        continue;
-      }
-      // marker at the very end without content
-      out.push(line);
-      continue;
-    }
-
-    out.push(line);
-  }
-
-  return out.join("\n");
+function normalizeBullets(s = "") {
+  return s
+    .replace(/\r\n?/g, "\n")                         // normalize line endings
+    .replace(/(^|\n)\s*(\d+)\.\s*\n+/g, "$1$2. ")    // "1.\n" -> "1. "
+    .replace(/(^|\n)\s*([-*•])\s*\n+/g, "$1$2 ");    // "-\n"  -> "- "
 }
 
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL || '/api';
 const stripCitations = (text = '') => text.replace(/【[^】]*】/g, '');
 const fixInlineEnumerations = (t = "") =>
-  // only convert " 2. " when it's a SPACE (not a newline) before the number
   t.replace(/(\S) ([0-9]+)\.\s/g, (_, prev, num) => `${prev} ${num}) `);
 const renderText = (t = "") =>
   fixInlineEnumerations(stripCitations(normalizeBullets(t)));
