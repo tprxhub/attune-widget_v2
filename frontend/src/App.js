@@ -65,8 +65,20 @@ function App() {
       <div className="chat-box" ref={boxRef}>
         {messages.map((msg, idx) => (
           <div key={idx} className={`bubble ${msg.role}`}>
-            <ReactMarkdown>{renderText(msg.content)}</ReactMarkdown>
-          </div>
+            <ReactMarkdown
+              components={{
+                // Ensure list items never inherit unintended bold
+                li: ({node, ...props}) => <li style={{fontWeight: 400}} {...props} />,
+                // Keep paragraph spacing tight
+                p: ({node, ...props}) => <p style={{margin: '4px 0'}} {...props} />,
+                ul: ({node, ...props}) => <ul style={{margin:'4px 0', paddingLeft:'1.1rem'}} {...props} />,
+                ol: ({node, ...props}) => <ol style={{margin:'4px 0', paddingLeft:'1.1rem'}} {...props} />
+              }}
+            >
+            {renderText(msg.content)}
+          </ReactMarkdown>
+
+        </div>
         ))}
         {loading && <div className="bubble assistant">Attune is thinking...</div>}
         {error && <div className="bubble assistant">{error}</div>}
