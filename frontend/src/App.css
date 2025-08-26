@@ -21,8 +21,9 @@ button, input { font: inherit; }  /* ensure controls use the same font */
 .chat-box ul, .chat-box ol { margin: 0.35em 0; padding-left: 1.1em; }
 .chat-box li { margin: 0.2em 0; }
  
-.bubble { max-width: 78%; padding: 10px 14px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }
-.bubble.user { align-self: flex-end; background: #feecd4; }
+.bubble { white-space: pre-wrap; } 
+/*{ max-width: 78%; padding: 10px 14px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }*/
+.bubble.user { align-self: flex-end; text-align: right; background: #feecd4; }
 .bubble.assistant { align-self: flex-start; background: #F1F0F0; }
 
 /* tighten paragraph spacing inside bubbles */
