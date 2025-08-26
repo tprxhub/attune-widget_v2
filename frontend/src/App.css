@@ -14,7 +14,7 @@
 .chat-box {
   display: flex;
   flex-direction: column;
-  gap: var(--gap);
+  gap: 8px;
   border: 1px solid #eee;
   border-radius: 14px;
   padding: 12px;
@@ -24,38 +24,28 @@
   background: #fff;
 }
 
-/* Bubble base (shape + spacing) */
 .bubble {
   max-width: 78%;
   padding: 10px 14px;
-  border-radius: var(--bubble-radius);
+  border-radius: 16px;
   line-height: 1.5;
   word-wrap: break-word;
   white-space: pre-wrap;
   box-shadow: 0 1px 0 rgba(0,0,0,0.03);
 }
 
-/* Sides */
-.bubble.user {
-  align-self: flex-end;
-  text-align: right;
-  background: #feecd4;
-}
-.bubble.assistant {
-  align-self: flex-start;
-  background: #F1F0F0;
-}
+.bubble.user { align-self: flex-end; text-align: right; background: #feecd4; }
+.bubble.assistant { align-self: flex-start; background: #F1F0F0; }
 
-/* Tighter paragraphs inside bubbles */
+/* tidy paragraphs & lists inside bubbles */
 .bubble p { margin: 4px 0; }
 .bubble p:first-child { margin-top: 0; }
 .bubble p:last-child { margin-bottom: 0; }
-
-/* Lists: keep bullet text on same line; compact spacing */
 .bubble ul, .bubble ol { margin: 4px 0; padding-left: 1.1rem; list-style-position: outside; }
-.bubble li { margin: 2px 0; font-weight: 400; }             /* ensure no bold list text */
-.bubble li > p { display: inline; margin: 0; }               /* prevents extra line after bullet */
-.bubble ol li::marker, .bubble ul li::marker { font-weight: 600; } /* make only the marker a tad bolder */
+.bubble li { margin: 2px 0; font-weight: 400; }
+.bubble li > p { display: inline; margin: 0; } /* no extra line after bullet */
+.bubble ol li::marker, .bubble ul li::marker { font-weight: 600; }
+
 
 /* Headings inside bubbles */
 .bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 { margin: 6px 0 4px; }
