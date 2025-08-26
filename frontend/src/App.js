@@ -60,8 +60,9 @@ function App() {
 
   return (
     <div className="chat-container">
-      <h1>Attune™ by ToyRx</h1>
-      <h2>
+      <h1>
+        Troubleshoot with Attune<span className="tm">™</span> by ToyRx
+      </h1>
       <div className="chat-box" ref={boxRef}>
         {messages.map((msg, idx) => (
           <div key={idx} className={`bubble ${msg.role}`}>
