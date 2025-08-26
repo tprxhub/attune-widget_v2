@@ -2,6 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
 
+function normalizeBullets(s) {
+  return s
+    // "1.\nText" -> "1. Text"
+    .replace(/(^|\n)(\s*)(\d+)\.\s*\n(\S)/g, '$1$2$3. $4')
+    // "-\nText" or "•\nText" or "*\nText" -> "- Text"
+    .replace(/(^|\n)(\s*)([-*•])\s*\n(\S)/g, '$1$2$3 $4');
+}
+
 const API_BASE = process.env.REACT_APP_BACKEND_URL || '/api';
 const stripCitations = (text = '') => text.replace(/【[^】]*】/g, '');
 const fixInlineEnumerations = (t = "") =>
@@ -41,7 +49,7 @@ function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || `Request failed: ${response.status}`);
 
-      const botMessage = { role: 'assistant', content: data.reply };
+      const botMessage = { role: 'assistant', content: normalizeBullets(data.reply) };
       setMessages((prev) => [...prev, botMessage]);
     } catch (err) {
       console.error(err);
