@@ -1,43 +1,66 @@
 :root {
-  --font-sans: "Josefin Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
-               Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --gap: 8px;
+  --bubble-radius: 16px;
 }
 
-html, body {
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Container */
+.chat-container {
+  max-width: 760px;
+  margin: 24px auto;
+  font-family: system-ui, Arial, sans-serif;
 }
 
-h1 { font-weight: 600; letter-spacing: 0.2px; }
-button, input { font: inherit; }  /* ensure controls use the same font */
+/* Chat area (flex column so align-self works) */
+.chat-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  border: 1px solid #eee;
+  border-radius: 14px;
+  padding: 12px;
+  min-height: 260px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #fff;
+}
 
-.chat-container { max-width: 760px; margin: 24px auto; font-family: system-ui, Arial, sans-serif; }
-/*.chat-box { display: flex; flex-direction: column; gap: 10px; border: 1px solid #eee; border-radius: 14px; padding: 12px; min-height: 260px; max-height: 60vh; overflow-y: auto; background: #fff; }*/
-/* tighter paragraphs inside bubbles */
-.chat-box p { margin: 0.35em 0; line-height: 1.45; }
+/* Bubble base (shape + spacing) */
+.bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: var(--bubble-radius);
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+}
 
-/* compact lists */
-.chat-box ul, .chat-box ol { margin: 0.35em 0; padding-left: 1.1em; }
-.chat-box li { margin: 0.2em 0; }
- 
-.bubble { white-space: pre-wrap; } 
-/*{ max-width: 78%; padding: 10px 14px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; white-space: pre-wrap; }*/
-.bubble.user { align-self: flex-end; text-align: right; background: #feecd4; }
-.bubble.assistant { align-self: flex-start; background: #F1F0F0; }
+/* Sides */
+.bubble.user {
+  align-self: flex-end;
+  text-align: right;
+  background: #feecd4;
+}
+.bubble.assistant {
+  align-self: flex-start;
+  background: #F1F0F0;
+}
 
-/* tighten paragraph spacing inside bubbles */
+/* Tighter paragraphs inside bubbles */
 .bubble p { margin: 4px 0; }
 .bubble p:first-child { margin-top: 0; }
 .bubble p:last-child { margin-bottom: 0; }
 
-/* list tweaks: keep bullet text on the same line and reduce spacing */
-.bubble ul, .bubble ol { margin: 4px 0; padding-left: 1.1rem; }
-.bubble li { margin: 2px 0; }
-.bubble li > p { display: inline; margin: 0; } /* ensures no extra line right after the bullet */
+/* Lists: keep bullet text on same line; compact spacing */
+.bubble ul, .bubble ol { margin: 4px 0; padding-left: 1.1rem; list-style-position: outside; }
+.bubble li { margin: 2px 0; font-weight: 400; }             /* ensure no bold list text */
+.bubble li > p { display: inline; margin: 0; }               /* prevents extra line after bullet */
+.bubble ol li::marker, .bubble ul li::marker { font-weight: 600; } /* make only the marker a tad bolder */
 
-/* headings inside bubbles */
+/* Headings inside bubbles */
 .bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 { margin: 6px 0 4px; }
+
+/* Composer */
 .composer { display: flex; gap: 8px; margin-top: 10px; }
 .composer input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 10px; }
 .composer button { padding: 10px 14px; border: 0; border-radius: 10px; cursor: pointer; background: #111; color: #fff; }
