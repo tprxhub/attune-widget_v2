@@ -2,18 +2,39 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
 
-function squashBulletBreaks(s = "") {
-  // Normalize Windows/Mac newlines
-  s = s.replace(/\r\n?/g, "\n");
+function normalizeBullets(text = "") {
+  // Normalize line endings
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const out = [];
 
-  // Join lines where a bullet marker is alone on a line:
-  // "1.\nText"  -> "1. Text"
-  s = s.replace(/(^|\n)\s*(\d+)\.\s*\n+(?:\s*\n)*/g, "$1$2. ");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
 
-  // "-\nText"   -> "- Text"   and same for "*" / "•"
-  s = s.replace(/(^|\n)\s*([-*•])\s*\n+(?:\s*\n)*/g, "$1$2 ");
+    // Matches a line that's ONLY a marker: "1." or "-" or "*" or "•"
+    const num = line.match(/^\s*(\d+)\.\s*$/);
+    const sym = line.match(/^\s*([-*•])\s*$/);
 
-  return s;
+    if (num || sym) {
+      // skip blank spacer lines after the marker
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() === "") j++;
+
+      if (j < lines.length) {
+        const marker = (num ? num[1] + "." : sym[1]).trim();
+        const merged = `${marker} ${lines[j].replace(/^\s+/, "")}`;
+        out.push(merged);
+        i = j; // consume the content line
+        continue;
+      }
+      // marker at the very end without content
+      out.push(line);
+      continue;
+    }
+
+    out.push(line);
+  }
+
+  return out.join("\n");
 }
 
 
@@ -22,9 +43,8 @@ const stripCitations = (text = '') => text.replace(/【[^】]*】/g, '');
 const fixInlineEnumerations = (t = "") =>
   // only convert " 2. " when it's a SPACE (not a newline) before the number
   t.replace(/(\S) ([0-9]+)\.\s/g, (_, prev, num) => `${prev} ${num}) `);
-
 const renderText = (t = "") =>
-  fixInlineEnumerations(stripCitations(squashBulletBreaks(t)));
+  fixInlineEnumerations(stripCitations(normalizeBullets(t)));
 
 
 function App() {
@@ -57,7 +77,7 @@ function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || `Request failed: ${response.status}`);
 
-      const botMessage = { role: 'assistant', content: squashBulletBreaks(data.reply) };
+      const botMessage = { role: 'assistant', content: normalizeBullets(data.reply) };
       setMessages((prev) => [...prev, botMessage]);
     } catch (err) {
       console.error(err);
