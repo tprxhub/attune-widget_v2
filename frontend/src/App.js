@@ -13,8 +13,8 @@ function normalizeBullets(s) {
 const API_BASE = process.env.REACT_APP_BACKEND_URL || '/api';
 const stripCitations = (text = '') => text.replace(/【[^】]*】/g, '');
 const fixInlineEnumerations = (t = "") =>
-  // if a number like " 1. " is NOT at line start, convert to " 1) "
-  t.replace(/(\S)\s(\d+)\.\s/g, (_, prev, num) => `${prev} ${num}) `);
+  // only convert " 2. " when it's a SPACE (not a newline) before the number
+  t.replace(/(\S) ([0-9]+)\.\s/g, (_, prev, num) => `${prev} ${num}) `);
 
 const renderText = (t = "") => fixInlineEnumerations(stripCitations(t));
 
