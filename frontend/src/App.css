@@ -41,7 +41,12 @@
 .bubble p { margin: 4px 0; }
 .bubble p:first-child { margin-top: 0; }
 .bubble p:last-child { margin-bottom: 0; }
-.bubble ul, .bubble ol { margin: 4px 0; padding-left: 1.1rem; list-style-position: outside; }
+.bubble ol,
+.bubble ul,
+.bubble li,
+.bubble li p {
+  white-space: normal;        /* override bubble's pre-wrap only for lists */
+}
 .bubble li { margin: 2px 0; font-weight: 400; }
 .bubble li > p { display: inline; margin: 0; } /* no extra line after bullet */
 .bubble ol li::marker, .bubble ul li::marker { font-weight: 600; }
