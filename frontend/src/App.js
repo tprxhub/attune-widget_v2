@@ -2,35 +2,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
 
-function normalizeBullets(s = "") {
-  // Normalize line endings first
-  const lines = s.replace(/\r\n/g, "\n").split("\n");
-  const out = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+function squashBulletBreaks(s = "") {
+  // Normalize Windows/Mac newlines
+  s = s.replace(/\r\n?/g, "\n");
 
-    // Matches a line that is ONLY a bullet marker: "1.", "2.", "-", "*", "•"
-    const bulletOnly = line.match(/^\s*((\d+)\.|[-*•])\s*$/);
+  // Join lines where a bullet marker is alone on a line:
+  // "1.\nText"  -> "1. Text"
+  s = s.replace(/(^|\n)\s*(\d+)\.\s*\n+(?:\s*\n)*/g, "$1$2. ");
 
-    if (bulletOnly) {
-      // skip any blank spacer lines after the bullet
-      let j = i + 1;
-      while (j < lines.length && lines[j].trim() === "") j++;
+  // "-\nText"   -> "- Text"   and same for "*" / "•"
+  s = s.replace(/(^|\n)\s*([-*•])\s*\n+(?:\s*\n)*/g, "$1$2 ");
 
-      if (j < lines.length) {
-        // merge: "1." + " Next line…"  ->  "1. Next line…"
-        const merged = line.replace(/\s*$/, "") + " " + lines[j].replace(/^\s+/, "");
-        out.push(merged);
-        i = j; // skip the consumed content line
-        continue;
-      }
-      // no following content; just keep the bullet line
-      out.push(line);
-    } else {
-      out.push(line);
-    }
-  }
-  return out.join("\n");
+  return s;
 }
 
 
@@ -41,7 +24,7 @@ const fixInlineEnumerations = (t = "") =>
   t.replace(/(\S) ([0-9]+)\.\s/g, (_, prev, num) => `${prev} ${num}) `);
 
 const renderText = (t = "") =>
-  fixInlineEnumerations(stripCitations(normalizeBullets(t)));
+  fixInlineEnumerations(stripCitations(squashBulletBreaks(t)));
 
 
 function App() {
@@ -74,7 +57,7 @@ function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || `Request failed: ${response.status}`);
 
-      const botMessage = { role: 'assistant', content: normalizeBullets(data.reply) };
+      const botMessage = { role: 'assistant', content: squashBulletBreaks(data.reply) };
       setMessages((prev) => [...prev, botMessage]);
     } catch (err) {
       console.error(err);
