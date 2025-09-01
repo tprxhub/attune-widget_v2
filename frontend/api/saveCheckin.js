@@ -1,30 +1,25 @@
-import { google } from "googleapis";
+import { createClient } from '@supabase/supabase-js'
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end();
+const supabase = createClient(
+  process.env.REACT_APP_SUPABASE_URL,
+  process.env.REACT_APP_SUPABASE_ANON_KEY
+)
 
-  const { email, mood, sleep, energy } = req.body;
+// Insert a check-in
+async function saveCheckin({ email, mood, sleep, energy }) {
+  const { data, error } = await supabase
+    .from('checkins')
+    .insert([{ child_email: email, mood, sleep_hours: sleep, energy }])
+  if (error) console.error(error)
+  return data
+}
 
-  try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_SERVICE_KEY),
-      scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-    });
-
-    const sheets = google.sheets({ version: "v4", auth });
-
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.SHEET_ID,
-      range: "CheckIns!A:E",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[new Date().toISOString(), email, mood, sleep, energy]],
-      },
-    });
-
-    res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to save check-in" });
-  }
+// Fetch all check-ins for logged-in parent
+async function getCheckins() {
+  const { data, error } = await supabase
+    .from('checkins')
+    .select('*')
+    .order('checkin_date', { ascending: true })
+  if (error) console.error(error)
+  return data
 }
