@@ -1,28 +1,46 @@
-import { google } from "googleapis";
+// frontend/api/getCheckins.js
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { persistSession: false } }
+);
 
 export default async function handler(req, res) {
-  const { email } = req.query;
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
-    const auth = new google.auth.GoogleAuth({
-      credentials: JSON.parse(process.env.GOOGLE_SERVICE_KEY),
-      scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-    });
+    // 1) Verify Supabase auth token from client
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Missing Authorization Bearer token' });
 
-    const sheets = google.sheets({ version: "v4", auth });
+    const { data: userData, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !userData?.user?.id) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    const parentId = userData.user.id;
 
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId: process.env.SHEET_ID,
-      range: "CheckIns!A:E",
-    });
+    // 2) Optional filter by child_email
+    const { child_email } = req.query;
 
-    const rows = result.data.values || [];
-    // Filter rows by email (col B = email)
-    const filtered = rows.filter((row) => row[1] === email);
+    let query = supabaseAdmin
+      .from('checkins')
+      .select('*')
+      .eq('parent_id', parentId)
+      .order('checkin_date', { ascending: true });
 
-    res.status(200).json({ rows: filtered });
+    if (child_email) query = query.eq('child_email', child_email);
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+
+    return res.status(200).json({ rows: data || [] });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch data" });
+    console.error('getCheckins error', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 }
