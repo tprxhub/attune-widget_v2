@@ -2,8 +2,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { createClient } from "@supabase/supabase-js";
-import { Line } from "react-chartjs-2";
-import { Line } from "react-chartjs-2";
+// charts — keep this block ONCE only
+import { Line as LineChart } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -312,7 +312,7 @@ function CheckinView() {
 
       <h2 style={{ marginTop: 24 }}>Progress</h2>
       {err && <div className="bubble assistant">{err}</div>}
-      {rows.length ? <Line data={chartData} /> : <p>No data yet.</p>}
+      {rows.length ? <LineChart data={chartData} /> : <p>No data yet.</p>}
     </div>
   );
 }
