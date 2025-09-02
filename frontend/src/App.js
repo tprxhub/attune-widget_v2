@@ -187,22 +187,35 @@ function AssistantView() {
    NEW: Check-in UI
 ========================= */
 function EmailLogin() {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [email, setEmail] = React.useState("");
+  const [sent, setSent] = React.useState(false);
+  const [err, setErr] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
 
   async function sendLink(e) {
     e.preventDefault();
+    setBusy(true);
+    setErr("");
+
+    // Redirect back to your app at /checkin and keep any ?email=... from Tevello
+    const redirectTo = `${window.location.origin}/checkin${window.location.search || ""}`;
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.href },
+      options: { emailRedirectTo: redirectTo },
     });
-    if (!error) setSent(true);
+
+    if (error) setErr(error.message || "Could not send magic link");
+    else setSent(true);
+
+    setBusy(false);
   }
 
-  return sent ? (
-    <p>Check your email for a magic link.</p>
-  ) : (
+  if (sent) return <p>Check your inbox for a magic link.</p>;
+
+  return (
     <form onSubmit={sendLink} style={{ display: "grid", gap: 12 }}>
+      {err && <div className="bubble assistant">{err}</div>}
       <input
         type="email"
         placeholder="your@email.com"
@@ -210,10 +223,13 @@ function EmailLogin() {
         onChange={(e) => setEmail(e.target.value)}
         required
       />
-      <button type="submit">Send magic link</button>
+      <button type="submit" disabled={busy}>
+        {busy ? "Sending..." : "Send magic link"}
+      </button>
     </form>
   );
 }
+
 
 function CheckinView() {
   const childEmail = getChildEmailFromQuery() || "child@example.com"; // Tevello can pass ?email={{customer.email}}
