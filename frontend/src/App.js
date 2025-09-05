@@ -186,6 +186,7 @@ function AssistantView() {
 /* =========================
    NEW: Check-in UI
 ========================= */
+// Replace your existing EmailLogin with this:
 function EmailLogin() {
   const [email, setEmail] = React.useState("");
   const [sent, setSent] = React.useState(false);
@@ -200,15 +201,21 @@ function EmailLogin() {
     // Redirect back to your app at /checkin and keep any ?email=... from Tevello
     const redirectTo = `${window.location.origin}/checkin${window.location.search || ""}`;
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo },
-    });
-
-    if (error) setErr(error.message || "Could not send magic link");
-    else setSent(true);
-
-    setBusy(false);
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || "/api"}/sendMagicLink`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, redirectTo })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Could not send magic link");
+      setSent(true);
+    } catch (e) {
+      console.error(e);
+      setErr(e.message || "Unexpected error");
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (sent) return <p>Check your inbox for a magic link.</p>;
@@ -229,6 +236,7 @@ function EmailLogin() {
     </form>
   );
 }
+
 
 
 function CheckinView() {
