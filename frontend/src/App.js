@@ -1,5 +1,6 @@
 // frontend/src/App.js
-import React, { useState, useRef, useEffect } from "react";
+
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 // charts — keep this block ONCE only
 import { Line as LineChart } from "react-chartjs-2";
@@ -281,20 +282,19 @@ function CheckinView() {
   }, []);
 
   useEffect(() => {
-    if (ready) loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, childEmail]);
+  if (ready) loadData();
+}, [ready, loadData]);
 
-  async function loadData() {
-    try {
-      const qs = childEmail ? `?child_email=${encodeURIComponent(childEmail)}` : "";
-      const { rows } = await apiGet(`/getCheckins${qs}`);
-      setRows(rows || []);
-    } catch (e) {
-      console.error(e);
-      setErr("Could not load check-ins.");
-    }
+  const loadData = useCallback(async () => {
+  try {
+    const qs = childEmail ? `?child_email=${encodeURIComponent(childEmail)}` : "";
+    const { rows } = await apiGet(`/getCheckins${qs}`);
+    setRows(rows || []);
+  } catch (e) {
+    console.error(e);
+    setErr("Could not load check-ins.");
   }
+}, [childEmail]);
 
   async function submit(e) {
     e.preventDefault();
