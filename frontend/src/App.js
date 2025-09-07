@@ -245,53 +245,69 @@ function AssistantView() {
    Check-in UI
 ========================= */
 function EmailLogin() {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [err, setErr] = useState("");
+  const [step, setStep] = useState('email'); // 'email' | 'code'
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  async function sendLink(e) {
-    e.preventDefault();
-    setBusy(true);
-    setErr("");
-
-    const redirectTo = `${window.location.origin}/checkin${window.location.search || ""}`;
-
+  async function sendCode(e) {
+    e.preventDefault(); setBusy(true); setErr('');
     try {
-      const res = await fetch(`${API_ROOT}/sendMagicLink`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, redirectTo }),
+      const res = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/startOtp`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ email })
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Could not send magic link");
-      setSent(true);
+      const json = await res.json().catch(()=>({}));
+      if (!res.ok) throw new Error(json.error || 'Could not send code');
+      setStep('code');
     } catch (e) {
-      console.error(e);
-      setErr(e.message || "Unexpected error");
+      setErr(e.message || 'Unexpected error');
     } finally {
       setBusy(false);
     }
   }
 
-  if (sent) return <p>Check your inbox for a magic link.</p>;
+  async function verify(e) {
+    e.preventDefault(); setBusy(true); setErr('');
+    try {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/verifyOtp`, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({ email, token: code })
+      });
+      const json = await res.json().catch(()=>({}));
+      if (!res.ok || !json.access_token) throw new Error(json.error || 'Invalid code');
 
-  return (
-    <form onSubmit={sendLink} style={{ display: "grid", gap: 12 }}>
+      const expAt = Date.now() + (json.expires_in || 3600)*1000;
+      localStorage.setItem('sb_access_token', json.access_token);
+      localStorage.setItem('sb_access_token_exp', String(expAt));
+      // notify app to update state
+      window.dispatchEvent(new StorageEvent('storage', { key: 'sb_access_token' }));
+    } catch (e) {
+      setErr(e.message || 'Unexpected error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return step === 'email' ? (
+    <form onSubmit={sendCode} style={{ display:'grid', gap:12 }}>
       {err && <div className="bubble assistant">{err}</div>}
-      <input
-        type="email"
-        placeholder="your@email.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <button type="submit" disabled={busy}>
-        {busy ? "Sending..." : "Send magic link"}
-      </button>
+      <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" />
+      <button type="submit" disabled={busy}>{busy ? 'Sending...' : 'Send code'}</button>
+    </form>
+  ) : (
+    <form onSubmit={verify} style={{ display:'grid', gap:12 }}>
+      {err && <div className="bubble assistant">{err}</div>}
+      <input inputMode="numeric" pattern="[0-9]*" maxLength={6}
+             required value={code} onChange={e=>setCode(e.target.value)} placeholder="Enter 6-digit code" />
+      <button type="submit" disabled={busy}>{busy ? 'Verifying...' : 'Verify'}</button>
     </form>
   );
 }
+
 
 function CheckinView() {
   const childEmail = getChildEmailFromQuery() || "child@example.com";
