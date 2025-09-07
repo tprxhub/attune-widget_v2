@@ -25,6 +25,19 @@ ChartJS.register(
 
 import "./App.css";
 
+// --- DEV GUARD: block any client call to supabase.co so we see it fast ---
+if (typeof window !== 'undefined') {
+  const _fetch = window.fetch;
+  window.fetch = (...args) => {
+    const url = String(args[0] || '');
+    if (url.includes('supabase.co')) {
+      console.warn('[BLOCKED CLIENT CALL TO SUPABASE]', url);
+      return Promise.reject(new Error('Client must not call supabase.co (use /api instead).'));
+    }
+    return _fetch(...args);
+  };
+}
+
 /* =========================
    Error Boundary (avoid blank page)
 ========================= */
