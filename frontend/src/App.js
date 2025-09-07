@@ -1,7 +1,6 @@
 // frontend/src/App.js
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { createClient } from "@supabase/supabase-js";
 // charts — keep this block ONCE only
 import { Line as LineChart } from "react-chartjs-2";
 import {
@@ -14,7 +13,6 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -32,11 +30,13 @@ import "./App.css";
 ========================= */
 function normalizeBullets(s = "") {
   return s
-    .replace(/\r\n?/g, "\n") // normalize line endings
-    .replace(/(^|\n)\s*(\d+)\.\s*\n+/g, "$1$2. ") // "1.\n" -> "1. "
-    .replace(/(^|\n)\s*([-*•])\s*\n+/g, "$1$2 "); // "-\n"  -> "- "
+    .replace(/\r\n?/g, "\n")
+    .replace(/(^|\n)\s*(\d+)\.\s*\n+/g, "$1$2. ")
+    .replace(/(^|\n)\s*([-*•])\s*\n+/g, "$1$2 ");
 }
 const API_BASE = process.env.REACT_APP_BACKEND_URL || "/api"; // for your assistant only
+const API_ROOT = process.env.REACT_APP_API_URL || "/api";     // for your check-in APIs
+
 const stripCitations = (text = "") => text.replace(/【[^】]*】/g, "");
 const fixInlineEnumerations = (t = "") =>
   t.replace(/(\S) ([0-9]+)\.\s/g, (_, prev, num) => `${prev} ${num}) `);
@@ -44,36 +44,60 @@ const renderText = (t = "") =>
   fixInlineEnumerations(stripCitations(normalizeBullets(t)));
 
 /* =========================================
-   NEW: Supabase + API client for check-ins
+   NEW: Token capture & API client (no SDK)
 ========================================= */
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-);
-
-async function getBearer() {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
+// Store/retrieve Supabase access token locally (from magic-link redirect)
+function getStoredToken() {
+  try {
+    const t = localStorage.getItem("sb_access_token");
+    const exp = Number(localStorage.getItem("sb_access_token_exp") || 0);
+    if (!t || Date.now() > exp) return null;
+    return t;
+  } catch {
+    return null;
+  }
+}
+function captureTokenFromHash() {
+  const hash = window.location.hash?.startsWith("#")
+    ? window.location.hash.slice(1)
+    : "";
+  if (!hash) return false;
+  const p = new URLSearchParams(hash);
+  const access = p.get("access_token");
+  const type = (p.get("token_type") || "").toLowerCase();
+  const expiresIn = parseInt(p.get("expires_in") || "3600", 10);
+  if (access && (!type || type === "bearer")) {
+    const expAt = Date.now() + expiresIn * 1000;
+    localStorage.setItem("sb_access_token", access);
+    localStorage.setItem("sb_access_token_exp", String(expAt));
+    // clean URL (remove hash)
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    return true;
+  }
+  return false;
+}
+function clearToken() {
+  localStorage.removeItem("sb_access_token");
+  localStorage.removeItem("sb_access_token_exp");
 }
 
 async function apiGet(path) {
-  const token = await getBearer();
-  const res = await fetch(`${process.env.REACT_APP_API_URL}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  const token = getStoredToken();
+  const res = await fetch(`${API_ROOT}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
 async function apiPost(path, body) {
-  const token = await getBearer();
-  const res = await fetch(`${process.env.REACT_APP_API_URL}${path}`, {
+  const token = getStoredToken();
+  const res = await fetch(`${API_ROOT}${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -144,12 +168,8 @@ function AssistantView() {
           <div key={idx} className={`bubble ${msg.role}`}>
             <ReactMarkdown
               components={{
-                li: ({ node, ...props }) => (
-                  <li style={{ fontWeight: 400 }} {...props} />
-                ),
-                p: ({ node, ...props }) => (
-                  <p style={{ margin: "4px 0" }} {...props} />
-                ),
+                li: ({ node, ...props }) => <li style={{ fontWeight: 400 }} {...props} />,
+                p: ({ node, ...props }) => <p style={{ margin: "4px 0" }} {...props} />,
                 ul: ({ node, ...props }) => (
                   <ul style={{ margin: "4px 0", paddingLeft: "1.1rem" }} {...props} />
                 ),
@@ -186,12 +206,11 @@ function AssistantView() {
 /* =========================
    NEW: Check-in UI
 ========================= */
-// Replace your existing EmailLogin with this:
 function EmailLogin() {
-  const [email, setEmail] = React.useState("");
-  const [sent, setSent] = React.useState(false);
-  const [err, setErr] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function sendLink(e) {
     e.preventDefault();
@@ -202,10 +221,10 @@ function EmailLogin() {
     const redirectTo = `${window.location.origin}/checkin${window.location.search || ""}`;
 
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "/api"}/sendMagicLink`, {
+      const res = await fetch(`${API_ROOT}/sendMagicLink`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, redirectTo })
+        body: JSON.stringify({ email, redirectTo }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Could not send magic link");
@@ -237,11 +256,9 @@ function EmailLogin() {
   );
 }
 
-
-
 function CheckinView() {
-  const childEmail = getChildEmailFromQuery() || "child@example.com"; // Tevello can pass ?email={{customer.email}}
-  const [ready, setReady] = useState(false);
+  const childEmail = getChildEmailFromQuery() || "child@example.com";
+  const [ready, setReady] = useState(!!getStoredToken());
   const [rows, setRows] = useState([]);
   const [mood, setMood] = useState(3);
   const [sleep, setSleep] = useState(7);
@@ -249,22 +266,24 @@ function CheckinView() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
-  // Watch auth
+  // Capture token if arriving from magic link; watch storage changes
   useEffect(() => {
-    let mounted = true;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) setReady(!!session);
-      if (session) loadData();
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      setReady(!!session);
-      if (session) loadData();
-    });
-    return () => {
-      mounted = false;
-      sub?.subscription?.unsubscribe();
-    };
+    const captured = captureTokenFromHash();
+    if (captured) setReady(true);
+
+    function onStorage(e) {
+      if (e.key === "sb_access_token" || e.key === "sb_access_token_exp") {
+        setReady(!!getStoredToken());
+      }
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  useEffect(() => {
+    if (ready) loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, childEmail]);
 
   async function loadData() {
     try {
@@ -297,6 +316,12 @@ function CheckinView() {
     }
   }
 
+  function signOut() {
+    clearToken();
+    setReady(false);
+    setRows([]);
+  }
+
   const chartData = {
     labels: rows.map((r) => new Date(r.checkin_date).toLocaleDateString()),
     datasets: [
@@ -319,19 +344,43 @@ function CheckinView() {
   return (
     <div className="chat-container" style={{ maxWidth: 640 }}>
       <h1>Daily Check-In</h1>
-      <p>Child: <b>{childEmail}</b></p>
+      <p>
+        Child: <b>{childEmail}</b>
+      </p>
 
       <form onSubmit={submit} className="composer" style={{ display: "grid", gap: 12 }}>
-        <label>Mood (1–5)
-          <input type="range" min="1" max="5" value={mood} onChange={(e) => setMood(e.target.value)} />
+        <label>
+          Mood (1–5)
+          <input
+            type="range"
+            min="1"
+            max="5"
+            value={mood}
+            onChange={(e) => setMood(e.target.value)}
+          />
         </label>
-        <label>Sleep (hours)
+        <label>
+          Sleep (hours)
           <input type="number" value={sleep} onChange={(e) => setSleep(e.target.value)} />
         </label>
-        <label>Energy (1–10)
-          <input type="range" min="1" max="10" value={energy} onChange={(e) => setEnergy(e.target.value)} />
+        <label>
+          Energy (1–10)
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={energy}
+            onChange={(e) => setEnergy(e.target.value)}
+          />
         </label>
-        <button type="submit" disabled={saving}>{saving ? "Saving..." : "Submit"}</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving..." : "Submit"}
+          </button>
+          <button type="button" onClick={signOut}>
+            Sign out
+          </button>
+        </div>
       </form>
 
       <h2 style={{ marginTop: 24 }}>Progress</h2>
@@ -345,21 +394,28 @@ function CheckinView() {
    Root App with Tabs
 ========================= */
 function App() {
+  // If you want to auto-open the Check-in tab via ?tab=checkin
+  useEffect(() => {
+    captureTokenFromHash(); // also capture if the user lands on "/"
+  }, []);
+
   const [tab, setTab] = useState("assistant"); // "assistant" | "checkin"
 
   return (
     <div>
       {/* Simple tab header */}
-      <div style={{
-        display: "flex",
-        gap: 12,
-        padding: "12px 16px",
-        borderBottom: "1px solid #eee",
-        position: "sticky",
-        top: 0,
-        background: "#fff",
-        zIndex: 10
-      }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          padding: "12px 16px",
+          borderBottom: "1px solid #eee",
+          position: "sticky",
+          top: 0,
+          background: "#fff",
+          zIndex: 10,
+        }}
+      >
         <button
           onClick={() => setTab("assistant")}
           className={tab === "assistant" ? "btn-primary" : "btn"}
