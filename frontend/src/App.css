@@ -1,7 +1,184 @@
-:root {
-  --gap: 8px;
-  --bubble-radius: 16px;
+/* === Google Form Look === */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+:root{
+  --g-bg:#f8f9fa;
+  --g-surface:#fff;
+  --g-text:#202124;
+  --g-muted:#5f6368;
+  --g-border:#dadce0;
+  --g-purple:#673ab7;
+  --g-purple-600:#5e35b1;
+  --g-error:#d93025;
 }
+
+.gform-wrap{
+  background: var(--g-bg);
+  min-height: 100%;
+  font-family: Roboto, system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, sans-serif;
+  color: var(--g-text);
+}
+
+.gform-header{
+  background: linear-gradient(180deg, var(--g-purple), #7e57c2);
+  color:#fff;
+  padding: 24px 0;
+}
+.gform-header__inner{
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.gform-title{
+  margin:0 0 8px 0;
+  font-size: 28px;
+  font-weight:700;
+}
+.gform-sub{
+  margin: 0 0 6px 0;
+  opacity:.95;
+}
+
+.gform-main{
+  max-width: 720px;
+  margin: 0 auto 40px;
+  padding: 0 16px;
+  transform: translateY(-20px);
+}
+.gform-form{
+  border-radius: 8px;
+}
+
+.gform-card{
+  background: var(--g-surface);
+  border: 1px solid var(--g-border);
+  border-radius: 8px;
+  padding: 18px 18px 12px;
+  margin: 16px 0;
+}
+.gform-card--error{
+  border-color: var(--g-error);
+}
+
+.gform-q{
+  font-size:16px;
+  font-weight:500;
+  margin: 0 0 10px 0;
+}
+.req{ color: var(--g-error); }
+
+.gform-answer{ }
+
+.gform-input,
+.gform-select,
+.gform-textarea{
+  width:100%;
+  background:transparent;
+  border:none;
+  border-bottom: 1px solid var(--g-border);
+  outline: none;
+  padding: 10px 4px 8px;
+  font-size:14px;
+}
+.gform-input:focus,
+.gform-select:focus,
+.gform-textarea:focus{
+  border-bottom-color: var(--g-purple);
+}
+
+.gform-help{
+  font-size:12px;
+  color: var(--g-muted);
+  margin-top:6px;
+}
+
+/* Linear scale (Google Forms-like) */
+.gform-scale{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.gform-scale__label{
+  font-size:12px;
+  color: var(--g-muted);
+  text-align:left;
+}
+.gform-scale__grid{
+  display:grid;
+  grid-template-rows: auto auto;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px 12px;
+  align-items:center;
+  justify-items:center;
+}
+.gform-scale__nums{
+  display: contents;
+}
+.gform-scale__nums > div{
+  font-size:12px;
+  color: var(--g-muted);
+}
+.gform-scale__radios{
+  display: contents;
+}
+.gform-scale__cell{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.gform-scale__cell input{
+  appearance:none;
+  width:16px; height:16px;
+  border:2px solid var(--g-border);
+  border-radius:50%;
+  outline:none;
+  margin:0;
+  position:relative;
+  cursor:pointer;
+}
+.gform-scale__cell input:checked{
+  border-color: var(--g-purple);
+}
+.gform-scale__cell input:checked::after{
+  content:"";
+  position:absolute; inset:3px;
+  background: var(--g-purple);
+  border-radius:50%;
+}
+
+/* Actions */
+.gform-actions{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin: 12px 0 24px;
+}
+.gform-submit{
+  background: var(--g-purple);
+  color:#fff;
+  border:none;
+  border-radius: 24px;
+  padding: 10px 24px;
+  font-size:14px;
+  cursor:pointer;
+}
+.gform-submit:hover{ background: var(--g-purple-600); }
+.gform-required{ color: var(--g-muted); font-size:12px; }
+
+.gform-text{ margin:0; font-size:16px; }
+.gform-link{
+  background:none; border:none; color: var(--g-purple);
+  text-decoration: underline; cursor:pointer; padding:0; margin-top:12px;
+}
+
+/* Error text */
+.gform-error{ color: var(--g-error); margin:0; }
+
+/* Mobile tweaks */
+@media (max-width: 480px){
+  .gform-header__inner, .gform-main{ padding: 0 12px; }
+}
+
 
 /* Container */
 .chat-container {
