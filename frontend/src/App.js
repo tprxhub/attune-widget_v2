@@ -325,13 +325,14 @@ function EmailLogin() {
 ========================= */
 
 function CheckinFormView() {
-  // Only read ?email from Tevello ({{ customer.email }})
   const search = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const preEmail = search.get("email") || "";
 
-  // --- Form state (no preselection) ---
+  // Hidden but logged
+  const [email] = React.useState(preEmail);
+
+  // Visible fields (no preselection)
   const [name, setName] = React.useState("");
-  const [email] = React.useState(preEmail);          // hidden but logged
   const GOALS = ["Fine motor", "Perception", "Handwriting"];
   const ACTIVITIES = [
     "Forerunner - Activity #1","Forerunner - Activity #2","Forerunner - Activity #3","Forerunner - Activity #4","Forerunner - Activity #5",
@@ -339,10 +340,10 @@ function CheckinFormView() {
     "Advancer - Activity #11","Advancer - Activity #12","Starter - Activity #13","Starter - Activity #14","Starter - Activity #15"
   ];
 
-  const [goal, setGoal] = React.useState("");        // blank -> user must choose
-  const [activity, setActivity] = React.useState("");//
-  const [completion, setCompletion] = React.useState(null); // 1–5, no default
-  const [mood, setMood] = React.useState(null);             // 1–5, no default
+  const [goal, setGoal] = React.useState("");
+  const [activity, setActivity] = React.useState("");
+  const [completion, setCompletion] = React.useState(null); // 1–5
+  const [mood, setMood] = React.useState(null);             // 1–5
   const [notes, setNotes] = React.useState("");
 
   const [submitting, setSubmitting] = React.useState(false);
@@ -355,7 +356,6 @@ function CheckinFormView() {
     e.preventDefault();
     setErr("");
 
-    // Required checks (kept simple; matches Google Forms behavior)
     if (!name.trim()) return setErr("Please enter the child's name.");
     if (!email.trim()) return setErr("Missing child email from Tevello.");
     if (!goal) return setErr("Please select a goal.");
@@ -365,7 +365,7 @@ function CheckinFormView() {
 
     setSubmitting(true);
     try {
-      // 👇 EMAIL IS LOGGED HERE (hidden in UI but sent to Supabase)
+      // EMAIL IS LOGGED here (hidden from UI but included in payload)
       await apiPost("/saveCheckins", {
         child_name: name,
         child_email: email,
@@ -397,17 +397,17 @@ function CheckinFormView() {
   if (submitted) {
     return (
       <div className="gform-wrap">
-        <header
-          className={`gform-header ${hasHeaderImage ? "has-img" : ""}`}
-          style={hasHeaderImage ? { backgroundImage: `url(${CHECKIN_HEADER_IMAGE_URL})` } : {}}
-        >
-          <div className="gform-header__inner">
-            <h1 className="gform-title">Daily Check In!</h1>
-          </div>
-        </header>
-
         <main className="gform-main">
-          <section className="gform-card">
+          {hasHeaderImage && (
+            <div
+              className="gform-banner"
+              style={{ backgroundImage: `url(${CHECKIN_HEADER_IMAGE_URL})` }}
+              aria-label="Header image"
+            />
+          )}
+
+          <section className="gform-card gform-intro">
+            <h1 className="gform-title">Daily Check In!</h1>
             <p className="gform-text">Your response has been recorded.</p>
             <button type="button" className="gform-link" onClick={resetForm}>
               Submit another response
@@ -420,25 +420,31 @@ function CheckinFormView() {
 
   return (
     <div className="gform-wrap">
-      <header
-        className={`gform-header ${hasHeaderImage ? "has-img" : ""}`}
-        style={hasHeaderImage ? { backgroundImage: `url(${CHECKIN_HEADER_IMAGE_URL})` } : {}}
-      >
-        <div className="gform-header__inner">
+      <main className="gform-main">
+        {hasHeaderImage && (
+          <div
+            className="gform-banner"
+            style={{ backgroundImage: `url(${CHECKIN_HEADER_IMAGE_URL})` }}
+            aria-label="Header image"
+          />
+        )}
+
+        {/* Intro card BELOW the image, same width as questions */}
+        <section className="gform-card gform-intro">
           <h1 className="gform-title">Daily Check In!</h1>
           <p className="gform-sub">
-            This form is meant to help you track your child's progress.{" "}
-            It might be different on different days—you might even need to repeat
-            some activities for a couple days. But that's okay! Log it here to
-            track progress and celebrate every win!
+            This form is meant to help you track your child's progress. It might be
+            different on different days—you might even need to repeat some activities
+            for a couple days. But that's okay! Log it here to track progress and
+            celebrate every win!
           </p>
-          <p className="gform-sub"><em><span className="req">*</span> Indicates required question</em></p>
-        </div>
-      </header>
+          <p className="gform-sub">
+            <em><span className="req">*</span> Indicates required question</em>
+          </p>
+        </section>
 
-      <main className="gform-main">
         <form className="gform-form" onSubmit={onSubmit} noValidate>
-          {/* Hidden email field (from Tevello) */}
+          {/* Hidden email from Tevello (logged but not shown) */}
           <input type="hidden" value={email} />
 
           {/* Child name (required) */}
@@ -458,9 +464,11 @@ function CheckinFormView() {
             </div>
           </section>
 
-          {/* Goal (dropdown, blank initially) */}
+          {/* Goal (dropdown — starts blank, no "Select" label) */}
           <section className="gform-card">
-            <h2 className="gform-q">Which goal did you work on today? <span className="req">*</span></h2>
+            <h2 className="gform-q">
+              Which goal did you work on today? <span className="req">*</span>
+            </h2>
             <div className="gform-answer">
               <select
                 className="gform-select"
@@ -468,15 +476,19 @@ function CheckinFormView() {
                 onChange={(e) => setGoal(e.target.value)}
                 required
               >
-                <option value="" disabled hidden>Select</option>
-                {GOALS.map((g) => <option key={g} value={g}>{g}</option>)}
+                <option value="" disabled></option>
+                {GOALS.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
               </select>
             </div>
           </section>
 
-          {/* Activity (dropdown, blank initially) */}
+          {/* Activity (dropdown — starts blank) */}
           <section className="gform-card">
-            <h2 className="gform-q">Which activity did you do today? <span className="req">*</span></h2>
+            <h2 className="gform-q">
+              Which activity did you do today? <span className="req">*</span>
+            </h2>
             <div className="gform-answer">
               <select
                 className="gform-select"
@@ -484,15 +496,19 @@ function CheckinFormView() {
                 onChange={(e) => setActivity(e.target.value)}
                 required
               >
-                <option value="" disabled hidden>Select</option>
-                {ACTIVITIES.map((a) => <option key={a} value={a}>{a}</option>)}
+                <option value="" disabled></option>
+                {ACTIVITIES.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
               </select>
             </div>
           </section>
 
-          {/* Completion (linear scale, none selected initially) */}
+          {/* Completion (linear scale — none selected initially) */}
           <section className="gform-card">
-            <h2 className="gform-q">Did the child complete the task? <span className="req">*</span></h2>
+            <h2 className="gform-q">
+              Did the child complete the task? <span className="req">*</span>
+            </h2>
             <div className="gform-scale">
               <div className="gform-scale__label">Did not want to do it</div>
               <div className="gform-scale__grid">
@@ -508,7 +524,6 @@ function CheckinFormView() {
                         value={n}
                         checked={completion === n}
                         onChange={() => setCompletion(n)}
-                        // 'required' on ONE input in the group enforces a choice when none selected
                         required={i === 0}
                       />
                       <span className="gform-radio" aria-hidden />
@@ -520,9 +535,11 @@ function CheckinFormView() {
             </div>
           </section>
 
-          {/* Mood (linear scale, none selected initially) */}
+          {/* Mood (linear scale — none selected initially) */}
           <section className="gform-card">
-            <h2 className="gform-q">What was the child's mood today? <span className="req">*</span></h2>
+            <h2 className="gform-q">
+              What was the child's mood today? <span className="req">*</span>
+            </h2>
             <div className="gform-scale">
               <div className="gform-scale__label">Dysregulated</div>
               <div className="gform-scale__grid">
