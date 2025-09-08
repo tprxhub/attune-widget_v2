@@ -1,5 +1,5 @@
-/* === Google Form Look === */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+/* === Google Form Look (Josefin Sans + optional image header) === */
+@import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;500;600;700&display=swap');
 
 :root{
   --g-bg:#f8f9fa;
@@ -15,24 +15,39 @@
 .gform-wrap{
   background: var(--g-bg);
   min-height: 100%;
-  font-family: Roboto, system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Josefin Sans', system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, sans-serif;
   color: var(--g-text);
 }
 
+/* Header: purple fallback; image if .has-img + inline style backgroundImage */
 .gform-header{
+  position: relative;
   background: linear-gradient(180deg, var(--g-purple), #7e57c2);
   color:#fff;
-  padding: 24px 0;
+  padding: 28px 0;
+}
+.gform-header.has-img{
+  background-size: cover;
+  background-position: center;
+}
+.gform-header.has-img::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.25));
 }
 .gform-header__inner{
+  position: relative;
+  z-index: 1;
   max-width: 720px;
   margin: 0 auto;
   padding: 0 16px;
 }
 .gform-title{
   margin:0 0 8px 0;
-  font-size: 28px;
+  font-size: 30px;
   font-weight:700;
+  letter-spacing: .2px;
 }
 .gform-sub{
   margin: 0 0 6px 0;
@@ -43,7 +58,7 @@
   max-width: 720px;
   margin: 0 auto 40px;
   padding: 0 16px;
-  transform: translateY(-20px);
+  transform: translateY(-18px);
 }
 .gform-form{
   border-radius: 8px;
@@ -62,7 +77,7 @@
 
 .gform-q{
   font-size:16px;
-  font-weight:500;
+  font-weight:600;
   margin: 0 0 10px 0;
 }
 .req{ color: var(--g-error); }
@@ -78,13 +93,14 @@
   border-bottom: 1px solid var(--g-border);
   outline: none;
   padding: 10px 4px 8px;
-  font-size:14px;
+  font-size:15px;
 }
 .gform-input:focus,
 .gform-select:focus,
 .gform-textarea:focus{
   border-bottom-color: var(--g-purple);
 }
+.gform-textarea{ resize: vertical; }
 
 .gform-help{
   font-size:12px;
@@ -92,7 +108,7 @@
   margin-top:6px;
 }
 
-/* Linear scale (Google Forms-like) */
+/* Linear scale like Google Forms */
 .gform-scale{
   display: grid;
   grid-template-columns: 1fr;
