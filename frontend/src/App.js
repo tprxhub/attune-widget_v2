@@ -20,6 +20,28 @@ const GOOGLE_FORM_URL =
 //    Find it via Form → ⋮ → Get pre-filled link → type a test email → Get link → copy URL → look for entry.########=...
 const GOOGLE_FORM_EMAIL_ENTRY = "entry.1860338265"; 
 
+// --- URL tab helpers ---
+const VALID_TABS = new Set(["assistant", "checkin", "progress"]);
+
+function getTabFromURL() {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const t = (q.get("tab") || "").toLowerCase();
+    return VALID_TABS.has(t) ? t : "checkin";
+  } catch {
+    return "checkin";
+  }
+}
+
+function setTabInURL(tab) {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    q.set("tab", tab);
+    const url = window.location.pathname + "?" + q.toString();
+    window.history.replaceState(null, "", url);
+  } catch {}
+}
+
 /* =========================
    Shared helpers
 ========================= */
@@ -405,11 +427,22 @@ function App() {
     captureTokenFromHash();
   }, []);
 
-  const [tab, setTab] = useState("checkin"); // "assistant" | "checkin" | "progress"
+  const [tab, setTab] = React.useState(getTabFromURL());
+
+  // Keep the URL in sync when the user clicks tabs
+  useEffect(() => {
+    setTabInURL(tab);
+  }, [tab]);
+
+  // Also react to browser back/forward (so embeds can navigate if needed)
+  useEffect(() => {
+    const onPop = () => setTab(getTabFromURL());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   return (
     <div>
-      {/* Tabs */}
       <div
         style={{
           display: "flex",
@@ -422,18 +455,26 @@ function App() {
           zIndex: 10,
         }}
       >
-        <button onClick={() => setTab("assistant")} className={tab === "assistant" ? "btn-primary" : "btn"}>
+        <button
+          onClick={() => setTab("assistant")}
+          className={tab === "assistant" ? "btn-primary" : "btn"}
+        >
           Assistant
         </button>
-        <button onClick={() => setTab("checkin")} className={tab === "checkin" ? "btn-primary" : "btn"}>
+        <button
+          onClick={() => setTab("checkin")}
+          className={tab === "checkin" ? "btn-primary" : "btn"}
+        >
           Check-In (Form)
         </button>
-        <button onClick={() => setTab("progress")} className={tab === "progress" ? "btn-primary" : "btn"}>
+        <button
+          onClick={() => setTab("progress")}
+          className={tab === "progress" ? "btn-primary" : "btn"}
+        >
           Progress (Private)
         </button>
       </div>
 
-      {/* Views */}
       {tab === "assistant" && <AssistantView />}
       {tab === "checkin" && <CheckinFormView />}
       {tab === "progress" && <ProgressView />}
