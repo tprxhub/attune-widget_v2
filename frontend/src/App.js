@@ -1,72 +1,27 @@
 // frontend/src/App.js
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
-// charts — keep this block ONCE only
 import { Line as LineChart } from "react-chartjs-2";
 import {
   Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
+  CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend,
 } from "chart.js";
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
-
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 import "./App.css";
 
-// --- DEV GUARD: block any client call to supabase.co so we see it fast ---
-if (typeof window !== 'undefined') {
-  const _fetch = window.fetch;
-  window.fetch = (...args) => {
-    const url = String(args[0] || '');
-    if (url.includes('supabase.co')) {
-      console.warn('[BLOCKED CLIENT CALL TO SUPABASE]', url);
-      return Promise.reject(new Error('Client must not call supabase.co (use /api instead).'));
-    }
-    return _fetch(...args);
-  };
-}
+/* ========== GOOGLE FORM CONFIG — SET THESE ========== */
+
+//    Or set REACT_APP_GOOGLE_FORM_URL in Vercel and leave this as fallback.
+const GOOGLE_FORM_URL =
+  process.env.REACT_APP_GOOGLE_FORM_URL ||
+    "https://docs.google.com/forms/d/e/1FAIpQLSdafXjeB2ZX8bnyYzcsu7LiB0G-6cKxaL0LD7cAjTRlV9WAhA/viewform?embedded=true";
+
+// 2) The entry key for your Email field in the Form (e.g., "entry.1234567890").
+//    Find it via Form → ⋮ → Get pre-filled link → type a test email → Get link → copy URL → look for entry.########=...
+const GOOGLE_FORM_EMAIL_ENTRY = "entry.1860338265"; 
 
 /* =========================
-   Error Boundary (avoid blank page)
-========================= */
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, msg: "" };
-  }
-  static getDerivedStateFromError(err) {
-    return { hasError: true, msg: err?.message || "Something went wrong" };
-  }
-  componentDidCatch(err, info) {
-    console.error("ErrorBoundary caught:", err, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="chat-container">
-          <h2>Oops — something broke.</h2>
-          <p>{this.state.msg}</p>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-/* =========================
-   Shared helpers (unchanged)
+   Shared helpers
 ========================= */
 function normalizeBullets(s = "") {
   return s
@@ -74,14 +29,22 @@ function normalizeBullets(s = "") {
     .replace(/(^|\n)\s*(\d+)\.\s*\n+/g, "$1$2. ")
     .replace(/(^|\n)\s*([-*•])\s*\n+/g, "$1$2 ");
 }
-const API_BASE = process.env.REACT_APP_BACKEND_URL || "/api"; // assistant only
-const API_ROOT = process.env.REACT_APP_API_URL || "/api";     // check-in APIs
+const API_BASE = process.env.REACT_APP_BACKEND_URL || "/api"; // for your assistant only
+const API_ROOT = process.env.REACT_APP_API_URL || "/api";     // for your check-in APIs
 
 const stripCitations = (text = "") => text.replace(/【[^】]*】/g, "");
 const fixInlineEnumerations = (t = "") =>
   t.replace(/(\S) ([0-9]+)\.\s/g, (_, prev, num) => `${prev} ${num}) `);
-const renderText = (t = "") =>
-  fixInlineEnumerations(stripCitations(normalizeBullets(t)));
+const renderText = (t = "") => fixInlineEnumerations(stripCitations(normalizeBullets(t)));
+
+function getChildEmailFromQuery() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("email") || "";
+  } catch {
+    return "";
+  }
+}
 
 /* =========================================
    Token capture & API client (no SDK calls)
@@ -97,9 +60,7 @@ function getStoredToken() {
   }
 }
 function captureTokenFromHash() {
-  const hash = window.location.hash?.startsWith("#")
-    ? window.location.hash.slice(1)
-    : "";
+  const hash = window.location.hash?.startsWith("#") ? window.location.hash.slice(1) : "";
   if (!hash) return false;
   const p = new URLSearchParams(hash);
   const access = p.get("access_token");
@@ -141,17 +102,8 @@ async function apiPost(path, body) {
   return res.json();
 }
 
-function getChildEmailFromQuery() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("email") || "";
-  } catch {
-    return "";
-  }
-}
-
 /* =========================
-   Assistant UI (existing)
+   Assistant UI (unchanged)
 ========================= */
 function AssistantView() {
   const [messages, setMessages] = useState([]);
@@ -181,12 +133,10 @@ function AssistantView() {
       const data = await response.json();
       if (!response.ok)
         throw new Error(data?.error || `Request failed: ${response.status}`);
-
-      const botMessage = {
-        role: "assistant",
-        content: normalizeBullets(data.reply),
-      };
-      setMessages((prev) => [...prev, botMessage]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: normalizeBullets(data.reply) },
+      ]);
     } catch (err) {
       console.error(err);
       setError("Sorry — something went wrong. Please try again.");
@@ -242,84 +192,139 @@ function AssistantView() {
 }
 
 /* =========================
-   Check-in UI
+   Login (OTP via your API)
 ========================= */
 function EmailLogin() {
-  const [step, setStep] = useState('email'); // 'email' | 'code'
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [err, setErr] = useState('');
+  const [step, setStep] = useState("email"); // 'email' | 'code'
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function sendCode(e) {
-    e.preventDefault(); setBusy(true); setErr('');
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/startOtp`, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ email })
+      const res = await fetch(`${API_ROOT}/startOtp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
-      const json = await res.json().catch(()=>({}));
-      if (!res.ok) throw new Error(json.error || 'Could not send code');
-      setStep('code');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Could not send code");
+      setStep("code");
     } catch (e) {
-      setErr(e.message || 'Unexpected error');
+      setErr(e.message || "Unexpected error");
     } finally {
       setBusy(false);
     }
   }
 
   async function verify(e) {
-    e.preventDefault(); setBusy(true); setErr('');
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/verifyOtp`, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({ email, token: code })
+      const res = await fetch(`${API_ROOT}/verifyOtp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token: code }),
       });
-      const json = await res.json().catch(()=>({}));
-      if (!res.ok || !json.access_token) throw new Error(json.error || 'Invalid code');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.access_token) throw new Error(json.error || "Invalid code");
 
-      const expAt = Date.now() + (json.expires_in || 3600)*1000;
-      localStorage.setItem('sb_access_token', json.access_token);
-      localStorage.setItem('sb_access_token_exp', String(expAt));
+      const expAt = Date.now() + (json.expires_in || 3600) * 1000;
+      localStorage.setItem("sb_access_token", json.access_token);
+      localStorage.setItem("sb_access_token_exp", String(expAt));
       // notify app to update state
-      window.dispatchEvent(new StorageEvent('storage', { key: 'sb_access_token' }));
+      window.dispatchEvent(new StorageEvent("storage", { key: "sb_access_token" }));
     } catch (e) {
-      setErr(e.message || 'Unexpected error');
+      setErr(e.message || "Unexpected error");
     } finally {
       setBusy(false);
     }
   }
 
-  return step === 'email' ? (
-    <form onSubmit={sendCode} style={{ display:'grid', gap:12 }}>
+  return step === "email" ? (
+    <form onSubmit={sendCode} style={{ display: "grid", gap: 12 }}>
       {err && <div className="bubble assistant">{err}</div>}
-      <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" />
-      <button type="submit" disabled={busy}>{busy ? 'Sending...' : 'Send code'}</button>
+      <input
+        type="email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="your@email.com"
+      />
+      <button type="submit" disabled={busy}>
+        {busy ? "Sending..." : "Send code"}
+      </button>
     </form>
   ) : (
-    <form onSubmit={verify} style={{ display:'grid', gap:12 }}>
+    <form onSubmit={verify} style={{ display: "grid", gap: 12 }}>
       {err && <div className="bubble assistant">{err}</div>}
-      <input inputMode="numeric" pattern="[0-9]*" maxLength={6}
-             required value={code} onChange={e=>setCode(e.target.value)} placeholder="Enter 6-digit code" />
-      <button type="submit" disabled={busy}>{busy ? 'Verifying...' : 'Verify'}</button>
+      <input
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={6}
+        required
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="Enter 6-digit code"
+      />
+      <button type="submit" disabled={busy}>
+        {busy ? "Verifying..." : "Verify"}
+      </button>
     </form>
   );
 }
 
+/* =========================
+   Check-In Form (exact Google Form)
+========================= */
+function CheckinFormView() {
+  const childEmail = getChildEmailFromQuery() || "";
 
-function CheckinView() {
-  const childEmail = getChildEmailFromQuery() || "child@example.com";
+  const formSrc = useMemo(() => {
+    try {
+      const u = new URL(GOOGLE_FORM_URL);
+      if (GOOGLE_FORM_EMAIL_ENTRY && childEmail) {
+        u.searchParams.set(GOOGLE_FORM_EMAIL_ENTRY, childEmail);
+      }
+      return u.toString();
+    } catch {
+      return GOOGLE_FORM_URL; // if someone pastes a partial URL, still render
+    }
+  }, [childEmail]);
+
+  return (
+    <div className="chat-container" style={{ maxWidth: 900 }}>
+      {/* Render ONLY the Google Form so the UI looks identical to your form */}
+      <iframe
+        title="Daily Check-In Form"
+        src={formSrc}
+        width="100%"
+        height="1100"
+        frameBorder="0"
+        style={{ border: 0, background: "#fff" }}
+        allow="clipboard-write; encrypted-media; fullscreen"
+      />
+      <p style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+        This form saves directly to your Google Sheet.
+      </p>
+    </div>
+  );
+}
+
+/* =========================
+   Progress (private chart)
+========================= */
+function ProgressView() {
+  const childEmail = getChildEmailFromQuery() || "";
   const [ready, setReady] = useState(false);
   const [rows, setRows] = useState([]);
-  const [mood, setMood] = useState(3);
-  const [sleep, setSleep] = useState(7);
-  const [energy, setEnergy] = useState(5);
-  const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
-  // Memoized loader prevents use-before-def in effects
   const loadData = useCallback(async () => {
     try {
       const qs = childEmail ? `?child_email=${encodeURIComponent(childEmail)}` : "";
@@ -331,7 +336,6 @@ function CheckinView() {
     }
   }, [childEmail]);
 
-  // Capture token at mount, then set ready based on storage
   useEffect(() => {
     const captured = captureTokenFromHash();
     const hasToken = captured || !!getStoredToken();
@@ -350,26 +354,6 @@ function CheckinView() {
     if (ready) loadData();
   }, [ready, loadData]);
 
-  async function submit(e) {
-    e.preventDefault();
-    setSaving(true);
-    setErr("");
-    try {
-      await apiPost("/saveCheckins", {
-        child_email: childEmail,
-        mood: Number(mood),
-        sleep_hours: Number(sleep),
-        energy: Number(energy),
-      });
-      await loadData();
-    } catch (e) {
-      console.error(e);
-      setErr("Could not save your check-in.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   function signOut() {
     clearToken();
     setReady(false);
@@ -385,61 +369,25 @@ function CheckinView() {
     ],
   };
 
-  if (!ready) {
-    return (
-      <div className="chat-container" style={{ maxWidth: 520 }}>
-        <h1>Daily Check-In</h1>
-        <p>Please sign in to view and submit check-ins.</p>
-        <EmailLogin />
-      </div>
-    );
-  }
-
   return (
-    <div className="chat-container" style={{ maxWidth: 640 }}>
-      <h1>Daily Check-In</h1>
-      <p>
-        Child: <b>{childEmail}</b>
-      </p>
-
-      <form onSubmit={submit} className="composer" style={{ display: "grid", gap: 12 }}>
-        <label>
-          Mood (1–5)
-          <input
-            type="range"
-            min="1"
-            max="5"
-            value={mood}
-            onChange={(e) => setMood(e.target.value)}
-          />
-        </label>
-        <label>
-          Sleep (hours)
-          <input type="number" value={sleep} onChange={(e) => setSleep(e.target.value)} />
-        </label>
-        <label>
-          Energy (1–10)
-          <input
-            type="range"
-            min="1"
-            max="10"
-            value={energy}
-            onChange={(e) => setEnergy(e.target.value)}
-          />
-        </label>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Submit"}
-          </button>
-          <button type="button" onClick={signOut}>
-            Sign out
-          </button>
-        </div>
-      </form>
-
-      <h2 style={{ marginTop: 24 }}>Progress</h2>
-      {err && <div className="bubble assistant">{err}</div>}
-      {rows.length ? <LineChart data={chartData} /> : <p>No data yet.</p>}
+    <div className="chat-container" style={{ maxWidth: 900 }}>
+      <h1>Progress</h1>
+      {!ready ? (
+        <>
+          <p>Sign in to view your private progress graph.</p>
+          <EmailLogin />
+        </>
+      ) : (
+        <>
+          {err && <div className="bubble assistant">{err}</div>}
+          {rows.length ? <LineChart data={chartData} /> : <p>No data yet.</p>}
+          <div style={{ marginTop: 12 }}>
+            <button className="btn" onClick={signOut}>
+              Sign out
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -448,47 +396,44 @@ function CheckinView() {
    Root App with Tabs
 ========================= */
 function App() {
-  // Also capture if they land on "/"
+  // capture token if they land on "/" after magic/OTP
   useEffect(() => {
     captureTokenFromHash();
   }, []);
 
-  const [tab, setTab] = useState("assistant"); // "assistant" | "checkin"
+  const [tab, setTab] = useState("checkin"); // "assistant" | "checkin" | "progress"
 
   return (
-    <ErrorBoundary>
-      <div>
-        {/* Simple tab header */}
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            padding: "12px 16px",
-            borderBottom: "1px solid #eee",
-            position: "sticky",
-            top: 0,
-            background: "#fff",
-            zIndex: 10,
-          }}
-        >
-          <button
-            onClick={() => setTab("assistant")}
-            className={tab === "assistant" ? "btn-primary" : "btn"}
-          >
-            Assistant
-          </button>
-          <button
-            onClick={() => setTab("checkin")}
-            className={tab === "checkin" ? "btn-primary" : "btn"}
-          >
-            Daily Check-In
-          </button>
-        </div>
-
-        {/* Views */}
-        {tab === "assistant" ? <AssistantView /> : <CheckinView />}
+    <div>
+      {/* Tabs */}
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          padding: "12px 16px",
+          borderBottom: "1px solid #eee",
+          position: "sticky",
+          top: 0,
+          background: "#fff",
+          zIndex: 10,
+        }}
+      >
+        <button onClick={() => setTab("assistant")} className={tab === "assistant" ? "btn-primary" : "btn"}>
+          Assistant
+        </button>
+        <button onClick={() => setTab("checkin")} className={tab === "checkin" ? "btn-primary" : "btn"}>
+          Check-In (Form)
+        </button>
+        <button onClick={() => setTab("progress")} className={tab === "progress" ? "btn-primary" : "btn"}>
+          Progress (Private)
+        </button>
       </div>
-    </ErrorBoundary>
+
+      {/* Views */}
+      {tab === "assistant" && <AssistantView />}
+      {tab === "checkin" && <CheckinFormView />}
+      {tab === "progress" && <ProgressView />}
+    </div>
   );
 }
 
