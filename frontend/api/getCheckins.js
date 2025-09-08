@@ -1,46 +1,52 @@
-// frontend/api/getCheckins.js
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
+const sbAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { persistSession: false } }
+  { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
+/**
+ * Query params:
+ *   ?child_email=...   (required to scope the graph per child)
+ *   ?since=YYYY-MM-DD  (optional)
+ *   ?until=YYYY-MM-DD  (optional)
+ */
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  try {
-    // 1) Verify Supabase auth token from client
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ error: 'Missing Authorization Bearer token' });
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Missing bearer token' });
 
-    const { data: userData, error: authErr } = await supabaseAdmin.auth.getUser(token);
-    if (authErr || !userData?.user?.id) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
-    const parentId = userData.user.id;
+  const { data: userData, error: userErr } = await sbAdmin.auth.getUser(token);
+  if (userErr || !userData?.user) return res.status(401).json({ error: 'Invalid token' });
+  const user_id = userData.user.id;
 
-    // 2) Optional filter by child_email
-    const { child_email } = req.query;
+  const child_email = req.query.child_email || req.query.childEmail;
+  if (!child_email) return res.status(400).json({ error: 'child_email is required' });
 
-    let query = supabaseAdmin
-      .from('checkins')
-      .select('*')
-      .eq('parent_id', parentId)
-      .order('checkin_date', { ascending: true });
+  const since = req.query.since || null;
+  const until = req.query.until || null;
 
-    if (child_email) query = query.eq('child_email', child_email);
+  let q = sbAdmin
+    .from('checkins')
+    .select(
+      'id, created_at, checkin_date, child_email, child_name, goal, activity, completion_score, mood_score, sleep_hours, notes'
+    )
+    .eq('user_id', user_id)
+    .eq('child_email', child_email)
+    .order('checkin_date', { ascending: true })
+    .order('created_at', { ascending: true });
 
-    const { data, error } = await query;
-    if (error) return res.status(500).json({ error: error.message });
+  if (since) q = q.gte('checkin_date', since);
+  if (until) q = q.lte('checkin_date', until);
 
-    return res.status(200).json({ rows: data || [] });
-  } catch (err) {
-    console.error('getCheckins error', err);
-    return res.status(500).json({ error: 'Server error' });
-  }
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ error: error.message });
+
+  return res.status(200).json({
+    rows: data || [],
+    count: data?.length || 0
+  });
 }
