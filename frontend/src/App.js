@@ -319,40 +319,25 @@ function EmailLogin() {
 ========================= */
 
 function CheckinFormView() {
-  // Only read ?email from the URL (Tevello passes {{ customer.email }})
-  const search = new URLSearchParams(
-    typeof window !== "undefined" ? window.location.search : ""
-  );
+  // Only read ?email from Tevello ({{ customer.email }})
+  const search = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const preEmail = search.get("email") || "";
 
   // Form state
-  const [name, setName] = React.useState("");       // no prefill from URL
-  const [email, setEmail] = React.useState(preEmail); // prefilled from ?email only
-
+  const [name, setName] = React.useState("");
+  const [email] = React.useState(preEmail); // prefilled, hidden in UI but sent to API
   const GOALS = ["Fine motor", "Perception", "Handwriting"];
   const ACTIVITIES = [
-    "Forerunner - Activity #1",
-    "Forerunner - Activity #2",
-    "Forerunner - Activity #3",
-    "Forerunner - Activity #4",
-    "Forerunner - Activity #5",
-    "Starter - Activity #6",
-    "Starter - Activity #7",
-    "Starter - Activity #8",
-    "Starter - Activity #9",
-    "Starter - Activity #10",
-    "Advancer - Activity #11",
-    "Advancer - Activity #12",
-    "Starter - Activity #13",
-    "Starter - Activity #14",
-    "Starter - Activity #15",
+    "Forerunner - Activity #1","Forerunner - Activity #2","Forerunner - Activity #3","Forerunner - Activity #4","Forerunner - Activity #5",
+    "Starter - Activity #6","Starter - Activity #7","Starter - Activity #8","Starter - Activity #9","Starter - Activity #10",
+    "Advancer - Activity #11","Advancer - Activity #12","Starter - Activity #13","Starter - Activity #14","Starter - Activity #15"
   ];
-
   const [goal, setGoal] = React.useState(GOALS[0]);
   const [activity, setActivity] = React.useState(ACTIVITIES[0]);
-  const [completion, setCompletion] = React.useState(3);
-  const [mood, setMood] = React.useState(3);
+  const [completion, setCompletion] = React.useState(3); // 1–5
+  const [mood, setMood] = React.useState(3);            // 1–5
   const [notes, setNotes] = React.useState("");
+
   const [submitting, setSubmitting] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
   const [err, setErr] = React.useState("");
@@ -360,17 +345,15 @@ function CheckinFormView() {
   async function onSubmit(e) {
     e.preventDefault();
     setErr("");
-
     if (!name.trim() || !email.trim()) {
       setErr("Please fill out all required fields.");
       return;
     }
-
     setSubmitting(true);
     try {
       await apiPost("/saveCheckins", {
         child_name: name,
-        child_email: email,                  // comes only from ?email
+        child_email: email, // from Tevello
         goal,
         activity,
         completion_score: Number(completion),
@@ -393,172 +376,185 @@ function CheckinFormView() {
     setCompletion(3);
     setMood(3);
     setNotes("");
-    // keep email prefilled from Tevello; clear name for a fresh entry
     setName("");
   }
 
   if (submitted) {
     return (
-      <div className="gform-shell">
-        <header className="gform-hero">
-          <h1 className="gform-title">Daily Check In!</h1>
+      <div className="gform-wrap">
+        <header className="gform-header">
+          <div className="gform-header__inner">
+            <h1 className="gform-title">Daily Check In!</h1>
+          </div>
         </header>
-        <div className="gform-card">
-          <p style={{ fontSize: 16, margin: 0 }}>Your response has been recorded.</p>
-          <div style={{ marginTop: 16 }}>
-            <button className="gform-link" onClick={resetForm}>
+
+        <main className="gform-main">
+          <section className="gform-card">
+            <p className="gform-text">Your response has been recorded.</p>
+            <button type="button" className="gform-link" onClick={resetForm}>
               Submit another response
             </button>
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="gform-shell">
-      <header className="gform-hero">
-        <h1 className="gform-title">Daily Check In!</h1>
-        <p className="gform-desc">
-          This form is meant to help you track your child's progress. <span className="req">*</span> Indicates required question
-        </p>
+    <div className="gform-wrap">
+      <header className="gform-header">
+        <div className="gform-header__inner">
+          <h1 className="gform-title">Daily Check In!</h1>
+          <p className="gform-sub">
+            This form is meant to help you track your child's progress.{" "}
+            It might be different on different days—you might even need to repeat
+            some activities for a couple days. But that's okay! Log it here to
+            track progress and celebrate every win!
+          </p>
+          <p className="gform-sub"><em><span className="req">*</span> Indicates required question</em></p>
+        </div>
       </header>
 
-      <form className="gform-form" onSubmit={onSubmit}>
-        {/* Child name (required, typed by user) */}
-        <div className="gform-card">
-          <label className="gform-q-title">
-            What is the child's name? <span className="req">*</span>
-          </label>
-          <input
-            className="gform-input"
-            type="text"
-            placeholder="Your answer"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
+      <main className="gform-main">
+        <form className="gform-form" onSubmit={onSubmit} noValidate>
+          {/* Hidden email (from Tevello). If you prefer visible read-only, uncomment the visible block below */}
+          <input type="hidden" value={email} />
 
-        {/* Email (required, auto-filled from ?email and read-only) */}
-        <div className="gform-card">
-          <label className="gform-q-title">
-            Email (auto-filled) <span className="req">*</span>
-          </label>
-          <input
-            className="gform-input"
-            type="email"
-            value={email}
-            readOnly
-            placeholder="name@example.com"
-            required
-          />
-          <p style={{ color: "#5f6368", fontSize: 12, marginTop: 6 }}>
-            This email is provided by your Tevello login.
-          </p>
-        </div>
-
-        {/* Goal */}
-        <div className="gform-card">
-          <label className="gform-q-title">Which goal did you work on today?</label>
-          <select
-            className="gform-input"
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-          >
-            {GOALS.map((g) => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Activity */}
-        <div className="gform-card">
-          <label className="gform-q-title">Which activity did you do today?</label>
-          <select
-            className="gform-input"
-            value={activity}
-            onChange={(e) => setActivity(e.target.value)}
-          >
-            {ACTIVITIES.map((a) => (
-              <option key={a} value={a}>{a}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Completion scale */}
-        <div className="gform-card">
-          <label className="gform-q-title">Did the child complete the task?</label>
-          <div className="gform-scale">
-            <div className="gform-scale-label">Did not want to do it</div>
-            <div className="gform-scale-options">
-              {[1,2,3,4,5].map((n) => (
-                <label key={n} className="gform-scale-option">
-                  <input
-                    type="radio"
-                    name="completion"
-                    value={n}
-                    checked={Number(completion) === n}
-                    onChange={() => setCompletion(n)}
-                  />
-                  <span>{n}</span>
-                </label>
-              ))}
+          {/* Child name (short answer, required) */}
+          <section className="gform-card">
+            <h2 className="gform-q">
+              What is the child's name? <span className="req">*</span>
+            </h2>
+            <div className="gform-answer">
+              <input
+                className="gform-input"
+                type="text"
+                placeholder="Your answer"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
             </div>
-            <div className="gform-scale-label">Completed successfully</div>
-          </div>
-        </div>
+          </section>
 
-        {/* Mood scale */}
-        <div className="gform-card">
-          <label className="gform-q-title">What was the child's mood today?</label>
-          <div className="gform-scale">
-            <div className="gform-scale-label">Dysregulated</div>
-            <div className="gform-scale-options">
-              {[1,2,3,4,5].map((n) => (
-                <label key={n} className="gform-scale-option">
-                  <input
-                    type="radio"
-                    name="mood"
-                    value={n}
-                    checked={Number(mood) === n}
-                    onChange={() => setMood(n)}
-                  />
-                  <span>{n}</span>
-                </label>
-              ))}
+          {/* If you want to SHOW the email as read-only, replace the hidden input above with this:
+          <section className="gform-card">
+            <h2 className="gform-q">Email <span className="req">*</span></h2>
+            <div className="gform-answer">
+              <input className="gform-input" type="email" value={email} readOnly />
+              <div className="gform-help">Auto-filled from your Tevello login.</div>
             </div>
-            <div className="gform-scale-label">Regulated</div>
-          </div>
-        </div>
+          </section>
+          */}
 
-        {/* Notes */}
-        <div className="gform-card">
-          <label className="gform-q-title">Other Observations or Notes:</label>
-          <textarea
-            className="gform-textarea"
-            rows={4}
-            placeholder="Your answer"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
+          {/* Goal (dropdown) */}
+          <section className="gform-card">
+            <h2 className="gform-q">Which goal did you work on today?</h2>
+            <div className="gform-answer">
+              <select className="gform-select" value={goal} onChange={(e) => setGoal(e.target.value)}>
+                {GOALS.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+          </section>
 
-        {err && (
-          <div className="gform-card" style={{ borderColor: "#d93025" }}>
-            <p style={{ color: "#d93025", margin: 0 }}>{err}</p>
-          </div>
-        )}
+          {/* Activity (dropdown) */}
+          <section className="gform-card">
+            <h2 className="gform-q">Which activity did you do today?</h2>
+            <div className="gform-answer">
+              <select className="gform-select" value={activity} onChange={(e) => setActivity(e.target.value)}>
+                {ACTIVITIES.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          </section>
 
-        <div className="gform-actions">
-          <button className="gform-submit" type="submit" disabled={submitting}>
-            {submitting ? "Submitting…" : "Submit"}
-          </button>
-          <span className="gform-required-note">
-            <span className="req">*</span> Required
-          </span>
-        </div>
-      </form>
+          {/* Completion (linear scale 1–5 with end labels) */}
+          <section className="gform-card">
+            <h2 className="gform-q">Did the child complete the task?</h2>
+            <div className="gform-scale">
+              <div className="gform-scale__label">Did not want to do it</div>
+              <div className="gform-scale__grid">
+                <div className="gform-scale__nums">
+                  {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
+                </div>
+                <div className="gform-scale__radios" role="radiogroup" aria-label="Completion scale">
+                  {[1,2,3,4,5].map((n) => (
+                    <label key={n} className="gform-scale__cell">
+                      <input
+                        type="radio"
+                        name="completion"
+                        value={n}
+                        checked={Number(completion) === n}
+                        onChange={() => setCompletion(n)}
+                      />
+                      <span className="gform-radio" aria-hidden />
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="gform-scale__label">Completed successfully</div>
+            </div>
+          </section>
+
+          {/* Mood (linear scale 1–5 with end labels) */}
+          <section className="gform-card">
+            <h2 className="gform-q">What was the child's mood today?</h2>
+            <div className="gform-scale">
+              <div className="gform-scale__label">Dysregulated</div>
+              <div className="gform-scale__grid">
+                <div className="gform-scale__nums">
+                  {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
+                </div>
+                <div className="gform-scale__radios" role="radiogroup" aria-label="Mood scale">
+                  {[1,2,3,4,5].map((n) => (
+                    <label key={n} className="gform-scale__cell">
+                      <input
+                        type="radio"
+                        name="mood"
+                        value={n}
+                        checked={Number(mood) === n}
+                        onChange={() => setMood(n)}
+                      />
+                      <span className="gform-radio" aria-hidden />
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="gform-scale__label">Regulated</div>
+            </div>
+          </section>
+
+          {/* Notes (paragraph) */}
+          <section className="gform-card">
+            <h2 className="gform-q">Other Observations or Notes:</h2>
+            <div className="gform-answer">
+              <textarea
+                className="gform-textarea"
+                rows={4}
+                placeholder="Your answer"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          </section>
+
+          {/* Error (matches GF red card feel) */}
+          {err && (
+            <section className="gform-card gform-card--error">
+              <p className="gform-error">{err}</p>
+            </section>
+          )}
+
+          {/* Actions */}
+          <section className="gform-actions">
+            <button className="gform-submit" type="submit" disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit"}
+            </button>
+            <span className="gform-required">
+              <span className="req">*</span> Required
+            </span>
+          </section>
+        </form>
+      </main>
     </div>
   );
 }
