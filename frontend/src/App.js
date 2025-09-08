@@ -14,7 +14,7 @@ import "./App.css";
 //    Or set REACT_APP_GOOGLE_FORM_URL in Vercel and leave this as fallback.
 const GOOGLE_FORM_URL =
   process.env.REACT_APP_GOOGLE_FORM_URL ||
-    "https://docs.google.com/forms/d/e/1FAIpQLSdafXjeB2ZX8bnyYzcsu7LiB0G-6cKxaL0LD7cAjTRlV9WAhA/viewform?embedded=true";
+      "https://docs.google.com/forms/d/e/1FAIpQLSdafXjeB2ZX8bnyYzcsu7LiB0G-6cKxaL0LD7cAjTRlV9WAhA/viewform?embedded=true";
 
 // 2) The entry key for your Email field in the Form (e.g., "entry.1234567890").
 //    Find it via Form → ⋮ → Get pre-filled link → type a test email → Get link → copy URL → look for entry.########=...
@@ -283,28 +283,31 @@ function EmailLogin() {
    Check-In Form (exact Google Form)
 ========================= */
 function CheckinFormView() {
-  const childEmail = getChildEmailFromQuery() || "";
+  // Get ?email or ?name from the URL (Tevello can pass either)
+  const search = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const childValue = search.get("email") || search.get("name") || "";
 
   const formSrc = useMemo(() => {
     try {
       const u = new URL(GOOGLE_FORM_URL);
-      if (GOOGLE_FORM_EMAIL_ENTRY && childEmail) {
-        u.searchParams.set(GOOGLE_FORM_EMAIL_ENTRY, childEmail);
+      if (GOOGLE_FORM_TARGET_ENTRY && childValue) {
+        u.searchParams.set(GOOGLE_FORM_TARGET_ENTRY, childValue);
       }
+      // Google likes having this flag present for prefill links
+      if (!u.searchParams.has("usp")) u.searchParams.set("usp", "pp_url");
       return u.toString();
     } catch {
-      return GOOGLE_FORM_URL; // if someone pastes a partial URL, still render
+      return GOOGLE_FORM_URL;
     }
-  }, [childEmail]);
+  }, [childValue]);
 
   return (
     <div className="chat-container" style={{ maxWidth: 900 }}>
-      {/* Render ONLY the Google Form so the UI looks identical to your form */}
       <iframe
         title="Daily Check-In Form"
         src={formSrc}
         width="100%"
-        height="1100"
+        height="1200"      // adjust if your form is taller/shorter
         frameBorder="0"
         style={{ border: 0, background: "#fff" }}
         allow="clipboard-write; encrypted-media; fullscreen"
@@ -315,6 +318,7 @@ function CheckinFormView() {
     </div>
   );
 }
+
 
 /* =========================
    Progress (private chart)
