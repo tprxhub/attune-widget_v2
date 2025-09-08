@@ -1,4 +1,5 @@
 /* === Google Form Look (Josefin Sans + optional image header) === */
+/* Josefin Sans already imported earlier */
 @import url('https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;500;600;700&display=swap');
 
 :root{
@@ -19,51 +20,31 @@
   color: var(--g-text);
 }
 
-/* Header: purple fallback; image if .has-img + inline style backgroundImage */
-.gform-header{
-  position: relative;
-  background: linear-gradient(180deg, var(--g-purple), #7e57c2);
-  color:#fff;
-  padding: 28px 0;
-}
-.gform-header.has-img{
-  background-size: cover;
-  background-position: center;
-}
-.gform-header.has-img::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.25));
-}
-.gform-header__inner{
-  position: relative;
-  z-index: 1;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-.gform-title{
-  margin:0 0 8px 0;
-  font-size: 30px;
-  font-weight:700;
-  letter-spacing: .2px;
-}
-.gform-sub{
-  margin: 0 0 6px 0;
-  opacity:.95;
-}
-
+/* CONTENT WIDTH WRAPPER */
 .gform-main{
   max-width: 720px;
-  margin: 0 auto 40px;
+  margin: 24px auto 40px;
   padding: 0 16px;
-  transform: translateY(-18px);
 }
-.gform-form{
+
+/* TOP BANNER IMAGE (same width as questions) */
+.gform-banner{
+  width: 100%;
+  height: 220px;               /* adjust as you like */
+  background-size: cover;
+  background-position: center;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  position: relative;
+}
+.gform-banner::after{          /* subtle dark overlay like Google */
+  content:"";
+  position:absolute; inset:0;
+  background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.18));
   border-radius: 8px;
 }
 
+/* INTRO + CARDS (same width as banner) */
 .gform-card{
   background: var(--g-surface);
   border: 1px solid var(--g-border);
@@ -71,9 +52,15 @@
   padding: 18px 18px 12px;
   margin: 16px 0;
 }
-.gform-card--error{
-  border-color: var(--g-error);
+.gform-card--error{ border-color: var(--g-error); }
+
+.gform-intro .gform-title{
+  margin:0 0 8px 0;
+  font-size: 30px;
+  font-weight:700;
+  letter-spacing: .2px;
 }
+.gform-sub{ margin:0 0 6px 0; color: var(--g-text); opacity:.95; }
 
 .gform-q{
   font-size:16px;
@@ -82,11 +69,8 @@
 }
 .req{ color: var(--g-error); }
 
-.gform-answer{ }
-
-.gform-input,
-.gform-select,
-.gform-textarea{
+/* INPUTS */
+.gform-input, .gform-select, .gform-textarea{
   width:100%;
   background:transparent;
   border:none;
@@ -94,89 +78,59 @@
   outline: none;
   padding: 10px 4px 8px;
   font-size:15px;
+  font-family: 'Josefin Sans', system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, sans-serif;
 }
-.gform-input:focus,
-.gform-select:focus,
-.gform-textarea:focus{
+.gform-select option{
+  font-family: 'Josefin Sans', system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, sans-serif;
+}
+.gform-input:focus, .gform-select:focus, .gform-textarea:focus{
   border-bottom-color: var(--g-purple);
 }
 .gform-textarea{ resize: vertical; }
 
-.gform-help{
-  font-size:12px;
-  color: var(--g-muted);
-  margin-top:6px;
-}
+.gform-help{ font-size:12px; color: var(--g-muted); margin-top:6px; }
 
-/* Linear scale like Google Forms */
+/* LINEAR SCALE */
 .gform-scale{
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
 }
 .gform-scale__label{
-  font-size:12px;
-  color: var(--g-muted);
-  text-align:left;
+  font-size:12px; color: var(--g-muted); text-align:left;
 }
 .gform-scale__grid{
   display:grid;
   grid-template-rows: auto auto;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px 12px;
-  align-items:center;
-  justify-items:center;
+  align-items:center; justify-items:center;
 }
-.gform-scale__nums{
-  display: contents;
-}
-.gform-scale__nums > div{
-  font-size:12px;
-  color: var(--g-muted);
-}
-.gform-scale__radios{
-  display: contents;
-}
+.gform-scale__nums{ display: contents; }
+.gform-scale__nums > div{ font-size:12px; color: var(--g-muted); }
+.gform-scale__radios{ display: contents; }
 .gform-scale__cell{
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display:flex; align-items:center; justify-content:center;
 }
 .gform-scale__cell input{
-  appearance:none;
-  width:16px; height:16px;
+  appearance:none; width:16px; height:16px;
   border:2px solid var(--g-border);
   border-radius:50%;
-  outline:none;
-  margin:0;
-  position:relative;
-  cursor:pointer;
+  outline:none; margin:0; position:relative; cursor:pointer;
 }
-.gform-scale__cell input:checked{
-  border-color: var(--g-purple);
-}
+.gform-scale__cell input:checked{ border-color: var(--g-purple); }
 .gform-scale__cell input:checked::after{
-  content:"";
-  position:absolute; inset:3px;
-  background: var(--g-purple);
-  border-radius:50%;
+  content:""; position:absolute; inset:3px; background: var(--g-purple); border-radius:50%;
 }
 
-/* Actions */
+/* ACTIONS */
 .gform-actions{
-  display:flex;
-  align-items:center;
-  gap:16px;
+  display:flex; align-items:center; gap:16px;
   margin: 12px 0 24px;
 }
 .gform-submit{
-  background: var(--g-purple);
-  color:#fff;
-  border:none;
-  border-radius: 24px;
-  padding: 10px 24px;
-  font-size:14px;
-  cursor:pointer;
+  background: var(--g-purple); color:#fff; border:none;
+  border-radius: 24px; padding: 10px 24px; font-size:14px; cursor:pointer;
 }
 .gform-submit:hover{ background: var(--g-purple-600); }
 .gform-required{ color: var(--g-muted); font-size:12px; }
@@ -186,13 +140,11 @@
   background:none; border:none; color: var(--g-purple);
   text-decoration: underline; cursor:pointer; padding:0; margin-top:12px;
 }
-
-/* Error text */
 .gform-error{ color: var(--g-error); margin:0; }
 
-/* Mobile tweaks */
+/* Mobile */
 @media (max-width: 480px){
-  .gform-header__inner, .gform-main{ padding: 0 12px; }
+  .gform-main{ padding: 0 12px; }
 }
 
 
