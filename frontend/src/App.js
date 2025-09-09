@@ -867,7 +867,9 @@ function App() {
   }, []);
 
   return (
-   {!isEmbedded() && (
+  <>
+    {/* Top tabs (hidden when &embed=1) */}
+    {!isEmbedded() && (
       <div
         style={{
           display: "flex",
@@ -899,8 +901,15 @@ function App() {
           Progress (Private)
         </button>
       </div>
-    )}  
-  );
+    )}
+
+    {/* Views */}
+    {tab === "assistant" && <AssistantView />}
+    {tab === "checkin" && <CheckinFormView />}
+    {tab === "progress" && <ProgressView />}
+  </>
+);
+
 }
 
 export default App;
