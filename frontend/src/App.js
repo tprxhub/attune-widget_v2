@@ -439,7 +439,7 @@ function CheckinFormView() {
   ];
 
   const [goal, setGoal] = React.useState("");
-  the const [activity, setActivity] = React.useState("");
+  const [activity, setActivity] = React.useState("");
   const [completion, setCompletion] = React.useState(null); // 1–5
   const [mood, setMood] = React.useState(null);             // 1–5
   const [notes, setNotes] = React.useState("");
