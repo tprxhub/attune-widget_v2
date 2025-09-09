@@ -14,6 +14,14 @@ import "./App.css";
 const CHECKIN_HEADER_IMAGE_URL =
   process.env.REACT_APP_CHECKIN_HEADER_IMAGE_URL || "";
 
+function isEmbedded() {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    return q.get("embed") === "1";
+  } catch {
+    return false;
+  }
+}
 
 // ---------- Activity color mapping (stable & dynamic) ----------
 const ACTIVITY_PALETTE = [
@@ -510,11 +518,19 @@ function CheckinFormView() {
               Did the child complete the task? <span className="req">*</span>
             </h2>
             <div className="gform-scale">
-              <div className="gform-scale__label">Did not want to do it</div>
               <div className="gform-scale__grid">
+                {/* top label row (left/right align to 1 and 5) */}
+                <div className="gform-scale__labels">
+                  <div className="left">Did not want to do it</div>
+                  <div className="right">Completed successfully</div>
+                </div>
+          
+                {/* number row */}
                 <div className="gform-scale__nums">
                   {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
                 </div>
+          
+                {/* radios row */}
                 <div className="gform-scale__radios" role="radiogroup" aria-label="Completion scale">
                   {[1,2,3,4,5].map((n, i) => (
                     <label key={n} className="gform-scale__cell">
@@ -531,40 +547,48 @@ function CheckinFormView() {
                   ))}
                 </div>
               </div>
-              <div className="gform-scale__label">Completed successfully</div>
             </div>
           </section>
 
+
           {/* Mood (linear scale — none selected initially) */}
-          <section className="gform-card">
-            <h2 className="gform-q">
-              What was the child's mood today? <span className="req">*</span>
-            </h2>
-            <div className="gform-scale">
-              <div className="gform-scale__label">Dysregulated</div>
-              <div className="gform-scale__grid">
-                <div className="gform-scale__nums">
-                  {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
-                </div>
-                <div className="gform-scale__radios" role="radiogroup" aria-label="Mood scale">
-                  {[1,2,3,4,5].map((n, i) => (
-                    <label key={n} className="gform-scale__cell">
-                      <input
-                        type="radio"
-                        name="mood"
-                        value={n}
-                        checked={mood === n}
-                        onChange={() => setMood(n)}
-                        required={i === 0}
-                      />
-                      <span className="gform-radio" aria-hidden />
-                    </label>
-                  ))}
-                </div>
+         <section className="gform-card">
+          <h2 className="gform-q">
+            What was the child's mood today? <span className="req">*</span>
+          </h2>
+          <div className="gform-scale">
+            <div className="gform-scale__grid">
+              {/* top label row */}
+              <div className="gform-scale__labels">
+                <div className="left">Dysregulated</div>
+                <div className="right">Regulated</div>
               </div>
-              <div className="gform-scale__label">Regulated</div>
+        
+              {/* number row */}
+              <div className="gform-scale__nums">
+                {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
+              </div>
+        
+              {/* radios row */}
+              <div className="gform-scale__radios" role="radiogroup" aria-label="Mood scale">
+                {[1,2,3,4,5].map((n, i) => (
+                  <label key={n} className="gform-scale__cell">
+                    <input
+                      type="radio"
+                      name="mood"
+                      value={n}
+                      checked={mood === n}
+                      onChange={() => setMood(n)}
+                      required={i === 0}
+                    />
+                    <span className="gform-radio" aria-hidden />
+                  </label>
+                ))}
+              </div>
             </div>
-          </section>
+          </div>
+        </section>
+
 
           {/* Notes (optional) */}
           <section className="gform-card">
@@ -843,7 +867,7 @@ function App() {
   }, []);
 
   return (
-    <div>
+   {!isEmbedded() && (
       <div
         style={{
           display: "flex",
@@ -875,11 +899,7 @@ function App() {
           Progress (Private)
         </button>
       </div>
-
-      {tab === "assistant" && <AssistantView />}
-      {tab === "checkin" && <CheckinFormView />}
-      {tab === "progress" && <ProgressView />}
-    </div>
+    )}  
   );
 }
 
