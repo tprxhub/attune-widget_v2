@@ -212,3 +212,61 @@
   padding: 4px 8px;
 }
 
+/* Scale grid: 3 rows (labels, numbers, radios) and 5 equal columns */
+.gform-scale__grid{
+  display: grid;
+  grid-template-rows: auto auto auto;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px 12px;
+  align-items: center;
+  justify-items: center;
+}
+
+/* Use "display: contents" for row blocks so children flow into the grid cells */
+.gform-scale__labels,
+.gform-scale__nums,
+.gform-scale__radios{
+  display: contents;
+}
+
+/* Labels row: place left label on col 1, right label on col 5 */
+.gform-scale__labels .left{
+  grid-column: 1 / 2;
+  justify-self: start;
+  font-size: 12px;
+  color: var(--g-muted);
+}
+.gform-scale__labels .right{
+  grid-column: 5 / 6;
+  justify-self: end;
+  font-size: 12px;
+  color: var(--g-muted);
+}
+
+/* Numbers row already renders 5 items; make sure they sit in columns 1..5 */
+.gform-scale__nums > div{
+  font-size: 12px;
+  color: var(--g-muted);
+}
+
+/* Radios row: one cell per column */
+.gform-scale__cell{
+  display:flex; align-items:center; justify-content:center;
+}
+.gform-scale__cell input{
+  appearance:none; width:16px; height:16px;
+  border:2px solid var(--g-border);
+  border-radius:50%;
+  outline:none; margin:0; position:relative; cursor:pointer;
+  font-family: 'Josefin Sans', system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, sans-serif;
+}
+.gform-scale__cell input:checked{ border-color: var(--g-purple); }
+.gform-scale__cell input:checked::after{
+  content:""; position:absolute; inset:3px; background: var(--g-purple); border-radius:50%;
+}
+
+/* Ensure selects and their options use Josefin Sans */
+.gform-select,
+.gform-select option{
+  font-family: 'Josefin Sans', system-ui, -apple-system, Segoe UI, "Helvetica Neue", Arial, sans-serif;
+}
