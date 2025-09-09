@@ -24,11 +24,6 @@ function isEmbedded() {
   }
 }
 
-function hasBearerToken() {
-  const t = localStorage.getItem("sb_access_token");
-  const exp = Number(localStorage.getItem("sb_access_token_exp") || 0);
-  return !!t && Date.now() < exp;
-}
 
 // ---------- Activity color mapping (stable & dynamic) ----------
 const ACTIVITY_PALETTE = [
