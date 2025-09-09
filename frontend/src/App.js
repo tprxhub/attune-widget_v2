@@ -8,6 +8,7 @@ import {
 } from "chart.js";
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 import "./App.css";
+import { apiGet, apiPost } from "./apiClient";
 
 // Optional: set a custom header image (or leave empty string to keep purple header)
 // You can also set this in Vercel as REACT_APP_CHECKIN_HEADER_IMAGE_URL
