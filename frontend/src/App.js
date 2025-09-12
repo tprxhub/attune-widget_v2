@@ -712,18 +712,30 @@ function ProgressView() {
   const [loading, setLoading] = React.useState(true);
   const [err, setErr] = React.useState("");
 
-  // set to false if you still see a blank page – it removes segment scripting
+  // Range scrubber (percent of full time span)
+  const [fromPct, setFromPct] = React.useState(0);
+  const [toPct, setToPct] = React.useState(100);
+
+  // If segment styling causes issues on your Chart.js version, flip to false
   const USE_SEGMENT = true;
 
   React.useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        setErr("");
-        setLoading(true);
+        setErr(""); setLoading(true);
         const q = childEmail ? `?child_email=${encodeURIComponent(childEmail)}` : "";
         const res = await apiGet(`/getCheckins${q}`);
-        if (mounted) setRows(Array.isArray(res?.rows) ? res.rows : []);
+        const data = (Array.isArray(res?.rows) ? res.rows : []).slice();
+
+        // sort by date ascending
+        data.sort((a, b) => {
+          const ta = Date.parse(a.checkin_date || a.created_at || 0) || 0;
+          const tb = Date.parse(b.checkin_date || b.created_at || 0) || 0;
+          return ta - tb;
+        });
+
+        if (mounted) setRows(data);
       } catch (e) {
         if (mounted) setErr(e.message || "Failed to load progress.");
       } finally {
@@ -733,39 +745,43 @@ function ProgressView() {
     return () => { mounted = false; };
   }, [childEmail]);
 
-  // ---- derive chart data safely
-  const {
-    labels, completion, mood, goalsMeta, activitiesMeta, activityNums
-  } = React.useMemo(() => {
-    const L = [];
-    const C = [];
-    const M = [];
-    const G = [];
-    const A = [];
-    const N = [];
-    (rows || []).forEach((r) => {
-      const d = r.checkin_date ? new Date(r.checkin_date) : (r.created_at ? new Date(r.created_at) : null);
-      L.push(d ? d.toLocaleDateString() : "");
-      C.push(Number(r.completion_score ?? null));
-      M.push(Number(r.mood_score ?? null));
-      const goal = r.goal || "";
-      const act  = r.activity || "";
-      G.push(goal);
-      A.push(act);
-      const m = String(act).match(/#(\d+)/);
-      N.push(m ? parseInt(m[1], 10) : null);
-    });
-    return { labels: L, completion: C, mood: M, goalsMeta: G, activitiesMeta: A, activityNums: N };
+  // Time bounds
+  const [minTS, maxTS] = React.useMemo(() => {
+    if (!rows.length) return [0, 0];
+    const first = Date.parse(rows[0].checkin_date || rows[0].created_at || 0) || 0;
+    const last  = Date.parse(rows[rows.length - 1].checkin_date || rows[rows.length - 1].created_at || 0) || 0;
+    return [first, last || first];
   }, [rows]);
 
-  // goal colors
+  // Compute filtered rows from scrubber positions
+  const filtered = React.useMemo(() => {
+    if (!rows.length || minTS === maxTS) return rows;
+    const span = maxTS - minTS;
+    const start = minTS + (fromPct / 100) * span;
+    const end   = minTS + (toPct   / 100) * span;
+    return rows.filter(r => {
+      const t = Date.parse(r.checkin_date || r.created_at || 0) || 0;
+      return t >= start && t <= end;
+    });
+  }, [rows, minTS, maxTS, fromPct, toPct]);
+
+  // helpers
+  const fmtDate = (d) => { try { return new Date(d).toLocaleDateString(); } catch { return d || ""; } };
   const GOAL_COLORS = React.useMemo(() => ({
     "Fine motor": "#e74c3c",   // red
     "Perception": "#3498db",   // blue
     "Handwriting": "#2ecc71",  // green
   }), []);
+  const labels = filtered.map(r => fmtDate(r.checkin_date || r.created_at));
+  const completion = filtered.map(r => Number(r.completion_score ?? null));
+  const mood = filtered.map(r => Number(r.mood_score ?? null));
+  const goalsMeta = filtered.map(r => r.goal || "");
+  const activitiesMeta = filtered.map(r => r.activity || "");
+  const activityNums = filtered.map(r => {
+    const m = String(r.activity || "").match(/#(\d+)/);
+    return m ? parseInt(m[1], 10) : null;
+  });
 
-  // helpers for segment styling
   const colorForIndex = React.useCallback((i) => GOAL_COLORS[goalsMeta[i]] || "#555", [GOAL_COLORS, goalsMeta]);
   const dashForIndex  = React.useCallback((i) => {
     const a = (activitiesMeta[i] || "").toLowerCase();
@@ -775,28 +791,18 @@ function ProgressView() {
     return [];
   }, [activitiesMeta]);
   const widthForIndex = React.useCallback((i) => {
-    const n = activityNums[i] || 1;              // e.g., #1..#15
+    const n = activityNums[i] || 1;              // e.g., #1..#15+
     const clamped = Math.max(1, Math.min(20, n));
     return 2 + ((clamped - 1) / 19) * 4;         // 2px..6px
   }, [activityNums]);
 
   const completionDataset = React.useMemo(() => {
-    const base = {
-      label: "Completion score",
-      data: completion,
-      spanGaps: true,
-      tension: 0.25,
-      pointRadius: 3,
-    };
-    if (!USE_SEGMENT) {
-      // stable fallback (single style) if segment callbacks cause issues
-      return { ...base, borderColor: "#3498db", borderWidth: 3 };
-    }
+    const base = { label: "Completion score", data: completion, spanGaps: true, tension: 0.25, pointRadius: 3 };
+    if (!USE_SEGMENT) return { ...base, borderColor: "#3498db", borderWidth: 3 };
     return {
       ...base,
-      borderColor: "#000", // fallback; real style is per segment below
+      borderColor: "#000", // fallback;
       segment: {
-        // Chart.js scriptable segment styles (v4+)
         borderColor: (ctx) => colorForIndex(ctx.p1DataIndex),
         borderDash:  (ctx) => dashForIndex(ctx.p1DataIndex),
         borderWidth: (ctx) => widthForIndex(ctx.p1DataIndex),
@@ -823,11 +829,7 @@ function ProgressView() {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
-      y: {
-        min: 1,
-        max: 5,
-        ticks: { stepSize: 1 },
-      },
+      y: { min: 1, max: 5, ticks: { stepSize: 1 } },
     },
     plugins: {
       legend: { display: true },
@@ -844,21 +846,96 @@ function ProgressView() {
     },
   }), [goalsMeta, activitiesMeta]);
 
+  // UI helpers for scrubber
+  function pctToDate(p) {
+    if (minTS === maxTS) return "";
+    const ts = minTS + (p / 100) * (maxTS - minTS);
+    return new Date(ts).toLocaleDateString();
+  }
+  function setFromSafe(v) {
+    const val = Math.max(0, Math.min(100, Number(v)));
+    setFromPct(Math.min(val, toPct - 1));
+  }
+  function setToSafe(v) {
+    const val = Math.max(0, Math.min(100, Number(v)));
+    setToPct(Math.max(val, fromPct + 1));
+  }
+  function preset(days) {
+    if (minTS === maxTS) return;
+    const end = maxTS;
+    const start = Math.max(minTS, end - days * 24 * 3600 * 1000);
+    const span = maxTS - minTS || 1;
+    setFromPct(((start - minTS) / span) * 100);
+    setToPct(((end   - minTS) / span) * 100);
+  }
+
   return (
     <div className="chat-container" style={{ maxWidth: 900 }}>
       <h1>Progress</h1>
       {childEmail ? (
-        <p style={{ margin: "6px 0 14px" }}>
-          Child email: <b>{childEmail}</b>
-        </p>
+        <p style={{ margin: "6px 0 14px" }}>Child email: <b>{childEmail}</b></p>
       ) : (
         <p className="gform-error">Missing ?email= in URL.</p>
+      )}
+
+      {/* Time range scrubber */}
+      {rows.length > 0 && (
+        <div style={{ background: "#fff", borderRadius: 12, padding: 12, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ fontSize: 12, color: "#666" }}>
+              From <b>{pctToDate(fromPct) || "—"}</b> to <b>{pctToDate(toPct) || "—"}</b>
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+              <button className="btn" onClick={() => preset(7)}>7d</button>
+              <button className="btn" onClick={() => preset(30)}>30d</button>
+              <button className="btn" onClick={() => preset(90)}>90d</button>
+              <button className="btn" onClick={() => { setFromPct(0); setToPct(100); }}>All</button>
+            </div>
+          </div>
+
+          {/* Dual-thumb slider (two inputs) */}
+          <div style={{ position: "relative", height: 28, marginTop: 8 }}>
+            {/* Track background */}
+            <div style={{
+              position: "absolute", left: 8, right: 8, top: 12, height: 4,
+              background: "#eee", borderRadius: 999
+            }} />
+            {/* Selected range highlight */}
+            <div style={{
+              position: "absolute",
+              left: `calc(${fromPct}% + 8px)`,
+              right: `calc(${100 - toPct}% + 8px)`,
+              top: 12, height: 4, background: "#a5b4fc", borderRadius: 999
+            }} />
+
+            {/* lower thumb */}
+            <input
+              type="range" min={0} max={100} step={1} value={fromPct}
+              onChange={(e) => setFromSafe(e.target.value)}
+              style={{
+                position: "absolute", left: 0, right: 0, width: "100%",
+                pointerEvents: "auto", WebkitAppearance: "none", appearance: "none",
+                background: "transparent"
+              }}
+            />
+            {/* upper thumb */}
+            <input
+              type="range" min={0} max={100} step={1} value={toPct}
+              onChange={(e) => setToSafe(e.target.value)}
+              style={{
+                position: "absolute", left: 0, right: 0, width: "100%",
+                pointerEvents: "auto", WebkitAppearance: "none", appearance: "none",
+                background: "transparent"
+              }}
+            />
+          </div>
+        </div>
       )}
 
       {err && <div className="bubble assistant">{err}</div>}
       {loading ? (
         <div className="bubble assistant">Loading…</div>
-      ) : rows.length ? (
+      ) : filtered.length ? (
         <div style={{ background: "#fff", borderRadius: 12, padding: 16, height: 420 }}>
           <LineChart data={chartData} options={options} />
           <div style={{ fontSize: 12, color: "#666", marginTop: 10 }}>
@@ -869,7 +946,7 @@ function ProgressView() {
           </div>
         </div>
       ) : (
-        <p>No data yet.</p>
+        <p>No data in the selected range.</p>
       )}
     </div>
   );
