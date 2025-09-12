@@ -421,7 +421,6 @@ function EmailLogin() {
 /* =========================
    Check-In Form 
 ========================= */
-
 function CheckinFormView() {
   const search = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const preEmail = search.get("email") || "";
@@ -450,18 +449,6 @@ function CheckinFormView() {
 
   const hasHeaderImage = !!CHECKIN_HEADER_IMAGE_URL;
 
-  // NEW: require a bearer token before showing the form
-  const [ready, setReady] = React.useState(hasBearerToken());
-  React.useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === "sb_access_token" || e.key === "sb_access_token_exp") {
-        setReady(hasBearerToken());
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
   async function onSubmit(e) {
     e.preventDefault();
     setErr("");
@@ -472,11 +459,9 @@ function CheckinFormView() {
     if (!activity) return setErr("Please select an activity.");
     if (completion == null) return setErr("Please select a completion score.");
     if (mood == null) return setErr("Please select a mood score.");
-    if (!hasBearerToken()) return setErr("Please verify your email first.");
 
     setSubmitting(true);
     try {
-      // EMAIL IS LOGGED here (hidden from UI but included in payload)
       await apiPost("/saveCheckins", {
         child_name: name,
         child_email: email,
@@ -554,177 +539,162 @@ function CheckinFormView() {
           </p>
         </section>
 
-        {/* NEW: inline OTP gate shown until we have a token */}
-        {!ready ? (
-          <InlineOtpGate email={email} onReady={() => setReady(true)} />
-        ) : (
-          <form className="gform-form" onSubmit={onSubmit} noValidate>
-            {/* Hidden email from Tevello (logged but not shown) */}
-            <input type="hidden" value={email} />
+        <form className="gform-form" onSubmit={onSubmit} noValidate>
+          {/* Hidden email from Tevello (logged but not shown) */}
+          <input type="hidden" value={email} />
 
-            {/* Child name (required) */}
-            <section className="gform-card">
-              <h2 className="gform-q">
-                What is the child's name? <span className="req">*</span>
-              </h2>
-              <div className="gform-answer">
-                <input
-                  className="gform-input"
-                  type="text"
-                  placeholder="Your answer"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-            </section>
+          {/* Child name (required) */}
+          <section className="gform-card">
+            <h2 className="gform-q">
+              What is the child's name? <span className="req">*</span>
+            </h2>
+            <div className="gform-answer">
+              <input
+                className="gform-input"
+                type="text"
+                placeholder="Your answer"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+          </section>
 
-            {/* Goal (dropdown — starts blank, no "Select" label) */}
-            <section className="gform-card">
-              <h2 className="gform-q">
-                Which goal did you work on today? <span className="req">*</span>
-              </h2>
-              <div className="gform-answer">
-                <select
-                  className="gform-select"
-                  value={goal}
-                  onChange={(e) => setGoal(e.target.value)}
-                  required
-                >
-                  <option value="" disabled></option>
-                  {GOALS.map((g) => (
-                    <option key={g} value={g}>{g}</option>
+          {/* Goal (dropdown — starts blank, no "Select" label) */}
+          <section className="gform-card">
+            <h2 className="gform-q">
+              Which goal did you work on today? <span className="req">*</span>
+            </h2>
+            <div className="gform-answer">
+              <select
+                className="gform-select"
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                required
+              >
+                <option value="" disabled></option>
+                {GOALS.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
+          </section>
+
+          {/* Activity (dropdown — starts blank) */}
+          <section className="gform-card">
+            <h2 className="gform-q">
+              Which activity did you do today? <span className="req">*</span>
+            </h2>
+            <div className="gform-answer">
+              <select
+                className="gform-select"
+                value={activity}
+                onChange={(e) => setActivity(e.target.value)}
+                required
+              >
+                <option value="" disabled></option>
+                {ACTIVITIES.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+          </section>
+
+          {/* Completion (labels above 1 and 5; right label above 5) */}
+          <section className="gform-card">
+            <h2 className="gform-q">
+              Did the child complete the task? <span className="req">*</span>
+            </h2>
+            <div className="gform-scale">
+              <div className="gform-scale__grid">
+                <div className="gform-scale__labels">
+                  <div className="left">Did not want to do it</div>
+                  <div className="right">Completed successfully</div>
+                </div>
+                <div className="gform-scale__nums">
+                  {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
+                </div>
+                <div className="gform-scale__radios" role="radiogroup" aria-label="Completion scale">
+                  {[1,2,3,4,5].map((n, i) => (
+                    <label key={n} className="gform-scale__cell">
+                      <input
+                        type="radio"
+                        name="completion"
+                        value={n}
+                        checked={completion === n}
+                        onChange={() => setCompletion(n)}
+                        required={i === 0}
+                      />
+                      <span className="gform-radio" aria-hidden />
+                    </label>
                   ))}
-                </select>
-              </div>
-            </section>
-
-            {/* Activity (dropdown — starts blank) */}
-            <section className="gform-card">
-              <h2 className="gform-q">
-                Which activity did you do today? <span className="req">*</span>
-              </h2>
-              <div className="gform-answer">
-                <select
-                  className="gform-select"
-                  value={activity}
-                  onChange={(e) => setActivity(e.target.value)}
-                  required
-                >
-                  <option value="" disabled></option>
-                  {ACTIVITIES.map((a) => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
-              </div>
-            </section>
-
-            {/* Completion (linear scale — none selected initially) */}
-            <section className="gform-card">
-              <h2 className="gform-q">
-                Did the child complete the task? <span className="req">*</span>
-              </h2>
-              <div className="gform-scale">
-                <div className="gform-scale__grid">
-                  {/* top label row (left/right align to 1 and 5) */}
-                  <div className="gform-scale__labels">
-                    <div className="left">Did not want to do it</div>
-                    <div className="right">Completed successfully</div>
-                  </div>
-
-                  {/* number row */}
-                  <div className="gform-scale__nums">
-                    {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
-                  </div>
-
-                  {/* radios row */}
-                  <div className="gform-scale__radios" role="radiogroup" aria-label="Completion scale">
-                    {[1,2,3,4,5].map((n, i) => (
-                      <label key={n} className="gform-scale__cell">
-                        <input
-                          type="radio"
-                          name="completion"
-                          value={n}
-                          checked={completion === n}
-                          onChange={() => setCompletion(n)}
-                          required={i === 0}
-                        />
-                        <span className="gform-radio" aria-hidden />
-                      </label>
-                    ))}
-                  </div>
                 </div>
               </div>
-            </section>
+            </div>
+          </section>
 
-            {/* Mood (linear scale — none selected initially) */}
-            <section className="gform-card">
-              <h2 className="gform-q">
-                What was the child's mood today? <span className="req">*</span>
-              </h2>
-              <div className="gform-scale">
-                <div className="gform-scale__grid">
-                  {/* top label row */}
-                  <div className="gform-scale__labels">
-                    <div className="left">Dysregulated</div>
-                    <div className="right">Regulated</div>
-                  </div>
-
-                  {/* number row */}
-                  <div className="gform-scale__nums">
-                    {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
-                  </div>
-
-                  {/* radios row */}
-                  <div className="gform-scale__radios" role="radiogroup" aria-label="Mood scale">
-                    {[1,2,3,4,5].map((n, i) => (
-                      <label key={n} className="gform-scale__cell">
-                        <input
-                          type="radio"
-                          name="mood"
-                          value={n}
-                          checked={mood === n}
-                          onChange={() => setMood(n)}
-                          required={i === 0}
-                        />
-                        <span className="gform-radio" aria-hidden />
-                      </label>
-                    ))}
-                  </div>
+          {/* Mood (labels above 1 and 5; right label above 5) */}
+          <section className="gform-card">
+            <h2 className="gform-q">
+              What was the child's mood today? <span className="req">*</span>
+            </h2>
+            <div className="gform-scale">
+              <div className="gform-scale__grid">
+                <div className="gform-scale__labels">
+                  <div className="left">Dysregulated</div>
+                  <div className="right">Regulated</div>
+                </div>
+                <div className="gform-scale__nums">
+                  {[1,2,3,4,5].map((n) => <div key={n}>{n}</div>)}
+                </div>
+                <div className="gform-scale__radios" role="radiogroup" aria-label="Mood scale">
+                  {[1,2,3,4,5].map((n, i) => (
+                    <label key={n} className="gform-scale__cell">
+                      <input
+                        type="radio"
+                        name="mood"
+                        value={n}
+                        checked={mood === n}
+                        onChange={() => setMood(n)}
+                        required={i === 0}
+                      />
+                      <span className="gform-radio" aria-hidden />
+                    </label>
+                  ))}
                 </div>
               </div>
-            </section>
+            </div>
+          </section>
 
-            {/* Notes (optional) */}
-            <section className="gform-card">
-              <h2 className="gform-q">Other Observations or Notes:</h2>
-              <div className="gform-answer">
-                <textarea
-                  className="gform-textarea"
-                  rows={4}
-                  placeholder="Your answer"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </section>
+          {/* Notes (optional) */}
+          <section className="gform-card">
+            <h2 className="gform-q">Other Observations or Notes:</h2>
+            <div className="gform-answer">
+              <textarea
+                className="gform-textarea"
+                rows={4}
+                placeholder="Your answer"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+          </section>
 
-            {err && (
-              <section className="gform-card gform-card--error">
-                <p className="gform-error">{err}</p>
-              </section>
-            )}
-
-            <section className="gform-actions">
-              <button className="gform-submit" type="submit" disabled={submitting}>
-                {submitting ? "Submitting…" : "Submit"}
-              </button>
-              <span className="gform-required">
-                <span className="req">*</span> Required
-              </span>
+          {err && (
+            <section className="gform-card gform-card--error">
+              <p className="gform-error">{err}</p>
             </section>
-          </form>
-        )}
+          )}
+
+          <section className="gform-actions">
+            <button className="gform-submit" type="submit" disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit"}
+            </button>
+            <span className="gform-required">
+              <span className="req">*</span> Required
+            </span>
+          </section>
+        </form>
       </main>
     </div>
   );
