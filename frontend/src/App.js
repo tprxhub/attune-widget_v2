@@ -705,215 +705,69 @@ function CheckinFormView() {
    Progress (private chart)
 ========================= */
 function ProgressView() {
-  const childEmail = getChildEmailFromQuery() || "";
-  const [ready, setReady] = useState(false);
-  const [rows, setRows] = useState([]);
-  const [err, setErr] = useState("");
+  const qs = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+  const childEmail = qs.get("email") || "";
 
-  // Load data for this child
-  const loadData = useCallback(async () => {
-    try {
-      const qs = childEmail ? `?child_email=${encodeURIComponent(childEmail)}` : "";
-      const { rows } = await apiGet(`/getCheckins${qs}`);
-      setRows(rows || []);
-    } catch (e) {
-      console.error(e);
-      setErr("Could not load check-ins.");
-    }
+  const [rows, setRows] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [err, setErr] = React.useState("");
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setErr("");
+        setLoading(true);
+        const q = childEmail ? `?child_email=${encodeURIComponent(childEmail)}` : "";
+        const { rows: data = [] } = await apiGet(`/getCheckins${q}`);
+        if (mounted) setRows(data);
+      } catch (e) {
+        if (mounted) setErr(e.message || "Failed to load progress.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
   }, [childEmail]);
 
-  // Auth token capture & ready state
-  useEffect(() => {
-    const captured = captureTokenFromHash();
-    const hasToken = captured || !!getStoredToken();
-    setReady(hasToken);
+  // Chart data: 2 trend lines (completion & mood)
+  const labels = rows.map(r =>
+    (r.checkin_date ? new Date(r.checkin_date) : new Date(r.created_at)).toLocaleDateString()
+  );
+  const completion = rows.map(r => r.completion_score);
+  const mood = rows.map(r => r.mood_score);
 
-    function onStorage(e) {
-      if (e.key === "sb_access_token" || e.key === "sb_access_token_exp") {
-        setReady(!!getStoredToken());
-      }
-    }
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
-  useEffect(() => { if (ready) loadData(); }, [ready, loadData]);
-
-  function signOut() {
-    clearToken();
-    setReady(false);
-    setRows([]);
-  }
-
-  // Normalize rows -> {date, goal, activity, completion, mood}
-  const norm = rows
-    .map((r) => ({
-      date: r.checkin_date || r.created_at || r.date, // support various backends
-      goal: (r.goal || r.goal_name || "").trim(),
-      activity: (r.activity || r.activity_name || "").trim(),
-      completion: r.completion_score ?? null,
-      mood: r.mood_score ?? null,
-    }))
-    .filter((r) => r.date && r.goal && r.activity && r.completion != null && r.mood != null);
-
-  // Group by goal (case-insensitive, keep first-seen casing for title)
-  const byGoal = norm.reduce((acc, r) => {
-    const key = r.goal.toLowerCase();
-    if (!acc[key]) acc[key] = { title: r.goal, rows: [] };
-    acc[key].rows.push(r);
-    return acc;
-  }, {});
-
-  const goalKeys = Object.keys(byGoal); // 0..3 goals depending on data
+  const chartData = {
+    labels,
+    datasets: [
+      { label: "Completion score", data: completion, tension: 0.3 },
+      { label: "Mood", data: mood, tension: 0.3 },
+    ],
+  };
 
   return (
-    <div className="chat-container" style={{ maxWidth: 980 }}>
+    <div className="chat-container" style={{ maxWidth: 760 }}>
       <h1>Progress</h1>
-
-      {!ready ? (
-        <>
-          <p>Sign in to view your private progress graphs.</p>
-          <EmailLogin />
-        </>
+      {childEmail ? (
+        <p style={{ margin: "6px 0 14px" }}>
+          Child email: <b>{childEmail}</b>
+        </p>
       ) : (
-        <>
-          {err && <div className="bubble assistant">{err}</div>}
+        <p className="gform-error">Missing ?email= in URL.</p>
+      )}
 
-          {goalKeys.length === 0 ? (
-            <p>No data yet.</p>
-          ) : (
-            goalKeys.map((k) => {
-              const { title, rows: gRows } = byGoal[k];
-
-              // sort by date ASC
-              const sorted = [...gRows].sort(
-                (a, b) => new Date(a.date) - new Date(b.date)
-              );
-              const labels = sorted.map((r) => fmtDate(r.date));
-
-              // Build point arrays with activity on each point
-              const completionData = sorted.map((r) => ({
-                x: fmtDate(r.date),
-                y: Number(r.completion),
-                _activity: r.activity,
-              }));
-              const moodData = sorted.map((r) => ({
-                x: fmtDate(r.date),
-                y: Number(r.mood),
-                _activity: r.activity,
-              }));
-
-              // Activity legend for this goal
-              const activities = Array.from(
-                new Set(sorted.map((r) => r.activity).filter(Boolean))
-              );
-
-              const data = {
-                labels,
-                datasets: [
-                  {
-                    label: "Completion score",
-                    data: completionData,
-                    fill: false,
-                    borderWidth: 3,
-                    tension: 0.25,
-                    // Color each segment by the activity of the segment's end point
-                    segment: {
-                      borderColor: (ctx) => {
-                        const a = ctx?.p1?.raw?._activity;
-                        return getActivityColor(a);
-                      },
-                    },
-                    // Color each point by its activity (helps when points are sparse)
-                    pointRadius: 3,
-                    pointBackgroundColor: (ctx) =>
-                      getActivityColor(completionData[ctx.dataIndex]?._activity),
-                  },
-                  {
-                    label: "Mood",
-                    data: moodData,
-                    fill: false,
-                    borderWidth: 3,
-                    borderDash: [6, 4], // visually distinct from completion
-                    tension: 0.25,
-                    segment: {
-                      borderColor: (ctx) => {
-                        const a = ctx?.p1?.raw?._activity;
-                        return getActivityColor(a);
-                      },
-                    },
-                    pointRadius: 3,
-                    pointBackgroundColor: (ctx) =>
-                      getActivityColor(moodData[ctx.dataIndex]?._activity),
-                  },
-                ],
-              };
-
-              const options = {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: "index", intersect: false },
-                plugins: {
-                  legend: { position: "top" },
-                  tooltip: {
-                    callbacks: {
-                      // Show activity per point in tooltip
-                      label: (tt) => {
-                        const dsLabel = tt.dataset.label || "";
-                        const raw = tt.raw || {};
-                        const act = raw._activity ? ` • ${raw._activity}` : "";
-                        return `${dsLabel}: ${tt.formattedValue}${act}`;
-                      },
-                    },
-                  },
-                },
-                scales: {
-                  x: { title: { display: true, text: "Date" } },
-                  y: {
-                    min: 1,
-                    max: 5, // both completion & mood are 1–5
-                    ticks: { stepSize: 1 },
-                    title: { display: true, text: "Score (1–5)" },
-                  },
-                },
-              };
-
-              return (
-                <div key={k} style={{ margin: "16px 0" }}>
-                  <h2 style={{ marginBottom: 8 }}>{title}</h2>
-
-                  {/* Activity legend */}
-                  {activities.length > 0 && (
-                    <div className="activity-legend" style={{ marginBottom: 8, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      {activities.map((a) => (
-                        <span key={a} className="activity-chip" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                          <span
-                            style={{
-                              width: 12,
-                              height: 12,
-                              borderRadius: 2,
-                              display: "inline-block",
-                              background: getActivityColor(a),
-                            }}
-                          />
-                          {a}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div style={{ height: 360 }}>
-                    <LineChart data={data} options={options} />
-                  </div>
-                </div>
-              );
-            })
-          )}
-
-          <div style={{ marginTop: 12 }}>
-            <button className="btn" onClick={signOut}>Sign out</button>
+      {err && <div className="bubble assistant">{err}</div>}
+      {loading ? (
+        <div className="bubble assistant">Loading…</div>
+      ) : rows.length ? (
+        <div style={{ background: "#fff", borderRadius: 12, padding: 16 }}>
+          <LineChart data={chartData} />
+          <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+            {rows.length} check-ins shown
           </div>
-        </>
+        </div>
+      ) : (
+        <p>No data yet.</p>
       )}
     </div>
   );
