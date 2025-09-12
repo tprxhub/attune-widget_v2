@@ -730,23 +730,94 @@ function ProgressView() {
     return () => { mounted = false; };
   }, [childEmail]);
 
-  // Chart data: 2 trend lines (completion & mood)
+  // ---- helpers for styling the completion series by segment ----
+  const GOAL_COLORS = {
+    "Fine motor": "#e74c3c",   // red
+    "Perception": "#3498db",   // blue
+    "Handwriting": "#2ecc71",  // green
+  };
   const labels = rows.map(r =>
     (r.checkin_date ? new Date(r.checkin_date) : new Date(r.created_at)).toLocaleDateString()
   );
-  const completion = rows.map(r => r.completion_score);
-  const mood = rows.map(r => r.mood_score);
+  const completion = rows.map(r => Number(r.completion_score ?? null));
+  const mood = rows.map(r => Number(r.mood_score ?? null));
+  const goalsMeta = rows.map(r => r.goal || "");
+  const activitiesMeta = rows.map(r => r.activity || "");
+  const activityNums = rows.map(r => {
+    const m = String(r.activity || "").match(/#(\d+)/);
+    return m ? parseInt(m[1], 10) : null;
+  });
+
+  const colorForIndex = (i) => GOAL_COLORS[goalsMeta[i]] || "#555";
+  const dashForIndex = (i) => {
+    const a = (activitiesMeta[i] || "").toLowerCase();
+    if (a.startsWith("forerunner")) return [2, 4];   // dotted
+    if (a.startsWith("starter"))    return [6, 4];   // dashed
+    if (a.startsWith("advancer"))   return [];       // solid
+    return []; // default solid
+  };
+  const widthForIndex = (i) => {
+    const n = activityNums[i] || 1;               // 1..15 (ish)
+    // map 1..15 -> 2..6 px
+    const clamped = Math.max(1, Math.min(15, n));
+    return 2 + ((clamped - 1) / 14) * 4;
+  };
 
   const chartData = {
     labels,
     datasets: [
-      { label: "Completion score", data: completion, tension: 0.3 },
-      { label: "Mood", data: mood, tension: 0.3 },
+      {
+        label: "Completion score",
+        data: completion,
+        spanGaps: true,
+        tension: 0.25,
+        pointRadius: 3,
+        borderColor: "#000", // fallback; real color set per-segment below
+        segment: {
+          borderColor: (ctx) => colorForIndex(ctx.p1DataIndex),
+          borderDash:  (ctx) => dashForIndex(ctx.p1DataIndex),
+          borderWidth: (ctx) => widthForIndex(ctx.p1DataIndex),
+        },
+      },
+      {
+        label: "Mood",
+        data: mood,
+        tension: 0.25,
+        pointRadius: 2,
+        borderColor: "#777",
+        backgroundColor: "#777",
+        borderWidth: 2,
+      },
     ],
   };
 
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        min: 1,
+        max: 5,
+        ticks: { stepSize: 1 },
+      },
+    },
+    plugins: {
+      legend: { display: true },
+      tooltip: {
+        callbacks: {
+          afterBody: (items) => {
+            const i = items[0].dataIndex;
+            const goal = goalsMeta[i] || "—";
+            const act  = activitiesMeta[i] || "—";
+            return [`Goal: ${goal}`, `Activity: ${act}`];
+          },
+        },
+      },
+    },
+  };
+
   return (
-    <div className="chat-container" style={{ maxWidth: 760 }}>
+    <div className="chat-container" style={{ maxWidth: 900 }}>
       <h1>Progress</h1>
       {childEmail ? (
         <p style={{ margin: "6px 0 14px" }}>
@@ -760,10 +831,13 @@ function ProgressView() {
       {loading ? (
         <div className="bubble assistant">Loading…</div>
       ) : rows.length ? (
-        <div style={{ background: "#fff", borderRadius: 12, padding: 16 }}>
-          <LineChart data={chartData} />
-          <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
-            {rows.length} check-ins shown
+        <div style={{ background: "#fff", borderRadius: 12, padding: 16, height: 420 }}>
+          <LineChart data={chartData} options={options} />
+          <div style={{ fontSize: 12, color: "#666", marginTop: 10 }}>
+            Key: <span style={{ color: "#e74c3c" }}>Fine motor</span> •{" "}
+            <span style={{ color: "#3498db" }}>Perception</span> •{" "}
+            <span style={{ color: "#2ecc71" }}>Handwriting</span> &nbsp;|&nbsp;
+            Line style: Forerunner = dotted, Starter = dashed, Advancer = solid. Line width scales with activity number.
           </div>
         </div>
       ) : (
@@ -771,75 +845,6 @@ function ProgressView() {
       )}
     </div>
   );
-}
-
-/* =========================
-   Root App with Tabs
-========================= */
-function App() {
-  // capture token if they land on "/" after magic/OTP
-  useEffect(() => {
-    captureTokenFromHash();
-  }, []);
-
-  const [tab, setTab] = React.useState(getTabFromURL());
-
-  // Keep the URL in sync when the user clicks tabs
-  useEffect(() => {
-    setTabInURL(tab);
-  }, [tab]);
-
-  // Also react to browser back/forward (so embeds can navigate if needed)
-  useEffect(() => {
-    const onPop = () => setTab(getTabFromURL());
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
-
-  return (
-  <>
-    {/* Top tabs (hidden when &embed=1) */}
-    {!isEmbedded() && (
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          padding: "12px 16px",
-          borderBottom: "1px solid #eee",
-          position: "sticky",
-          top: 0,
-          background: "#fff",
-          zIndex: 10,
-        }}
-      >
-        <button
-          onClick={() => setTab("assistant")}
-          className={tab === "assistant" ? "btn-primary" : "btn"}
-        >
-          Assistant
-        </button>
-        <button
-          onClick={() => setTab("checkin")}
-          className={tab === "checkin" ? "btn-primary" : "btn"}
-        >
-          Check-In (Form)
-        </button>
-        <button
-          onClick={() => setTab("progress")}
-          className={tab === "progress" ? "btn-primary" : "btn"}
-        >
-          Progress (Private)
-        </button>
-      </div>
-    )}
-
-    {/* Views */}
-    {tab === "assistant" && <AssistantView />}
-    {tab === "checkin" && <CheckinFormView />}
-    {tab === "progress" && <ProgressView />}
-  </>
-);
-
 }
 
 export default App;
