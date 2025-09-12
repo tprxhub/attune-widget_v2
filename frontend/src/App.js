@@ -712,6 +712,9 @@ function ProgressView() {
   const [loading, setLoading] = React.useState(true);
   const [err, setErr] = React.useState("");
 
+  // set to false if you still see a blank page – it removes segment scripting
+  const USE_SEGMENT = true;
+
   React.useEffect(() => {
     let mounted = true;
     (async () => {
@@ -719,8 +722,8 @@ function ProgressView() {
         setErr("");
         setLoading(true);
         const q = childEmail ? `?child_email=${encodeURIComponent(childEmail)}` : "";
-        const { rows: data = [] } = await apiGet(`/getCheckins${q}`);
-        if (mounted) setRows(data);
+        const res = await apiGet(`/getCheckins${q}`);
+        if (mounted) setRows(Array.isArray(res?.rows) ? res.rows : []);
       } catch (e) {
         if (mounted) setErr(e.message || "Failed to load progress.");
       } finally {
@@ -730,68 +733,93 @@ function ProgressView() {
     return () => { mounted = false; };
   }, [childEmail]);
 
-  // ---- helpers for styling the completion series by segment ----
-  const GOAL_COLORS = {
+  // ---- derive chart data safely
+  const {
+    labels, completion, mood, goalsMeta, activitiesMeta, activityNums
+  } = React.useMemo(() => {
+    const L = [];
+    const C = [];
+    const M = [];
+    const G = [];
+    const A = [];
+    const N = [];
+    (rows || []).forEach((r) => {
+      const d = r.checkin_date ? new Date(r.checkin_date) : (r.created_at ? new Date(r.created_at) : null);
+      L.push(d ? d.toLocaleDateString() : "");
+      C.push(Number(r.completion_score ?? null));
+      M.push(Number(r.mood_score ?? null));
+      const goal = r.goal || "";
+      const act  = r.activity || "";
+      G.push(goal);
+      A.push(act);
+      const m = String(act).match(/#(\d+)/);
+      N.push(m ? parseInt(m[1], 10) : null);
+    });
+    return { labels: L, completion: C, mood: M, goalsMeta: G, activitiesMeta: A, activityNums: N };
+  }, [rows]);
+
+  // goal colors
+  const GOAL_COLORS = React.useMemo(() => ({
     "Fine motor": "#e74c3c",   // red
     "Perception": "#3498db",   // blue
     "Handwriting": "#2ecc71",  // green
-  };
-  const labels = rows.map(r =>
-    (r.checkin_date ? new Date(r.checkin_date) : new Date(r.created_at)).toLocaleDateString()
-  );
-  const completion = rows.map(r => Number(r.completion_score ?? null));
-  const mood = rows.map(r => Number(r.mood_score ?? null));
-  const goalsMeta = rows.map(r => r.goal || "");
-  const activitiesMeta = rows.map(r => r.activity || "");
-  const activityNums = rows.map(r => {
-    const m = String(r.activity || "").match(/#(\d+)/);
-    return m ? parseInt(m[1], 10) : null;
-  });
+  }), []);
 
-  const colorForIndex = (i) => GOAL_COLORS[goalsMeta[i]] || "#555";
-  const dashForIndex = (i) => {
+  // helpers for segment styling
+  const colorForIndex = React.useCallback((i) => GOAL_COLORS[goalsMeta[i]] || "#555", [GOAL_COLORS, goalsMeta]);
+  const dashForIndex  = React.useCallback((i) => {
     const a = (activitiesMeta[i] || "").toLowerCase();
     if (a.startsWith("forerunner")) return [2, 4];   // dotted
     if (a.startsWith("starter"))    return [6, 4];   // dashed
     if (a.startsWith("advancer"))   return [];       // solid
-    return []; // default solid
-  };
-  const widthForIndex = (i) => {
-    const n = activityNums[i] || 1;               // 1..15 (ish)
-    // map 1..15 -> 2..6 px
-    const clamped = Math.max(1, Math.min(15, n));
-    return 2 + ((clamped - 1) / 14) * 4;
-  };
+    return [];
+  }, [activitiesMeta]);
+  const widthForIndex = React.useCallback((i) => {
+    const n = activityNums[i] || 1;              // e.g., #1..#15
+    const clamped = Math.max(1, Math.min(20, n));
+    return 2 + ((clamped - 1) / 19) * 4;         // 2px..6px
+  }, [activityNums]);
 
-  const chartData = {
+  const completionDataset = React.useMemo(() => {
+    const base = {
+      label: "Completion score",
+      data: completion,
+      spanGaps: true,
+      tension: 0.25,
+      pointRadius: 3,
+    };
+    if (!USE_SEGMENT) {
+      // stable fallback (single style) if segment callbacks cause issues
+      return { ...base, borderColor: "#3498db", borderWidth: 3 };
+    }
+    return {
+      ...base,
+      borderColor: "#000", // fallback; real style is per segment below
+      segment: {
+        // Chart.js scriptable segment styles (v4+)
+        borderColor: (ctx) => colorForIndex(ctx.p1DataIndex),
+        borderDash:  (ctx) => dashForIndex(ctx.p1DataIndex),
+        borderWidth: (ctx) => widthForIndex(ctx.p1DataIndex),
+      },
+    };
+  }, [completion, USE_SEGMENT, colorForIndex, dashForIndex, widthForIndex]);
+
+  const moodDataset = React.useMemo(() => ({
+    label: "Mood",
+    data: mood,
+    tension: 0.25,
+    pointRadius: 2,
+    borderColor: "#777",
+    backgroundColor: "#777",
+    borderWidth: 2,
+  }), [mood]);
+
+  const chartData = React.useMemo(() => ({
     labels,
-    datasets: [
-      {
-        label: "Completion score",
-        data: completion,
-        spanGaps: true,
-        tension: 0.25,
-        pointRadius: 3,
-        borderColor: "#000", // fallback; real color set per-segment below
-        segment: {
-          borderColor: (ctx) => colorForIndex(ctx.p1DataIndex),
-          borderDash:  (ctx) => dashForIndex(ctx.p1DataIndex),
-          borderWidth: (ctx) => widthForIndex(ctx.p1DataIndex),
-        },
-      },
-      {
-        label: "Mood",
-        data: mood,
-        tension: 0.25,
-        pointRadius: 2,
-        borderColor: "#777",
-        backgroundColor: "#777",
-        borderWidth: 2,
-      },
-    ],
-  };
+    datasets: [completionDataset, moodDataset],
+  }), [labels, completionDataset, moodDataset]);
 
-  const options = {
+  const options = React.useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     scales: {
@@ -806,7 +834,7 @@ function ProgressView() {
       tooltip: {
         callbacks: {
           afterBody: (items) => {
-            const i = items[0].dataIndex;
+            const i = items?.[0]?.dataIndex ?? 0;
             const goal = goalsMeta[i] || "—";
             const act  = activitiesMeta[i] || "—";
             return [`Goal: ${goal}`, `Activity: ${act}`];
@@ -814,7 +842,7 @@ function ProgressView() {
         },
       },
     },
-  };
+  }), [goalsMeta, activitiesMeta]);
 
   return (
     <div className="chat-container" style={{ maxWidth: 900 }}>
@@ -837,7 +865,7 @@ function ProgressView() {
             Key: <span style={{ color: "#e74c3c" }}>Fine motor</span> •{" "}
             <span style={{ color: "#3498db" }}>Perception</span> •{" "}
             <span style={{ color: "#2ecc71" }}>Handwriting</span> &nbsp;|&nbsp;
-            Line style: Forerunner = dotted, Starter = dashed, Advancer = solid. Line width scales with activity number.
+            Line style: Forerunner = dotted, Starter = dashed, Advancer = solid. Width scales with activity #.
           </div>
         </div>
       ) : (
@@ -846,5 +874,6 @@ function ProgressView() {
     </div>
   );
 }
+
 
 export default App;
