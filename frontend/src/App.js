@@ -430,7 +430,7 @@ function CheckinFormView() {
 
   // Visible fields (no preselection)
   const [name, setName] = React.useState("");
-  const GOALS = ["Fine motor", "Perception", "Handwriting"];
+  const GOALS = ["Pinch & Grip Development", "Bilateral Coordination & Midline Crossing", "Visual-Motor Integration & Eye-Hand Coordination"];
   const ACTIVITIES = [
     "Forerunner - Activity #1","Forerunner - Activity #2","Forerunner - Activity #3","Forerunner - Activity #4","Forerunner - Activity #5",
     "Starter - Activity #6","Starter - Activity #7","Starter - Activity #8","Starter - Activity #9","Starter - Activity #10",
@@ -727,14 +727,12 @@ function ProgressView() {
         const q = childEmail ? `?child_email=${encodeURIComponent(childEmail)}` : "";
         const res = await apiGet(`/getCheckins${q}`);
         const data = (Array.isArray(res?.rows) ? res.rows : []).slice();
-
         // sort by date ascending
         data.sort((a, b) => {
           const ta = Date.parse(a.checkin_date || a.created_at || 0) || 0;
           const tb = Date.parse(b.checkin_date || b.created_at || 0) || 0;
           return ta - tb;
         });
-
         if (mounted) setRows(data);
       } catch (e) {
         if (mounted) setErr(e.message || "Failed to load progress.");
@@ -753,7 +751,7 @@ function ProgressView() {
     return [first, last || first];
   }, [rows]);
 
-  // Compute filtered rows from scrubber positions
+  // Filtered rows from scrubber range
   const filtered = React.useMemo(() => {
     if (!rows.length || minTS === maxTS) return rows;
     const span = maxTS - minTS;
@@ -765,12 +763,12 @@ function ProgressView() {
     });
   }, [rows, minTS, maxTS, fromPct, toPct]);
 
-  // helpers
+  // ---- chart data
   const fmtDate = (d) => { try { return new Date(d).toLocaleDateString(); } catch { return d || ""; } };
   const GOAL_COLORS = React.useMemo(() => ({
-    "Fine motor": "#e74c3c",   // red
-    "Perception": "#3498db",   // blue
-    "Handwriting": "#2ecc71",  // green
+    "Pinch & Grip Development": "#e74c3c",
+    "Bilateral Coordination & Midline Crossing": "#3498db",
+    "Visual-Motor Integration & Eye-Hand Coordination": "#2ecc71",
   }), []);
   const labels = filtered.map(r => fmtDate(r.checkin_date || r.created_at));
   const completion = filtered.map(r => Number(r.completion_score ?? null));
@@ -791,9 +789,9 @@ function ProgressView() {
     return [];
   }, [activitiesMeta]);
   const widthForIndex = React.useCallback((i) => {
-    const n = activityNums[i] || 1;              // e.g., #1..#15+
+    const n = activityNums[i] || 1;
     const clamped = Math.max(1, Math.min(20, n));
-    return 2 + ((clamped - 1) / 19) * 4;         // 2px..6px
+    return 2 + ((clamped - 1) / 19) * 4; // 2..6 px
   }, [activityNums]);
 
   const completionDataset = React.useMemo(() => {
@@ -801,7 +799,7 @@ function ProgressView() {
     if (!USE_SEGMENT) return { ...base, borderColor: "#3498db", borderWidth: 3 };
     return {
       ...base,
-      borderColor: "#000", // fallback;
+      borderColor: "#000",
       segment: {
         borderColor: (ctx) => colorForIndex(ctx.p1DataIndex),
         borderDash:  (ctx) => dashForIndex(ctx.p1DataIndex),
@@ -846,7 +844,10 @@ function ProgressView() {
     },
   }), [goalsMeta, activitiesMeta]);
 
-  // UI helpers for scrubber
+  // ---------- Scrubber: add DRAGGABLE date handles ----------
+  const trackRef = React.useRef(null);
+  const [drag, setDrag] = React.useState(null); // 'from' | 'to' | null
+
   function pctToDate(p) {
     if (minTS === maxTS) return "";
     const ts = minTS + (p / 100) * (maxTS - minTS);
@@ -860,6 +861,41 @@ function ProgressView() {
     const val = Math.max(0, Math.min(100, Number(v)));
     setToPct(Math.max(val, fromPct + 1));
   }
+
+  function pctFromClientX(clientX) {
+    const el = trackRef.current;
+    if (!el) return 0;
+    const rect = el.getBoundingClientRect();
+    const p = ((clientX - rect.left) / rect.width) * 100;
+    return Math.max(0, Math.min(100, p));
+  }
+
+  const onPointerDown = (which) => (e) => {
+    e.preventDefault();
+    setDrag(which);
+  };
+
+  React.useEffect(() => {
+    function move(e) {
+      if (!drag) return;
+      const x = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+      if (x == null) return;
+      const p = pctFromClientX(x);
+      if (drag === "from") setFromSafe(p); else setToSafe(p);
+    }
+    function up() { setDrag(null); }
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("touchmove", move, { passive: false });
+    window.addEventListener("touchend", up);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("touchmove", move);
+      window.removeEventListener("touchend", up);
+    };
+  }, [drag]);
+
   function preset(days) {
     if (minTS === maxTS) return;
     const end = maxTS;
@@ -878,7 +914,7 @@ function ProgressView() {
         <p className="gform-error">Missing ?email= in URL.</p>
       )}
 
-      {/* Time range scrubber */}
+      {/* Time range scrubber with draggable date handles */}
       {rows.length > 0 && (
         <div style={{ background: "#fff", borderRadius: 12, padding: 12, marginBottom: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -893,40 +929,99 @@ function ProgressView() {
             </div>
           </div>
 
-          {/* Dual-thumb slider (two inputs) */}
-          <div style={{ position: "relative", height: 28, marginTop: 8 }}>
-            {/* Track background */}
-            <div style={{
-              position: "absolute", left: 8, right: 8, top: 12, height: 4,
-              background: "#eee", borderRadius: 999
-            }} />
-            {/* Selected range highlight */}
-            <div style={{
-              position: "absolute",
-              left: `calc(${fromPct}% + 8px)`,
-              right: `calc(${100 - toPct}% + 8px)`,
-              top: 12, height: 4, background: "#a5b4fc", borderRadius: 999
-            }} />
+          <div style={{ position: "relative", height: 56, marginTop: 10 }}>
+            {/* track */}
+            <div
+              ref={trackRef}
+              style={{
+                position: "absolute", left: 8, right: 8, top: 32, height: 4,
+                background: "#eee", borderRadius: 999
+              }}
+            />
+            {/* selected range */}
+            <div
+              style={{
+                position: "absolute",
+                left: `calc(${fromPct}% + 8px)`,
+                right: `calc(${100 - toPct}% + 8px)`,
+                top: 32, height: 4, background: "#a5b4fc", borderRadius: 999
+              }}
+            />
 
-            {/* lower thumb */}
+            {/* FROM handle + label */}
+            <div
+              onPointerDown={onPointerDown("from")}
+              onTouchStart={onPointerDown("from")}
+              style={{
+                position: "absolute",
+                left: `calc(${fromPct}% + 8px - 8px)`,
+                top: 20,
+                width: 16, height: 16, borderRadius: "50%",
+                background: "#4f46e5", border: "2px solid #fff",
+                boxShadow: "0 0 0 1px #4f46e5", cursor: "grab", zIndex: 3
+              }}
+              title={`Start: ${pctToDate(fromPct)}`}
+              aria-label="Drag to set start date"
+              role="slider"
+              aria-valuemin={0} aria-valuemax={toPct - 1} aria-valuenow={Math.round(fromPct)}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: `calc(${fromPct}% + 8px)`,
+                top: 0,
+                transform: "translateX(-50%)",
+                fontSize: 11, color: "#444",
+                background: "#f8fafc", padding: "2px 6px", borderRadius: 6, border: "1px solid #e5e7eb"
+              }}
+            >
+              {pctToDate(fromPct)}
+            </div>
+
+            {/* TO handle + label */}
+            <div
+              onPointerDown={onPointerDown("to")}
+              onTouchStart={onPointerDown("to")}
+              style={{
+                position: "absolute",
+                left: `calc(${toPct}% + 8px - 8px)`,
+                top: 20,
+                width: 16, height: 16, borderRadius: "50%",
+                background: "#4f46e5", border: "2px solid #fff",
+                boxShadow: "0 0 0 1px #4f46e5", cursor: "grab", zIndex: 3
+              }}
+              title={`End: ${pctToDate(toPct)}`}
+              aria-label="Drag to set end date"
+              role="slider"
+              aria-valuemin={fromPct + 1} aria-valuemax={100} aria-valuenow={Math.round(toPct)}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: `calc(${toPct}% + 8px)`,
+                top: 0,
+                transform: "translateX(-50%)",
+                fontSize: 11, color: "#444",
+                background: "#f8fafc", padding: "2px 6px", borderRadius: 6, border: "1px solid #e5e7eb"
+              }}
+            >
+              {pctToDate(toPct)}
+            </div>
+
+            {/* Hidden-but-usable range inputs (for keyboard / a11y) */}
             <input
               type="range" min={0} max={100} step={1} value={fromPct}
               onChange={(e) => setFromSafe(e.target.value)}
-              style={{
-                position: "absolute", left: 0, right: 0, width: "100%",
-                pointerEvents: "auto", WebkitAppearance: "none", appearance: "none",
-                background: "transparent"
-              }}
+              style={{ position: "absolute", left: 0, right: 0, width: "100%", top: 28, opacity: 0 }}
+              aria-hidden="true"
+              tabIndex={-1}
             />
-            {/* upper thumb */}
             <input
               type="range" min={0} max={100} step={1} value={toPct}
               onChange={(e) => setToSafe(e.target.value)}
-              style={{
-                position: "absolute", left: 0, right: 0, width: "100%",
-                pointerEvents: "auto", WebkitAppearance: "none", appearance: "none",
-                background: "transparent"
-              }}
+              style={{ position: "absolute", left: 0, right: 0, width: "100%", top: 28, opacity: 0 }}
+              aria-hidden="true"
+              tabIndex={-1}
             />
           </div>
         </div>
@@ -939,9 +1034,9 @@ function ProgressView() {
         <div style={{ background: "#fff", borderRadius: 12, padding: 16, height: 420 }}>
           <LineChart data={chartData} options={options} />
           <div style={{ fontSize: 12, color: "#666", marginTop: 10 }}>
-            Key: <span style={{ color: "#e74c3c" }}>Fine motor</span> •{" "}
-            <span style={{ color: "#3498db" }}>Perception</span> •{" "}
-            <span style={{ color: "#2ecc71" }}>Handwriting</span> &nbsp;|&nbsp;
+            Key: <span style={{ color: "#e74c3c" }}>Pinch & Grip Development</span> •{" "}
+            <span style={{ color: "#3498db" }}>Bilateral Coordination & Midline Crossing</span> •{" "}
+            <span style={{ color: "#2ecc71" }}>Visual-Motor Integration & Eye-Hand Coordination</span> &nbsp;|&nbsp;
             Line style: Forerunner = dotted, Starter = dashed, Advancer = solid. Width scales with activity #.
           </div>
         </div>
@@ -951,6 +1046,7 @@ function ProgressView() {
     </div>
   );
 }
+
 // --- util: hide tabs when embedded in Tevello (?embed=1) ---
 // (you already have isEmbedded() at the top, we reuse it here)
 
