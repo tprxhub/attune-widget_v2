@@ -874,6 +874,83 @@ function ProgressView() {
     </div>
   );
 }
+// --- util: hide tabs when embedded in Tevello (?embed=1) ---
+// (you already have isEmbedded() at the top, we reuse it here)
+
+// --- ROOT APP (tabs: assistant / checkin / progress) ---
+function App() {
+  // figure out initial tab from ?tab=
+  const getTabFromURL = () => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const t = (q.get("tab") || "").toLowerCase();
+      return ["assistant", "checkin", "progress"].includes(t) ? t : "checkin";
+    } catch {
+      return "checkin";
+    }
+  };
+
+  const [tab, setTab] = React.useState(getTabFromURL());
+
+  // keep tab in sync if browser history changes
+  React.useEffect(() => {
+    const onPop = () => setTab(getTabFromURL());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // navigate updates URL (?tab=...) and state
+  function navigate(next) {
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set("tab", next);
+      history.pushState(null, "", u.toString());
+    } catch {}
+    setTab(next);
+  }
+
+  return (
+    <div>
+      {!isEmbedded() && (
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            padding: "12px 16px",
+            borderBottom: "1px solid #eee",
+            position: "sticky",
+            top: 0,
+            background: "#fff",
+            zIndex: 10,
+          }}
+        >
+          <button
+            onClick={() => navigate("assistant")}
+            className={tab === "assistant" ? "btn-primary" : "btn"}
+          >
+            Assistant
+          </button>
+          <button
+            onClick={() => navigate("checkin")}
+            className={tab === "checkin" ? "btn-primary" : "btn"}
+          >
+            Check-In (Form)
+          </button>
+          <button
+            onClick={() => navigate("progress")}
+            className={tab === "progress" ? "btn-primary" : "btn"}
+          >
+            Progress
+          </button>
+        </div>
+      )}
+
+      {tab === "assistant" && <AssistantView />}
+      {tab === "checkin" && <CheckinFormView />}
+      {tab === "progress" && <ProgressView />}
+    </div>
+  );
+}
 
 
 export default App;
