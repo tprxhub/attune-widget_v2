@@ -430,7 +430,7 @@ function CheckinFormView() {
 
   // Visible fields (no preselection)
   const [name, setName] = React.useState("");
-  const GOALS = ["Pinch & Grip Development", "Bilateral Coordination & Midline Crossing", "Visual-Motor Integration & Eye-Hand Coordination"];
+  const GOALS = ["Pinch & Grip Development", "Bilateral Coordination & Midline Crossing", "Visual-Motor Integration & Eye-Hand Coordination","Tummy Time"];
   const ACTIVITIES = [
     "Forerunner - Activity #1","Forerunner - Activity #2","Forerunner - Activity #3","Forerunner - Activity #4","Forerunner - Activity #5",
     "Starter - Activity #6","Starter - Activity #7","Starter - Activity #8","Starter - Activity #9","Starter - Activity #10",
