@@ -1,0 +1,64 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: playhub
+      POSTGRES_USER: playhub
+      POSTGRES_PASSWORD: playhub_local_only
+    ports:
+      - "5432:5432"
+    volumes:
+      - playhub_postgres:/var/lib/postgresql/data
+  api:
+    build: .
+    environment:
+      ENVIRONMENT: staging
+      DATABASE_URL: postgresql+psycopg://playhub:playhub_local_only@db:5432/playhub
+      JWT_SECRET: local-compose-secret-not-for-hosted-production-123456
+      ENABLE_TEST_PERSONAS: "false"
+      CORS_ORIGINS: http://localhost:3000
+      STORAGE_BACKEND: s3
+      STORAGE_KEY_PREFIX: media
+      STORAGE_PUBLIC_BASE_URL: http://localhost:9000/playhub-media
+      S3_BUCKET_NAME: playhub-media
+      S3_REGION: us-east-1
+      S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: playhub-local
+      AWS_SECRET_ACCESS_KEY: playhub-local-secret
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - minio-create-bucket
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-06T17-38-46Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: playhub-local
+      MINIO_ROOT_PASSWORD: playhub-local-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - playhub_minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-create-bucket:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "mc alias set local http://minio:9000 playhub-local playhub-local-secret &&
+      mc mb --ignore-existing local/playhub-media &&
+      mc anonymous set download local/playhub-media"
+
+volumes:
+  playhub_postgres:
+  playhub_minio:

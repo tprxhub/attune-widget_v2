@@ -1,0 +1,11 @@
+# Not part of the pushed app
+deliverables/
+/*.md
+/*.sh
+.DS_Store
+.claude/
+
+# Tooling/internal notes
+PlayHub_FE/.lovable/
+PlayHub_FE/AGENTS.md
+PlayHub_FE/roadmap.md

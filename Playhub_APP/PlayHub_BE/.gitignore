@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.db
+uploads/
+.venv*/
+.env.*
+!.env.example
+!.env.s3.example
+.DS_Store
