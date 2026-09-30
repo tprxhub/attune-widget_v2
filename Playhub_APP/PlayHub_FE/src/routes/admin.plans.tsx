@@ -237,6 +237,12 @@ function AdminPlans() {
                           Play Dose · {plan.level}
                         </p>
                         <p className="mt-1 font-bold">{plan.title}</p>
+                        <p className="mt-0.5 text-xs font-semibold text-navy/55">
+                          Created by{" "}
+                          <span data-testid="dose-creator">
+                            {plan.createdBy ?? "Play Hub team"}
+                          </span>
+                        </p>
                         <p className="mt-1 text-sm text-navy/65">{plan.summary}</p>
                         <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-navy/55">
                           <span>{acts} activities</span>
@@ -589,6 +595,12 @@ function PlanModal({
     >
       <form className="space-y-5" onSubmit={submit}>
         <div className="space-y-4 rounded-2xl border border-navy/10 bg-card p-4">
+          {plan && (
+            <p className="text-xs font-semibold text-navy/55">
+              Created by{" "}
+              <span data-testid="dose-creator-edit">{plan.createdBy ?? "Play Hub team"}</span>
+            </p>
+          )}
           <h3 className="text-sm font-bold tracking-wide text-navy/55 uppercase">
             {createNewPlayPlan
               ? "Step 1 · Play Plan and first Play Dose"

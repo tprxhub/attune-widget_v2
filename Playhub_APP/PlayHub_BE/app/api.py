@@ -647,7 +647,7 @@ def create_dose(plan_id: str, payload: PlayDoseCreate, actor: User = Depends(req
         raise HTTPException(status_code=409, detail="This Play Plan already has a Play Dose at this level")
     return commit_audited(
         db,
-        PlayDose(play_plan_id=plan_id, **payload.model_dump()),
+        PlayDose(play_plan_id=plan_id, **payload.model_dump(), created_by_id=actor.id),
         actor_id=actor.id,
         action="play_dose.created",
         resource_type="play_dose",

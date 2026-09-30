@@ -173,7 +173,14 @@ class PlayDose(TimestampMixin, Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    created_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+
     play_plan: Mapped[PlayPlan] = relationship(back_populates="play_doses")
+    creator: Mapped[Optional[User]] = relationship(foreign_keys=[created_by_id], lazy="joined")
+
+    @property
+    def created_by_name(self) -> Optional[str]:
+        return self.creator.display_name if self.creator else None
     activities: Mapped[list[Activity]] = relationship(
         back_populates="play_dose", cascade="all, delete-orphan", order_by="Activity.sequence"
     )

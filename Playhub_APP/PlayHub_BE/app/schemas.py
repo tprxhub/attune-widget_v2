@@ -251,6 +251,7 @@ class PlayDoseRead(APIModel):
     safety_note: str | None
     sort_order: int
     is_active: bool
+    created_by_name: str | None = None
     activities: list[ActivityRead] = Field(default_factory=list)
 
 

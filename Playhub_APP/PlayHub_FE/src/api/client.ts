@@ -166,6 +166,7 @@ export interface ApiDose {
   safety_note: string | null;
   sort_order: number;
   is_active: boolean;
+  created_by_name?: string | null;
   activities: ApiActivity[];
 }
 

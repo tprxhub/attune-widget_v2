@@ -617,6 +617,7 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   await plan.getByRole("button", { name: "Edit Play Dose" }).first().click();
   const edit = page.getByRole("dialog", { name: "Edit Play Dose" });
   await expect(edit.getByLabel("Play Dose title")).toHaveValue("Browser test dose");
+  await expect(edit.getByTestId("dose-creator-edit")).toHaveText("Play Hub Admin");
   await expect(edit.getByText("SMART + GAS tracking")).toHaveCount(0);
   for (const label of retiredLabels) await expect(edit.getByLabel(label)).toHaveCount(0);
   await edit.getByLabel("Safety note").fill("Supervise small parts.");

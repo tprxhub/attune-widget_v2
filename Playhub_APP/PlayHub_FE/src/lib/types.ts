@@ -89,6 +89,8 @@ export interface PlayPlan {
   /** Image shown on this Play Dose card. */
   thumbnailUrl?: string | undefined;
   safetyNote?: string | undefined;
+  /** Full name of the person who created this Play Dose; absent for built-in content. */
+  createdBy?: string | undefined;
   entries: PlanEntry[];
 }
 

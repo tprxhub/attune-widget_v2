@@ -156,6 +156,7 @@ export function flattenPlans(plans: ApiPlan[]): PlayPlan[] {
         age: dose.age_guidance ?? undefined,
         thumbnailUrl: apiAssetUrl(dose.thumbnail_url),
         safetyNote: dose.safety_note ?? undefined,
+        createdBy: dose.created_by_name ?? undefined,
         entries,
       };
     }),
