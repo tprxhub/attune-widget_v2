@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,15 +39,53 @@ export function Select({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [listStyle, setListStyle] = useState<CSSProperties | null>(null);
 
   const selectedIndex = options.findIndex((option) => option.value === value);
   const selected = selectedIndex >= 0 ? options[selectedIndex] : undefined;
 
+  // The list is portalled to <body> so a modal or card with its own overflow can't clip it.
+  // Position it from the trigger, and open upward when there is more room above.
+  useLayoutEffect(() => {
+    if (!open) {
+      setListStyle(null);
+      return;
+    }
+    function place() {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const gap = 8;
+      const margin = 12;
+      const below = window.innerHeight - rect.bottom - gap - margin;
+      const above = rect.top - gap - margin;
+      const wanted = Math.min(288, Math.max(listRef.current?.scrollHeight ?? 0, 96));
+      const openUp = below < wanted && above > below;
+      const maxHeight = Math.max(96, Math.min(288, openUp ? above : below));
+      setListStyle({
+        position: "fixed",
+        left: rect.left,
+        minWidth: Math.max(rect.width, 224),
+        maxHeight,
+        ...(openUp ? { bottom: window.innerHeight - rect.top + gap } : { top: rect.bottom + gap }),
+      });
+    }
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, options.length]);
+
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !listRef.current?.contains(target)) setOpen(false);
     };
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
@@ -112,71 +151,76 @@ export function Select({
         />
       </button>
 
-      {open && (
-        <div
-          role="listbox"
-          aria-label={ariaLabel}
-          tabIndex={-1}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              moveFocus(1);
-            } else if (event.key === "ArrowUp") {
-              event.preventDefault();
-              moveFocus(-1);
-            } else if (event.key === "Home") {
-              event.preventDefault();
-              optionRefs.current[0]?.focus();
-            } else if (event.key === "End") {
-              event.preventDefault();
-              optionRefs.current[options.length - 1]?.focus();
-            } else if (event.key === "Escape") {
-              event.preventDefault();
-              setOpen(false);
-              triggerRef.current?.focus();
-            } else if (event.key === "Tab") {
-              setOpen(false);
-            }
-          }}
-          className="ph-rise absolute top-full left-0 z-30 mt-2 max-h-72 w-full min-w-[14rem] overflow-y-auto rounded-2xl border border-navy/10 bg-card p-1.5 shadow-[var(--shadow-lift)]"
-        >
-          {options.length === 0 ? (
-            <p className="px-3 py-2.5 text-sm text-navy/50">No options available</p>
-          ) : (
-            options.map((option, index) => {
-              const active = option.value === value;
-              return (
-                <button
-                  key={option.value}
-                  ref={(element) => {
-                    optionRefs.current[index] = element;
-                  }}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  onClick={() => choose(option.value)}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm outline-none transition",
-                    active
-                      ? "bg-blue/10 font-bold text-navy"
-                      : "font-semibold text-navy/80 hover:bg-navy/4 focus-visible:bg-navy/4",
-                  )}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate">{option.label}</span>
-                    {option.description && (
-                      <span className="mt-0.5 block truncate text-[11px] font-normal text-navy/50">
-                        {option.description}
-                      </span>
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={listRef}
+            style={listStyle ?? { position: "fixed", visibility: "hidden" }}
+            role="listbox"
+            aria-label={ariaLabel}
+            tabIndex={-1}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                moveFocus(1);
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                moveFocus(-1);
+              } else if (event.key === "Home") {
+                event.preventDefault();
+                optionRefs.current[0]?.focus();
+              } else if (event.key === "End") {
+                event.preventDefault();
+                optionRefs.current[options.length - 1]?.focus();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                setOpen(false);
+                triggerRef.current?.focus();
+              } else if (event.key === "Tab") {
+                setOpen(false);
+              }
+            }}
+            className="ph-rise z-[1000] overflow-y-auto rounded-2xl border border-navy/10 bg-card p-1.5 shadow-[var(--shadow-lift)]"
+          >
+            {options.length === 0 ? (
+              <p className="px-3 py-2.5 text-sm text-navy/50">No options available</p>
+            ) : (
+              options.map((option, index) => {
+                const active = option.value === value;
+                return (
+                  <button
+                    key={option.value}
+                    ref={(element) => {
+                      optionRefs.current[index] = element;
+                    }}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => choose(option.value)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm outline-none transition",
+                      active
+                        ? "bg-blue/10 font-bold text-navy"
+                        : "font-semibold text-navy/80 hover:bg-navy/4 focus-visible:bg-navy/4",
                     )}
-                  </span>
-                  {active && <Check className="h-4 w-4 shrink-0 text-blue" aria-hidden />}
-                </button>
-              );
-            })
-          )}
-        </div>
-      )}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate">{option.label}</span>
+                      {option.description && (
+                        <span className="mt-0.5 block truncate text-[11px] font-normal text-navy/50">
+                          {option.description}
+                        </span>
+                      )}
+                    </span>
+                    {active && <Check className="h-4 w-4 shrink-0 text-blue" aria-hidden />}
+                  </button>
+                );
+              })
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

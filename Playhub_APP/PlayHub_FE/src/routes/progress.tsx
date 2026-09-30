@@ -18,7 +18,7 @@ import { listGoals, listPlans } from "@/api/plans";
 import { getProgress, progressNextSteps } from "@/api/progress";
 import type { Attempt, ProgressReport } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
-import { useCapabilities } from "@/auth/session";
+import { useCapabilities, useSession } from "@/auth/session";
 import { Protected } from "@/auth/guards";
 import { HeroStat } from "@/components/HeroStat";
 import { PageHeader } from "@/components/AppShell";
@@ -26,6 +26,7 @@ import { AttemptScore } from "@/components/AttemptScore";
 import { ChartSkeleton, CardSkeleton } from "@/components/Skeletons";
 import { LockedOverlay } from "@/components/LockedOverlay";
 import { StatusBadge } from "@/components/StatusBadge";
+import { FloatingPanel } from "@/components/FloatingPanel";
 import { MoodIcon, moodMeta } from "@/components/icons";
 import { LEVEL_TOKEN, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
 import { ProgressChart } from "@/features/progress/ProgressChart";
@@ -137,6 +138,7 @@ function PlanFilterDropdown({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const options = [{ id: "all", title: "All Play Plans", level: null }, ...plans] as const;
   const selected = plans.find((plan) => plan.id === value);
@@ -148,7 +150,8 @@ function PlanFilterDropdown({
   useEffect(() => {
     if (!open) return;
     const closeOnOutsideClick = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!rootRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -241,7 +244,11 @@ function PlanFilterDropdown({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 z-30 mt-2 w-[min(23rem,calc(100vw-3rem))] overflow-hidden rounded-2xl border border-navy/10 bg-card shadow-[var(--shadow-lift)]">
+        <FloatingPanel
+          anchorRef={triggerRef}
+          panelRef={panelRef}
+          className="w-[min(23rem,calc(100vw-3rem))] rounded-2xl border border-navy/10 bg-card shadow-[var(--shadow-lift)]"
+        >
           <div className="border-b border-navy/8 bg-navy/[0.025] px-4 py-3">
             <p className="text-xs font-bold text-navy">Filter by Play Plan</p>
             <p className="mt-0.5 text-[11px] text-navy/50">
@@ -319,7 +326,7 @@ function PlanFilterDropdown({
               );
             })}
           </div>
-        </div>
+        </FloatingPanel>
       )}
     </div>
   );
@@ -327,6 +334,7 @@ function PlanFilterDropdown({
 
 function ProgressPage() {
   const { isFreeGated, canManageSubscription, canLeaveConsultNotes } = useCapabilities();
+  const { session } = useSession();
   const { activeChild, isLoading } = useActiveChild();
   const childId = activeChild?.id;
   const [historyOpen, setHistoryOpen] = useState(true);
@@ -383,11 +391,34 @@ function ProgressPage() {
   const insights = useInsights(rows);
   const hasActiveFilters = planFilter !== "all" || Boolean(fromDate) || Boolean(toDate);
 
-  if (isLoading || !activeChild) {
+  if (isLoading) {
     return (
       <>
         <PageHeader eyebrow="Tracking" title="Progress" />
         <ChartSkeleton />
+      </>
+    );
+  }
+
+  if (!activeChild) {
+    const canEnrol = session.role === "educator" || session.role === "supporter";
+    return (
+      <>
+        <PageHeader eyebrow="Tracking" title="Progress" />
+        <div className="ph-card p-8 text-center">
+          <p className="text-lg font-bold">No children to show yet</p>
+          <p className="mt-2 text-sm text-navy/70">
+            {canEnrol
+              ? "Progress appears here once a child is enrolled and their first Attempt is logged."
+              : "Add a child and log a first Attempt to see progress here."}
+          </p>
+          <Link
+            to={canEnrol ? "/org" : "/plans"}
+            className="mt-5 inline-flex min-h-12 items-center rounded-full bg-coral px-6 text-sm font-bold text-white"
+          >
+            {canEnrol ? "Go to Children" : "Browse Play Plans"}
+          </Link>
+        </div>
       </>
     );
   }

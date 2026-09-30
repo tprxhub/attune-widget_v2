@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronDown } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Check, ChevronDown, Plus } from "lucide-react";
 import { listChildrenForSession } from "@/api/children";
 import { useSession } from "@/auth/session";
 import type { Child } from "@/lib/types";
 import { ChildAvatar } from "@/components/brand";
+import { FloatingPanel } from "@/components/FloatingPanel";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { activeChildSelected, selectActiveChildOverride } from "@/store/active-child-slice";
@@ -42,13 +44,19 @@ export function useActiveChild(): ActiveChildValue {
 /** Compact dropdown used in the top bar; the choice is shared app-wide via the store. */
 export function ChildSwitcherDropdown({ className }: { className?: string }) {
   const { children, activeChild, activeChildId, setActiveChildId } = useActiveChild();
+  const { session } = useSession();
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Only school admins and platform admins may enrol children (the API enforces the same).
+  const canAddMember = session.role === "educator" || session.role === "super_admin";
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (!boxRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDown);
@@ -59,12 +67,14 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
     };
   }, [open]);
 
-  // Only personas that actually juggle more than one child need a picker.
-  if (children.length < 2 || !activeChild) return null;
+  // Only personas that actually juggle more than one child need a picker; admins also get it
+  // with a single child so "Add a Member" is always within reach.
+  if (!activeChild || (children.length < 2 && !canAddMember)) return null;
 
   return (
     <div ref={boxRef} className={cn("relative", className)}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
@@ -88,41 +98,56 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
       </button>
 
       {open && (
-        <ul
-          role="listbox"
-          aria-label="Choose a child"
-          className="absolute right-0 z-50 mt-2 max-h-72 w-56 overflow-y-auto rounded-2xl border border-navy/10 bg-card p-1.5 shadow-[0_16px_40px_-12px_rgba(15,42,74,0.35)]"
+        <FloatingPanel
+          anchorRef={triggerRef}
+          panelRef={panelRef}
+          align="right"
+          className="w-56 rounded-2xl border border-navy/10 bg-card p-1.5 shadow-[0_16px_40px_-12px_rgba(15,42,74,0.35)]"
         >
-          {children.map((child) => {
-            const active = child.id === activeChildId;
-            return (
-              <li key={child.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  onClick={() => {
-                    setActiveChildId(child.id);
-                    setOpen(false);
-                  }}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-bold transition-colors",
-                    active ? "bg-navy text-white" : "text-navy hover:bg-navy/6",
-                  )}
-                >
-                  <ChildAvatar
-                    name={child.name}
-                    token={child.colorToken ?? "blue"}
-                    size={28}
-                    shape="rounded"
-                  />
-                  <span className="min-w-0 flex-1 truncate">{child.name}</span>
-                  {active && <Check className="h-4 w-4 shrink-0" aria-hidden />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+          <ul role="listbox" aria-label="Choose a child">
+            {children.map((child) => {
+              const active = child.id === activeChildId;
+              return (
+                <li key={child.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => {
+                      setActiveChildId(child.id);
+                      setOpen(false);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-bold transition-colors",
+                      active ? "bg-navy text-white" : "text-navy hover:bg-navy/6",
+                    )}
+                  >
+                    <ChildAvatar
+                      name={child.name}
+                      token={child.colorToken ?? "blue"}
+                      size={28}
+                      shape="rounded"
+                    />
+                    <span className="min-w-0 flex-1 truncate">{child.name}</span>
+                    {active && <Check className="h-4 w-4 shrink-0" aria-hidden />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {canAddMember && (
+            <Link
+              to="/org/enroll"
+              onClick={() => setOpen(false)}
+              className="mt-1 flex w-full items-center gap-2 rounded-xl border-t border-navy/8 px-2 py-2.5 text-left text-sm font-bold text-coral transition-colors hover:bg-coral/8"
+            >
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-coral/12">
+                <Plus className="h-4 w-4" aria-hidden />
+              </span>
+              Add a Member
+            </Link>
+          )}
+        </FloatingPanel>
       )}
     </div>
   );

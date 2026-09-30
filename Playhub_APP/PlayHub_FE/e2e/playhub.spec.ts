@@ -21,7 +21,9 @@ async function expectScreen(page: Page, path: string, heading: string) {
 
 async function chooseOption(scope: Page | Locator, labelText: string, optionText: string) {
   await scope.getByLabel(labelText).click();
-  await scope.getByRole("option", { name: optionText, exact: false }).click();
+  // The list is portalled to <body>, so look for options on the whole page, not inside a dialog.
+  const page = "page" in scope ? scope.page() : scope;
+  await page.getByRole("option", { name: optionText, exact: false }).click();
 }
 
 test("family Check-In persists and immediately updates Progress", async ({ page }) => {
@@ -32,7 +34,7 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   await expect(page.getByRole("heading", { name: "Daily Check-In" })).toBeVisible();
   await expect(page.getByText("Logging an Attempt for Noah", { exact: false })).toBeVisible();
   await chooseOption(page, "Play Plan", "Bilateral Coordination");
-  await chooseOption(page, "Play Dose", "Two Hands Together · Rookie");
+  await chooseOption(page, "Play Dose", "Learn to Button a Shirt · Rookie");
   await expect(page.getByText("Assigned dose:", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Finished" }).click();
   await page.getByRole("button", { name: "One reminder" }).click();
@@ -63,9 +65,9 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   );
   await planFilter.click();
   await expect(page.getByRole("listbox", { name: "Play Plan" })).toBeVisible();
-  await page.getByRole("option", { name: /Two Hands Together.*Rookie level/ }).click();
+  await page.getByRole("option", { name: /Learn to Button a Shirt.*Rookie level/ }).click();
   await expect(page.getByText("Showing filtered check-ins")).toBeVisible();
-  await expect(planFilter).toHaveAccessibleName(/Play Plan Two Hands Together/);
+  await expect(planFilter).toHaveAccessibleName(/Play Plan Learn to Button a Shirt/);
   await planFilter.click();
   await page.getByRole("option", { name: /All Play Plans.*Compare all/ }).click();
   await expect(page.getByText("All Play Plans and dates")).toBeVisible();
@@ -293,10 +295,19 @@ test("subscribed family can check in from an unassigned Play Dose", async ({ pag
   await page.goto("/plans");
 
   const bilateralPlan = page.locator("section").filter({
-    has: page.getByRole("heading", { name: "Bilateral Coordination", exact: true }),
+    has: page.getByRole("heading", {
+      name: "Bilateral Coordination & Midline Crossing",
+      exact: true,
+    }),
   });
-  await bilateralPlan.getByRole("link", { name: /Two Hands Together/ }).click();
-  await page.getByRole("link", { name: /Thread the Trail.*Round 1/ }).click();
+  await bilateralPlan
+    .getByRole("link", { name: /Learn to Button a Shirt.*Rookie/ })
+    .first()
+    .click();
+  await page
+    .getByRole("link", { name: /Round 1/ })
+    .first()
+    .click();
 
   await expect(page.getByText("not currently assigned", { exact: false })).toHaveCount(0);
   await page.getByRole("button", { name: "Finished" }).click();
@@ -649,4 +660,17 @@ test("Super Admin gets a scannable progress overview with filters and details", 
   await rows.first().getByRole("button").first().click();
   await expect(page.getByText("Weekly trend")).toBeVisible();
   await expect(page.getByText("Daily check-ins")).toBeVisible();
+});
+
+test("Progress shows an empty state, not an endless skeleton, when the account has no children", async ({
+  page,
+}) => {
+  await login(page, "esther@sunrise.local", true);
+  await page.route(/\/api\/v1\/children(\?.*)?$/, (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: "[]" }),
+  );
+  await page.goto("/progress");
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+  await expect(page.getByText("No children to show yet")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Go to Children" })).toBeVisible();
 });
