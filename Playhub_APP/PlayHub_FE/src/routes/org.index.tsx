@@ -46,6 +46,8 @@ function OrgChildren() {
   const supporters = useQuery({
     queryKey: ["supporters", session.orgId],
     queryFn: () => listSupporters(session.orgId),
+    // The staff list comes from admin-only endpoints; Moderators would just get 403s.
+    enabled: session.role === "educator",
   });
   const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
   const org = useQuery({

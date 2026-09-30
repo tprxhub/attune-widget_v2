@@ -30,7 +30,8 @@ class SmokeClient:
         except HTTPError as error:
             status = error.code
             payload = error.read()
-        assert status == expected, f"{method} {path}: expected {expected}, got {status}: {payload.decode()}"
+        allowed = expected if isinstance(expected, tuple) else (expected,)
+        assert status in allowed, f"{method} {path}: expected {expected}, got {status}: {payload.decode()}"
         self.checks += 1
         return json.loads(payload) if payload else None
 
@@ -86,9 +87,13 @@ def run(base_url: str) -> None:
     client.request("/api/v1/invitations", token=org_admin)
     client.request(f"/api/v1/organisations/{me['organisation_id']}", token=org_admin)
 
+    # Persona endpoints answer 404 when ENABLE_TEST_PERSONAS=false (staging/production).
     tester = client.login("tester@playhub.local")
-    personas = client.request("/api/v1/developer/personas", token=tester)
-    assert len(personas) >= 5
+    personas = client.request("/api/v1/developer/personas", token=tester, expected=(200, 404))
+    if personas is None or isinstance(personas, dict):
+        personas = []
+    else:
+        assert len(personas) >= 5
 
     free = client.login("free.parent@playhub.local")
     free_child = client.request("/api/v1/children", token=free)[0]
