@@ -9,3 +9,7 @@ deliverables/
 PlayHub_FE/.lovable/
 PlayHub_FE/AGENTS.md
 PlayHub_FE/roadmap.md
+
+# Build output
+.amplify-hosting/
+PlayHub_FE/.amplify-hosting/
