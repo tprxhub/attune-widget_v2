@@ -565,13 +565,14 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   await page.getByRole("button", { name: "New Play Plan" }).click();
   const planDialog = page.getByRole("dialog", { name: "New Play Plan" });
   await planDialog.getByLabel("Play Plan name").fill("Browser test plan");
+  await planDialog.getByLabel("Created by (full name)").fill("Dr Jane Doe");
   await planDialog.getByRole("button", { name: "Create Play Plan" }).click();
   await expect(planDialog).toBeHidden();
 
   const plan = page.locator("section").filter({
     has: page.getByRole("heading", { name: "Browser test plan", exact: true }),
   });
-  await expect(plan.getByTestId("plan-creator")).toHaveText("Created by Play Hub Admin");
+  await expect(plan.getByTestId("plan-creator")).toHaveText("Created by Dr Jane Doe");
   await plan.getByRole("button", { name: "New Play Dose" }).click();
   const create = page.getByRole("dialog", { name: "New Play Dose" });
   await expect(create.getByLabel("Play Dose title")).toBeVisible();
@@ -617,7 +618,7 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   await plan.getByRole("button", { name: "Edit Play Dose" }).first().click();
   const edit = page.getByRole("dialog", { name: "Edit Play Dose" });
   await expect(edit.getByLabel("Play Dose title")).toHaveValue("Browser test dose");
-  await expect(edit.getByTestId("dose-creator-edit")).toHaveText("Play Hub Admin");
+  await expect(edit.getByLabel("Created by (full name)")).toHaveValue("Play Hub Admin");
   await expect(edit.getByText("SMART + GAS tracking")).toHaveCount(0);
   for (const label of retiredLabels) await expect(edit.getByLabel(label)).toHaveCount(0);
   await edit.getByLabel("Safety note").fill("Supervise small parts.");

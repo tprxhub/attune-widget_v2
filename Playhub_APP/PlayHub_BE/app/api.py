@@ -606,9 +606,11 @@ def list_plans(include_inactive: bool = False, user: User = Depends(get_current_
 def create_plan(payload: PlayPlanCreate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
     if db.scalar(select(PlayPlan).where((PlayPlan.slug == payload.slug) | (PlayPlan.name == payload.name))):
         raise HTTPException(status_code=409, detail="Play Plan name or slug already exists")
+    data = payload.model_dump()
+    credit = (data.pop("created_by_name", None) or "").strip()
     return commit_audited(
         db,
-        PlayPlan(**payload.model_dump(), created_by_id=actor.id),
+        PlayPlan(**data, created_by_id=actor.id, created_by_label=credit or actor.display_name),
         actor_id=actor.id,
         action="play_plan.created",
         resource_type="play_plan",
@@ -629,6 +631,8 @@ def update_plan(plan_id: str, payload: PlayPlanUpdate, actor: User = Depends(req
             )
         ):
             raise HTTPException(status_code=409, detail="Play Plan name or slug already exists")
+    if "created_by_name" in changes:
+        item.created_by_label = (changes.pop("created_by_name") or "").strip() or None
     for key, value in changes.items(): setattr(item, key, value)
     return commit_audited(
         db,
@@ -645,9 +649,11 @@ def create_dose(plan_id: str, payload: PlayDoseCreate, actor: User = Depends(req
     one_or_404(db, PlayPlan, plan_id)
     if db.scalar(select(PlayDose).where(PlayDose.play_plan_id == plan_id, PlayDose.level == payload.level)):
         raise HTTPException(status_code=409, detail="This Play Plan already has a Play Dose at this level")
+    data = payload.model_dump()
+    credit = (data.pop("created_by_name", None) or "").strip()
     return commit_audited(
         db,
-        PlayDose(play_plan_id=plan_id, **payload.model_dump(), created_by_id=actor.id),
+        PlayDose(play_plan_id=plan_id, **data, created_by_id=actor.id, created_by_label=credit or actor.display_name),
         actor_id=actor.id,
         action="play_dose.created",
         resource_type="play_dose",
@@ -668,6 +674,8 @@ def update_dose(dose_id: str, payload: PlayDoseUpdate, actor: User = Depends(req
         )
     ):
         raise HTTPException(status_code=409, detail="This Play Plan already has a Play Dose at this level")
+    if "created_by_name" in changes:
+        item.created_by_label = (changes.pop("created_by_name") or "").strip() or None
     for key, value in changes.items(): setattr(item, key, value)
     updated = commit_audited(
         db,

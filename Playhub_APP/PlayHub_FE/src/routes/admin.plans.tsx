@@ -18,6 +18,7 @@ import {
   blankPlanEntries,
   createPlan,
   createPlayPlan,
+  updatePlayPlanCredit,
   deletePlan,
   entryActivities,
   listGoals,
@@ -78,6 +79,7 @@ function AdminPlans() {
 
   const [search, setSearch] = useState("");
   const [level, setLevel] = useState<Level | "all">("all");
+  const [creditFor, setCreditFor] = useState<{ id: string; name: string } | null>(null);
   const [editing, setEditing] = useState<PlayPlan | "new" | "new-play-plan" | null>(null);
   const [newDoseGoalId, setNewDoseGoalId] = useState<string | undefined>();
   const [removing, setRemoving] = useState<PlayPlan | null>(null);
@@ -197,8 +199,18 @@ function AdminPlans() {
                     <>
                       {" · "}
                       <span data-testid="plan-creator">
-                        Created by {group.createdBy ?? "Play Hub team"}
+                        Created by {group.createdBy ?? "Super Admin"}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCreditFor({ id: group.goalId, name: group.createdBy ?? "Super Admin" })
+                        }
+                        aria-label={`Edit who created ${group.name}`}
+                        className="ml-1.5 inline-flex align-middle text-navy/50 hover:text-navy"
+                      >
+                        <Pencil className="h-3 w-3" aria-hidden />
+                      </button>
                     </>
                   )}
                 </p>
@@ -239,9 +251,7 @@ function AdminPlans() {
                         <p className="mt-1 font-bold">{plan.title}</p>
                         <p className="mt-0.5 text-xs font-semibold text-navy/55">
                           Created by{" "}
-                          <span data-testid="dose-creator">
-                            {plan.createdBy ?? "Play Hub team"}
-                          </span>
+                          <span data-testid="dose-creator">{plan.createdBy ?? "Super Admin"}</span>
                         </p>
                         <p className="mt-1 text-sm text-navy/65">{plan.summary}</p>
                         <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-navy/55">
@@ -288,6 +298,17 @@ function AdminPlans() {
           onSaved={() => {
             invalidate();
             setEditing(null);
+          }}
+        />
+      )}
+      {creditFor && (
+        <CreditModal
+          initial={creditFor.name}
+          onClose={() => setCreditFor(null)}
+          onSave={async (name) => {
+            await updatePlayPlanCredit(creditFor.id, name);
+            invalidate();
+            setCreditFor(null);
           }}
         />
       )}
@@ -370,6 +391,7 @@ function PlanModal({
   const [safetyNote, setSafetyNote] = useState(plan?.safetyNote ?? "");
   const [thumbnailUrl, setThumbnailUrl] = useState(plan?.thumbnailUrl ?? "");
   const [thumbnailFile, setThumbnailFile] = useState<File | undefined>();
+  const [createdBy, setCreatedBy] = useState(plan ? (plan.createdBy ?? "Super Admin") : "");
   const [playPlanName, setPlayPlanName] = useState("");
   const [playPlanSummary, setPlayPlanSummary] = useState("");
   const [entries, setEntries] = useState<PlanEntry[]>(() =>
@@ -465,6 +487,7 @@ function PlanModal({
         safetyNote: safetyNote.trim() || undefined,
         thumbnailUrl: thumbnailUrl.trim() || undefined,
         thumbnailFile,
+        createdBy: createdBy.trim() || undefined,
         entries: entries.map((e) => {
           const activities = (e.activities ?? []).map((a) => ({
             ...a,
@@ -491,7 +514,7 @@ function PlanModal({
       return plan
         ? updatePlan(plan.id, input)
         : createNewPlayPlan
-          ? createPlayPlan({ name: playPlanName, summary: playPlanSummary })
+          ? createPlayPlan({ name: playPlanName, summary: playPlanSummary, createdBy })
           : createPlan(input);
     },
     onSuccess: onSaved,
@@ -558,6 +581,19 @@ function PlanModal({
               className={cn(inputCls, "min-h-24 py-3")}
             />
           </div>
+          <div>
+            <label htmlFor="pl-created-by" className="text-sm font-bold">
+              Created by (full name)
+            </label>
+            <input
+              id="pl-created-by"
+              value={createdBy}
+              onChange={(e) => setCreatedBy(e.target.value)}
+              maxLength={120}
+              className={inputCls}
+              placeholder="Defaults to your name"
+            />
+          </div>
           {error && <p className="text-sm font-semibold text-coral">{error}</p>}
           <div className="flex gap-2">
             <button
@@ -595,12 +631,6 @@ function PlanModal({
     >
       <form className="space-y-5" onSubmit={submit}>
         <div className="space-y-4 rounded-2xl border border-navy/10 bg-card p-4">
-          {plan && (
-            <p className="text-xs font-semibold text-navy/55">
-              Created by{" "}
-              <span data-testid="dose-creator-edit">{plan.createdBy ?? "Play Hub team"}</span>
-            </p>
-          )}
           <h3 className="text-sm font-bold tracking-wide text-navy/55 uppercase">
             {createNewPlayPlan
               ? "Step 1 · Play Plan and first Play Dose"
@@ -644,6 +674,19 @@ function PlanModal({
               onChange={(e) => setTitle(e.target.value)}
               className={inputCls}
               placeholder="Fix the Pencil Grip"
+            />
+          </div>
+          <div>
+            <label htmlFor="pl-created-by" className="text-sm font-bold">
+              Created by (full name)
+            </label>
+            <input
+              id="pl-created-by"
+              value={createdBy}
+              onChange={(e) => setCreatedBy(e.target.value)}
+              maxLength={120}
+              className={inputCls}
+              placeholder="Defaults to your name"
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1011,6 +1054,67 @@ function PlanModal({
           >
             {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
             {plan ? "Save changes" : createNewPlayPlan ? "Create Play Plan" : "Create Play Dose"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Shell>
+  );
+}
+
+function CreditModal({
+  initial,
+  onClose,
+  onSave,
+}: {
+  initial: string;
+  onClose: () => void;
+  onSave: (name: string) => Promise<void>;
+}) {
+  const [name, setName] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <Shell title="Edit creator" subtitle="Who created this Play Plan" onClose={onClose}>
+      <form
+        className="space-y-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          try {
+            await onSave(name);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Could not save.");
+            setBusy(false);
+          }
+        }}
+      >
+        <div>
+          <label htmlFor="credit-name" className="text-sm font-bold">
+            Created by (full name)
+          </label>
+          <input
+            id="credit-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={120}
+            className={inputCls}
+          />
+        </div>
+        {error && <p className="text-sm font-semibold text-coral">{error}</p>}
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={busy}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
+          >
+            Save
           </button>
           <button
             type="button"

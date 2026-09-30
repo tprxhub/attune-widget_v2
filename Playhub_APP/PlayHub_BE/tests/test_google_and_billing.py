@@ -174,3 +174,22 @@ def test_refresh_swaps_a_valid_token_for_a_fresh_one_and_rejects_anonymous(clien
     new_token = fresh.json()["access_token"]
     assert new_token != token
     assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {new_token}"}).status_code == 200
+
+
+def test_play_plan_and_dose_credit_defaults_to_actor_and_can_be_edited(client, platform_admin):
+    plan = client.post("/api/v1/play-plans", headers=platform_admin, json={"name": "Credit plan", "slug": "credit-plan"}).json()
+    assert plan["created_by_name"] == "Platform Admin"
+    named = client.post(
+        "/api/v1/play-plans", headers=platform_admin,
+        json={"name": "Named plan", "slug": "named-plan", "created_by_name": "Dr Jane Doe"},
+    ).json()
+    assert named["created_by_name"] == "Dr Jane Doe"
+    patched = client.patch(f"/api/v1/play-plans/{named['id']}", headers=platform_admin, json={"created_by_name": "Sam Lee"}).json()
+    assert patched["created_by_name"] == "Sam Lee"
+    dose = client.post(
+        f"/api/v1/play-plans/{plan['id']}/play-doses", headers=platform_admin,
+        json={"level": "starter", "title": "Credit dose", "created_by_name": "Ann Ray"},
+    ).json()
+    assert dose["created_by_name"] == "Ann Ray"
+    dose = client.patch(f"/api/v1/play-doses/{dose['id']}", headers=platform_admin, json={"created_by_name": "Bo Kim"}).json()
+    assert dose["created_by_name"] == "Bo Kim"

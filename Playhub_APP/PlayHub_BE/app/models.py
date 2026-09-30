@@ -137,6 +137,8 @@ class PlayPlan(TimestampMixin, Base):
     colour: Mapped[Optional[str]] = mapped_column(String(24))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    # Free-text credit shown as "Created by"; an admin can set it to any person's full name.
+    created_by_label: Mapped[Optional[str]] = mapped_column(String(120))
 
     creator: Mapped[Optional[User]] = relationship(foreign_keys=[created_by_id], lazy="joined")
     play_doses: Mapped[list[PlayDose]] = relationship(
@@ -145,7 +147,7 @@ class PlayPlan(TimestampMixin, Base):
 
     @property
     def created_by_name(self) -> Optional[str]:
-        return self.creator.display_name if self.creator else None
+        return self.created_by_label or (self.creator.display_name if self.creator else None)
     attempts: Mapped[list[Attempt]] = relationship(back_populates="play_plan")
 
 
@@ -174,13 +176,15 @@ class PlayDose(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     created_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    # Free-text credit shown as "Created by"; an admin can set it to any person's full name.
+    created_by_label: Mapped[Optional[str]] = mapped_column(String(120))
 
     play_plan: Mapped[PlayPlan] = relationship(back_populates="play_doses")
     creator: Mapped[Optional[User]] = relationship(foreign_keys=[created_by_id], lazy="joined")
 
     @property
     def created_by_name(self) -> Optional[str]:
-        return self.creator.display_name if self.creator else None
+        return self.created_by_label or (self.creator.display_name if self.creator else None)
     activities: Mapped[list[Activity]] = relationship(
         back_populates="play_dose", cascade="all, delete-orphan", order_by="Activity.sequence"
     )

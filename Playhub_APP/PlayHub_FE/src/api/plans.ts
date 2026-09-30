@@ -106,6 +106,8 @@ export interface PlanInput {
   safetyNote?: string | undefined;
   thumbnailUrl?: string | undefined;
   thumbnailFile?: File | undefined;
+  /** Full name credited as the creator; blank keeps or defaults to the current user. */
+  createdBy?: string | undefined;
   entries: PlanEntry[];
 }
 
@@ -192,6 +194,7 @@ export async function createPlan(input: PlanInput): Promise<PlayPlan> {
       summary: input.summary,
       safety_note: input.safetyNote || null,
       thumbnail_url: remoteVideo(input.thumbnailUrl),
+      created_by_name: input.createdBy?.trim() || null,
       sort_order:
         levelValues[input.level] === "rookie" ? 0 : levelValues[input.level] === "starter" ? 1 : 2,
     }),
@@ -210,7 +213,11 @@ function slugify(value: string) {
     .replace(/^-|-$/g, "");
 }
 
-export async function createPlayPlan(input: { name: string; summary: string }): Promise<Goal> {
+export async function createPlayPlan(input: {
+  name: string;
+  summary: string;
+  createdBy?: string;
+}): Promise<Goal> {
   const created = await apiRequest<ApiPlan>("/play-plans", {
     method: "POST",
     body: JSON.stringify({
@@ -219,11 +226,20 @@ export async function createPlayPlan(input: { name: string; summary: string }): 
       short_description: input.summary.trim(),
       colour: "blue",
       icon: "pinch",
+      created_by_name: input.createdBy?.trim() || null,
     }),
   });
   invalidatePlanCatalog();
   await loadCatalog();
   return mapGoal(created);
+}
+
+export async function updatePlayPlanCredit(planId: string, createdBy: string) {
+  await apiRequest<ApiPlan>(`/play-plans/${planId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ created_by_name: createdBy.trim() || null }),
+  });
+  invalidatePlanCatalog();
 }
 
 export async function updatePlan(planId: string, input: PlanInput): Promise<PlayPlan | undefined> {
@@ -238,6 +254,7 @@ export async function updatePlan(planId: string, input: PlanInput): Promise<Play
       summary: input.summary,
       safety_note: input.safetyNote || null,
       thumbnail_url: input.thumbnailFile ? existing.thumbnail_url : remoteVideo(input.thumbnailUrl),
+      created_by_name: input.createdBy?.trim() || null,
     }),
   });
 

@@ -59,7 +59,7 @@ function PlansPage() {
                 <h2 className="text-lg font-bold">{goal.name}</h2>
               </div>
               <p className="mt-0.5 text-sm text-navy/55">
-                Best paired with the {goal.kit} · Created by {goal.createdBy ?? "Play Hub team"}
+                Best paired with the {goal.kit} · Created by {goal.createdBy ?? "Super Admin"}
               </p>
 
               <ul className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

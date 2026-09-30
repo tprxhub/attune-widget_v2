@@ -227,6 +227,7 @@ class PlayDoseCreate(APIModel):
     safety_note: str | None = None
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
+    created_by_name: str | None = Field(default=None, max_length=120)
 
 
 class PlayDoseUpdate(APIModel):
@@ -238,6 +239,7 @@ class PlayDoseUpdate(APIModel):
     safety_note: str | None = None
     sort_order: int | None = Field(default=None, ge=0)
     is_active: bool | None = None
+    created_by_name: str | None = Field(default=None, max_length=120)
 
 
 class PlayDoseRead(APIModel):
@@ -263,6 +265,7 @@ class PlayPlanCreate(APIModel):
     icon: str | None = Field(default=None, max_length=64)
     colour: str | None = Field(default=None, max_length=24)
     is_active: bool = True
+    created_by_name: str | None = Field(default=None, max_length=120)
 
 
 class PlayPlanUpdate(APIModel):
@@ -273,6 +276,7 @@ class PlayPlanUpdate(APIModel):
     icon: str | None = Field(default=None, max_length=64)
     colour: str | None = Field(default=None, max_length=24)
     is_active: bool | None = None
+    created_by_name: str | None = Field(default=None, max_length=120)
 
 
 class PlayPlanRead(APIModel):
