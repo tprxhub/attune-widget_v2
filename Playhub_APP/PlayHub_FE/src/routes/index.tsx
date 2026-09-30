@@ -214,6 +214,8 @@ function Landing() {
           <img
             src={apiAssetUrl(home.hero.image_url) || HERO_IMAGE}
             alt="A child playing outdoors with bright colourful toys"
+            fetchPriority="high"
+            decoding="async"
             className="absolute inset-0 -z-20 h-full w-full object-cover"
           />
           <div
@@ -298,70 +300,133 @@ function Landing() {
           </div>
         </section>
 
-        {/* ── Skill areas, dark editorial block ── */}
-        <section className="ph-r-xl bg-navy px-5 py-14 sm:px-10 lg:py-20">
-          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.85fr_1.15fr]">
-            <div className="min-w-0">
-              <div className="flex items-center gap-4">
-                <span className="ph-pill grid h-8 w-8 place-items-center border border-cream/30 text-[11px] font-bold text-cream">
-                  01
-                </span>
-                <span className="text-[11px] tracking-[0.3em] text-cream/40">01 02 03</span>
+        {/* ── Skill areas, compact editorial bento ── */}
+        <section className="relative isolate -mx-1 overflow-hidden bg-navy py-14 sm:-mx-5 lg:py-20">
+          <div
+            className="ph-pill pointer-events-none absolute -top-32 -right-24 -z-10 h-96 w-96 bg-blue/25 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="ph-pill pointer-events-none absolute -bottom-48 -left-32 -z-10 h-96 w-96 bg-coral/15 blur-3xl"
+            aria-hidden
+          />
+
+          <div className="w-full px-5 sm:px-8 lg:px-12 xl:px-16">
+            <div className="grid items-end gap-7 border-b border-cream/15 pb-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="ph-pill h-2 w-2 bg-amber" aria-hidden />
+                  <Eyebrow tone="light">{`Skills library · ${GOALS.length} focus areas`}</Eyebrow>
+                </div>
+                <h2 className="ph-display mt-4 max-w-2xl text-4xl leading-[1.08] text-cream sm:text-5xl lg:text-6xl">
+                  {home.skills.title}
+                </h2>
               </div>
-              <h2 className="ph-display mt-6 max-w-sm text-4xl leading-[1.1] text-cream sm:text-5xl">
-                {home.skills.title}
-              </h2>
-              <p className="mt-6 max-w-sm text-base leading-relaxed text-cream/75">
-                {home.skills.description}
-              </p>
-              <div className="mt-8">
-                <PillLink to="/plans">{home.skills.button_label}</PillLink>
+              <div className="lg:pb-1">
+                <p className="max-w-lg text-base leading-relaxed text-cream/70">
+                  {home.skills.description}
+                </p>
+                <div className="mt-6">
+                  <PillLink to="/plans">{home.skills.button_label}</PillLink>
+                </div>
               </div>
             </div>
 
-            <div className="min-w-0">
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {GOALS.map((goal, index) => (
-                  <li
-                    key={goal.id}
-                    className="ph-r-lg group flex min-h-44 flex-col bg-cream/8 p-4 backdrop-blur-sm transition-colors hover:bg-cream/14"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="ph-pill grid h-11 w-11 place-items-center bg-amber text-navy">
-                        <GoalIcon goalId={goal.id} className="h-5 w-5" />
-                      </span>
-                      <span className="text-[11px] font-semibold tracking-[0.18em] text-cream/40">
-                        0{index + 1}
+            <div className="mt-8 grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
+              <Link
+                to="/plans"
+                className="ph-r-2xl group relative flex min-h-[320px] overflow-hidden bg-amber p-6 text-navy sm:p-8 lg:min-h-full"
+              >
+                <div
+                  className="ph-pill absolute -right-16 -bottom-20 h-64 w-64 border-[44px] border-cream/35 transition-transform duration-500 group-hover:scale-105"
+                  aria-hidden
+                />
+                <div className="relative z-10 flex w-full flex-col">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-[11px] font-bold tracking-[0.16em] text-navy/55 uppercase">
+                      Featured focus
+                    </span>
+                    <span className="ph-display text-base font-bold tracking-[0.16em] text-navy/55">
+                      01 / 07
+                    </span>
+                  </div>
+
+                  <div className="mt-auto pt-16">
+                    <h3 className="ph-display mt-2 max-w-sm text-3xl leading-tight sm:text-4xl">
+                      {GOALS[0]?.name}
+                    </h3>
+                    <p className="mt-4 max-w-md text-sm leading-relaxed text-navy/70">
+                      {GOALS[0]?.blurb}
+                    </p>
+                    <div className="mt-6 flex items-center justify-between gap-4">
+                      <div className="flex flex-wrap gap-2">
+                        {LEVELS.map((level) => (
+                          <span
+                            key={level}
+                            className="ph-pill border border-navy/20 bg-cream/25 px-3 py-1.5 text-[11px] font-bold"
+                          >
+                            {level}
+                          </span>
+                        ))}
+                      </div>
+                      <span className="ph-pill grid h-11 w-11 shrink-0 place-items-center bg-coral text-white transition-transform group-hover:translate-x-1 group-hover:-translate-y-1">
+                        <ArrowUpRight className="h-5 w-5" aria-hidden />
                       </span>
                     </div>
-                    <h3 className="ph-display mt-auto pt-5 text-xl leading-snug text-cream uppercase">
-                      {goal.short}
-                    </h3>
-                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-cream/65">
-                      {goal.blurb}
-                    </p>
-                    <span className="mt-3 text-xs font-semibold text-cream/60">
-                      Rookie · Starter · Pro
-                    </span>
+                  </div>
+                </div>
+              </Link>
+
+              <ul className="grid grid-cols-2 gap-3">
+                {GOALS.slice(1).map((goal, index) => (
+                  <li key={goal.id}>
+                    <Link
+                      to="/plans"
+                      className="ph-r-lg group flex h-full min-h-40 flex-col border border-cream/10 bg-cream/7 p-4 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-cream/20 hover:bg-cream/12 sm:min-h-44 sm:p-5"
+                    >
+                      <div className="flex justify-end">
+                        <span className="ph-display text-lg font-bold tracking-[0.14em] text-cream/45">
+                          {String(index + 2).padStart(2, "0")}
+                        </span>
+                      </div>
+                      <div className="mt-auto flex items-end justify-between gap-4 pt-6">
+                        <div>
+                          <h3 className="ph-display text-xl leading-snug text-cream">
+                            {goal.short}
+                          </h3>
+                          <p className="mt-2 hidden line-clamp-2 text-xs leading-relaxed text-cream/55 sm:block">
+                            {goal.blurb}
+                          </p>
+                        </div>
+                        <ArrowUpRight
+                          className="mb-0.5 h-4 w-4 shrink-0 text-cream/35 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-amber"
+                          aria-hidden
+                        />
+                      </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
-              <div className="mt-6">
-                <Link
-                  to="/plans"
-                  className="ph-pill inline-flex min-h-12 items-center gap-2 border border-cream/40 px-6 text-sm font-semibold text-cream hover:bg-cream/10"
-                >
-                  {home.skills.all_plans_label}
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
-              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end border-t border-cream/15 pt-6">
+              <Link
+                to="/plans"
+                className="group inline-flex items-center gap-2 text-sm font-semibold text-cream"
+              >
+                {home.skills.all_plans_label.replace(/\b21\s+/, "")}
+                <ArrowRight
+                  className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                  aria-hidden
+                />
+              </Link>
             </div>
           </div>
         </section>
 
         {/* ── The week ── */}
-        <section className="mx-auto max-w-7xl px-2 py-16 sm:px-4 lg:py-24">
-          <div className="ph-r-xl relative isolate overflow-hidden px-6 py-12 sm:px-12 sm:py-16">
+        <section className="-mx-1 py-16 sm:mx-auto sm:max-w-7xl sm:px-4 lg:py-24">
+          <div className="relative isolate overflow-hidden px-6 py-12 [border-radius:0] sm:px-12 sm:py-16 sm:[border-radius:28px]">
             <img
               src={apiAssetUrl(home.week.image_url) || heroKids}
               alt=""
@@ -386,10 +451,28 @@ function Landing() {
             </div>
           </div>
 
-          <ol className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <ol className="mt-12 grid border-y border-navy/15 sm:grid-cols-2 lg:grid-cols-4">
             {home.week.steps.map((step, i) => (
-              <li key={i} className="ph-r-lg bg-card p-6 shadow-card">
-                <p className="text-[11px] font-semibold tracking-[0.18em] text-coral uppercase">
+              <li
+                key={i}
+                className="group border-b border-navy/15 px-5 py-8 sm:px-6 sm:nth-[2n]:border-l lg:border-r lg:border-b-0 lg:px-7 lg:first:pl-0 lg:last:border-r-0 lg:last:pr-0"
+              >
+                <div className="flex items-center gap-4">
+                  <span
+                    className={`ph-display text-3xl leading-none ${
+                      i === 2 ? "text-coral" : "text-navy"
+                    }`}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span
+                    className={`h-px flex-1 transition-colors ${
+                      i === 2 ? "bg-coral/40" : "bg-navy/15 group-hover:bg-navy/30"
+                    }`}
+                    aria-hidden
+                  />
+                </div>
+                <p className="mt-8 text-[11px] font-bold tracking-[0.18em] text-coral uppercase">
                   {step.when}
                 </p>
                 <h3 className="ph-display mt-3 text-2xl leading-snug text-navy">{step.title}</h3>
@@ -398,36 +481,74 @@ function Landing() {
             ))}
           </ol>
 
-          <dl className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+          <dl className="grid border-b border-navy/15 sm:grid-cols-2 lg:grid-cols-4">
             {home.week.stats.map((stat, i) => (
-              <div key={i} className="border-t border-navy/15 pt-4">
-                <dt className="ph-display text-5xl text-navy">{stat.value}</dt>
-                <dd className="mt-2 text-sm leading-relaxed text-navy/65">{stat.label}</dd>
+              <div
+                key={i}
+                className="flex items-baseline gap-4 border-b border-navy/15 px-5 py-6 sm:px-6 sm:nth-[2n]:border-l lg:border-r lg:border-b-0 lg:px-7 lg:first:pl-0 lg:last:border-r-0 lg:last:pr-0"
+              >
+                <dt className="ph-display shrink-0 text-4xl leading-none text-navy">
+                  {stat.value}
+                </dt>
+                <dd className="text-xs leading-relaxed text-navy/60">{stat.label}</dd>
               </div>
             ))}
           </dl>
         </section>
 
         {/* ── Levels ── */}
-        <section className="mx-auto max-w-7xl px-2 pb-16 sm:px-4 lg:pb-24">
-          <Eyebrow>{home.levels.eyebrow}</Eyebrow>
-          <h2 className="ph-display mt-3 max-w-3xl text-3xl leading-tight sm:text-4xl">
-            {home.levels.title}
-          </h2>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {LEVELS.map((level, i) => (
-              <div key={level} className="ph-r-lg bg-card p-7 shadow-card">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="ph-display text-3xl text-navy">{level}</h3>
-                  <span className="text-[11px] font-semibold tracking-[0.2em] text-blue/60 uppercase">
-                    0{i + 1}
-                  </span>
+        <section className="-mx-1 pb-16 sm:mx-auto sm:w-[90%] lg:pb-24">
+          <div className="relative isolate overflow-hidden bg-amber px-5 py-10 [border-radius:0] sm:px-10 sm:py-12 sm:[border-radius:28px]">
+            <div
+              className="ph-pill pointer-events-none absolute -top-40 -left-28 -z-10 h-80 w-80 border-[56px] border-cream/30"
+              aria-hidden
+            />
+            <div className="grid gap-10 lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:gap-16">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="ph-pill h-2 w-2 bg-coral" aria-hidden />
+                  <Eyebrow>{home.levels.eyebrow}</Eyebrow>
                 </div>
-                <p className="mt-4 border-t border-navy/12 pt-4 text-base leading-relaxed text-navy/70">
-                  {home.levels.descriptions[i]}
-                </p>
+                <h2 className="ph-display mt-5 max-w-xl text-4xl leading-[1.12] text-navy sm:text-5xl">
+                  {home.levels.title}
+                </h2>
+                <div className="mt-8 flex items-center gap-3" aria-hidden>
+                  <span className="h-1 w-14 bg-coral" />
+                  <span className="h-1 w-8 bg-navy" />
+                  <span className="h-1 w-4 bg-blue" />
+                </div>
               </div>
-            ))}
+
+              <div className="ph-r-2xl bg-cream/55 p-2 shadow-lift backdrop-blur-sm">
+                {LEVELS.map((level, i) => {
+                  const highlight = i === 1;
+                  return (
+                    <div
+                      key={level}
+                      className={`ph-r-lg grid gap-4 p-5 sm:grid-cols-[64px_120px_1fr] sm:items-center sm:gap-5 sm:p-6 ${
+                        highlight ? "bg-navy text-cream shadow-lift" : "text-navy"
+                      }`}
+                    >
+                      <span
+                        className={`ph-display text-4xl leading-none ${
+                          highlight ? "text-amber" : "text-navy/20"
+                        }`}
+                      >
+                        0{i + 1}
+                      </span>
+                      <h3 className="ph-display text-2xl">{level}</h3>
+                      <p
+                        className={`text-sm leading-relaxed ${
+                          highlight ? "text-cream/65" : "text-navy/60"
+                        }`}
+                      >
+                        {home.levels.descriptions[i]}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -500,8 +621,8 @@ function Landing() {
       </main>
 
       {/* ── Footer ── */}
-      <footer className="px-3 pb-3 sm:px-5 sm:pb-5">
-        <div className="ph-r-xl bg-navy px-6 py-14 text-cream sm:px-10">
+      <footer className="sm:px-5 sm:pb-5">
+        <div className="bg-navy px-6 py-14 text-cream [border-radius:0] sm:px-10 sm:[border-radius:28px]">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="ph-display text-3xl sm:text-4xl">{home.footer.title}</h2>
             <p className="mt-4 text-base leading-relaxed text-cream/75">
