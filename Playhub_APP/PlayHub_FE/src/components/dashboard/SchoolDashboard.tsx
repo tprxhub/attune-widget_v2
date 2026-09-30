@@ -26,7 +26,7 @@ import { ChildAvatar, LevelDots } from "@/components/brand";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
 import { ConsultationCard, ComingSoonTiles } from "@/components/dashboard/DashboardExtras";
-import { ProgressChart } from "@/features/progress/ProgressChart";
+import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { ALL_CHILDREN, useActiveChild } from "@/lib/active-child";

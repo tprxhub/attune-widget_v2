@@ -24,7 +24,7 @@ import { PageHeader } from "@/components/AppShell";
 import { ChildAvatar, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
 import { MoodIcon } from "@/components/icons";
 import { CardSkeleton } from "@/components/Skeletons";
-import { ProgressChart } from "@/features/progress/ProgressChart";
+import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { fmtDate } from "@/lib/format";
 import { useOrgScope } from "@/lib/org-scope";
 import type { StatusKey } from "@/lib/types";

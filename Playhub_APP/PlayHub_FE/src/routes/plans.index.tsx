@@ -101,6 +101,8 @@ function PlansPage() {
                           src={plan.thumbnailUrl ?? PLAN_THUMBNAILS[goal.id] ?? thumbGrip}
                           alt=""
                           aria-hidden
+                          loading="lazy"
+                          decoding="async"
                           className="absolute inset-0 h-full w-full object-cover"
                         />
                         <span

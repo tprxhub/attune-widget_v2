@@ -30,7 +30,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { FloatingPanel } from "@/components/FloatingPanel";
 import { MoodIcon, moodMeta } from "@/components/icons";
 import { LEVEL_TOKEN, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
-import { ProgressChart } from "@/features/progress/ProgressChart";
+import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { useActiveChild } from "@/lib/active-child";
 import { cn } from "@/lib/utils";
 import { childProgressCsv, downloadCsv, slug } from "@/lib/csv";
