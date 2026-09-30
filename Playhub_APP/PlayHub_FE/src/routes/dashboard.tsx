@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowRight,
   Bot,
   CalendarCheck,
   MessagesSquare,
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { goalById, planById } from "@/api/domain";
-import { entryStates, nextEntry } from "@/api/plans";
+import { entryStates, listPlans, nextEntry } from "@/api/plans";
 import { getProgress } from "@/api/progress";
 import { useCapabilities, useSession } from "@/auth/session";
 import { Protected } from "@/auth/guards";
@@ -18,12 +19,12 @@ import { PageHeader } from "@/components/AppShell";
 import { SchoolDashboard } from "@/components/dashboard/SchoolDashboard";
 import { ComingSoonTiles, ConsultationCard } from "@/components/dashboard/DashboardExtras";
 import { LockedOverlay } from "@/components/LockedOverlay";
+import { PlayPlanCard } from "@/components/PlayPlanCard";
 import { StatusBadge, StatusIcon } from "@/components/StatusBadge";
 import { CardSkeleton, ListSkeleton } from "@/components/Skeletons";
 import { LevelDots } from "@/components/brand";
 import { useActiveChild } from "@/lib/active-child";
 import { fmtDate } from "@/lib/format";
-import { AttemptScore } from "@/components/AttemptScore";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -71,6 +72,11 @@ function ChildDashboard() {
     queryFn: () => listAttempts(childId!),
     enabled: !!childId,
   });
+  const plans = useQuery({
+    queryKey: ["plans"],
+    queryFn: () => listPlans(),
+    enabled: !!activeChild,
+  });
 
   if (isLoading) {
     return (
@@ -107,11 +113,11 @@ function ChildDashboard() {
   const logged = (attempts.data ?? []).map((a) => a.entryId);
   const today = plan ? nextEntry(states, logged) : undefined;
   const report = progress.data;
-  const lastAttempt = [...(attempts.data ?? [])].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
-  )[0];
-  const lastPlan = lastAttempt ? planById(lastAttempt.planId) : plan;
-  const lastGoal = lastPlan ? goalById(lastPlan.goalId) : undefined;
+  const catalogPlans = plans.data ?? [];
+  const currentFocusPlans = plan
+    ? catalogPlans.filter((candidate) => candidate.goalId === plan.goalId)
+    : [];
+  const featuredPlans = (currentFocusPlans.length ? currentFocusPlans : catalogPlans).slice(0, 3);
 
   return (
     <>
@@ -195,52 +201,46 @@ function ChildDashboard() {
         )}
       </section>
 
-      {/* Most recent Play Plan */}
-      <section className="ph-card mt-4 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="eyebrow text-blue">Most recent Play Plan</p>
-          {lastAttempt && (
-            <span className="text-xs font-semibold text-navy/55">
-              Last check-in {fmtDate(lastAttempt.date)}
-            </span>
-          )}
+      {/* Featured Play Plans */}
+      <section className="mt-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow text-blue">Play Plans</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-navy">Choose the next Play Dose</h2>
+            <p className="mt-1 text-sm text-navy/60">
+              {goal
+                ? `${goal.name} · Pick the level that feels right today.`
+                : "Pick a plan and press play."}
+            </p>
+          </div>
+          <Link
+            to="/plans"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-navy/15 px-5 text-sm font-bold text-navy transition hover:border-navy/40 hover:bg-white"
+          >
+            View all Play Plans <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
         </div>
-        {attempts.isLoading ? (
-          <div className="mt-4">
-            <CardSkeleton lines={3} />
+
+        {plans.isLoading ? (
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <CardSkeleton lines={4} />
+            <CardSkeleton lines={4} />
+            <CardSkeleton lines={4} />
           </div>
-        ) : lastPlan ? (
-          <div className="mt-4 grid gap-4 rounded-2xl bg-navy/[0.035] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-            <div className="min-w-0">
-              <h2 className="truncate text-xl font-bold">{lastPlan.title}</h2>
-              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
-                <LevelDots level={lastPlan.level} />
-                <span className="text-sm text-navy/65">{lastGoal?.name}</span>
-              </div>
-              {lastAttempt ? (
-                <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-navy/70">
-                  <span>
-                    Latest activity: <strong className="text-navy">{lastAttempt.activity}</strong>
-                  </span>
-                  <AttemptScore completion={lastAttempt.completion} mood={lastAttempt.mood} />
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-navy/65">
-                  This is the current Play Plan. No check-ins have been logged yet.
-                </p>
-              )}
-            </div>
-            <Link
-              to="/plans/$planId"
-              params={{ planId: lastPlan.id }}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white transition hover:bg-navy/90"
-            >
-              View Play Plan <PlayCircle className="h-4 w-4" aria-hidden />
-            </Link>
-          </div>
+        ) : featuredPlans.length > 0 ? (
+          <ul className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredPlans.map((featuredPlan) => {
+              const featuredGoal = goalById(featuredPlan.goalId);
+              return featuredGoal ? (
+                <li key={featuredPlan.id}>
+                  <PlayPlanCard plan={featuredPlan} goal={featuredGoal} />
+                </li>
+              ) : null;
+            })}
+          </ul>
         ) : (
-          <p className="mt-4 text-sm text-navy/65">
-            No Play Plan has been started yet. Choose one from Play Plans to begin.
+          <p className="mt-5 rounded-2xl bg-white p-5 text-sm text-navy/65">
+            No Play Plans are available yet.
           </p>
         )}
       </section>

@@ -106,11 +106,12 @@ function AdminPlans() {
     const known = libraryGoals.map((g) => ({
       goalId: g.id,
       name: g.name,
+      createdBy: g.createdBy,
       plans: filtered.filter((p) => p.goalId === g.id),
     }));
     const others = filtered.filter((p) => !libraryGoals.some((g) => g.id === p.goalId));
     return others.length
-      ? [...known, { goalId: "other", name: "Other goals", plans: others }]
+      ? [...known, { goalId: "other", name: "Other goals", createdBy: undefined, plans: others }]
       : known;
   }, [filtered, goals.data]);
 
@@ -192,6 +193,14 @@ function AdminPlans() {
                 <h2 className="text-lg font-bold">{group.name}</h2>
                 <p className="text-xs font-semibold text-navy/55">
                   {group.plans.length} {group.plans.length === 1 ? "Play Dose" : "Play Doses"}
+                  {group.goalId !== "other" && (
+                    <>
+                      {" · "}
+                      <span data-testid="plan-creator">
+                        Created by {group.createdBy ?? "Play Hub team"}
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
               {group.goalId !== "other" && (

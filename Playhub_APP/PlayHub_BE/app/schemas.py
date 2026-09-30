@@ -283,6 +283,7 @@ class PlayPlanRead(APIModel):
     icon: str | None
     colour: str | None
     is_active: bool
+    created_by_name: str | None = None
     play_doses: list[PlayDoseRead] = Field(default_factory=list)
 
 

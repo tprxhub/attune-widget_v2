@@ -162,3 +162,15 @@ def test_checkout_adapter_sends_fixed_server_side_price_and_metadata(monkeypatch
     assert captured["mode"] == "payment"
     assert captured["line_items"][0]["price_data"]["unit_amount"] == 11900
     assert captured["metadata"] == {"child_id": "child-1", "plan": "12m", "user_id": "user-1"}
+
+
+def test_refresh_swaps_a_valid_token_for_a_fresh_one_and_rejects_anonymous(client):
+    assert client.post("/api/v1/auth/refresh").status_code == 401
+    email = "refresh@example.com"
+    client.post("/api/v1/auth/register", json={"email": email, "display_name": "Re Fresh", "password": "ChangeMe123!", "role": "super_admin", "account_scope": "platform"})
+    token = client.post("/api/v1/auth/login", json={"email": email, "password": "ChangeMe123!"}).json()["access_token"]
+    fresh = client.post("/api/v1/auth/refresh", headers={"Authorization": f"Bearer {token}"})
+    assert fresh.status_code == 200
+    new_token = fresh.json()["access_token"]
+    assert new_token != token
+    assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {new_token}"}).status_code == 200

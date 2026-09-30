@@ -122,7 +122,7 @@ function PlayDosePage() {
   const states = entryStates(plan, session, startedAt);
   const state = states.find((s) => s.entry.id === entryId);
   const entitled = state?.entitled ?? true;
-  const entryAttempts = (attempts.data ?? []).filter((a) => a.entryId === entryId);
+  const entryAttempts = (attempts.data ?? []).filter((a) => a.entryId === entryId).reverse();
   const weekAttempts = (attempts.data ?? []).filter((a) => a.planId === plan.id);
   const loggedEntryIds = [
     ...new Set((attempts.data ?? []).filter((a) => a.planId === plan.id).map((a) => a.entryId)),
@@ -331,7 +331,33 @@ function PlayDosePage() {
               )}
             </div>
 
-            <div className="mt-3"></div>
+            {entryAttempts.length > 0 && (
+              <div className="mt-4 border-b border-navy/10 pb-4">
+                <h3 className="text-sm font-bold">Previous Session Logs</h3>
+                <ul className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
+                  {entryAttempts.map((a) => (
+                    <li
+                      key={a.id}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-navy/4 p-3"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-bold">{a.bigWin}</span>
+                        <span className="block text-[11px] text-navy/55">
+                          {fmtDate(a.date)} · {a.loggedBy}
+                        </span>
+                      </span>
+                      <AttemptScore completion={a.completion} mood={a.mood} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {attempts.isLoading && (
+              <div className="mt-4 border-b border-navy/10 pb-4">
+                <CardSkeleton lines={2} />
+              </div>
+            )}
 
             {justLogged && (
               <p
@@ -393,34 +419,6 @@ function PlayDosePage() {
                 >
                   Logging an older session? Use Daily Check-In with a past date
                 </button>
-              </div>
-            )}
-
-            {entryAttempts.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-sm font-bold">Previous Sessions at this Play Dose</h3>
-                <ul className="mt-2 space-y-2">
-                  {entryAttempts.map((a) => (
-                    <li
-                      key={a.id}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-navy/4 p-3"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-bold">{a.bigWin}</span>
-                        <span className="block text-[11px] text-navy/55">
-                          {fmtDate(a.date)} · {a.loggedBy}
-                        </span>
-                      </span>
-                      <AttemptScore completion={a.completion} mood={a.mood} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {attempts.isLoading && (
-              <div className="mt-4">
-                <CardSkeleton lines={2} />
               </div>
             )}
           </section>

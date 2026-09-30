@@ -9,6 +9,7 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/auth/register"),
     ("POST", "/api/v1/auth/login"),
     ("POST", "/api/v1/auth/google"),
+    ("POST", "/api/v1/auth/refresh"),
     ("POST", "/api/v1/auth/register-family"),
     ("POST", "/api/v1/auth/change-password"),
     ("GET", "/api/v1/auth/me"),

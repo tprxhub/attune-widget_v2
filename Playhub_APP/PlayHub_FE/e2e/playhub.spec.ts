@@ -233,7 +233,8 @@ test("family can sign up, restore its session, change password and sign in again
   ).toBeVisible();
   await passwordDialog.getByRole("button", { name: "Close" }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByRole("heading", { name: "Please sign in" })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: "Please sign in" })).toHaveCount(0);
 
   await page.goto("/login");
   await page.getByLabel("Email Address").fill(email);
@@ -570,6 +571,7 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   const plan = page.locator("section").filter({
     has: page.getByRole("heading", { name: "Browser test plan", exact: true }),
   });
+  await expect(plan.getByTestId("plan-creator")).toHaveText("Created by Play Hub Admin");
   await plan.getByRole("button", { name: "New Play Dose" }).click();
   const create = page.getByRole("dialog", { name: "New Play Dose" });
   await expect(create.getByLabel("Play Dose title")).toBeVisible();

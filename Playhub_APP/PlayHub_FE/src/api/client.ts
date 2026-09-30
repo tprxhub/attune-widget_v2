@@ -178,6 +178,7 @@ export interface ApiPlan {
   icon: string | null;
   colour: string | null;
   is_active: boolean;
+  created_by_name?: string | null;
   play_doses: ApiDose[];
 }
 
@@ -253,6 +254,11 @@ export interface ApiProgress {
     activity_id: string | null;
     source: "play_dose" | "daily_check_in";
   }>;
+}
+
+export async function refreshAccessToken() {
+  const token = await apiRequest<ApiToken>("/auth/refresh", { method: "POST" });
+  setAccessToken(token.access_token);
 }
 
 export async function login(email: string, password: string) {

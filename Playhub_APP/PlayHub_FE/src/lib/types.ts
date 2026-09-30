@@ -38,6 +38,8 @@ export interface Goal {
   color: "coral" | "blue" | "amber";
   kit: string;
   blurb: string;
+  /** Full name of the person who created this Play Plan; absent for built-in plans. */
+  createdBy?: string | undefined;
 }
 
 export type EntryKind = "intro" | "dose" | "redo" | "levelup";

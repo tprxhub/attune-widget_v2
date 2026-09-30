@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Building2,
@@ -118,6 +118,7 @@ function navFor(role: string, accountType: string): NavItem[] {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { session, signOut } = useSession();
+  const navigate = useNavigate();
   const { canInviteSupporter } = useCapabilities();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const items = navFor(session.role, session.accountType);
@@ -202,7 +203,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <button
             type="button"
-            onClick={signOut}
+            onClick={() => {
+              signOut();
+              void navigate({ to: "/", replace: true });
+            }}
             className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-white/12 px-3 text-xs font-bold transition-colors hover:bg-white/20"
           >
             <LogOut className="h-3.5 w-3.5" aria-hidden /> Sign out

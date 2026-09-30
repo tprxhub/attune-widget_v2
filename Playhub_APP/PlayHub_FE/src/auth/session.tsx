@@ -8,6 +8,7 @@ import {
   getCurrentUser,
   login,
   loginWithGoogle,
+  refreshAccessToken,
   registerFamily as registerFamilyRequest,
   setAccessToken,
   type ApiToken,
@@ -63,6 +64,7 @@ function SessionPersistence() {
       }
       try {
         const session = await loadSession();
+        keepAlive();
         if (active) dispatch(hydratedAction(session));
       } catch {
         setAccessToken(null);
@@ -76,7 +78,25 @@ function SessionPersistence() {
       dispatch(signedOut());
     };
     window.addEventListener("playhub:unauthorized", unauthorized);
+
+    // Sliding session: swap the token for a fresh one on load, every 30 minutes, and when the
+    // tab regains focus (at most every 5 minutes), so an active user is never signed out.
+    let lastRefresh = 0;
+    const keepAlive = () => {
+      if (!getAccessToken() || Date.now() - lastRefresh < 5 * 60_000) return;
+      lastRefresh = Date.now();
+      refreshAccessToken().catch(() => undefined);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") keepAlive();
+    };
+    const timer = window.setInterval(keepAlive, 30 * 60_000);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", keepAlive);
     return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", keepAlive);
       active = false;
       window.removeEventListener("playhub:unauthorized", unauthorized);
     };

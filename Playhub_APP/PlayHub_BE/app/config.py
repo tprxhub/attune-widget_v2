@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "development-only-secret-change-before-production-32chars"
     jwt_issuer: str = "playhub-api"
     jwt_audience: str = "playhub-web"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 10080
     frontend_base_url: str = "http://localhost:3000"
     google_client_id: str | None = None
     stripe_secret_key: str | None = None

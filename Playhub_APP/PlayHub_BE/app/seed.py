@@ -33,14 +33,14 @@ from app.smart_catalog import SMART_CATALOG
 DEMO_PASSWORD = "ChangeMe123!"
 
 
-def organisation(db, *, name: str, kind: str, seats: int, cycle: str) -> Organisation:
+def organisation(db, *, name: str, kind: str, licenses: int, cycle: str) -> Organisation:
     item = db.scalar(select(Organisation).where(Organisation.name == name))
     if not item:
         item = Organisation(name=name)
         db.add(item)
         db.flush()
     item.kind = kind
-    item.seat_limit = seats
+    item.seat_limit = licenses
     item.billing_cycle = cycle
     item.is_active = True
     return item
@@ -320,8 +320,8 @@ def attempts(
 def seed() -> None:
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
-        sunrise = organisation(db, name="Sunrise Montessori", kind="school", seats=40, cycle="annual")
-        bright = organisation(db, name="Bright Steps Therapy Clinic", kind="clinic", seats=24, cycle="monthly")
+        sunrise = organisation(db, name="Sunrise Montessori", kind="school", licenses=40, cycle="annual")
+        bright = organisation(db, name="Bright Steps Therapy Clinic", kind="clinic", licenses=24, cycle="monthly")
 
         platform_admin = user(db, email="admin@playhub.local", name="Play Hub Admin", role=Role.SUPER_ADMIN, scope=AccountScope.PLATFORM)
         user(db, email="tester@playhub.local", name="Tester Persona", role=Role.SUPER_ADMIN, scope=AccountScope.PLATFORM)
@@ -343,10 +343,10 @@ def seed() -> None:
         visual_pro = catalog[("visual-motor-integration", PlanLevel.PRO)]
 
         demo_children = [
-            (child(db, name="Amira", age=5, scope=AccountScope.ORGANISATION, org=sunrise, owner=hana, admin=esther, moderator=sunrise_mod, dose=pinch_starter[1], colour="amber", notes="Loves bead and peg activities."), pinch_starter, esther, [2, 2, 3, 3, 4, 4, 5, 5], 4, SubscriptionStatus.ACTIVE, "Organisation seat", None),
-            (child(db, name="Omar", age=6, scope=AccountScope.ORGANISATION, org=sunrise, admin=esther, moderator=sunrise_mod, dose=bilateral_starter[1], colour="blue", notes="Keep instructions short and visual."), bilateral_starter, sunrise_mod, [2, 3, 3, 4, 4, 4], 4, SubscriptionStatus.ACTIVE, "Organisation seat", None),
-            (child(db, name="Sara", age=7, scope=AccountScope.ORGANISATION, org=sunrise, admin=esther, dose=visual_pro[1], colour="coral", notes="Enjoys copying colourful patterns."), visual_pro, esther, [4, 4, 4, 4, 4], 5, SubscriptionStatus.ACTIVE, "Organisation seat", None),
-            (child(db, name="Maya", age=7, scope=AccountScope.ORGANISATION, org=bright, admin=daniel, moderator=bright_mod, dose=bilateral_pro[1], colour="blue", notes="Working on cross-body control."), bilateral_pro, daniel, [5, 4, 4, 3, 3, 2], 3, SubscriptionStatus.ACTIVE, "Organisation seat", None),
+            (child(db, name="Amira", age=5, scope=AccountScope.ORGANISATION, org=sunrise, owner=hana, admin=esther, moderator=sunrise_mod, dose=pinch_starter[1], colour="amber", notes="Loves bead and peg activities."), pinch_starter, esther, [2, 2, 3, 3, 4, 4, 5, 5], 4, SubscriptionStatus.ACTIVE, "Organisation license", None),
+            (child(db, name="Omar", age=6, scope=AccountScope.ORGANISATION, org=sunrise, admin=esther, moderator=sunrise_mod, dose=bilateral_starter[1], colour="blue", notes="Keep instructions short and visual."), bilateral_starter, sunrise_mod, [2, 3, 3, 4, 4, 4], 4, SubscriptionStatus.ACTIVE, "Organisation license", None),
+            (child(db, name="Sara", age=7, scope=AccountScope.ORGANISATION, org=sunrise, admin=esther, dose=visual_pro[1], colour="coral", notes="Enjoys copying colourful patterns."), visual_pro, esther, [4, 4, 4, 4, 4], 5, SubscriptionStatus.ACTIVE, "Organisation license", None),
+            (child(db, name="Maya", age=7, scope=AccountScope.ORGANISATION, org=bright, admin=daniel, moderator=bright_mod, dose=bilateral_pro[1], colour="blue", notes="Working on cross-body control."), bilateral_pro, daniel, [5, 4, 4, 3, 3, 2], 3, SubscriptionStatus.ACTIVE, "Organisation license", None),
             (child(db, name="Noah", age=5, scope=AccountScope.INDIVIDUAL, owner=family_admin, admin=family_admin, moderator=family_mod, dose=visual_starter[1], colour="coral", notes="Prefers morning sessions."), visual_starter, family_admin, [2, 3, 3, 4, 5], 4, SubscriptionStatus.ACTIVE, "6m", 6),
             (child(db, name="Noor", age=4, scope=AccountScope.INDIVIDUAL, owner=free_admin, admin=free_admin, dose=pinch_rookie[1], colour="amber", notes="Free preview account."), pinch_rookie, platform_admin, [], 4, SubscriptionStatus.FREE, "Free preview", None),
         ]

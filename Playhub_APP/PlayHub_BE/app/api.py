@@ -209,6 +209,12 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     return Token(access_token=create_access_token(user.id))
 
 
+@router.post("/auth/refresh", response_model=Token)
+def refresh_token(user: User = Depends(get_current_user)):
+    """Sliding session: a still-valid token can be swapped for a fresh one."""
+    return Token(access_token=create_access_token(user.id))
+
+
 @router.post("/auth/google", response_model=Token)
 def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
     try:
@@ -602,7 +608,7 @@ def create_plan(payload: PlayPlanCreate, actor: User = Depends(require_roles(Rol
         raise HTTPException(status_code=409, detail="Play Plan name or slug already exists")
     return commit_audited(
         db,
-        PlayPlan(**payload.model_dump()),
+        PlayPlan(**payload.model_dump(), created_by_id=actor.id),
         actor_id=actor.id,
         action="play_plan.created",
         resource_type="play_plan",

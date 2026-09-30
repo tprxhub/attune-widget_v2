@@ -213,7 +213,13 @@ export const MAX_QUOTES = 6;
  * text. The API validates on save, but the page should never break on an older or partial copy.
  */
 export function mergeHomepageContent(stored: unknown): HomepageContent {
-  return merge(DEFAULT_HOMEPAGE_CONTENT, stored);
+  const content = merge(DEFAULT_HOMEPAGE_CONTENT, stored);
+  content.schools.body = content.schools.body
+    .replace(/\bSeats\b/g, "Licenses")
+    .replace(/\bseats\b/g, "licenses")
+    .replace(/\bSeat\b/g, "License")
+    .replace(/\bseat\b/g, "license");
+  return content;
 }
 
 function merge<T>(defaults: T, stored: unknown): T {

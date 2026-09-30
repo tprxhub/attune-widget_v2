@@ -101,6 +101,7 @@ export function mapGoal(plan: ApiPlan): Goal {
     color: colour === "coral" || colour === "amber" ? colour : "blue",
     kit: "Fine Motor Play Kit",
     blurb: plan.short_description ?? plan.description ?? "",
+    createdBy: plan.created_by_name ?? undefined,
   };
 }
 

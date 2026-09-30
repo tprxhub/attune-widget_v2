@@ -136,10 +136,16 @@ class PlayPlan(TimestampMixin, Base):
     icon: Mapped[Optional[str]] = mapped_column(String(64))
     colour: Mapped[Optional[str]] = mapped_column(String(24))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
 
+    creator: Mapped[Optional[User]] = relationship(foreign_keys=[created_by_id], lazy="joined")
     play_doses: Mapped[list[PlayDose]] = relationship(
         back_populates="play_plan", cascade="all, delete-orphan", order_by="PlayDose.sort_order"
     )
+
+    @property
+    def created_by_name(self) -> Optional[str]:
+        return self.creator.display_name if self.creator else None
     attempts: Mapped[list[Attempt]] = relationship(back_populates="play_plan")
 
 
