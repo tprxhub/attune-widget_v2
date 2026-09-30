@@ -559,7 +559,10 @@ function ChildDetail({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-2xl font-bold">{child.name}</h2>
-                <StatusBadge status={report?.status ?? "no_data"} size="sm" />
+                {/* The chip colours are tuned for light surfaces; sit it on a cream pill over the navy hero. */}
+                <span className="inline-flex rounded-full bg-cream p-0.5">
+                  <StatusBadge status={report?.status ?? "no_data"} size="sm" />
+                </span>
               </div>
               <p className="mt-1 text-sm text-cream/70">
                 Age {child.age} · {planTitle}
