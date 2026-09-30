@@ -46,16 +46,30 @@ def upgrade() -> None:
         if name not in attempt_columns:
             op.add_column("attempts", column)
 
-    op.execute(
-        "UPDATE attempts SET completion_status = CASE "
-        "WHEN completion_score >= 4 THEN 'FINISHED' WHEN completion_score = 3 THEN 'PARTLY' "
+    def typed(column: str, expression: str) -> str:
+        # PostgreSQL will not assign text to an enum column without a cast.
+        bind = op.get_bind()
+        if bind.dialect.name != "postgresql":
+            return expression
+        udt_name = bind.execute(
+            sa.text(
+                "SELECT udt_name FROM information_schema.columns "
+                "WHERE table_schema = current_schema() AND table_name = 'attempts' AND column_name = :column"
+            ),
+            {"column": column},
+        ).scalar()
+        return expression if udt_name in (None, "varchar", "text") else f"CAST({expression} AS {udt_name})"
+
+    completion_status = (
+        "CASE WHEN completion_score >= 4 THEN 'FINISHED' WHEN completion_score = 3 THEN 'PARTLY' "
         "ELSE 'STOPPED_EARLY' END"
     )
-    op.execute(
-        "UPDATE attempts SET help_level = CASE "
-        "WHEN completion_score = 5 THEN 'INDEPENDENT' WHEN completion_score = 4 THEN 'ONE_REMINDER' "
+    help_level = (
+        "CASE WHEN completion_score = 5 THEN 'INDEPENDENT' WHEN completion_score = 4 THEN 'ONE_REMINDER' "
         "WHEN completion_score = 3 THEN 'FEW_REMINDERS' ELSE 'HANDS_ON' END"
     )
+    op.execute(f"UPDATE attempts SET completion_status = {typed('completion_status', completion_status)}")
+    op.execute(f"UPDATE attempts SET help_level = {typed('help_level', help_level)}")
 
 
 def downgrade() -> None:
