@@ -191,19 +191,19 @@ export function mapAttempt(row: ApiAttempt, plans: PlayPlan[]): Attempt {
   };
 }
 
-export function mapOrganisation(org: ApiOrganisation, seatsUsed = 0): Org {
+export function mapOrganisation(org: ApiOrganisation, licensesUsed = 0): Org {
   return {
     id: org.id,
     name: org.name,
     kind: org.kind.toLowerCase() === "clinic" ? "Clinic" : "School",
-    seats: org.seat_limit,
-    seatsUsed,
+    licenses: org.seat_limit,
+    licensesUsed,
     username: "Email-based sign in",
     password: "Managed by invitation",
     active: org.is_active,
     createdAt: org.created_at.slice(0, 10),
     billingCycle: org.billing_cycle?.toLowerCase() === "monthly" ? "Monthly" : "Annual",
-    seatPrice: 0,
+    licensePrice: 0,
   };
 }
 

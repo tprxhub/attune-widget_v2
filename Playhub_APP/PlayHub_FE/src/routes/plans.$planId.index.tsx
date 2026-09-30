@@ -236,7 +236,7 @@ function PlanWeek() {
                   <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-navy/55">
                     {attempt ? (
                       <>
-                        {attempt.count} attempt{attempt.count > 1 ? "s" : ""} · last
+                        {attempt.count} session{attempt.count > 1 ? "s" : ""} · last
                         <AttemptScore
                           completion={attempt.completion}
                           mood={attempt.mood}

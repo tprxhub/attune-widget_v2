@@ -134,14 +134,14 @@ def validate_child_values(db: Session, values: dict, child_id: str | None = None
     if organisation and not organisation.is_active:
         raise HTTPException(status_code=409, detail="Cannot enrol a child into a suspended organisation")
     if organisation and values.get("is_active", True) and organisation.seat_limit:
-        seat_query = select(func.count(Child.id)).where(
+        license_query = select(func.count(Child.id)).where(
             Child.organisation_id == organisation.id,
             Child.is_active.is_(True),
         )
         if child_id:
-            seat_query = seat_query.where(Child.id != child_id)
-        if (db.scalar(seat_query) or 0) >= organisation.seat_limit:
-            raise HTTPException(status_code=409, detail="Organisation seat limit has been reached")
+            license_query = license_query.where(Child.id != child_id)
+        if (db.scalar(license_query) or 0) >= organisation.seat_limit:
+            raise HTTPException(status_code=409, detail="Organisation license limit has been reached")
 
     dose_id = values.get("current_play_dose_id")
     if dose_id:
@@ -858,7 +858,7 @@ def create_billing_checkout(
     child = one_or_404(db, Child, payload.child_id)
     require_child_access(child, user)
     if child.account_scope != AccountScope.INDIVIDUAL:
-        raise HTTPException(status_code=422, detail="Organisation children are billed by seat")
+        raise HTTPException(status_code=422, detail="Organisation children are billed by license")
     if user.role != Role.SUPER_ADMIN and child.owner_id != user.id and child.admin_id != user.id:
         raise HTTPException(status_code=403, detail="Only the family account owner can purchase this plan")
     if child.subscription and child.subscription.status == SubscriptionStatus.ACTIVE and (

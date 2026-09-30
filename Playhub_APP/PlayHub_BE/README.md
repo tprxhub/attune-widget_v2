@@ -124,7 +124,7 @@ stripe listen --forward-to http://localhost:8000/api/v1/billing/webhook
 
 Copy the CLI's `whsec_...` value into `.env`, restart the API, and use Stripe test mode. A family
 owner can request a full Stripe refund during the seven-day refund window; organisation children
-remain billed by seat. Run `alembic upgrade head` before starting a deployment.
+remain billed by license. Run `alembic upgrade head` before starting a deployment.
 
 ## Media storage: local and S3
 

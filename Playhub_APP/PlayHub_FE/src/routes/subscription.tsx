@@ -26,7 +26,7 @@ export const Route = createFileRoute("/subscription")({
       {
         name: "description",
         content:
-          "Subscribe per child for 3, 6 or 12 months to unlock every Play Dose and Attempt logging.",
+          "Subscribe per child for 3, 6 or 12 months to unlock every Play Dose and Session logging.",
       },
       { property: "og:title", content: "Subscription — Play Hub" },
       { property: "og:description", content: "Subscribe per child for 3, 6 or 12 months." },
@@ -172,7 +172,7 @@ function SubscriptionPage() {
               </>
             ) : !active ? (
               <p className="mt-4 text-sm text-navy/70">
-                On the free plan you get the Introduction and the Day 0 Play Dose. Logging Attempts
+                On the free plan you get the Introduction and the Day 0 Play Dose. Logging Sessions
                 stays locked.
               </p>
             ) : null}
@@ -222,8 +222,8 @@ function SubscriptionPage() {
                 {[
                   "All five Play Doses plus both Redo Days",
                   "Every activity video, unblurred",
-                  "Unlimited Attempt logging — nothing overwritten",
-                  "Log Attempts for past dates too",
+                  "Unlimited Session logging — nothing overwritten",
+                  "Log Sessions for past dates too",
                   "Full Progress chart and status",
                   "Invite a Moderator",
                 ].map((line) => (

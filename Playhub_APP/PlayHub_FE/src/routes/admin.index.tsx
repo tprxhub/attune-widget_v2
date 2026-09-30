@@ -14,12 +14,12 @@ export const Route = createFileRoute("/admin/")({
       {
         name: "description",
         content:
-          "Organisations, Admins, members and attempt volume across the whole Play Hub platform.",
+          "Organisations, Admins, members and session volume across the whole Play Hub platform.",
       },
       { property: "og:title", content: "Platform overview — Play Hub admin" },
       {
         property: "og:description",
-        content: "Organisations, Admins and attempt volume across Play Hub.",
+        content: "Organisations, Admins and session volume across Play Hub.",
       },
     ],
   }),
@@ -76,7 +76,7 @@ function AdminOverview() {
       icon: Users,
     },
     {
-      label: "Attempts (30d)",
+      label: "Sessions (30d)",
       value: String(o.attemptsLast30),
       hint: `${o.totalAttempts} all time`,
       icon: Activity,
@@ -116,7 +116,7 @@ function AdminOverview() {
           <h2 className="mt-1 text-lg font-bold">Organisations</h2>
           <p className="mt-2 text-sm text-navy/70">
             {all.activeOrgs} active of {all.orgs} organisations · {all.b2bChildren} children ·{" "}
-            {all.educators} Admins. Organisation accounts are billed by seat.
+            {all.educators} Admins. Organisation accounts are billed by license.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button

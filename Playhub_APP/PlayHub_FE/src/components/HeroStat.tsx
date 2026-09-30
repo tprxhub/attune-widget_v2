@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,7 @@ export function HeroStat({
   sub,
   variant = "figure",
   className,
+  info,
 }: {
   icon: LucideIcon;
   label: string;
@@ -19,6 +21,7 @@ export function HeroStat({
   sub?: string | undefined;
   variant?: "figure" | "text";
   className?: string | undefined;
+  info?: ReactNode;
 }) {
   const figure = variant === "figure";
   return (
@@ -31,6 +34,7 @@ export function HeroStat({
       >
         <Icon className="h-3.5 w-3.5" aria-hidden />
         {label}
+        {info}
       </span>
       <p
         className={cn(

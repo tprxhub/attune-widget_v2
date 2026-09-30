@@ -316,7 +316,7 @@ const INSTRUCTIONS: string[][] = [
     "Warm up with 30 seconds of hand squeezes.",
     "Run the Activity twice — the second run is usually the better one.",
     "Keep your feedback to what their hands did, not the result.",
-    "Log the Attempt straight away while the detail is fresh.",
+    "Log the Session straight away while the detail is fresh.",
   ],
 ];
 
@@ -383,7 +383,7 @@ function makeEntries(goalId: string, level: Level): PlanEntry[] {
       instructions: [
         "Ask your child which Activity they want to do again.",
         "Run it exactly as before — repetition is where the skill sticks.",
-        "Log the Attempt as a Redo Day.",
+        "Log the Session as a Redo Day.",
       ],
       videoLabel: "Why Redo Days matter",
     },
@@ -401,7 +401,7 @@ function makeEntries(goalId: string, level: Level): PlanEntry[] {
       instructions: [
         "Choose the Play Dose that scored lowest this week.",
         "Run it once, calmly, with no time pressure.",
-        "Note the difference against the first Attempt.",
+        "Note the difference against the first Session.",
       ],
       videoLabel: "Finishing the week strong",
     },

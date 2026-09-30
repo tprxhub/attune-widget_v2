@@ -19,6 +19,7 @@ import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
 import { AttemptScore } from "@/components/AttemptScore";
+import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { Select } from "@/components/Select";
 import { ReflectionForm, type ReflectionValues } from "@/features/attempts/ReflectionForm";
 import { useActiveChild } from "@/lib/active-child";
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/check-in")({
       {
         name: "description",
         content:
-          "Log a Play Dose session — today or a past date — and keep the Attempt record complete.",
+          "Log a Play Dose session — today or a past date — and keep the Session record complete.",
       },
       { property: "og:title", content: "Daily Check-In — Play Hub" },
       {
@@ -129,10 +130,10 @@ function CheckInPage() {
   if (!activeChild) {
     return (
       <>
-        <PageHeader eyebrow="Attempt logging" title="Daily Check-In" />
+        <PageHeader eyebrow="Session logging" title="Daily Check-In" />
         <div className="ph-card p-8 text-center">
           <p className="text-lg font-bold">No child is available</p>
-          <p className="mt-2 text-sm text-navy/65">Enrol a child before logging an Attempt.</p>
+          <p className="mt-2 text-sm text-navy/65">Enrol a child before logging an Session.</p>
         </div>
       </>
     );
@@ -141,7 +142,7 @@ function CheckInPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Attempt logging"
+        eyebrow="Session logging"
         title="Daily Check-In"
         description="Record a Play Dose session here — today or a past date. Nothing is ever overwritten."
       />
@@ -160,7 +161,7 @@ function CheckInPage() {
           <p className="mt-2 text-sm text-navy/70">
             {isReadOnlyParent
               ? "Your child's organisation Admin records the attempts. You'll see every one of them in Progress."
-              : "Subscribe for this child to log Attempts and keep a full history."}
+              : "Subscribe for this child to log Sessions and keep a full history."}
           </p>
           {isFreeGated && canManageSubscription && (
             <Link
@@ -190,7 +191,7 @@ function CheckInPage() {
                 <CalendarCheck className="h-4 w-4" aria-hidden /> Who are we logging for?
               </p>
               <p className="mt-3 border-t border-navy/8 pt-3 text-sm text-navy/60">
-                Logging an Attempt for{" "}
+                Logging an Session for{" "}
                 <span className="font-bold text-navy">{activeChild.name}</span>
               </p>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -249,7 +250,7 @@ function CheckInPage() {
                 className="ph-rise flex items-center gap-2 rounded-2xl bg-blue/10 px-4 py-3 text-sm font-bold text-blue"
               >
                 <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
-                Attempt saved to {activeChild?.name}'s history.
+                Session saved to {activeChild?.name}'s history.
               </p>
             )}
 
@@ -350,7 +351,7 @@ function CheckInPage() {
                   showDate
                   showConsultNotes={canLeaveConsultNotes}
                   pending={mutation.isPending}
-                  submitLabel="Log this Attempt"
+                  submitLabel="Log this Session"
                   onSubmit={async (values) => {
                     await mutation.mutateAsync(values);
                   }}
@@ -359,7 +360,7 @@ function CheckInPage() {
                   <p role="alert" className="mt-3 text-sm font-semibold text-coral">
                     {mutation.error instanceof Error
                       ? mutation.error.message
-                      : "That Attempt could not be saved."}
+                      : "That Session could not be saved."}
                   </p>
                 )}
               </div>
@@ -371,26 +372,23 @@ function CheckInPage() {
             <section className="grid grid-cols-2 gap-3">
               <div className="ph-card p-4">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
-                  <Flame className="h-3.5 w-3.5 text-coral" aria-hidden /> Attempts
+                  <Flame className="h-3.5 w-3.5 text-coral" aria-hidden /> Sessions
                 </p>
                 <p className="mt-1 text-3xl font-bold text-coral">{logged.length}</p>
               </div>
               <div className="ph-card p-4">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
-                  <Sparkles className="h-3.5 w-3.5 text-blue" aria-hidden /> Support Score
+                  <Sparkles className="h-3.5 w-3.5 text-blue" aria-hidden /> Support Score <SupportScoreInfo />
                 </p>
                 <p className="mt-1 text-2xl font-bold text-blue">
-                  {progress.data?.supportScore ?? "—"}
-                  {progress.data?.supportScore !== null && progress.data?.supportScore !== undefined
-                    ? "/100"
-                    : ""}
+                  {progress.data?.supportScore != null ? `${progress.data.supportScore}%` : "—"}
                 </p>
               </div>
             </section>
 
             <section className="ph-card p-5">
               <h2 className="flex items-center gap-2 text-lg font-bold">
-                <History className="h-5 w-5 text-navy/50" aria-hidden /> Recent Attempts
+                <History className="h-5 w-5 text-navy/50" aria-hidden /> Recent Sessions
               </h2>
               {attempts.isLoading ? (
                 <div className="mt-4">

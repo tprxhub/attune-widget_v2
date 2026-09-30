@@ -135,7 +135,7 @@ function GuideSheet({ onClose }: { onClose: () => void }) {
                 <div className="rounded-2xl border border-blue/30 bg-blue/6 p-4">
                   <p className="text-sm font-bold text-blue">Subscribed (per child)</p>
                   <p className="mt-1 text-sm text-navy/90">
-                    Every Play Dose, video, Attempt and Progress chart unlocks for that child.
+                    Every Play Dose, video, Session and Progress chart unlocks for that child.
                     Cancel within 7 days for a refund.
                   </p>
                 </div>

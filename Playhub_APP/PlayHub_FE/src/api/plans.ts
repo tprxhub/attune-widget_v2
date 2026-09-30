@@ -59,7 +59,7 @@ function daysSince(dateIso: string) {
 
 export function isEntitled(_session: Session, _entry: PlanEntry, _entryIndex: number) {
   // Play Plan content is available to every signed-in account. Subscriptions may
-  // control Attempt logging and billing features, but never Plan, Dose or Activity access.
+  // control Session logging and billing features, but never Plan, Dose or Activity access.
   return true;
 }
 

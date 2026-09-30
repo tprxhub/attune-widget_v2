@@ -969,7 +969,7 @@ function PlanModal({
                             onChange={(e) => patch(entry.id, { loggable: e.target.checked })}
                             className="h-5 w-5 rounded-md border-navy/25"
                           />
-                          Can be logged as an Attempt
+                          Can be logged as an Session
                         </label>
                       </div>
                     </details>

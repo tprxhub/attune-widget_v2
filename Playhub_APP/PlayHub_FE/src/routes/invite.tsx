@@ -59,7 +59,7 @@ function InvitePage() {
       <PageHeader
         eyebrow="Your circle"
         title="Invite a Moderator"
-        description="They get their own login, can log Attempts and read the Play Plan — they can't change billing."
+        description="They get their own login, can log Sessions and read the Play Plan — they can't change billing."
       />
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_1fr] lg:items-start">
@@ -127,7 +127,7 @@ function InvitePage() {
           <ul className="mt-3 space-y-2 text-sm text-navy/75">
             {[
               ["Yes", "Open the Play Plan and every unlocked Play Dose"],
-              ["Yes", "Log Attempts, including past sessions"],
+              ["Yes", "Log Sessions, including past sessions"],
               ["Yes", "Write the Parent win after a session"],
               ["No", "Change the subscription or payment details"],
               ["No", "Invite other people"],

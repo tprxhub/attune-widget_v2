@@ -103,7 +103,7 @@ const FIELD_LABELS: Record<string, string> = {
   organisation_id: "organisation",
   owner_id: "parent account",
   role: "role",
-  seat_limit: "seat limit",
+  seat_limit: "license limit",
   thumbnail_url: "thumbnail",
   video_url: "video",
 };

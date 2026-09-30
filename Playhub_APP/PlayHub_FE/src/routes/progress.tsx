@@ -23,6 +23,7 @@ import { Protected } from "@/auth/guards";
 import { HeroStat } from "@/components/HeroStat";
 import { PageHeader } from "@/components/AppShell";
 import { AttemptScore } from "@/components/AttemptScore";
+import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { ChartSkeleton, CardSkeleton } from "@/components/Skeletons";
 import { LockedOverlay } from "@/components/LockedOverlay";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -41,12 +42,12 @@ export const Route = createFileRoute("/progress")({
       {
         name: "description",
         content:
-          "Weekly Support Score and Mood trends across every Attempt, with a plain-language read of what's happening.",
+          "Weekly Support Score and Mood trends across every Session, with a plain-language read of what's happening.",
       },
       { property: "og:title", content: "Progress — Play Hub" },
       {
         property: "og:description",
-        content: "Weekly Support Score and Mood trends across every logged Attempt.",
+        content: "Weekly Support Score and Mood trends across every logged Session.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -76,7 +77,7 @@ function useInsights(rows: Attempt[]) {
       null,
     );
 
-    // Current streak of consecutive weeks with at least one Attempt.
+    // Current streak of consecutive weeks with at least one Session.
     const weeks = Array.from(new Set(sorted.map((a) => weekKey(a.date)))).sort();
     let streak = 0;
     const currentWeek = new Date(
@@ -252,7 +253,7 @@ function PlanFilterDropdown({
           <div className="border-b border-navy/8 bg-navy/[0.025] px-4 py-3">
             <p className="text-xs font-bold text-navy">Filter by Play Plan</p>
             <p className="mt-0.5 text-[11px] text-navy/50">
-              Only plans with logged Attempts are shown.
+              Only plans with logged Sessions are shown.
             </p>
           </div>
           <div
@@ -409,8 +410,8 @@ function ProgressPage() {
           <p className="text-lg font-bold">No children to show yet</p>
           <p className="mt-2 text-sm text-navy/70">
             {canEnrol
-              ? "Progress appears here once a child is enrolled and their first Attempt is logged."
-              : "Add a child and log a first Attempt to see progress here."}
+              ? "Progress appears here once a child is enrolled and their first Session is logged."
+              : "Add a child and log a first Session to see progress here."}
           </p>
           <Link
             to={canEnrol ? "/org" : "/plans"}
@@ -506,6 +507,7 @@ function ProgressPage() {
               <HeroStat
                 icon={Target}
                 label="Support Score"
+                info={<SupportScoreInfo />}
                 value={data.supportScore === null ? "—" : `${data.supportScore}%`}
                 sub="Average help across kit sessions · lower is better"
               />
@@ -513,14 +515,14 @@ function ProgressPage() {
                 icon={Flame}
                 label="Weekly streak"
                 value={data.totalSessions ? `${insights.streak}w` : "—"}
-                sub="Weeks in a row with an Attempt"
+                sub="Weeks in a row with an Session"
                 className="col-span-2 sm:col-span-1"
               />
             </div>
 
             <p className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cream/60">
               <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-              Last check-in: {data.lastCheckIn ? fmtDate(data.lastCheckIn) : "no Attempts yet"}
+              Last check-in: {data.lastCheckIn ? fmtDate(data.lastCheckIn) : "no Sessions yet"}
             </p>
           </section>
 
@@ -596,13 +598,13 @@ function ProgressPage() {
                   className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-navy/8 px-5 py-4 text-left transition hover:bg-navy/[0.02]"
                 >
                   <div className="min-w-0">
-                    <h2 className="truncate text-lg font-bold">Attempt history</h2>
+                    <h2 className="truncate text-lg font-bold">Session history</h2>
                     <p className="text-xs text-navy/60">
                       Newest first — every check-in stays saved.
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-navy/6 px-3 py-1 text-[11px] font-bold text-navy/65">
-                    {rows.length} Attempt{rows.length === 1 ? "" : "s"}
+                    {rows.length} Session{rows.length === 1 ? "" : "s"}
                   </span>
                   <ChevronDown
                     className={cn(
@@ -619,7 +621,7 @@ function ProgressPage() {
                       <CardSkeleton lines={4} />
                     </div>
                   ) : rows.length === 0 ? (
-                    <p className="p-5 text-sm text-navy/65">No attempts logged yet.</p>
+                    <p className="p-5 text-sm text-navy/65">No sessions logged yet.</p>
                   ) : (
                     <ul className="max-h-[30rem] divide-y divide-navy/8 overflow-y-auto">
                       {[...rows]
@@ -702,7 +704,7 @@ function ProgressPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-bold">How it felt</h2>
-                    <p className="mt-1 text-xs text-navy/60">Mood across every logged Attempt.</p>
+                    <p className="mt-1 text-xs text-navy/60">Mood across every logged Session.</p>
                   </div>
                   <span className="shrink-0 rounded-full bg-amber/20 px-2.5 py-1 text-[11px] font-bold text-navy">
                     {rows.length} logged

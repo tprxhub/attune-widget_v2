@@ -18,7 +18,7 @@ export const Route = createFileRoute("/admin/orgs")({
       {
         name: "description",
         content:
-          "Create schools and clinics, generate their login credentials and set seat counts.",
+          "Create schools and clinics, generate their login credentials and set license counts.",
       },
       { property: "og:title", content: "Organisations — Play Hub admin" },
       {
@@ -52,11 +52,12 @@ function AdminOrgs() {
   const [view, setView] = useViewMode("admin-orgs");
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"School" | "Clinic">("School");
-  const [seats, setSeats] = useState("25");
+  const [licenses, setLicenses] = useState("25");
   const [error, setError] = useState("");
 
   const create = useMutation({
-    mutationFn: () => createOrg({ name: name.trim(), kind, seats: Number(seats), seatPrice: 9 }),
+    mutationFn: () =>
+      createOrg({ name: name.trim(), kind, licenses: Number(licenses), licensePrice: 9 }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orgs"] });
       setName("");
@@ -133,14 +134,14 @@ function AdminOrgs() {
             />
           </div>
           <div>
-            <label htmlFor="org-seats" className="text-sm font-bold">
-              Seats
+            <label htmlFor="org-licenses" className="text-sm font-bold">
+              Licenses
             </label>
             <input
-              id="org-seats"
+              id="org-licenses"
               inputMode="numeric"
-              value={seats}
-              onChange={(e) => setSeats(e.target.value)}
+              value={licenses}
+              onChange={(e) => setLicenses(e.target.value)}
               className="mt-2 min-h-12 w-full rounded-2xl border border-navy/15 bg-card px-4 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/25"
             />
           </div>
@@ -183,7 +184,7 @@ function AdminOrgs() {
                 Email invitation sign-in
               </span>
               <span className="shrink-0 rounded-full bg-navy/6 px-2.5 py-1 text-[11px] font-bold text-navy/70">
-                {org.seatsUsed} / {org.seats} seats
+                {org.licensesUsed} / {org.licenses} licenses
               </span>
               <span
                 className={cn(
@@ -236,7 +237,7 @@ function AdminOrgs() {
               </div>
 
               <p className="mt-3 text-xs text-navy/60">
-                {org.seatsUsed} / {org.seats} seats used · {org.billingCycle} billing
+                {org.licensesUsed} / {org.licenses} licenses used · {org.billingCycle} billing
               </p>
 
               <button

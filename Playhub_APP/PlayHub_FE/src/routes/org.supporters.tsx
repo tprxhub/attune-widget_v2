@@ -42,7 +42,7 @@ export const Route = createFileRoute("/org/supporters")({
       {
         name: "description",
         content:
-          "Admins add Moderators to their organisation so they can log attempts for assigned members.",
+          "Admins add Moderators to their organisation so they can log sessions for assigned members.",
       },
       { property: "og:title", content: "Moderators — Play Hub for schools & clinics" },
       {
@@ -109,7 +109,7 @@ function OrgSupporters() {
       <PageHeader
         eyebrow={org.data ? `${org.data.name} · Team` : "Your team"}
         title="Moderators"
-        description="Moderators log attempts and read Play Plans for the members you assign them — they can't enrol members or see billing."
+        description="Moderators log sessions and read Play Plans for the members you assign them — they can't enrol members or see billing."
         actions={
           <button
             type="button"
@@ -450,7 +450,7 @@ function AddSupporterModal({
               <p className="mt-1 text-sm text-navy/65">
                 {created
                   ? `${created.member.name} can activate their account with the link below.`
-                  : "They can log attempts for the members you assign them."}
+                  : "They can log sessions for the members you assign them."}
               </p>
             </div>
             <button

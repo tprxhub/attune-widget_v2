@@ -88,7 +88,7 @@ function ChildDashboard() {
         <div className="ph-card p-8 text-center">
           <p className="text-lg font-bold">No child on your account yet</p>
           <p className="mt-2 text-sm text-navy/70">
-            Add a child to start a Play Plan and log Attempts.
+            Add a child to start a Play Plan and log Sessions.
           </p>
           <Link
             to="/plans"
@@ -184,7 +184,7 @@ function ChildDashboard() {
                 Next step
               </p>
               <p className="mt-1 text-sm leading-relaxed text-navy/85">
-                {report?.narrative ?? "Run today's Play Dose and log the Attempt while it's fresh."}
+                {report?.narrative ?? "Run today's Play Dose and log the Session while it's fresh."}
               </p>
             </div>
           </LockedOverlay>
@@ -255,7 +255,7 @@ function ChildDashboard() {
             <h2 className="mt-1 text-lg font-bold">Unlock the whole week for {activeChild.name}</h2>
             <p className="mt-1 text-sm text-navy/70">
               You have the Introduction and the Day 0 Play Dose. Subscribe per child to unlock all
-              five Play Doses, both Redo Days and Attempt logging.
+              five Play Doses, both Redo Days and Session logging.
             </p>
           </div>
           <Link

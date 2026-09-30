@@ -213,7 +213,7 @@ function AdminEducators() {
                     </h2>
                     <p className="mt-0.5 truncate text-xs text-cream/70">
                       {group.org
-                        ? `${group.org.seatsUsed}/${group.org.seats} seats used`
+                        ? `${group.org.licensesUsed}/${group.org.licenses} licenses used`
                         : "Direct family accounts"}
                     </p>
                   </div>

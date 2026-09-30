@@ -51,9 +51,9 @@ export async function getOrgBilling(orgId: string) {
   if (!org) return undefined;
   return {
     org,
-    seatPrice: org.seatPrice,
-    seats: org.seats,
-    seatsUsed: org.seatsUsed,
+    licensePrice: org.licensePrice,
+    licenses: org.licenses,
+    licensesUsed: org.licensesUsed,
     cycle: org.billingCycle,
     amount: 0,
     nextInvoice: null,

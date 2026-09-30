@@ -61,15 +61,15 @@ export async function listOrgs(): Promise<Org[]> {
 export async function createOrg(input: {
   name: string;
   kind: "School" | "Clinic";
-  seats: number;
-  seatPrice: number;
+  licenses: number;
+  licensePrice: number;
 }) {
   const org = await apiRequest<ApiOrganisation>("/organisations", {
     method: "POST",
     body: JSON.stringify({
       name: input.name,
       kind: input.kind.toLowerCase(),
-      seat_limit: input.seats,
+      seat_limit: input.licenses,
       billing_cycle: "annual",
     }),
   });
@@ -83,7 +83,7 @@ export async function toggleOrgActive(orgId: string) {
     method: "PATCH",
     body: JSON.stringify({ is_active: !current.active }),
   });
-  return mapOrganisation(org, current.seatsUsed);
+  return mapOrganisation(org, current.licensesUsed);
 }
 
 async function staffData() {

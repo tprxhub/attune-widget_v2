@@ -29,7 +29,7 @@ export function ReflectionForm({
   onSubmit,
   showDate = false,
   showConsultNotes = false,
-  submitLabel = "Log this Attempt",
+  submitLabel = "Log this Session",
   pending = false,
   disabled = false,
 }: ReflectionFormProps) {

@@ -102,18 +102,18 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
         image_url: "",
       },
       {
-        title: "Log the Attempt",
+        title: "Log the Session",
         body: "Record finish, help, Mood and a Parent win. Nothing is ever overwritten.",
         image_url: "",
       },
     ],
   },
   skills: {
-    title: "Three skill areas, one Play Kit",
+    title: "Seven skill areas, one Play Kit",
     description:
       "Choose a skill area, then find the right Rookie, Starter or Pro plan for your child. Every plan uses the same Fine Motor Play Kit.",
     button_label: "Browse Play Plans",
-    all_plans_label: "View all 21 Play Plans",
+    all_plans_label: "View all Play Plans",
   },
   week: {
     eyebrow: "The Play Plan week",
@@ -173,7 +173,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       },
       {
         quote:
-          "I run the same Play Plan across six children and log every Attempt in the clinic. The Progress narrative writes my notes for me.",
+          "I run the same Play Plan across six children and log every Session in the clinic. The Progress narrative writes my notes for me.",
         name: "Esther M.",
         role: "Paediatric therapist",
       },
@@ -187,12 +187,12 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   },
   families: {
     title: "Families",
-    body: "Sign up free with email or Google and browse every Play Plan. The Introduction and the Day 0 Play Dose are unlocked. Subscribe per child for 3, 6 or 12 months to unlock the full week, log Attempts and invite your nanny.",
+    body: "Sign up free with email or Google and browse every Play Plan. The Introduction and the Day 0 Play Dose are unlocked. Subscribe per child for 3, 6 or 12 months to unlock the full week, log Sessions and invite your nanny.",
     button_label: "Create a free account",
   },
   schools: {
     title: "Schools & clinics",
-    body: "Organisation accounts are created by The Toy Pharmacy — no self-serve sign-up. Organisation Admins enrol members, assign Moderators, log attempts and give parents a read-only view. Billed by seat.",
+    body: "Organisation accounts are created by The Toy Pharmacy — no self-serve sign-up. Organisation Admins enrol members, assign Moderators, log sessions and give parents a read-only view. Billed by license.",
     button_label: "Log in with issued credentials",
   },
   footer: {

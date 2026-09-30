@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { Level, ProgressPoint } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 
 const COLORS = {
   navy: "#002A64",
@@ -647,7 +648,10 @@ export function ProgressChart({
 
       <div className="overflow-hidden rounded-xl border border-navy/8 bg-white/55">
         <div className="flex items-center justify-between border-b border-navy/8 px-4 py-2 text-[10px] font-bold tracking-wide text-navy/45 uppercase">
-          <span>{showSupport ? "Support score · lower is better" : "Mood"}</span>
+          <span className="inline-flex items-center gap-1">
+            {showSupport ? "Support score · lower is better" : "Mood"}
+            {showSupport && <SupportScoreInfo />}
+          </span>
           {showMood && showSupport && <span>Mood · higher is better</span>}
         </div>
         <div

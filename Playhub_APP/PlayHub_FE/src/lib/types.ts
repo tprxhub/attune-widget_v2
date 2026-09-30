@@ -146,14 +146,14 @@ export interface Org {
   id: string;
   name: string;
   kind: "School" | "Clinic";
-  seats: number;
-  seatsUsed: number;
+  licenses: number;
+  licensesUsed: number;
   username: string;
   password: string;
   active: boolean;
   createdAt: string;
   billingCycle: "Monthly" | "Annual";
-  seatPrice: number;
+  licensePrice: number;
 }
 
 export interface StaffMember {

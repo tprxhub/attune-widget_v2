@@ -28,6 +28,7 @@ import { CardSkeleton } from "@/components/Skeletons";
 import { ConsultationCard, ComingSoonTiles } from "@/components/dashboard/DashboardExtras";
 import { ProgressChart } from "@/features/progress/ProgressChart";
 import { StatusBadge } from "@/components/StatusBadge";
+import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { ALL_CHILDREN, useActiveChild } from "@/lib/active-child";
 import { fmtDate } from "@/lib/format";
 import type { Child, ProgressReport, StaffMember, StatusKey } from "@/lib/types";
@@ -334,11 +335,10 @@ function SupportMeter({ score }: { score: number | null }) {
     <div>
       <div className="flex items-baseline justify-between">
         <span className="text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
-          Support score
+          Support score <SupportScoreInfo />
         </span>
         <span className="text-sm font-bold text-navy">
-          {score === null ? "—" : score}
-          {score !== null && <span className="text-xs font-semibold text-navy/45"> /100</span>}
+          {score === null ? "—" : `${score}%`}
         </span>
       </div>
       <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-navy/8">
@@ -582,13 +582,10 @@ function ChildDetail({
           </div>
           <div className="rounded-2xl bg-cream/10 p-4">
             <p className="text-[11px] font-bold tracking-[0.12em] text-cream/60 uppercase">
-              Support score
+              Support score <SupportScoreInfo />
             </p>
             <p className="mt-1 text-4xl font-bold text-amber">
-              {report?.supportScore ?? "—"}
-              {report?.supportScore != null && (
-                <span className="text-base font-semibold text-cream/60"> /100</span>
-              )}
+              {report?.supportScore != null ? `${report.supportScore}%` : "—"}
             </p>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-cream/15">
               <div

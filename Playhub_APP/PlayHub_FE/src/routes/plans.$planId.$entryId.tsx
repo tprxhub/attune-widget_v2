@@ -338,7 +338,7 @@ function PlayDosePage() {
                 role="status"
                 className="mt-4 rounded-2xl bg-blue/10 px-4 py-3 text-sm font-bold text-blue"
               >
-                Attempt logged. Nothing is overwritten — log again any time.
+                Session logged. Nothing is overwritten — log again any time.
               </p>
             )}
 
@@ -355,7 +355,7 @@ function PlayDosePage() {
                 <Lock className="mx-auto h-5 w-5 text-navy/60" aria-hidden />
                 <p className="mt-2 text-sm font-bold">Logging is locked on the free plan</p>
                 <p className="mt-1 text-xs text-navy/65">
-                  Subscribe for this child to log Attempts, track support and record Parent wins.
+                  Subscribe for this child to log Sessions, track support and record Parent wins.
                 </p>
                 {isFreeGated && canManageSubscription && (
                   <Link
@@ -368,7 +368,7 @@ function PlayDosePage() {
                 )}
               </div>
             ) : !activeChild ? (
-              <p className="mt-4 text-sm text-navy/70">Add a child before logging an Attempt.</p>
+              <p className="mt-4 text-sm text-navy/70">Add a child before logging an Session.</p>
             ) : (
               <div className="mt-4">
                 <ReflectionForm
@@ -377,7 +377,7 @@ function PlayDosePage() {
                   }}
                   showConsultNotes={canLeaveConsultNotes}
                   pending={mutation.isPending}
-                  submitLabel="Log this Attempt"
+                  submitLabel="Log this Session"
                 />
                 {mutation.isError && (
                   <p role="alert" className="mt-3 text-sm font-semibold text-coral">
@@ -398,7 +398,7 @@ function PlayDosePage() {
 
             {entryAttempts.length > 0 && (
               <div className="mt-6">
-                <h3 className="text-sm font-bold">Previous Attempts at this Play Dose</h3>
+                <h3 className="text-sm font-bold">Previous Sessions at this Play Dose</h3>
                 <ul className="mt-2 space-y-2">
                   {entryAttempts.map((a) => (
                     <li

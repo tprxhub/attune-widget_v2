@@ -88,7 +88,7 @@ export function Protected({
           title="Not part of this account type"
           message={
             session.accountType === "b2b"
-              ? "Organisation accounts are billed by seat — individual subscriptions don't apply."
+              ? "Organisation accounts are billed by license — individual subscriptions don't apply."
               : "This area is for organisation accounts only."
           }
           ctaTo={session.homePath}

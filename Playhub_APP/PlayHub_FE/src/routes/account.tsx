@@ -471,7 +471,7 @@ function AccountPage() {
                     to="/progress"
                     icon={TrendingUp}
                     title="Progress"
-                    sub="Attempts and trends"
+                    sub="Sessions and trends"
                   />
                   <QuickLink
                     to="/plans"
@@ -492,7 +492,7 @@ function AccountPage() {
                     to="/progress"
                     icon={TrendingUp}
                     title="Progress"
-                    sub="Attempts and trends"
+                    sub="Sessions and trends"
                   />
                   <QuickLink
                     to="/plans"

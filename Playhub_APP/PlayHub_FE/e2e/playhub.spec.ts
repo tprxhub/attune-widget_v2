@@ -32,7 +32,7 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
 
   await page.goto("/check-in");
   await expect(page.getByRole("heading", { name: "Daily Check-In" })).toBeVisible();
-  await expect(page.getByText("Logging an Attempt for Noah", { exact: false })).toBeVisible();
+  await expect(page.getByText("Logging an Session for Noah", { exact: false })).toBeVisible();
   await chooseOption(page, "Play Plan", "Bilateral Coordination");
   await chooseOption(page, "Play Dose", "Learn to Button a Shirt · Rookie");
   await expect(page.getByText("Assigned dose:", { exact: false })).toBeVisible();
@@ -47,17 +47,17 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
     (response) =>
       response.request().method() === "POST" && /\/children\/[^/]+\/attempts$/.test(response.url()),
   );
-  await page.getByRole("button", { name: "Log this Attempt" }).click();
+  await page.getByRole("button", { name: "Log this Session" }).click();
   expect((await savedResponse).status()).toBe(201);
-  await expect(page.getByRole("status")).toContainText("Attempt saved");
-  await expect(page.getByText(/\/100$/)).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("Session saved");
+  await expect(page.getByText(/^\d+%$/).first()).toBeVisible();
 
   await page.goto("/progress");
   await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
   await expect(page.getByRole("img", { name: /Weekly progress chart/ })).toBeVisible();
   const nextSteps = page.getByRole("heading", { name: "Next steps" }).locator("..");
   await expect(nextSteps.locator("ol > li")).toHaveCount(5);
-  await expect(page.getByRole("heading", { name: "Attempt history" })).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Session history" })).toHaveCount(1);
   await expect(page.getByText(/\d+%$/).first()).toBeVisible();
 
   const planFilter = page.locator(
@@ -86,7 +86,7 @@ test("Super Admin can operate platform controls and complete staff activation", 
   await page.goto("/admin/orgs");
   await page.getByRole("button", { name: "New organisation" }).click();
   await page.getByLabel("Name").fill("Browser Test School");
-  await page.getByLabel("Seats").fill("12");
+  await page.getByLabel("Licenses").fill("12");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByText("Browser Test School")).toBeVisible();
 
@@ -94,7 +94,7 @@ test("Super Admin can operate platform controls and complete staff activation", 
   const noah = page.locator("article").filter({ hasText: "Noah" });
   await expect(noah).toBeVisible();
   await noah.getByRole("link", { name: "Check-in" }).click();
-  await expect(page.getByText("Logging an Attempt for Noah", { exact: false })).toBeVisible();
+  await expect(page.getByText("Logging an Session for Noah", { exact: false })).toBeVisible();
 
   for (const [path, heading] of [
     ["/admin/progress", "Progress"],
@@ -251,7 +251,7 @@ test("organisation roles receive the correct writable and read-only experiences"
   await adminPage.goto("/org");
   await expect(adminPage.getByRole("heading", { name: "Children", exact: true })).toBeVisible();
   await adminPage.goto("/check-in");
-  await expect(adminPage.getByText("Logging an Attempt for Amira", { exact: false })).toBeVisible();
+  await expect(adminPage.getByText("Logging an Session for Amira", { exact: false })).toBeVisible();
   await adminPage.goto("/admin");
   await expect(
     adminPage.getByRole("heading", { name: "Not available for your role" }),
@@ -263,11 +263,11 @@ test("organisation roles receive the correct writable and read-only experiences"
   await login(parentPage, "hana@sunrise.local", true);
   await parentPage.goto("/check-in");
   await expect(parentPage.getByText("Read-only access", { exact: true })).toBeVisible();
-  await expect(parentPage.getByRole("button", { name: "Log this Attempt" })).toHaveCount(0);
+  await expect(parentPage.getByRole("button", { name: "Log this Session" })).toHaveCount(0);
   await parentContext.close();
 });
 
-test("free family cannot log Attempts", async ({ page }) => {
+test("free family cannot log Sessions", async ({ page }) => {
   await login(page, "free.parent@playhub.local");
 
   await page.goto("/plans");
@@ -282,7 +282,7 @@ test("free family cannot log Attempts", async ({ page }) => {
   await page.goto("/check-in");
   await expect(page.getByText("Logging is locked on the free plan", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Upgrade to unlock" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Log this Attempt" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Log this Session" })).toHaveCount(0);
 
   await page.goto("/subscription");
   await page.getByRole("button", { name: /Subscribe .*£69/ }).click();
@@ -314,8 +314,8 @@ test("subscribed family can check in from an unassigned Play Dose", async ({ pag
   await page.getByRole("button", { name: "One reminder" }).click();
   await page.getByRole("button", { name: "Happy" }).click();
   await page.getByLabel("Parent win").fill("Logged directly from an unlocked Play Dose.");
-  await page.getByRole("button", { name: "Log this Attempt" }).click();
-  await expect(page.getByRole("status")).toContainText("Attempt logged");
+  await page.getByRole("button", { name: "Log this Session" }).click();
+  await expect(page.getByRole("status")).toContainText("Session logged");
 });
 
 test("user can choose a profile sticker and upload a profile photo", async ({ page }) => {

@@ -111,7 +111,7 @@ function EnrolPage() {
       <PageHeader
         eyebrow={isAdmin ? "Super Admin" : org.data ? `${org.data.name} · Caseload` : "Caseload"}
         title="Enrol a child"
-        description="Seats come from your organisation's plan — no card needed here."
+        description="Licenses come from your organisation's plan — no card needed here."
       />
 
       <form onSubmit={submit} className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
