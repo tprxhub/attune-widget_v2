@@ -58,7 +58,7 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   const nextSteps = page.getByRole("heading", { name: "Next steps" }).locator("..");
   await expect(nextSteps.locator("ol > li")).toHaveCount(5);
   await expect(page.getByRole("heading", { name: "Attempt history" })).toHaveCount(1);
-  await expect(page.getByText(/\/100$/).first()).toBeVisible();
+  await expect(page.getByText(/\d+%$/).first()).toBeVisible();
 
   const planFilter = page.locator(
     'button[aria-labelledby="progress-plan-filter-label progress-plan-filter-value"]',
@@ -305,7 +305,7 @@ test("subscribed family can check in from an unassigned Play Dose", async ({ pag
     .first()
     .click();
   await page
-    .getByRole("link", { name: /Round 1/ })
+    .getByRole("link", { name: /Tap & Slide Stretch/ })
     .first()
     .click();
 

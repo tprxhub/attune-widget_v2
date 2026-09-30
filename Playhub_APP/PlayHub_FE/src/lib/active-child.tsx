@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { Check, ChevronDown, Plus } from "lucide-react";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { Check, ChevronDown, Plus, Users } from "lucide-react";
 import { listChildrenForSession } from "@/api/children";
 import { useSession } from "@/auth/session";
 import type { Child } from "@/lib/types";
@@ -10,6 +10,9 @@ import { FloatingPanel } from "@/components/FloatingPanel";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { activeChildSelected, selectActiveChildOverride } from "@/store/active-child-slice";
+
+/** Dashboard-only choice for school admins: show every child instead of one. */
+export const ALL_CHILDREN = "all";
 
 interface ActiveChildValue {
   children: Child[];
@@ -45,12 +48,20 @@ export function useActiveChild(): ActiveChildValue {
 export function ChildSwitcherDropdown({ className }: { className?: string }) {
   const { children, activeChild, activeChildId, setActiveChildId } = useActiveChild();
   const { session } = useSession();
+  const override = useAppSelector(selectActiveChildOverride);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // Only school admins and platform admins may enrol children (the API enforces the same).
   const canAddMember = session.role === "educator" || session.role === "super_admin";
+  // School admins see every child at once on the dashboard.
+  const showingAll =
+    session.role === "educator" &&
+    pathname === "/dashboard" &&
+    (override === undefined || override === ALL_CHILDREN);
+  const allowAll = session.role === "educator" && pathname === "/dashboard";
 
   useEffect(() => {
     if (!open) return;
@@ -79,18 +90,24 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`Selected child: ${activeChild.name}`}
+        aria-label={`Selected child: ${showingAll ? "All children" : activeChild.name}`}
         className={cn(
           "inline-flex min-h-10 max-w-[13rem] items-center gap-2 rounded-full border border-navy/10 bg-card/80 py-1 pr-3 pl-1 text-sm font-bold text-navy shadow-[0_1px_0_rgba(16,42,74,0.04)] transition-colors hover:border-coral/40 hover:text-coral",
         )}
       >
-        <ChildAvatar
-          name={activeChild.name}
-          token={activeChild.colorToken ?? "blue"}
-          size={28}
-          shape="rounded"
-        />
-        <span className="truncate">{activeChild.name}</span>
+        {showingAll ? (
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-navy text-cream">
+            <Users className="h-4 w-4" aria-hidden />
+          </span>
+        ) : (
+          <ChildAvatar
+            name={activeChild.name}
+            token={activeChild.colorToken ?? "blue"}
+            size={28}
+            shape="rounded"
+          />
+        )}
+        <span className="truncate">{showingAll ? "All children" : activeChild.name}</span>
         <ChevronDown
           className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")}
           aria-hidden
@@ -105,8 +122,36 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
           className="w-56 rounded-2xl border border-navy/10 bg-card p-1.5 shadow-[0_16px_40px_-12px_rgba(15,42,74,0.35)]"
         >
           <ul role="listbox" aria-label="Choose a child">
+            {allowAll && (
+              <li>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={showingAll}
+                  onClick={() => {
+                    setActiveChildId(ALL_CHILDREN);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-bold transition-colors",
+                    showingAll ? "bg-navy text-white" : "text-navy hover:bg-navy/6",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid h-7 w-7 shrink-0 place-items-center rounded-lg",
+                      showingAll ? "bg-white/15" : "bg-navy/10",
+                    )}
+                  >
+                    <Users className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">All children</span>
+                  {showingAll && <Check className="h-4 w-4 shrink-0" aria-hidden />}
+                </button>
+              </li>
+            )}
             {children.map((child) => {
-              const active = child.id === activeChildId;
+              const active = !showingAll && child.id === activeChildId;
               return (
                 <li key={child.id}>
                   <button
