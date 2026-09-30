@@ -208,9 +208,9 @@ function Landing() {
   return (
     <div className="min-h-screen bg-cream">
       <StickyNav signedIn={signedIn} homePath={session.homePath} />
-      <main className="px-1 pt-3 sm:px-5 sm:pt-5">
+      <main className="px-1 sm:px-5">
         {/* ── Hero ── */}
-        <section className="ph-r-xl relative isolate -mt-[82px] overflow-hidden pt-[72px] sm:-mt-[80px] sm:pt-[80px] lg:-mt-[108px] lg:pt-[116px]">
+        <section className="relative isolate -mx-1 -mt-[88px] overflow-hidden pt-[78px] sm:-mx-5 sm:-mt-[88px] sm:pt-[88px] lg:-mt-[112px] lg:pt-[120px]">
           <img
             src={apiAssetUrl(home.hero.image_url) || HERO_IMAGE}
             alt="A child playing outdoors with bright colourful toys"
