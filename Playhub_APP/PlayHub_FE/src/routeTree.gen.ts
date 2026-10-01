@@ -16,6 +16,7 @@ import { Route as CheckInRouteImport } from './routes/check-in'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PlayPulseRouteImport } from './routes/play-pulse'
 import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SubscriptionRouteImport } from './routes/subscription'
@@ -67,6 +68,11 @@ const InviteRoute = InviteRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayPulseRoute = PlayPulseRouteImport.update({
+  id: '/play-pulse',
+  path: '/play-pulse',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProgressRoute = ProgressRouteImport.update({
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
+  '/play-pulse': typeof PlayPulseRoute
   '/progress': typeof ProgressRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
+  '/play-pulse': typeof PlayPulseRoute
   '/progress': typeof ProgressRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
+  '/play-pulse': typeof PlayPulseRoute
   '/progress': typeof ProgressRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/invite'
     | '/login'
+    | '/play-pulse'
     | '/progress'
     | '/signup'
     | '/subscription'
@@ -270,6 +280,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/invite'
     | '/login'
+    | '/play-pulse'
     | '/progress'
     | '/signup'
     | '/subscription'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/invite'
     | '/login'
+    | '/play-pulse'
     | '/progress'
     | '/signup'
     | '/subscription'
@@ -323,6 +335,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
+  PlayPulseRoute: typeof PlayPulseRoute
   ProgressRoute: typeof ProgressRoute
   SignupRoute: typeof SignupRoute
   SubscriptionRoute: typeof SubscriptionRoute
@@ -391,6 +404,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play-pulse': {
+      id: '/play-pulse'
+      path: '/play-pulse'
+      fullPath: '/play-pulse'
+      preLoaderRoute: typeof PlayPulseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/progress': {
@@ -523,6 +543,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,
+  PlayPulseRoute: PlayPulseRoute,
   ProgressRoute: ProgressRoute,
   SignupRoute: SignupRoute,
   SubscriptionRoute: SubscriptionRoute,

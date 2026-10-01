@@ -118,6 +118,7 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
   }, []);
 
   const nav = [
+    ["Play Pulse", "/play-pulse"],
     ["Play Plans", signedIn ? "/plans" : "/login"],
     ["Progress", signedIn ? "/progress" : "/login"],
     ["Pricing", signedIn ? "/subscription" : "/login"],
@@ -644,6 +645,7 @@ function Landing() {
               [
                 "Play Hub",
                 [
+                  ["Play Pulse", "/play-pulse"],
                   ["Play Plans", signedIn ? "/plans" : "/login"],
                   ["Progress", signedIn ? "/progress" : "/login"],
                   ["Daily Check-In", signedIn ? "/check-in" : "/login"],

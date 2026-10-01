@@ -1,6 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { activeChildReducer } from "./active-child-slice";
 import { orgScopeReducer } from "./org-scope-slice";
+import { playPulseReducer } from "./play-pulse-slice";
 import { sessionReducer } from "./session-slice";
 
 /** A store per app instance keeps server rendering free of cross-request leakage. */
@@ -10,6 +11,7 @@ export const makeStore = () =>
       session: sessionReducer,
       activeChild: activeChildReducer,
       orgScope: orgScopeReducer,
+      playPulse: playPulseReducer,
     },
   });
 
