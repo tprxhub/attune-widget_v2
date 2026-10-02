@@ -32,6 +32,8 @@ import { Route as OrgIndexRouteImport } from './routes/org.index'
 import { Route as OrgEnrollRouteImport } from './routes/org.enroll'
 import { Route as OrgSupportersRouteImport } from './routes/org.supporters'
 import { Route as PlansIndexRouteImport } from './routes/plans.index'
+import { Route as PoliciesPrivacyPolicyRouteImport } from './routes/policies.privacy-policy'
+import { Route as PoliciesTermsOfServiceRouteImport } from './routes/policies.terms-of-service'
 import { Route as PlansPlanIdIndexRouteImport } from './routes/plans.$planId.index'
 import { Route as PlansPlanIdEntryIdRouteImport } from './routes/plans.$planId.$entryId'
 
@@ -150,6 +152,16 @@ const PlansIndexRoute = PlansIndexRouteImport.update({
   path: '/plans/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PoliciesPrivacyPolicyRoute = PoliciesPrivacyPolicyRouteImport.update({
+  id: '/policies/privacy-policy',
+  path: '/policies/privacy-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliciesTermsOfServiceRoute = PoliciesTermsOfServiceRouteImport.update({
+  id: '/policies/terms-of-service',
+  path: '/policies/terms-of-service',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlansPlanIdIndexRoute = PlansPlanIdIndexRouteImport.update({
   id: '/plans/$planId/',
   path: '/plans/$planId/',
@@ -182,6 +194,8 @@ export interface FileRoutesByFullPath {
   '/admin/progress': typeof AdminProgressRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
+  '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
+  '/policies/terms-of-service': typeof PoliciesTermsOfServiceRoute
   '/admin/': typeof AdminIndexRoute
   '/org/': typeof OrgIndexRoute
   '/plans/': typeof PlansIndexRoute
@@ -209,6 +223,8 @@ export interface FileRoutesByTo {
   '/admin/progress': typeof AdminProgressRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
+  '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
+  '/policies/terms-of-service': typeof PoliciesTermsOfServiceRoute
   '/admin': typeof AdminIndexRoute
   '/org': typeof OrgIndexRoute
   '/plans': typeof PlansIndexRoute
@@ -237,6 +253,8 @@ export interface FileRoutesById {
   '/admin/progress': typeof AdminProgressRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
+  '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
+  '/policies/terms-of-service': typeof PoliciesTermsOfServiceRoute
   '/admin/': typeof AdminIndexRoute
   '/org/': typeof OrgIndexRoute
   '/plans/': typeof PlansIndexRoute
@@ -266,6 +284,8 @@ export interface FileRouteTypes {
     | '/admin/progress'
     | '/org/enroll'
     | '/org/supporters'
+    | '/policies/privacy-policy'
+    | '/policies/terms-of-service'
     | '/admin/'
     | '/org/'
     | '/plans/'
@@ -293,6 +313,8 @@ export interface FileRouteTypes {
     | '/admin/progress'
     | '/org/enroll'
     | '/org/supporters'
+    | '/policies/privacy-policy'
+    | '/policies/terms-of-service'
     | '/admin'
     | '/org'
     | '/plans'
@@ -320,6 +342,8 @@ export interface FileRouteTypes {
     | '/admin/progress'
     | '/org/enroll'
     | '/org/supporters'
+    | '/policies/privacy-policy'
+    | '/policies/terms-of-service'
     | '/admin/'
     | '/org/'
     | '/plans/'
@@ -348,6 +372,8 @@ export interface RootRouteChildren {
   AdminProgressRoute: typeof AdminProgressRoute
   OrgEnrollRoute: typeof OrgEnrollRoute
   OrgSupportersRoute: typeof OrgSupportersRoute
+  PoliciesPrivacyPolicyRoute: typeof PoliciesPrivacyPolicyRoute
+  PoliciesTermsOfServiceRoute: typeof PoliciesTermsOfServiceRoute
   AdminIndexRoute: typeof AdminIndexRoute
   OrgIndexRoute: typeof OrgIndexRoute
   PlansIndexRoute: typeof PlansIndexRoute
@@ -518,6 +544,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlansIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/policies/privacy-policy': {
+      id: '/policies/privacy-policy'
+      path: '/policies/privacy-policy'
+      fullPath: '/policies/privacy-policy'
+      preLoaderRoute: typeof PoliciesPrivacyPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/policies/terms-of-service': {
+      id: '/policies/terms-of-service'
+      path: '/policies/terms-of-service'
+      fullPath: '/policies/terms-of-service'
+      preLoaderRoute: typeof PoliciesTermsOfServiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/plans/$planId/': {
       id: '/plans/$planId/'
       path: '/plans/$planId'
@@ -556,6 +596,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminProgressRoute: AdminProgressRoute,
   OrgEnrollRoute: OrgEnrollRoute,
   OrgSupportersRoute: OrgSupportersRoute,
+  PoliciesPrivacyPolicyRoute: PoliciesPrivacyPolicyRoute,
+  PoliciesTermsOfServiceRoute: PoliciesTermsOfServiceRoute,
   AdminIndexRoute: AdminIndexRoute,
   OrgIndexRoute: OrgIndexRoute,
   PlansIndexRoute: PlansIndexRoute,

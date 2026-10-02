@@ -691,9 +691,19 @@ function Landing() {
             ))}
           </div>
 
-          <p className="mx-auto mt-10 max-w-7xl text-xs text-cream/45">
-            © {new Date().getFullYear()} {home.footer.copyright}
-          </p>
+          <div className="mx-auto mt-10 flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-3 text-xs text-cream/45">
+            <p>
+              © {new Date().getFullYear()} {home.footer.copyright}
+            </p>
+            <nav aria-label="Legal" className="flex gap-5">
+              <Link to="/policies/privacy-policy" className="hover:text-amber">
+                Privacy policy
+              </Link>
+              <Link to="/policies/terms-of-service" className="hover:text-amber">
+                Terms of service
+              </Link>
+            </nav>
+          </div>
         </div>
       </footer>
     </div>
