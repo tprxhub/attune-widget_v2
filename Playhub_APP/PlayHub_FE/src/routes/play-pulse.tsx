@@ -183,6 +183,7 @@ function PlayPulsePage() {
 
       <div className="relative mx-auto w-full max-w-2xl px-4 pt-2 pb-20 sm:px-6 sm:pt-5">
         <PulseProgress step={progressStep} />
+        <PulseStepper step={progressStep} />
 
         <div key={`${screen}-${state.domainIndex}`} className="ph-rise mt-4">
           {screen === "intro" && <IntroScreen />}
@@ -201,6 +202,59 @@ function PlayPulsePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+const STEPS = ["About", "Goal", ...DOMAINS, "Result"] as const;
+
+/** Labelled steps under the heartbeat line; `step` is 0 for About and STEPS.length - 1 for the result. */
+function PulseStepper({ step }: { step: number }) {
+  const current = Math.min(step, STEPS.length - 1);
+  return (
+    <nav aria-label="Play Pulse steps" className="mt-1">
+      <ol className="flex items-start">
+        {STEPS.map((label, index) => {
+          const done = index < current;
+          const active = index === current;
+          return (
+            <li
+              key={label}
+              aria-current={active ? "step" : undefined}
+              className="relative flex flex-1 flex-col items-center"
+            >
+              {index > 0 && (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute top-3.5 right-1/2 h-0.5 w-full -translate-y-1/2 transition-colors duration-500",
+                    index <= current ? "bg-coral" : "bg-navy/12",
+                  )}
+                />
+              )}
+              <span
+                className={cn(
+                  "relative z-10 grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold transition-all duration-300",
+                  done && "bg-coral text-white",
+                  active && "bg-navy text-white ring-4 ring-navy/15",
+                  !done && !active && "bg-white text-navy/45 ring-1 ring-navy/15",
+                )}
+              >
+                {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden /> : index + 1}
+              </span>
+              <span
+                className={cn(
+                  "mt-1.5 text-center text-[10px] leading-tight font-bold sm:text-[11px]",
+                  active ? "text-navy" : done ? "text-navy/70" : "text-navy/40",
+                  !active && "max-sm:sr-only",
+                )}
+              >
+                {label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
