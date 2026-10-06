@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   Activity,
+  ArrowLeft,
   ArrowUpRight,
   CalendarCheck,
   ChevronDown,
@@ -126,7 +127,18 @@ export function SchoolDashboard() {
   }
 
   if (selected) {
-    return <ProgressPage />;
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setActiveChildId(ALL_CHILDREN)}
+          className="mb-4 inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-navy/15 bg-card px-4 text-sm font-bold text-navy hover:border-navy/40"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden /> All children
+        </button>
+        <ProgressPage />
+      </>
+    );
   }
 
   const withModerator = rows.filter((row) => row.child.supporterId).length;

@@ -319,11 +319,13 @@ function DoseCard({
   planName,
   index,
   onIndex,
+  minimalInsight = false,
 }: {
   doses: ProgressPoint[];
   planName: string;
   index: number;
   onIndex: (index: number) => void;
+  minimalInsight?: boolean;
 }) {
   const [showMood, setShowMood] = useState(true);
   const [measure, available] = useWidth();
@@ -502,6 +504,7 @@ function DoseCard({
         index={index}
         emptyTitle="Dose in progress"
         emptyText="The Real-Life Try hasn’t happened yet, so there’s no verdict for this dose yet."
+        minimal={minimalInsight}
       />
     </Card>
   );
@@ -844,6 +847,7 @@ export function PlayProgress({
             planName={planTitle(planId)}
             index={doseIndex}
             onIndex={setChosenDose}
+            minimalInsight={landingPreview}
           />
         </div>
       </div>
