@@ -1,13 +1,13 @@
 """Formatted activity steps from the admin editor.
 
 Revision ID: 0018_activity_rich_steps
-Revises: 0017_play_plan_publication_status
+Revises: 0017_plan_publication_status
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "0018_activity_rich_steps"
-down_revision = "0017_play_plan_publication_status"
+down_revision = "0017_plan_publication_status"
 branch_labels = None
 depends_on = None
 
