@@ -19,6 +19,7 @@ import {
 import logo from "@/assets/PlayHub_Logo .svg";
 import { useSession } from "@/auth/session";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { PulseHeartbeat } from "@/features/play-pulse/PulseHeartbeat";
 import {
   AGE_BANDS,
   DEFAULT_OPTIONS,
@@ -118,7 +119,7 @@ function PlayPulsePage() {
   usePlayPulsePersistence();
   const dispatch = useAppDispatch();
   const state = useAppSelector(selectPlayPulse);
-  const { session, signInWithGoogle, hydrated: sessionHydrated } = useSession();
+  const { session, signInWithProvider, hydrated: sessionHydrated } = useSession();
   const [authPending, setAuthPending] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const isAnonymous = session.role === "anonymous";
@@ -132,7 +133,7 @@ function PlayPulsePage() {
     setAuthPending(true);
     setAuthError(null);
     try {
-      await signInWithGoogle(credential);
+      await signInWithProvider("google", credential);
       dispatch(resultsRevealed());
     } catch (reason) {
       setAuthError(reason instanceof Error ? reason.message : "Google sign-in was unsuccessful.");
@@ -162,14 +163,15 @@ function PlayPulsePage() {
           : TOTAL_STEPS;
 
   return (
-    <main className="min-h-screen overflow-hidden bg-cream text-navy">
+    <main className="min-h-screen overflow-x-clip bg-cream text-navy">
       <div className="pointer-events-none fixed inset-0 opacity-60" aria-hidden>
         <span className="absolute -top-32 -left-24 h-80 w-80 rounded-full bg-amber/25 blur-3xl" />
         <span className="absolute top-1/3 -right-32 h-96 w-96 rounded-full bg-blue/10 blur-3xl" />
       </div>
 
-      <header className="relative border-b border-navy/8 bg-white/75 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
+      {/* Stays at the top while scrolling; the heartbeat bar sticks just below it. */}
+      <header className="sticky top-0 z-30 border-b border-navy/8 bg-white/85 backdrop-blur-xl">
+        <div className="mx-auto flex h-[76px] w-full max-w-5xl items-center justify-between px-4 sm:h-20 sm:px-6">
           <Link to="/" aria-label="Play Hub home">
             <img src={logo} alt="Play Hub — The Toy Pharmacy" className="h-11 w-auto sm:h-12" />
           </Link>
@@ -182,8 +184,7 @@ function PlayPulsePage() {
       </header>
 
       <div className="relative mx-auto w-full max-w-2xl px-4 pt-2 pb-20 sm:px-6 sm:pt-5">
-        <PulseProgress step={progressStep} />
-        <PulseStepper step={progressStep} />
+        <PulseHeartbeat step={progressStep} total={TOTAL_STEPS} />
 
         <div key={`${screen}-${state.domainIndex}`} className="ph-rise mt-4">
           {screen === "intro" && <IntroScreen />}
@@ -202,109 +203,6 @@ function PlayPulsePage() {
         </div>
       </div>
     </main>
-  );
-}
-
-const STEPS = ["About", "Goal", ...DOMAINS, "Result"] as const;
-
-/** Labelled steps under the heartbeat line; `step` is 0 for About and STEPS.length - 1 for the result. */
-function PulseStepper({ step }: { step: number }) {
-  const current = Math.min(step, STEPS.length - 1);
-  return (
-    <nav aria-label="Play Pulse steps" className="mt-1">
-      <ol className="flex items-start">
-        {STEPS.map((label, index) => {
-          const done = index < current;
-          const active = index === current;
-          return (
-            <li
-              key={label}
-              aria-current={active ? "step" : undefined}
-              className="relative flex flex-1 flex-col items-center"
-            >
-              {index > 0 && (
-                <span
-                  aria-hidden
-                  className={cn(
-                    "absolute top-3.5 right-1/2 h-0.5 w-full -translate-y-1/2 transition-colors duration-500",
-                    index <= current ? "bg-coral" : "bg-navy/12",
-                  )}
-                />
-              )}
-              <span
-                className={cn(
-                  "relative z-10 grid h-7 w-7 place-items-center rounded-full text-xs font-extrabold transition-all duration-300",
-                  done && "bg-coral text-white",
-                  active && "bg-navy text-white ring-4 ring-navy/15",
-                  !done && !active && "bg-white text-navy/45 ring-1 ring-navy/15",
-                )}
-              >
-                {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden /> : index + 1}
-              </span>
-              <span
-                className={cn(
-                  "mt-1.5 text-center text-[10px] leading-tight font-bold sm:text-[11px]",
-                  active ? "text-navy" : done ? "text-navy/70" : "text-navy/40",
-                  !active && "max-sm:sr-only",
-                )}
-              >
-                {label}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
-  );
-}
-
-function PulseProgress({ step }: { step: number }) {
-  const progress = Math.max(0, Math.min(1, step / TOTAL_STEPS));
-  return (
-    <div className="sticky top-0 z-20 -mx-2 bg-cream/90 px-2 py-3 backdrop-blur-md">
-      <div
-        className="relative h-[58px]"
-        aria-label={`Play Pulse progress: ${step} of ${TOTAL_STEPS}`}
-      >
-        <svg viewBox="0 0 560 70" className="absolute inset-y-0 left-0 h-full w-[calc(100%-58px)]">
-          <path
-            d="M0 35h195l11-31 12 58 13-46 13 19h316"
-            fill="none"
-            stroke="rgba(223,59,45,.14)"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            key={step}
-            d="M0 35h195l11-31 12 58 13-46 13 19h316"
-            pathLength="1"
-            fill="none"
-            stroke="#df3b2d"
-            strokeWidth="4.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray={`${progress} 1`}
-            className="transition-all duration-700 ease-out"
-          />
-        </svg>
-        <div className="absolute top-1/2 right-0 grid h-12 w-12 -translate-y-1/2 place-items-center">
-          <Heart className="absolute h-12 w-12 fill-coral/15 text-coral/35" strokeWidth={1.7} />
-          <span
-            className="absolute inset-x-0 bottom-0 overflow-hidden transition-[height] duration-700"
-            style={{ height: `${Math.max(12, progress * 100)}%` }}
-          >
-            <Heart
-              className="absolute right-0 bottom-0 h-12 w-12 fill-coral text-coral"
-              strokeWidth={1.7}
-            />
-          </span>
-          <span className="relative text-[10px] font-extrabold text-white">
-            {Math.round(progress * 100)}
-          </span>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -769,7 +667,7 @@ function BackButton() {
     <button
       type="button"
       onClick={() => dispatch(movedBack())}
-      className="mb-5 inline-flex min-h-10 items-center gap-2 text-sm font-bold text-blue hover:underline"
+      className="mb-4 flex min-h-10 w-fit items-center gap-2 text-sm font-bold text-blue hover:underline"
     >
       <ArrowLeft className="h-4 w-4" aria-hidden /> Back
     </button>

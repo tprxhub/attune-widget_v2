@@ -8,7 +8,7 @@ export interface ReflectionValues {
   date: string;
   completion: number;
   completionStatus: CompletionStatus;
-  helpLevel: HelpLevel;
+  helpLevel: HelpLevel | null;
   mood: number;
   bigWin: string;
   consultNotes: string;
@@ -48,10 +48,11 @@ export function ReflectionForm({
       if (!date) next["date"] = "Choose the date this Play Dose happened.";
       else if (date > today()) next["date"] = "The date can't be in the future.";
     }
-    if (!completionStatus) next["completion"] = "Choose how much of the activity was finished.";
-    if (!helpLevel) next["help"] = "Choose how much help was needed.";
+    if (!completionStatus) next["completion"] = "Choose Yes or No.";
+    if (completionStatus === "finished" && !helpLevel)
+      next["help"] = "Choose how much help was needed.";
     if (!mood) next["mood"] = "Pick a Mood.";
-    if (bigWin.trim().length < 3) next["bigWin"] = "Add a short note about the Parent win.";
+    if (bigWin.trim().length < 3) next["bigWin"] = "Add a short note about the Big Win.";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -68,12 +69,12 @@ export function ReflectionForm({
               ? 5
               : helpLevel === "one_reminder"
                 ? 4
-                : 3
-            : completionStatus === "partly"
-              ? 3
-              : 1,
+                : helpLevel === "few_reminders"
+                  ? 3
+                  : 2
+            : 1,
         completionStatus: completionStatus!,
-        helpLevel: helpLevel!,
+        helpLevel: completionStatus === "finished" ? helpLevel : null,
         mood,
         bigWin: bigWin.trim(),
         consultNotes: consultNotes.trim(),
@@ -113,19 +114,23 @@ export function ReflectionForm({
       )}
 
       <fieldset>
-        <legend className="text-sm font-bold">Did they finish the activity?</legend>
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <legend className="text-sm font-bold">
+          Did the child complete the task once within 15 minutes?
+        </legend>
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {(
             [
-              ["stopped_early", "Stopped early"],
-              ["partly", "Partly"],
-              ["finished", "Finished"],
+              ["finished", "Yes"],
+              ["stopped_early", "No"],
             ] as const
           ).map(([value, label]) => (
             <button
               key={value}
               type="button"
-              onClick={() => setCompletionStatus(value)}
+              onClick={() => {
+                setCompletionStatus(value);
+                if (value !== "finished") setHelpLevel(null);
+              }}
               aria-pressed={completionStatus === value}
               className={cn(
                 "flex min-h-14 w-full items-center justify-center rounded-2xl border px-3 text-center text-sm leading-snug font-bold transition-all active:scale-95",
@@ -143,37 +148,39 @@ export function ReflectionForm({
         )}
       </fieldset>
 
-      <fieldset>
-        <legend className="text-sm font-bold">How much help did they need?</legend>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {(
-            [
-              ["hands_on", "Hands-on help"],
-              ["few_reminders", "A few reminders"],
-              ["one_reminder", "One reminder"],
-              ["independent", "On their own"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setHelpLevel(value)}
-              aria-pressed={helpLevel === value}
-              className={cn(
-                "flex min-h-14 w-full items-center justify-center rounded-2xl border px-2 text-center text-sm leading-snug font-bold transition-all active:scale-95",
-                helpLevel === value
-                  ? "border-blue bg-blue text-white shadow-[var(--shadow-card)]"
-                  : "border-navy/15 bg-card hover:border-navy/35",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {errors["help"] && (
-          <p className="mt-2 text-xs font-semibold text-coral">{errors["help"]}</p>
-        )}
-      </fieldset>
+      {completionStatus === "finished" && (
+        <fieldset>
+          <legend className="text-sm font-bold">How much help did they need?</legend>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(
+              [
+                ["hands_on", "Hands-on help"],
+                ["few_reminders", "A few reminders"],
+                ["one_reminder", "One reminder"],
+                ["independent", "On their own"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setHelpLevel(value)}
+                aria-pressed={helpLevel === value}
+                className={cn(
+                  "flex min-h-14 w-full items-center justify-center rounded-2xl border px-2 text-center text-sm leading-snug font-bold transition-all active:scale-95",
+                  helpLevel === value
+                    ? "border-blue bg-blue text-white shadow-[var(--shadow-card)]"
+                    : "border-navy/15 bg-card hover:border-navy/35",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {errors["help"] && (
+            <p className="mt-2 text-xs font-semibold text-coral">{errors["help"]}</p>
+          )}
+        </fieldset>
+      )}
 
       <fieldset>
         <legend className="text-sm font-bold">Mood</legend>
@@ -208,9 +215,9 @@ export function ReflectionForm({
 
       <div>
         <label htmlFor="big-win" className="text-sm font-bold">
-          Parent win
+          Big Win
         </label>
-        <p className="text-xs text-navy/60">What was your parent win during this activity?</p>
+        <p className="text-xs text-navy/60">What was the big win during this activity?</p>
         <textarea
           id="big-win"
           rows={3}

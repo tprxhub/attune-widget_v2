@@ -36,11 +36,11 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   await chooseOption(page, "Play Plan", "Bilateral Coordination");
   await chooseOption(page, "Play Dose", "Learn to Button a Shirt · Rookie");
   await expect(page.getByText("Assigned dose:", { exact: false })).toBeVisible();
-  await page.getByRole("button", { name: "Finished" }).click();
-  await page.getByRole("button", { name: "One reminder" }).click();
-  await page.getByRole("button", { name: "Happy" }).click();
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+  await page.getByRole("button", { name: "One reminder", exact: true }).click();
+  await page.getByRole("button", { name: "Happy", exact: true }).click();
   await page
-    .getByLabel("Parent win")
+    .getByLabel("Big Win", { exact: true })
     .fill("Completed the activity with less help in the browser test.");
 
   const savedResponse = page.waitForResponse(
@@ -50,14 +50,39 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   await page.getByRole("button", { name: "Log this Session" }).click();
   expect((await savedResponse).status()).toBe(201);
   await expect(page.getByRole("status")).toContainText("Session saved");
+  await expect(
+    page.getByText("Completed the activity with less help in the browser test."),
+  ).toBeVisible();
   await expect(page.getByText(/^\d+%$/).first()).toBeVisible();
+  // Recent Sessions folds away, and each session folds its Big Win.
+  const recent = page.getByRole("button", { name: /Recent Sessions/ });
+  await page.getByRole("button", { name: "Hide Big Win" }).first().click();
+  await expect(
+    page.getByText("Completed the activity with less help in the browser test."),
+  ).toHaveCount(0);
+  await recent.click();
+  await expect(recent).toHaveAttribute("aria-expanded", "false");
+  await recent.click();
+  // Only the latest log shows until See more is pressed.
+  const recentList = page.locator("#recent-sessions-list ol > li");
+  await expect(recentList).toHaveCount(1);
+  await page.getByRole("button", { name: /^See more \(\d+\)/ }).click();
+  expect(await recentList.count()).toBeGreaterThan(1);
+  await page.getByRole("button", { name: "Show less" }).click();
+  await expect(recentList).toHaveCount(1);
 
   await page.goto("/progress");
-  await expect(page.getByRole("heading", { name: "Progress" })).toBeVisible();
-  await expect(page.getByRole("img", { name: /Weekly progress chart/ })).toBeVisible();
-  const nextSteps = page.getByRole("heading", { name: "Next steps" }).locator("..");
-  await expect(nextSteps.locator("ol > li")).toHaveCount(5);
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: /Support Score for each Play Dose in this Play Plan/ }),
+  ).toBeVisible();
+  const nextSteps = page.getByRole("region", { name: "Next steps" });
+  // Next steps come from the dose the child is on: finish it first, no placeholder steps.
+  await expect(nextSteps.locator("ol > li").first()).toContainText("Finish this Rookie Play Dose");
   await expect(page.getByRole("heading", { name: "Session history" })).toHaveCount(1);
+  await expect(
+    page.getByText("Completed the activity with less help in the browser test."),
+  ).toBeVisible();
   await expect(page.getByText(/\d+%$/).first()).toBeVisible();
 
   const planFilter = page.locator(
@@ -73,7 +98,9 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   await expect(page.getByText("All Play Plans and dates")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("img", { name: /Weekly progress chart/ })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: /Support Score for each Play Dose in this Play Plan/ }),
+  ).toBeVisible();
 });
 
 test("Super Admin can operate platform controls and complete staff activation", async ({
@@ -86,7 +113,7 @@ test("Super Admin can operate platform controls and complete staff activation", 
   await page.goto("/admin/orgs");
   await page.getByRole("button", { name: "New organisation" }).click();
   await page.getByLabel("Name").fill("Browser Test School");
-  await page.getByLabel("Licenses").fill("12");
+  await page.getByRole("textbox", { name: "Licenses" }).fill("12");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByText("Browser Test School")).toBeVisible();
 
@@ -114,13 +141,26 @@ test("Super Admin can operate platform controls and complete staff activation", 
   await staffModal.getByRole("button", { name: "Add Admin" }).click();
   await expect(staffModal.getByRole("heading", { name: "Credentials ready" })).toBeVisible();
   await expect(staffModal.getByText("browser.admin@playhub.local", { exact: true })).toBeVisible();
+  const originalActivationLink = await staffModal
+    .getByRole("button", { name: "Copy one-time activation link" })
+    .locator("..")
+    .locator("p")
+    .textContent();
+  expect(originalActivationLink).toMatch(/\/accept-invite\?token=.{20,}/);
+  await expect(staffModal.getByRole("button", { name: "Copy credentials" })).toBeVisible();
+  await staffModal.getByRole("button", { name: "Done" }).click();
+
+  const pendingAdminCard = page.locator("article").filter({ hasText: "Browser Test Admin" });
+  await expect(pendingAdminCard.getByText("Invite pending", { exact: true })).toBeVisible();
+  await pendingAdminCard.getByRole("button", { name: "View activation link" }).click();
+  await expect(staffModal.getByRole("heading", { name: "Activation link ready" })).toBeVisible();
   const activationLink = await staffModal
     .getByRole("button", { name: "Copy one-time activation link" })
     .locator("..")
     .locator("p")
     .textContent();
   expect(activationLink).toMatch(/\/accept-invite\?token=.{20,}/);
-  await expect(staffModal.getByRole("button", { name: "Copy credentials" })).toBeVisible();
+  expect(activationLink).not.toBe(originalActivationLink);
   await staffModal.getByRole("button", { name: "Done" }).click();
 
   const moderatorCard = page.locator("article").filter({ hasText: "Priya Raman" });
@@ -171,8 +211,8 @@ test("organisation Admin can create, track and activate a Moderator", async ({ p
   let moderatorCard = page.locator("article").filter({ hasText: "Browser Test Moderator" });
   await expect(moderatorCard).toBeVisible();
   await expect(moderatorCard.getByText("Pending", { exact: true })).toBeVisible();
-  await moderatorCard.getByRole("button", { name: "Generate new login link" }).click();
-  await expect(modal.getByRole("heading", { name: "Moderator login ready" })).toBeVisible();
+  await moderatorCard.getByRole("button", { name: "View activation link" }).click();
+  await expect(modal.getByRole("heading", { name: "Activation link ready" })).toBeVisible();
   const activationLink = await modal
     .getByRole("button", { name: "Copy one-time activation link" })
     .locator("..")
@@ -198,6 +238,35 @@ test("organisation Admin can create, track and activate a Moderator", async ({ p
   moderatorCard = page.locator("article").filter({ hasText: "Browser Test Moderator" });
   await expect(moderatorCard.getByText("Active", { exact: true })).toBeVisible();
   await expect(moderatorCard.getByText("Children: Amira")).toBeVisible();
+});
+
+test("Super Admin can view a pending staff activation link", async ({ page }) => {
+  const pendingEmail = `pending.link.admin.${Date.now()}@playhub.local`;
+  await login(page, "admin@playhub.local");
+  await page.goto("/admin/educators");
+
+  await page.getByRole("button", { name: "Add staff" }).click();
+  const createModal = page.getByRole("dialog");
+  await createModal.getByLabel("Full name").fill("Pending Link Admin");
+  await createModal.getByLabel("Email").fill(pendingEmail);
+  await chooseOption(createModal, "Organisation", "Bright Steps Therapy Clinic");
+  await createModal.getByRole("button", { name: "Add Admin" }).click();
+  await expect(createModal.getByRole("heading", { name: "Credentials ready" })).toBeVisible();
+  await createModal.getByRole("button", { name: "Done" }).click();
+
+  const pendingStaffCard = page.locator("article").filter({ hasText: pendingEmail });
+  await expect(pendingStaffCard.getByText("Invite pending", { exact: true })).toBeVisible();
+  await pendingStaffCard.getByRole("button", { name: "View activation link" }).click();
+
+  const modal = page.getByRole("dialog");
+  await expect(modal.getByRole("heading", { name: "Activation link ready" })).toBeVisible();
+  await expect(modal.getByText("Any previous activation link", { exact: false })).toBeVisible();
+  const activationLink = await modal
+    .getByRole("button", { name: "Copy one-time activation link" })
+    .locator("..")
+    .locator("p")
+    .textContent();
+  expect(activationLink).toMatch(/\/accept-invite\?token=.{20,}/);
 });
 
 test("family can sign up, restore its session, change password and sign in again", async ({
@@ -286,7 +355,7 @@ test("free family cannot log Sessions", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Log this Session" })).toHaveCount(0);
 
   await page.goto("/subscription");
-  await page.getByRole("button", { name: /Subscribe .*£69/ }).click();
+  await page.getByRole("button", { name: /Subscribe .*AED 339/ }).click();
   await expect(page.getByRole("alert")).toContainText("Stripe payments are not configured");
   await expect(page.getByText("Free plan", { exact: true })).toBeVisible();
 });
@@ -311,12 +380,13 @@ test("subscribed family can check in from an unassigned Play Dose", async ({ pag
     .click();
 
   await expect(page.getByText("not currently assigned", { exact: false })).toHaveCount(0);
-  await page.getByRole("button", { name: "Finished" }).click();
-  await page.getByRole("button", { name: "One reminder" }).click();
-  await page.getByRole("button", { name: "Happy" }).click();
-  await page.getByLabel("Parent win").fill("Logged directly from an unlocked Play Dose.");
+  await page.getByRole("button", { name: "Yes", exact: true }).click();
+  await page.getByRole("button", { name: "One reminder", exact: true }).click();
+  await page.getByRole("button", { name: "Happy", exact: true }).click();
+  await page.getByLabel("Big Win", { exact: true }).fill("Logged directly from an unlocked Play Dose.");
   await page.getByRole("button", { name: "Log this Session" }).click();
   await expect(page.getByRole("status")).toContainText("Session logged");
+  await expect(page.getByText("Logged directly from an unlocked Play Dose.")).toBeVisible();
 });
 
 test("user can choose a profile sticker and upload a profile photo", async ({ page }) => {
@@ -496,9 +566,20 @@ test("Super Admin edits the home page wording and visitors see it", async ({ pag
   await hero.getByLabel("Main button").fill("Start free");
 
   // Picture addresses must be web or site addresses, never script URLs.
-  await hero.getByLabel("Background picture").fill("javascript:alert(1)");
+  await hero.getByLabel("Background picture", { exact: true }).fill("javascript:alert(1)");
   await expect(hero.getByText(/Start with https:\/\//)).toBeVisible();
-  await hero.getByLabel("Background picture").fill("");
+  await hero.getByLabel("Background picture", { exact: true }).fill("");
+
+  // A picture can also be uploaded instead of typing an address.
+  await hero.getByLabel("Upload a picture for Background picture").setInputFiles({
+    name: "hero.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("89504e470d0a1a0a706c617968756221", "hex"),
+  });
+  await expect(hero.getByLabel("Background picture", { exact: true })).toHaveValue(
+    /\/uploads\/media\/homepage\//,
+  );
+  await hero.getByLabel("Background picture", { exact: true }).fill("");
 
   // A story can be added and removed.
   await page.getByRole("button", { name: /Stories/ }).click();
@@ -540,6 +621,13 @@ test("only a Super Admin can open the home page editor", async ({ page }) => {
 test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be created and edited", async ({
   page,
 }) => {
+  // This test is about the Play Dose form, so mark the first-visit navigation guide as seen.
+  await page.addInitScript(() => {
+    const getItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      return key.startsWith("playhub:navigation-tour:") ? "complete" : getItem.call(this, key);
+    };
+  });
   const retiredLabels = [
     "SMART goal",
     "Level passed if",
@@ -586,7 +674,9 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   // One name, a day, steps and an optional video. No duplicate title, label, minutes or video title.
   await expect(create.getByLabel("Activity name")).toBeVisible();
   await expect(create.getByLabel("Day")).toBeVisible();
-  await expect(create.getByLabel("Step 1", { exact: true })).toBeVisible();
+  const steps = create.getByRole("textbox", { name: "Steps" });
+  await expect(steps).toBeVisible();
+  await expect(create.getByRole("toolbar", { name: "Formatting" })).toBeVisible();
   await expect(create.getByLabel("Video link")).toBeVisible();
   for (const gone of ["Activity title", "Label", "Minutes", "Video title"]) {
     await expect(create.getByLabel(gone, { exact: true })).toHaveCount(0);
@@ -594,7 +684,16 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   await expect(create.getByText("More options")).toBeVisible();
 
   await create.getByLabel("Activity name").fill("Squeeze the sponge");
-  await create.getByLabel("Step 1", { exact: true }).fill("Squeeze it ten times with one hand");
+  // Steps are written like a document: a heading, then a numbered list with a bold step.
+  await steps.click();
+  await create.getByLabel("Text style").selectOption("h3");
+  await steps.pressSequentially("Goal");
+  await page.keyboard.press("Enter");
+  await create.getByRole("button", { name: "Numbered list" }).click();
+  await steps.pressSequentially("Squeeze it ten times with one hand");
+  await page.keyboard.press("Enter");
+  await create.getByRole("button", { name: "Bold" }).click();
+  await steps.pressSequentially("Swap hands");
   const doseRequest = page.waitForRequest(
     (request) =>
       /\/play-plans\/[^/]+\/play-doses$/.test(request.url()) && request.method() === "POST",
@@ -610,7 +709,15 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   for (const key of retiredKeys) expect(doseBody).not.toHaveProperty(key);
   const activityBody = (await activityRequest).postDataJSON() as Record<string, unknown>;
   expect(activityBody["title"]).toBe("Squeeze the sponge");
-  expect(activityBody["instructions"]).toEqual(["Squeeze it ten times with one hand"]);
+  expect(activityBody["instructions"]).toEqual([
+    "Goal",
+    "Squeeze it ten times with one hand",
+    "Swap hands",
+  ]);
+  const html = String(activityBody["instructions_html"]);
+  expect(html).toContain("<h3>Goal</h3>");
+  expect(html).toContain("<ol>");
+  expect(html).toContain("<strong>Swap hands</strong>");
   expect(activityBody).not.toHaveProperty("duration_minutes");
   await expect(create).toBeHidden();
 
@@ -640,9 +747,10 @@ test("Super Admin gets a scannable progress overview with filters and details", 
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
   // One-line facts up top, and no retired GAS wording anywhere.
-  for (const label of ["Children", "Sessions", "Average support", "Need attention"]) {
+  for (const label of ["Children", "Sessions", "Need attention"]) {
     await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
   }
+  await expect(page.getByText("Support Score", { exact: true })).toHaveCount(0);
   await expect(page.getByText(/\bGAS\b/)).toHaveCount(0);
 
   // Column names appear once per table, not on every row.
@@ -660,9 +768,9 @@ test("Super Admin gets a scannable progress overview with filters and details", 
   await firstStatus.click();
   await expect(rows).toHaveCount(all);
 
-  // A row opens to its weekly trend and the facts that are not already in the row.
+  // A row opens to the facts that are not already in the row, without exposing Support Score.
   await rows.first().getByRole("button").first().click();
-  await expect(page.getByText("Weekly trend")).toBeVisible();
+  await expect(page.getByText("Latest Play Dose", { exact: true })).toBeVisible();
   await expect(page.getByText("Daily check-ins")).toBeVisible();
 });
 
@@ -677,4 +785,59 @@ test("Progress shows an empty state, not an endless skeleton, when the account h
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByText("No children to show yet")).toBeVisible();
   await expect(page.getByRole("link", { name: "Go to Children" })).toBeVisible();
+});
+
+test("Super Admin can reorder Play Plans from the library", async ({ page }) => {
+  await login(page, "admin@playhub.local");
+  await page.goto("/admin/plans");
+  const titles = page.locator("section.ph-card h2");
+  await expect(titles.first()).toBeVisible();
+  const before = await titles.allTextContents();
+  expect(before.length).toBeGreaterThan(1);
+
+  const first = before[0]!;
+  await page.getByRole("button", { name: `Move Play Plan ${first} down` }).click();
+  await expect(titles.nth(1)).toHaveText(first);
+
+  // The new order is saved, not just shown.
+  await page.reload();
+  await expect(titles.nth(1)).toHaveText(first);
+  await page.getByRole("button", { name: `Move Play Plan ${first} up` }).click();
+  await expect(titles.first()).toHaveText(first);
+});
+
+test("Super Admin can raise an organisation's licenses but not below the children in use", async ({
+  page,
+}) => {
+  await login(page, "admin@playhub.local");
+  await page.goto("/admin/orgs");
+  const card = page.locator("article").first();
+  await card.getByRole("button", { name: /Edit seat count for/ }).click();
+  const input = card.getByRole("spinbutton");
+  await input.fill("250");
+  await card.getByRole("button", { name: "Save" }).click();
+  await expect(card.getByText(/\/ 250 licenses used/)).toBeVisible();
+});
+
+test("enrolling for an organisation fills in its Admin, or offers to create one", async ({
+  page,
+}) => {
+  await login(page, "admin@playhub.local");
+  await page.goto("/admin/orgs");
+  await page.getByRole("button", { name: "New organisation" }).click();
+  await page.getByLabel("Name").fill("Admin-less School");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await expect(page.getByText("Admin-less School")).toBeVisible();
+
+  await page.goto("/org/enroll");
+  await page.getByLabel("Organisation", { exact: true }).click();
+  await page.getByRole("option", { name: "Sunrise Montessori" }).click();
+  await expect(page.getByLabel("Organisation Admin")).toContainText("Esther Mwangi");
+  await expect(page.getByRole("button", { name: "Enrol child" })).toBeVisible();
+
+  await page.getByLabel("Organisation", { exact: true }).click();
+  await page.getByRole("option", { name: "Admin-less School" }).click();
+  await expect(page.getByText("This organisation has no Admin yet")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Create Admin" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enrol child" })).toHaveCount(0);
 });

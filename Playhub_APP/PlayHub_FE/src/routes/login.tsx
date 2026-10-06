@@ -3,8 +3,14 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Building2, Eye, EyeOff, HeartHandshake, Loader2 } from "lucide-react";
 import loginArt from "@/assets/login-art.jpg";
 import { useSession } from "@/auth/session";
+import { GuestOnly } from "@/auth/guards";
 import { AuthLayout, authButton, authInput, authLabel } from "@/components/AuthLayout";
-import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import {
+  SocialSignInButtons,
+  socialSignInEnabled,
+  type SocialCredential,
+} from "@/components/SocialSignInButtons";
+import { ApiError } from "@/api/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
@@ -25,7 +31,11 @@ export const Route = createFileRoute("/login")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: LoginPage,
+  component: () => (
+    <GuestOnly>
+      <LoginPage />
+    </GuestOnly>
+  ),
 });
 
 function LoginPage() {
@@ -36,10 +46,13 @@ function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { signIn, signInWithGoogle, hydrated } = useSession();
+  const { signIn, signInWithProvider, registerWithProvider, hydrated } = useSession();
+  // A first-time Google, Apple or Microsoft sign-in waiting for the child's details.
+  const [newSocial, setNewSocial] = useState<SocialCredential | null>(null);
+  const [childName, setChildName] = useState("");
+  const [childAge, setChildAge] = useState("");
   const navigate = useNavigate();
   const isReady = mounted && hydrated;
-  const googleEnabled = Boolean(import.meta.env["VITE_GOOGLE_CLIENT_ID"]);
 
   useEffect(() => setMounted(true), []);
 
@@ -59,14 +72,42 @@ function LoginPage() {
     }
   };
 
-  const submitGoogle = async (credential: string) => {
+  const submitSocial = async (social: SocialCredential) => {
     setPending(true);
     setError(null);
     try {
-      const session = await signInWithGoogle(credential);
+      const session = await signInWithProvider(social.provider, social.credential, social.name);
       await navigate({ to: session.homePath });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to sign in with Google.");
+      if (reason instanceof ApiError && reason.status === 404) {
+        // First time with this account: ask for the child's details, then create the family account.
+        setNewSocial(social);
+      } else {
+        setError(reason instanceof Error ? reason.message : "Unable to sign in.");
+      }
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const createSocialFamily = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSocial) return;
+    const age = Number(childAge);
+    if (!childName.trim()) return setError("Enter your child's name.");
+    if (!childAge || Number.isNaN(age) || age < 1 || age > 12)
+      return setError("Enter your child's age (1–12).");
+    setPending(true);
+    setError(null);
+    try {
+      const session = await registerWithProvider({
+        ...newSocial,
+        childName: childName.trim(),
+        childAge: age,
+      });
+      await navigate({ to: session.homePath });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to create your account.");
     } finally {
       setPending(false);
     }
@@ -132,9 +173,18 @@ function LoginPage() {
           />
         </div>
         <div>
-          <label htmlFor="password" className={authLabel}>
-            Password
-          </label>
+          <div className="flex items-baseline justify-between gap-3">
+            <label htmlFor="password" className={authLabel}>
+              Password
+            </label>
+            <Link
+              to="/forgot-password"
+              search={{ email: email.trim() || undefined }}
+              className="text-xs font-bold text-navy underline underline-offset-4 hover:text-blue"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <div className="relative">
             <input
               id="password"
@@ -176,14 +226,52 @@ function LoginPage() {
         </button>
       </form>
 
-      {googleEnabled && (
+      {socialSignInEnabled && (
         <>
           <div className="my-6 flex items-center gap-3" aria-hidden>
             <span className="h-px flex-1 bg-navy/10" />
             <span className="text-xs font-bold text-navy/40 uppercase">or</span>
             <span className="h-px flex-1 bg-navy/10" />
           </div>
-          <GoogleSignInButton onCredential={submitGoogle} disabled={!isReady || pending} />
+          {newSocial ? (
+            <form onSubmit={createSocialFamily} className="rounded-2xl bg-navy/5 p-4" noValidate>
+              <p className="text-sm font-bold text-navy">Welcome to Play Hub</p>
+              <p className="mt-1 text-xs text-navy/65">
+                We'll create a free family account with your{" "}
+                {{ google: "Google", apple: "Apple", microsoft: "Microsoft" }[newSocial.provider]}{" "}
+                email. Tell us about your child to get started.
+              </p>
+              <label htmlFor="google-child-name" className={cn(authLabel, "mt-3")}>
+                Child's name
+              </label>
+              <input
+                id="google-child-name"
+                value={childName}
+                onChange={(e) => setChildName(e.target.value)}
+                className={authInput}
+              />
+              <label htmlFor="google-child-age" className={cn(authLabel, "mt-3")}>
+                Child's age
+              </label>
+              <input
+                id="google-child-age"
+                inputMode="numeric"
+                value={childAge}
+                onChange={(e) => setChildAge(e.target.value)}
+                className={authInput}
+              />
+              <button type="submit" disabled={pending} className={cn(authButton, "mt-4")}>
+                {pending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
+                Create my account
+              </button>
+            </form>
+          ) : (
+            <SocialSignInButtons
+              onCredential={submitSocial}
+              onError={setError}
+              disabled={!isReady || pending}
+            />
+          )}
         </>
       )}
 

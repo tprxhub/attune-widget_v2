@@ -1,5 +1,7 @@
+import { planPriceLabel } from "@/lib/money";
 import type {
   Attempt,
+  PermissionKey,
   AvatarSticker,
   Child,
   Goal,
@@ -61,14 +63,8 @@ export function mapSubscription(child: ApiChild): Subscription {
     startedAt: sub?.started_on ?? null,
     expiresAt: sub?.ends_on ?? null,
     refundWindowEndsAt: sub?.refundable_until ?? null,
-    priceLabel:
-      duration === "3m"
-        ? "£39"
-        : duration === "6m"
-          ? "£69"
-          : duration === "12m"
-            ? "£119"
-            : (sub?.plan_name ?? null),
+    renewalOpen: isActive && !!sub?.renewal_open,
+    priceLabel: planPriceLabel(duration) ?? sub?.plan_name ?? null,
   };
 }
 
@@ -102,6 +98,7 @@ export function mapGoal(plan: ApiPlan): Goal {
     kit: "Fine Motor Play Kit",
     blurb: plan.short_description ?? plan.description ?? "",
     createdBy: plan.created_by_name ?? undefined,
+    publicationStatus: plan.publication_status ?? "published",
   };
 }
 
@@ -141,6 +138,7 @@ export function flattenPlans(plans: ApiPlan[]): PlayPlan[] {
             name: activity.title,
             minutes: activity.duration_minutes ?? 10,
             instructions: activity.instructions,
+            instructionsHtml: activity.instructions_html ?? undefined,
             videoLabel: activity.title,
             videoUrl: apiAssetUrl(activity.video_url),
           },
@@ -157,6 +155,7 @@ export function flattenPlans(plans: ApiPlan[]): PlayPlan[] {
         thumbnailUrl: apiAssetUrl(dose.thumbnail_url),
         safetyNote: dose.safety_note ?? undefined,
         createdBy: dose.created_by_name ?? undefined,
+        publicationStatus: parent.publication_status ?? "published",
         entries,
       };
     }),
@@ -179,9 +178,11 @@ export function mapAttempt(row: ApiAttempt, plans: PlayPlan[]): Attempt {
     completion: row.completion_score,
     completionStatus: row.completion_status,
     helpLevel: row.help_level,
-    supportScore: ({ independent: 0, one_reminder: 33, few_reminders: 67, hands_on: 100 } as const)[
-      row.help_level
-    ],
+    supportScore: row.help_level
+      ? ({ independent: 0, one_reminder: 33, few_reminders: 67, hands_on: 100 } as const)[
+          row.help_level
+        ]
+      : null,
     isRealLifeTry: row.is_real_life_try,
     weekNumber: row.week_number,
     runNumber: row.run_number,
@@ -231,13 +232,15 @@ export function sessionFromApi(user: ApiUser, children: ApiChild[]): Session {
   const mappedRole: Session["role"] =
     user.role === "super_admin"
       ? "super_admin"
-      : user.role === "moderator"
-        ? "supporter"
-        : user.role === "admin"
-          ? user.account_scope === "organisation"
-            ? "educator"
-            : "parent"
-          : "parent";
+      : user.role === "ttp_employee"
+        ? "ttp_employee"
+        : user.role === "moderator"
+          ? "supporter"
+          : user.role === "admin"
+            ? user.account_scope === "organisation"
+              ? "educator"
+              : "parent"
+            : "parent";
   const accountType: Session["accountType"] =
     user.account_scope === "platform"
       ? "platform"
@@ -266,8 +269,12 @@ export function sessionFromApi(user: ApiUser, children: ApiChild[]): Session {
           : "none",
     orgId: user.organisation_id ?? undefined,
     childIds: children.map((child) => child.id),
+    permissions:
+      mappedRole === "ttp_employee"
+        ? ((user.permissions as PermissionKey[] | undefined) ?? [])
+        : undefined,
     homePath:
-      mappedRole === "super_admin"
+      mappedRole === "super_admin" || mappedRole === "ttp_employee"
         ? "/admin"
         : accountType === "b2b" && mappedRole !== "parent"
           ? "/org"

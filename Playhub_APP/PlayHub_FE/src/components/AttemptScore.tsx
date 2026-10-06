@@ -2,7 +2,7 @@ import { MoodIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import type { CompletionStatus, HelpLevel } from "@/lib/types";
 
-const COMPLETION = { finished: "Finished", partly: "Partly", stopped_early: "Stopped early" };
+const COMPLETION = { finished: "Finished in 15 min", stopped_early: "Not in 15 min" };
 const HELP = {
   hands_on: "Hands-on help",
   few_reminders: "A few reminders",
@@ -22,7 +22,7 @@ export function AttemptScore({
   mood: number;
   className?: string;
   completionStatus?: CompletionStatus;
-  helpLevel?: HelpLevel;
+  helpLevel?: HelpLevel | null | undefined;
 }) {
   return (
     <span

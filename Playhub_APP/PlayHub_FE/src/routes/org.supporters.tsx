@@ -34,6 +34,7 @@ import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Child, StaffMember } from "@/lib/types";
+import { fmtDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/org/supporters")({
   head: () => ({
@@ -217,7 +218,7 @@ function OrgSupporters() {
                         ) : (
                           <KeyRound className="h-3.5 w-3.5" aria-hidden />
                         )}
-                        Generate login link
+                        View activation link
                       </button>
                     ) : (
                       <button
@@ -355,7 +356,7 @@ function SupporterCard({
           ) : (
             <KeyRound className="h-4 w-4" aria-hidden />
           )}
-          Generate new login link
+          View activation link
         </button>
       ) : (
         <button
@@ -423,6 +424,7 @@ function AddSupporterModal({
   });
 
   const created = initialCredentials ?? create.data;
+  const isReplacementLink = Boolean(initialCredentials);
   const activationLink = created?.credentials.acceptanceToken
     ? `${window.location.origin}/accept-invite?token=${encodeURIComponent(created.credentials.acceptanceToken)}`
     : null;
@@ -445,7 +447,11 @@ function AddSupporterModal({
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 id="add-supporter-title" className="text-xl font-bold">
-                {created ? "Moderator login ready" : "Add a Moderator"}
+                {created
+                  ? isReplacementLink
+                    ? "Activation link ready"
+                    : "Moderator login ready"
+                  : "Add a Moderator"}
               </h2>
               <p className="mt-1 text-sm text-navy/65">
                 {created
@@ -467,11 +473,15 @@ function AddSupporterModal({
             <div className="mt-5 space-y-4">
               <div className="rounded-2xl bg-blue/10 p-4">
                 <p className="flex items-center gap-2 text-sm font-bold text-blue">
-                  <CheckCircle2 className="h-4 w-4" aria-hidden /> Moderator invitation created
+                  <CheckCircle2 className="h-4 w-4" aria-hidden />
+                  {isReplacementLink
+                    ? "New activation link generated"
+                    : "Moderator invitation created"}
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-navy/65">
-                  Share this one-time activation link securely. The Moderator chooses their own
-                  password, and their account stays pending until they activate it.
+                  {isReplacementLink
+                    ? "Share this fresh one-time link securely. Any previous activation link for this account no longer works."
+                    : "Share this one-time activation link securely. The Moderator chooses their own password, and their account stays pending until they activate it."}
                 </p>
               </div>
 
@@ -495,8 +505,7 @@ function AddSupporterModal({
               )}
 
               <p className="text-xs text-navy/55">
-                Link expires {new Date(created.credentials.expiresAt).toLocaleString()} and can be
-                used only once.
+                Link expires {fmtDateTime(created.credentials.expiresAt)} and can be used only once.
               </p>
 
               <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">

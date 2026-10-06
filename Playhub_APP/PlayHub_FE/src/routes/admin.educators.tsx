@@ -20,6 +20,7 @@ import {
   createEducator,
   listOrgs,
   listStaffByOrg,
+  regenerateStaffActivation,
   toggleStaffActive,
   type StaffInvitationResult,
 } from "@/api/admin";
@@ -33,6 +34,7 @@ import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { useOrgScope } from "@/lib/org-scope";
 import { cn } from "@/lib/utils";
 import type { Org, StaffMember } from "@/lib/types";
+import { fmtDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/educators")({
   head: () => ({
@@ -48,7 +50,7 @@ export const Route = createFileRoute("/admin/educators")({
     ],
   }),
   component: () => (
-    <Protected roles={["super_admin"]}>
+    <Protected roles={["super_admin", "ttp_employee"]} permission="team">
       <AdminEducators />
     </Protected>
   ),
@@ -71,6 +73,7 @@ function AdminEducators() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [createdAccess, setCreatedAccess] = useState<StaffInvitationResult | null>(null);
+  const [isReplacementLink, setIsReplacementLink] = useState(false);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -85,6 +88,7 @@ function AdminEducators() {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["staff-by-org"] });
+      setIsReplacementLink(false);
       setCreatedAccess(result);
       setName("");
       setEmail("");
@@ -93,6 +97,14 @@ function AdminEducators() {
   const toggle = useMutation({
     mutationFn: toggleStaffActive,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-by-org"] }),
+  });
+  const regenerate = useMutation({
+    mutationFn: regenerateStaffActivation,
+    onSuccess: (result) => {
+      setIsReplacementLink(true);
+      setCreatedAccess(result);
+      setOpen(true);
+    },
   });
 
   const all = useMemo(() => (groups.data ?? []).flatMap((g) => g.members), [groups.data]);
@@ -127,6 +139,7 @@ function AdminEducators() {
             onClick={() => {
               setErrors({});
               setCreatedAccess(null);
+              setIsReplacementLink(false);
               create.reset();
               setOpen(true);
             }}
@@ -239,6 +252,8 @@ function AdminEducators() {
                       member={m}
                       pending={toggle.isPending && toggle.variables === m.id}
                       onToggle={() => toggle.mutate(m.id)}
+                      onViewActivation={() => regenerate.mutate(m.id)}
+                      viewingActivation={regenerate.isPending && regenerate.variables === m.id}
                     />
                   ))}
                 </div>
@@ -264,7 +279,21 @@ function AdminEducators() {
                               ? "Active"
                               : "Disabled"}
                         </span>
-                        {!m.invitationPending && (
+                        {m.invitationPending ? (
+                          <button
+                            type="button"
+                            onClick={() => regenerate.mutate(m.id)}
+                            disabled={regenerate.isPending}
+                            className="inline-flex min-h-9 items-center gap-1 rounded-full border border-amber/55 px-3 text-[11px] font-bold disabled:opacity-50"
+                          >
+                            {regenerate.isPending && regenerate.variables === m.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                            ) : (
+                              <KeyRound className="h-3.5 w-3.5" aria-hidden />
+                            )}
+                            View activation link
+                          </button>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => toggle.mutate(m.id)}
@@ -285,11 +314,20 @@ function AdminEducators() {
         )}
       </section>
 
+      {regenerate.isError && (
+        <p role="alert" className="mt-4 rounded-2xl bg-coral/10 p-3 text-sm text-coral">
+          {regenerate.error instanceof Error
+            ? regenerate.error.message
+            : "Could not generate the activation link."}
+        </p>
+      )}
+
       {open && (
         <AddEducatorModal
           onClose={() => {
             setOpen(false);
             setCreatedAccess(null);
+            setIsReplacementLink(false);
           }}
           name={name}
           email={email}
@@ -303,6 +341,7 @@ function AdminEducators() {
           role={newRole}
           setRole={setNewRole}
           created={createdAccess}
+          isReplacementLink={isReplacementLink}
           submitError={create.error instanceof Error ? create.error.message : ""}
           onSubmit={() => {
             const next: Record<string, string> = {};
@@ -375,10 +414,14 @@ function StaffCard({
   member,
   pending,
   onToggle,
+  onViewActivation,
+  viewingActivation,
 }: {
   member: StaffMember;
   pending: boolean;
   onToggle: () => void;
+  onViewActivation: () => void;
+  viewingActivation: boolean;
 }) {
   return (
     <article className="rounded-2xl border border-navy/10 bg-card p-4 transition-shadow hover:shadow-md">
@@ -410,7 +453,21 @@ function StaffCard({
           {member.invitationPending ? "Invite pending" : member.active ? "Active" : "Disabled"}
         </span>
       </div>
-      {!member.invitationPending && (
+      {member.invitationPending ? (
+        <button
+          type="button"
+          onClick={onViewActivation}
+          disabled={viewingActivation}
+          className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-amber/55 text-xs font-bold disabled:opacity-50"
+        >
+          {viewingActivation ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <KeyRound className="h-4 w-4" aria-hidden />
+          )}
+          View activation link
+        </button>
+      ) : (
         <button
           type="button"
           onClick={onToggle}
@@ -443,6 +500,7 @@ function AddEducatorModal({
   role,
   setRole,
   created,
+  isReplacementLink,
   submitError,
   onSubmit,
 }: {
@@ -459,6 +517,7 @@ function AddEducatorModal({
   role: "educator" | "supporter";
   setRole: (v: "educator" | "supporter") => void;
   created: StaffInvitationResult | null;
+  isReplacementLink: boolean;
   submitError: string;
   onSubmit: () => void;
 }) {
@@ -494,7 +553,9 @@ function AddEducatorModal({
               <div className="min-w-0">
                 <h2 id="add-educator-title" className="text-lg font-bold">
                   {created
-                    ? "Credentials ready"
+                    ? isReplacementLink
+                      ? "Activation link ready"
+                      : "Credentials ready"
                     : `Add ${role === "supporter" ? "a Moderator" : "an Admin"}`}
                 </h2>
                 <p className="text-xs text-navy/55">
@@ -520,11 +581,15 @@ function AddEducatorModal({
             <div className="mt-5 space-y-4">
               <div className="rounded-2xl bg-blue/10 p-4">
                 <p className="flex items-center gap-2 text-sm font-bold text-blue">
-                  <CheckCircle2 className="h-4 w-4" aria-hidden /> Account invitation created
+                  <CheckCircle2 className="h-4 w-4" aria-hidden />
+                  {isReplacementLink
+                    ? "New activation link generated"
+                    : "Account invitation created"}
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-navy/65">
-                  Share this one-time activation link securely. The recipient will choose their own
-                  password, so Play Hub never displays or stores a readable password.
+                  {isReplacementLink
+                    ? "Share this fresh one-time link securely. Any previous activation link for this account no longer works."
+                    : "Share this one-time activation link securely. The recipient will choose their own password, so Play Hub never displays or stores a readable password."}
                 </p>
               </div>
 
@@ -549,8 +614,7 @@ function AddEducatorModal({
               )}
 
               <p className="text-xs text-navy/55">
-                Link expires {new Date(created.credentials.expiresAt).toLocaleString()} and can be
-                used only once.
+                Link expires {fmtDateTime(created.credentials.expiresAt)} and can be used only once.
               </p>
 
               <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">

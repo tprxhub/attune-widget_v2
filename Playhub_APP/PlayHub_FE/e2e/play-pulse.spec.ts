@@ -1,15 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-test("Play Pulse shows a labelled step tracker that advances with the quiz", async ({ page }) => {
+test("Play Pulse shows the heartbeat progress without a step tracker", async ({ page }) => {
   await page.goto("/play-pulse");
-  const steps = page.getByRole("navigation", { name: "Play Pulse steps" }).getByRole("listitem");
-  await expect(steps).toHaveCount(7);
-  await expect(steps.nth(0)).toHaveAttribute("aria-current", "step");
-  await expect(steps.nth(0)).toContainText("About");
+  await expect(page.getByRole("navigation", { name: "Play Pulse steps" })).toHaveCount(0);
+  const progress = page.getByLabel(/Play Pulse progress: 0 of/);
+  await expect(progress).toBeVisible();
 
   await page.getByPlaceholder("e.g. Zayd").fill("Kai");
   await page.getByRole("button", { name: /Preschooler/ }).click();
   await page.getByRole("button", { name: /Choose a goal/ }).click();
-  await expect(steps.nth(1)).toHaveAttribute("aria-current", "step");
-  await expect(steps.nth(1)).toContainText("Goal");
+  await expect(page.getByLabel(/Play Pulse progress: 1 of/)).toBeVisible();
 });

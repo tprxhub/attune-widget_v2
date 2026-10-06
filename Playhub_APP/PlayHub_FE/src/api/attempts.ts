@@ -10,7 +10,7 @@ export interface NewAttemptInput {
   date: string;
   completion: number;
   completionStatus: CompletionStatus;
-  helpLevel: HelpLevel;
+  helpLevel: HelpLevel | null;
   mood: number;
   bigWin: string;
   consultNotes?: string;
@@ -46,7 +46,7 @@ export async function logAttempt(input: NewAttemptInput): Promise<Attempt> {
       occurred_on: input.date,
       completion_score: input.completion,
       completion_status: input.completionStatus,
-      help_level: input.helpLevel,
+      help_level: input.completionStatus === "finished" ? input.helpLevel : null,
       mood_score: input.mood,
       big_win: input.bigWin || null,
       notes: input.consultNotes || null,

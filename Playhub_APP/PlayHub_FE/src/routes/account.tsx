@@ -14,9 +14,12 @@ import {
   KeyRound,
   LayoutDashboard,
   Loader2,
+  Map,
   Mail,
   ImageUp,
+  RotateCcw,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   TrendingUp,
   Trash2,
@@ -27,6 +30,7 @@ import {
 } from "lucide-react";
 import {
   changePassword,
+  requestPasswordReset,
   chooseProfileSticker,
   getAccount,
   removeProfileAvatar,
@@ -43,6 +47,8 @@ import { fmtDate } from "@/lib/format";
 import { accountLabel, roleLabel } from "@/lib/roles";
 import type { AvatarSticker } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ADMIN_NAVIGATION_OPTIONS, useNavigationPreferences } from "@/lib/navigation-preferences";
+import { startNavigationTour } from "@/features/guide/navigation-tour-events";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -143,6 +149,7 @@ function strengthOf(value: string) {
 function AccountPage() {
   const { session, refreshSession } = useSession();
   const caps = useCapabilities();
+  const navigation = useNavigationPreferences(session.personaId);
   const account = useQuery({
     queryKey: ["account", session.personaId],
     queryFn: () => getAccount(session),
@@ -175,6 +182,13 @@ function AccountPage() {
         setErrors({ current: res.message });
       }
     },
+  });
+
+  const [resetSent, setResetSent] = useState(false);
+  const sendReset = useMutation({
+    mutationFn: () => requestPasswordReset(email),
+    onSuccess: () => setResetSent(true),
+    onError: (reason: Error) => setErrors({ current: reason.message }),
   });
 
   const avatarMutation = useMutation({
@@ -521,6 +535,25 @@ function AccountPage() {
 
               <button
                 type="button"
+                onClick={startNavigationTour}
+                className="group flex items-center gap-3 rounded-2xl bg-navy p-3.5 text-left text-white transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] sm:col-span-2"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber text-navy">
+                  <Map className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold">Navigation guide</span>
+                  <span className="block truncate text-xs text-white/65">
+                    Take a quick tour of every tool available to you
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-full bg-coral px-3 py-1.5 text-[11px] font-bold text-white transition group-hover:bg-coral/90">
+                  Start tour
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setPwOpen(true)}
                 className="group flex items-center gap-3 rounded-2xl border border-coral/25 bg-coral/8 p-3.5 text-left transition hover:-translate-y-0.5 hover:border-coral/50 hover:shadow-[var(--shadow-card)] sm:col-span-2"
               >
@@ -537,6 +570,74 @@ function AccountPage() {
             </div>
           </section>
         </div>
+
+        {session.accountType === "b2b" && session.role === "educator" && (
+          <section
+            className="ph-card overflow-hidden"
+            aria-labelledby="navigation-preferences-title"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-navy/8 bg-navy/[0.025] p-5 sm:p-6">
+              <div className="flex items-start gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue/12 text-blue">
+                  <SlidersHorizontal className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <p className="eyebrow text-blue">Preferences</p>
+                  <h2 id="navigation-preferences-title" className="mt-1 text-lg font-bold">
+                    Choose your navigation
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm text-navy/60">
+                    Show the tools you use most. Account always remains visible, and every option is
+                    shown by default.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={navigation.reset}
+                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/15 bg-card px-4 text-xs font-bold text-navy transition hover:border-navy/35"
+              >
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset defaults
+              </button>
+            </div>
+            <div className="grid gap-px bg-navy/8 sm:grid-cols-2 lg:grid-cols-3">
+              {ADMIN_NAVIGATION_OPTIONS.map((option) => {
+                const visible = navigation.isVisible(option.path);
+                return (
+                  <button
+                    key={option.path}
+                    type="button"
+                    role="switch"
+                    aria-checked={visible}
+                    onClick={() => navigation.setVisible(option.path, !visible)}
+                    className="flex min-h-24 items-center gap-3 bg-card p-4 text-left transition hover:bg-blue/[0.035]"
+                  >
+                    <span
+                      className={cn(
+                        "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                        visible ? "bg-blue" : "bg-navy/15",
+                      )}
+                      aria-hidden
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
+                          visible ? "translate-x-6" : "translate-x-1",
+                        )}
+                      />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-bold">{option.label}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-navy/55">
+                        {option.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
 
       {avatarOpen && (
@@ -741,6 +842,25 @@ function AccountPage() {
                 </div>
                 {errors["current"] && (
                   <p className="mt-1.5 text-xs font-semibold text-coral">{errors["current"]}</p>
+                )}
+                {resetSent ? (
+                  <p
+                    role="status"
+                    className="mt-2 rounded-xl bg-blue/8 px-3 py-2 text-xs text-navy/80"
+                  >
+                    We’ve emailed a reset link to <b>{email}</b>. It works once, for one hour.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={sendReset.isPending || !email}
+                    onClick={() => sendReset.mutate()}
+                    className="mt-2 text-xs font-bold text-blue underline underline-offset-4 disabled:opacity-50"
+                  >
+                    {sendReset.isPending
+                      ? "Sending reset link…"
+                      : "Forgot your current password? Email me a reset link"}
+                  </button>
                 )}
               </div>
 

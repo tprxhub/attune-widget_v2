@@ -1,5 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  // These tests are not about the first-visit navigation guide, so mark it as seen.
+  await page.addInitScript(() => {
+    const getItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      return key.startsWith("playhub:navigation-tour:") ? "complete" : getItem.call(this, key);
+    };
+  });
+});
+
 async function login(page: Page, email: string, org = false) {
   await page.goto("/login");
   if (org) await page.getByRole("tab", { name: "School / clinic" }).click();

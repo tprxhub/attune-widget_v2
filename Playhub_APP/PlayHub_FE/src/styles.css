@@ -187,3 +187,84 @@
   font-weight: 600;
   letter-spacing: -0.01em;
 }
+
+/* Formatted activity steps (admin editor and the activity page share the same look). */
+@layer components {
+  .ph-rich {
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: color-mix(in oklab, var(--color-navy) 82%, transparent);
+    overflow-wrap: anywhere;
+  }
+  .ph-rich > * + * { margin-top: 0.6em; }
+  .ph-rich h2, .ph-rich h3, .ph-rich h4 { color: var(--color-navy); font-weight: 700; line-height: 1.3; }
+  .ph-rich h2 { font-size: 1.125rem; margin-top: 1.1em; }
+  .ph-rich h3 { font-size: 1rem; margin-top: 1em; }
+  .ph-rich h4 { font-size: 0.8125rem; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1em; }
+  .ph-rich > :first-child { margin-top: 0; }
+  .ph-rich strong, .ph-rich b { color: var(--color-navy); font-weight: 700; }
+  .ph-rich ul { list-style: disc; padding-left: 1.4em; }
+  .ph-rich ol { list-style: decimal; padding-left: 1.5em; }
+  .ph-rich li + li { margin-top: 0.3em; }
+  .ph-rich li > ul, .ph-rich li > ol { margin-top: 0.3em; }
+  .ph-rich li::marker { color: var(--color-blue); font-weight: 700; }
+  .ph-rich blockquote { border-left: 3px solid var(--color-amber); padding-left: 0.9em; color: color-mix(in oklab, var(--color-navy) 70%, transparent); }
+  .ph-rich a { color: var(--color-blue); text-decoration: underline; text-underline-offset: 3px; }
+  .ph-rich p:empty { min-height: 1em; }
+  .ph-rich .ProseMirror { outline: none; min-height: 9rem; }
+  .ph-rich .ProseMirror > * + * { margin-top: 0.6em; }
+}
+
+/* Play Pulse heart and heartbeat line. */
+@keyframes ph-pulse-travel {
+  from { stroke-dasharray: 0.12 1.2; stroke-dashoffset: 0.12; opacity: 1; }
+  85% { opacity: 1; }
+  to { stroke-dasharray: 0.12 1.2; stroke-dashoffset: -0.95; opacity: 0; }
+}
+.ph-pulse-travel { animation: ph-pulse-travel 750ms cubic-bezier(.45,0,.2,1) forwards; }
+
+@keyframes ph-pulse-shimmer {
+  from { stroke-dashoffset: 0.06; }
+  to { stroke-dashoffset: var(--ph-pulse-end, -1); }
+}
+.ph-pulse-shimmer { animation: ph-pulse-shimmer 2.6s ease-in-out infinite; }
+
+/* "Lub-dub": a strong beat followed by a softer one, then rest. */
+@keyframes ph-heart-rest {
+  0%, 100% { transform: scale(1); }
+  12% { transform: scale(1.09); }
+  22% { transform: scale(0.98); }
+  32% { transform: scale(1.05); }
+  46% { transform: scale(1); }
+}
+.ph-heart-rest { animation: ph-heart-rest 1.6s ease-in-out infinite; transform-origin: 50% 60%; }
+
+@keyframes ph-heart-beat {
+  0% { transform: scale(1); }
+  18% { transform: scale(1.26); }
+  34% { transform: scale(0.94); }
+  52% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+.ph-heart-beat { animation: ph-heart-beat 650ms cubic-bezier(.3,1.4,.5,1); transform-origin: 50% 60%; }
+
+@keyframes ph-heart-ring {
+  from { transform: scale(0.7); opacity: 0.9; }
+  to { transform: scale(1.9); opacity: 0; }
+}
+.ph-heart-ring { animation: ph-heart-ring 800ms ease-out forwards; pointer-events: none; }
+
+@keyframes ph-heart-glow {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50% { opacity: 0.8; transform: scale(1.15); }
+}
+.ph-heart-glow { animation: ph-heart-glow 1.8s ease-in-out infinite; pointer-events: none; }
+
+@keyframes ph-heart-wave { from { transform: translateX(0); } to { transform: translateX(var(--ph-wave, 12px)); } }
+.ph-heart-wave { animation: ph-heart-wave 1.8s linear infinite; }
+.ph-heart-wave-slow { animation: ph-heart-wave 3.2s linear infinite reverse; opacity: 0.75; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-pulse-travel, .ph-pulse-shimmer, .ph-heart-rest, .ph-heart-beat, .ph-heart-ring,
+  .ph-heart-glow, .ph-heart-wave, .ph-heart-wave-slow { animation: none; }
+}

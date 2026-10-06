@@ -11,7 +11,8 @@ def test_attempt_and_filtered_progress(client, platform_admin):
     progress = client.get(f"/api/v1/children/{child['id']}/progress?play_plan_id={plan['id']}", headers=platform_admin)
     assert progress.status_code == 200
     assert progress.json()["total_attempts"] == 3
-    assert progress.json()["trend"] == "progress"
+    # No dose has a finished Real-Life Try yet, so there is no trend to read.
+    assert progress.json()["trend"] == "insufficient_data"
 
 
 def test_free_family_cannot_bypass_attempt_entitlement(client, platform_admin):

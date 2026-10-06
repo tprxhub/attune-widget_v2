@@ -1,10 +1,10 @@
-import { Link } from "@tanstack/react-router";
+import { Link, Navigate } from "@tanstack/react-router";
 import { Lock } from "lucide-react";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
-import { roleLabel } from "@/lib/roles";
+import { hasPermission, roleLabel } from "@/lib/roles";
 import { useCapabilities, useSession } from "./session";
-import type { AccountType, Role } from "@/lib/types";
+import type { AccountType, PermissionKey, Role } from "@/lib/types";
 
 function Blocked({
   title,
@@ -34,15 +34,30 @@ function Blocked({
   );
 }
 
+/**
+ * For the log in and sign up pages: someone already signed in goes straight to their home
+ * instead of seeing the form again.
+ */
+export function GuestOnly({ children }: { children: ReactNode }) {
+  const { session, hydrated } = useSession();
+  if (hydrated && session.role !== "anonymous") {
+    return <Navigate to={session.homePath} replace />;
+  }
+  return <>{children}</>;
+}
+
 /** Auth guard + Role guard + Account-type guard, rendered inside the app shell. */
 export function Protected({
   children,
   roles,
   accountTypes,
+  permission,
 }: {
   children: ReactNode;
   roles?: Role[];
   accountTypes?: AccountType[];
+  /** TTP employees also need this page ticked for them; a Super Admin always passes. */
+  permission?: PermissionKey;
 }) {
   const { session, hydrated } = useSession();
   const { isAnonymous } = useCapabilities();
@@ -76,6 +91,19 @@ export function Protected({
           message={`Signed in as ${session.name} (${roleLabel(session.role, session.accountType)}). This area belongs to a different role.`}
           ctaTo={session.homePath}
           ctaLabel="Back to your home"
+        />
+      </AppShell>
+    );
+  }
+
+  if (permission && !hasPermission(session, permission) && session.role === "ttp_employee") {
+    return (
+      <AppShell>
+        <Blocked
+          title="You don't have access to this page"
+          message="A Super Admin chooses which pages each TTP employee can use. Ask them to tick this one for you."
+          ctaTo={session.homePath}
+          ctaLabel="Back to Overview"
         />
       </AppShell>
     );

@@ -37,8 +37,17 @@ def require_roles(*roles: Role) -> Callable:
     return checker
 
 
+def require_permission(*keys: str, roles: tuple[Role, ...] = ()) -> Callable:
+    """Allow a Super Admin, a TTP employee holding any of `keys`, or anyone in `roles`."""
+    def checker(user: User = Depends(get_current_user)) -> User:
+        if user.role in roles or user.can(*keys):
+            return user
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission for this action")
+    return checker
+
+
 def require_child_access(child: Child, user: User) -> None:
-    if user.role == Role.SUPER_ADMIN:
+    if user.can("children", "progress"):
         return
     if child.organisation_id and child.organisation_id == user.organisation_id:
         if user.role == Role.ADMIN or child.moderator_id == user.id or child.owner_id == user.id:

@@ -5,6 +5,8 @@ import {
   Activity,
   AlertTriangle,
   Building2,
+  Download,
+  Loader2,
   CalendarDays,
   ChevronDown,
   CircleCheck,
@@ -20,14 +22,18 @@ import {
 } from "lucide-react";
 import { getAuditLog, type AuditEvent, type AuditLogData } from "@/api/audit";
 import { Protected } from "@/auth/guards";
+import { useSession } from "@/auth/session";
+import { allowedAuditCategories } from "@/lib/roles";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
+import { ACTION_TITLES } from "@/lib/audit-labels";
 import { cn } from "@/lib/utils";
+import { fmtDate, fmtDateTime, fmtLongDate, fmtTime } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/audit")({
   head: () => ({ meta: [{ title: "Audit log — Play Hub admin" }] }),
   component: () => (
-    <Protected roles={["super_admin"]}>
+    <Protected roles={["super_admin", "ttp_employee"]} permission="audit">
       <AuditPage />
     </Protected>
   ),
@@ -51,42 +57,6 @@ const CATEGORY_META: Record<
   system: { label: "System", icon: ShieldCheck, styles: "bg-navy/8 text-navy" },
 };
 
-const ACTION_TITLES: Record<string, string> = {
-  "activity.created": "Activity created",
-  "activity.deleted": "Activity deleted",
-  "activity.updated": "Activity updated",
-  "activity.video_uploaded": "Activity video uploaded",
-  "attempt.created": "Attempt recorded",
-  "billing.checkout_created": "Checkout started",
-  "billing.payment_completed": "Payment completed",
-  "billing.refund_completed": "Refund completed",
-  "billing.refund_failed": "Refund failed",
-  "billing.refunded": "Refund requested",
-  "child.created": "Child profile created",
-  "child.updated": "Child profile updated",
-  "developer.persona_switched": "Test persona switched",
-  "family.registered": "Family account registered",
-  "invitation.accepted": "Invitation accepted",
-  "invitation.activation_regenerated": "Activation link regenerated",
-  "invitation.created": "Invitation sent",
-  "organisation.created": "Organisation created",
-  "organisation.updated": "Organisation updated",
-  "play_dose.created": "Play Dose created",
-  "play_dose.deleted": "Play Dose deleted",
-  "play_dose.thumbnail_uploaded": "Play Dose image uploaded",
-  "play_dose.updated": "Play Dose updated",
-  "play_plan.created": "Play Plan created",
-  "play_plan.updated": "Play Plan updated",
-  "site_content.reset": "Homepage content reset",
-  "site_content.updated": "Homepage content updated",
-  "subscription.manually_updated": "Subscription updated",
-  "user.avatar_removed": "Profile photo removed",
-  "user.avatar_sticker_selected": "Profile character selected",
-  "user.avatar_uploaded": "Profile photo uploaded",
-  "user.google_linked": "Google account connected",
-  "user.password_changed": "Password changed",
-  "user.updated": "Account updated",
-};
 
 const FIELD_LABELS: Record<string, string> = {
   account_scope: "account type",
@@ -139,7 +109,11 @@ function humanize(value: string) {
 
 function actorName(event: AuditEvent, data: AuditLogData) {
   if (!event.actor_id) return "Play Hub system";
-  return data.users.find((user) => user.id === event.actor_id)?.display_name ?? "Former account";
+  return (
+    event.actor_name ??
+    data.users.find((user) => user.id === event.actor_id)?.display_name ??
+    "Former account"
+  );
 }
 
 function resourceName(event: AuditEvent, data: AuditLogData) {
@@ -242,6 +216,41 @@ function describeEvent(event: AuditEvent, data: AuditLogData) {
   return `${ACTION_TITLES[event.action] ?? humanize(event.action.replace(".", " "))} was recorded by the API.`;
 }
 
+/** Writes the filtered events to an .xlsx file with readable names instead of raw IDs. */
+async function exportAuditToExcel(events: AuditEvent[], data: AuditLogData, label: string) {
+  const { default: writeExcelFile } = await import("write-excel-file/browser");
+  const header = [
+    "Date",
+    "Time",
+    "Category",
+    "Event",
+    "Description",
+    "Performed by",
+    "Resource type",
+    "Resource",
+    "Resource ID",
+  ].map((value) => ({ value, fontWeight: "bold" as const }));
+  const rows = events.map((event) => {
+    const when = new Date(event.created_at);
+    return [
+      fmtDate(when),
+      fmtTime(when, true),
+      CATEGORY_META[categoryFor(event)].label,
+      ACTION_TITLES[event.action] ?? humanize(event.action),
+      describeEvent(event, data),
+      actorName(event, data),
+      humanize(event.resource_type),
+      resourceName(event, data) ?? "",
+      event.resource_id,
+    ].map((value) => ({ value: String(value ?? ""), type: String }));
+  });
+  const columns = [12, 10, 16, 28, 60, 24, 16, 28, 38].map((width) => ({ width }));
+  const stamp = new Date().toISOString().slice(0, 10);
+  await writeExcelFile([header, ...rows], { columns, sheet: label }).toFile(
+    `playhub-audit-log-${stamp}.xlsx`,
+  );
+}
+
 function shortId(value: string) {
   return value.length > 16 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
 }
@@ -254,18 +263,11 @@ function dateHeading(value: string) {
   const key = date.toDateString();
   if (key === today.toDateString()) return "Today";
   if (key === yesterday.toDateString()) return "Yesterday";
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  return fmtLongDate(date);
 }
 
 function timeLabel(value: string) {
-  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" }).format(
-    new Date(value),
-  );
+  return fmtTime(value);
 }
 
 function AuditPage() {
@@ -274,6 +276,13 @@ function AuditPage() {
   const [category, setCategory] = useState<AuditCategory | "all">("all");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [visibleLimit, setVisibleLimit] = useState(30);
+  const { session } = useSession();
+  const allowedCategories = allowedAuditCategories(session).map((category) =>
+    category === "organisations" ? "organisation" : category,
+  );
+  const restricted = session.role === "ttp_employee";
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
 
   const events = useMemo(() => audit.data?.events ?? [], [audit.data?.events]);
   const todayCount = events.filter(
@@ -324,7 +333,47 @@ function AuditPage() {
         eyebrow="Super Admin"
         title="Audit log"
         description="A readable, append-only history of account, content, billing and check-in changes across Play Hub."
+        actions={
+          <button
+            type="button"
+            disabled={!audit.data || filtered.length === 0 || exporting}
+            onClick={async () => {
+              if (!audit.data) return;
+              setExporting(true);
+              setExportError("");
+              try {
+                await exportAuditToExcel(filtered, audit.data, "Audit log");
+              } catch {
+                setExportError("The Excel file could not be created. Please try again.");
+              } finally {
+                setExporting(false);
+              }
+            }}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="h-4 w-4" aria-hidden />
+            )}
+            Export to Excel
+          </button>
+        }
       />
+      {restricted && (
+        <p className="mt-3 rounded-2xl bg-navy/5 px-4 py-3 text-xs font-semibold text-navy/70">
+          {allowedCategories.length === 0
+            ? "A Super Admin hasn't given you access to any log types yet, so no entries are shown."
+            : `You can see these log types: ${allowedCategories
+                .map((category) => CATEGORY_META[category as AuditCategory].label)
+                .join(", ")}. Exports include only these.`}
+        </p>
+      )}
+      {exportError && (
+        <p role="alert" className="mt-2 text-sm font-semibold text-coral">
+          {exportError}
+        </p>
+      )}
 
       <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
@@ -399,11 +448,18 @@ function AuditPage() {
                   className="min-h-11 w-full rounded-lg border border-navy/12 bg-card px-3 text-sm font-bold text-navy outline-none focus:border-blue focus:ring-2 focus:ring-blue/15"
                 >
                   <option value="all">All categories</option>
-                  {Object.entries(CATEGORY_META).map(([value, meta]) => (
-                    <option key={value} value={value}>
-                      {meta.label}
-                    </option>
-                  ))}
+                  {(
+                    Object.entries(CATEGORY_META) as [
+                      AuditCategory,
+                      (typeof CATEGORY_META)[AuditCategory],
+                    ][]
+                  )
+                    .filter(([value]) => allowedCategories.includes(value))
+                    .map(([value, meta]) => (
+                      <option key={value} value={value}>
+                        {meta.label}
+                      </option>
+                    ))}
                 </select>
               </label>
             </div>
@@ -494,7 +550,7 @@ function AuditPage() {
                             <time
                               className="whitespace-nowrap text-[11px] font-semibold text-navy/50"
                               dateTime={event.created_at}
-                              title={new Date(event.created_at).toLocaleString("en-GB")}
+                              title={fmtDateTime(event.created_at, true)}
                             >
                               {timeLabel(event.created_at)}
                             </time>
@@ -518,10 +574,7 @@ function AuditPage() {
                               <div>
                                 <dt className="font-bold text-navy/45">Recorded at</dt>
                                 <dd className="mt-0.5 font-semibold text-navy">
-                                  {new Intl.DateTimeFormat("en-GB", {
-                                    dateStyle: "long",
-                                    timeStyle: "medium",
-                                  }).format(new Date(event.created_at))}
+                                  {fmtDateTime(event.created_at, true)}
                                 </dd>
                               </div>
                               <div>

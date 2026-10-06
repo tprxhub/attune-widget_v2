@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ExternalLink, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, ExternalLink, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import {
   DEFAULT_HOMEPAGE_CONTENT,
   HOMEPAGE_LIMITS,
@@ -12,16 +12,19 @@ import {
   saveHomepage,
   type HomepageContent,
   type HomepageState,
+  uploadHomepageImage,
 } from "@/api/homepage";
+import { apiAssetUrl } from "@/api/client";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
 import { cn } from "@/lib/utils";
+import { fmtDateTime } from "@/lib/format";
 
 export const Route = createFileRoute("/admin/homepage")({
   head: () => ({ meta: [{ title: "Home page editor — Play Hub admin" }] }),
   component: () => (
-    <Protected roles={["super_admin"]}>
+    <Protected roles={["super_admin", "ttp_employee"]} permission="homepage">
       <HomepageEditor />
     </Protected>
   ),
@@ -180,7 +183,7 @@ function buildSections(
           fields: [
             field(["week", "stats", index, "value"], "Figure", L.stat, {
               half: true,
-              hint: "Keep it short, like 9 or 3+.",
+              hint: "Keep it short, like 5 or 1.",
             }),
             field(["week", "stats", index, "label"], "What it counts", L.label, { half: true }),
           ],
@@ -329,13 +332,29 @@ function FieldControl({
   value,
   error,
   onChange,
+  onUploaded,
 }: {
   spec: FieldSpec;
   value: string;
   error: string | null;
   onChange: (value: string) => void;
+  onUploaded?: (url: string) => void;
 }) {
   const id = useId();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      onUploaded?.(await uploadHomepageImage(file));
+    } catch (failure) {
+      setUploadError(failure instanceof Error ? failure.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
   const hintId = `${id}-hint`;
   const describedBy = [error ? `${id}-error` : null, spec.hint ? hintId : null]
     .filter(Boolean)
@@ -384,6 +403,38 @@ function FieldControl({
           onChange={(event) => onChange(event.target.value)}
         />
       )}
+      {spec.image && (
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-navy/15 bg-card px-3 py-1.5 text-xs font-bold text-navy hover:bg-navy/5 focus-within:ring-2 focus-within:ring-blue/25">
+            <Upload className="h-3.5 w-3.5" aria-hidden />
+            {uploading ? "Uploading…" : "Upload a picture"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              disabled={uploading}
+              aria-label={`Upload a picture for ${spec.label}`}
+              onChange={(event) => {
+                void pick(event.target.files?.[0]);
+                event.target.value = "";
+              }}
+            />
+          </label>
+          <span className="text-[11px] text-navy/50">JPG, PNG or WebP, up to 10 MB</span>
+          {value && (
+            <img
+              src={apiAssetUrl(value)}
+              alt=""
+              className="h-10 w-16 rounded-md border border-navy/10 object-cover"
+            />
+          )}
+        </div>
+      )}
+      {uploadError && (
+        <p role="alert" className="mt-1 text-xs font-semibold text-coral">
+          {uploadError}
+        </p>
+      )}
       {spec.hint && (
         <p id={hintId} className="mt-1 text-[11px] text-navy/50">
           {spec.hint}
@@ -399,8 +450,6 @@ function FieldControl({
 }
 
 /* ---------- the screen ---------- */
-
-const dateTime = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
 function HomepageEditor() {
   const queryClient = useQueryClient();
@@ -546,7 +595,7 @@ function HomepageEditor() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-navy/65">
               {saved?.customised
-                ? `Showing your saved wording${saved.updatedAt ? ` · last saved ${dateTime.format(new Date(saved.updatedAt))}` : ""}.`
+                ? `Showing your saved wording${saved.updatedAt ? ` · last saved ${fmtDateTime(saved.updatedAt)}` : ""}.`
                 : "Showing the original wording. Edit anything below to make it your own."}
             </p>
             <button
@@ -639,6 +688,10 @@ function HomepageEditor() {
                               onChange={(value) => {
                                 setNotice(null);
                                 setEdits(setAt(draft, spec.path, value));
+                              }}
+                              onUploaded={(url) => {
+                                setNotice(null);
+                                setEdits((current) => setAt(current ?? draft, spec.path, url));
                               }}
                             />
                           ))}

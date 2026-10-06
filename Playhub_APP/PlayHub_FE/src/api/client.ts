@@ -96,7 +96,7 @@ export interface ApiToken {
   token_type: "bearer";
 }
 
-export type ApiRole = "super_admin" | "admin" | "moderator" | "member";
+export type ApiRole = "super_admin" | "ttp_employee" | "admin" | "moderator" | "member";
 export type ApiScope = "platform" | "organisation" | "individual";
 
 export interface ApiUser {
@@ -110,6 +110,7 @@ export interface ApiUser {
   organisation_id: string | null;
   is_active: boolean;
   created_at: string;
+  permissions?: string[];
 }
 
 export interface ApiSubscription {
@@ -120,6 +121,7 @@ export interface ApiSubscription {
   ends_on: string | null;
   payment_managed: boolean;
   refundable_until: string | null;
+  renewal_open?: boolean;
 }
 
 export interface ApiChild {
@@ -148,6 +150,7 @@ export interface ApiActivity {
   kind: "introduction" | "activity" | "redo" | "level_up";
   title: string;
   instructions: string[];
+  instructions_html?: string | null;
   video_source_type: "link" | "upload" | null;
   video_url: string | null;
   duration_minutes: number | null;
@@ -179,6 +182,8 @@ export interface ApiPlan {
   icon: string | null;
   colour: string | null;
   is_active: boolean;
+  publication_status: "published" | "invisible" | "locked";
+  sort_order?: number;
   created_by_name?: string | null;
   play_doses: ApiDose[];
 }
@@ -191,8 +196,8 @@ export interface ApiAttempt {
   activity_id: string | null;
   occurred_on: string;
   completion_score: number;
-  completion_status: "finished" | "partly" | "stopped_early";
-  help_level: "hands_on" | "few_reminders" | "one_reminder" | "independent";
+  completion_status: "finished" | "stopped_early";
+  help_level: "hands_on" | "few_reminders" | "one_reminder" | "independent" | null;
   is_real_life_try: boolean;
   week_number: number;
   run_number: number;
@@ -226,7 +231,13 @@ export interface ApiProgress {
   last_check_in: string | null;
   trend: "progress" | "plateau" | "decline" | "insufficient_data";
   headline_status:
-    "progressing" | "holding_steady" | "needs_check_in" | "settling_in" | "insufficient_data";
+    | "first_dose"
+    | "progressing"
+    | "holding_steady"
+    | "needs_check_in"
+    | "settling_in"
+    | "insufficient_data";
+  current_play_plan_id?: string | null;
   fast_track_offered: boolean;
   move_down_offered: boolean;
   reminder_due: boolean;
@@ -243,7 +254,19 @@ export interface ApiProgress {
     kit_sessions_logged: number;
     real_life_try_passed: boolean;
     passed: boolean;
+    complete: boolean;
     consult_suggested: boolean;
+    scenario?: "first" | "settling" | "consult" | "progressing" | "steady" | null;
+    days: Array<{
+      day: number | null;
+      is_try: boolean;
+      occurred_on: string;
+      finished: boolean;
+      help_level: "hands_on" | "few_reminders" | "one_reminder" | "independent" | null;
+      score: number | null;
+      mood: number | null;
+      try_passed: boolean | null;
+    }>;
   }>;
   points: Array<{
     attempt_id: string;
@@ -272,11 +295,41 @@ export async function login(email: string, password: string) {
   return token;
 }
 
-export async function loginWithGoogle(credential: string) {
-  const token = await apiRequest<ApiToken>("/auth/google", {
+/** Identity providers a family can sign in with, besides email and password. */
+export type SocialProvider = "google" | "apple" | "microsoft";
+
+export async function loginWithProvider(
+  provider: SocialProvider,
+  credential: string,
+  name?: string,
+) {
+  const token = await apiRequest<ApiToken>(`/auth/${provider}`, {
     method: "POST",
     authenticated: false,
-    body: JSON.stringify({ credential }),
+    body: JSON.stringify(
+      provider === "google" ? { credential } : { credential, name: name ?? null },
+    ),
+  });
+  setAccessToken(token.access_token);
+  return token;
+}
+
+export async function registerFamilyWithProvider(input: {
+  provider: SocialProvider;
+  credential: string;
+  name?: string | undefined;
+  childName: string;
+  childDateOfBirth?: string;
+}) {
+  const token = await apiRequest<ApiToken>(`/auth/${input.provider}/register-family`, {
+    method: "POST",
+    authenticated: false,
+    body: JSON.stringify({
+      credential: input.credential,
+      ...(input.provider === "google" ? {} : { name: input.name ?? null }),
+      child_name: input.childName,
+      child_date_of_birth: input.childDateOfBirth ?? null,
+    }),
   });
   setAccessToken(token.access_token);
   return token;

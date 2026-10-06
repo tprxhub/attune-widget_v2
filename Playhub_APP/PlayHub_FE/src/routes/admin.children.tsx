@@ -23,7 +23,9 @@ import {
   PRICE_PLANS,
   adminActivateSubscription,
   adminCancelSubscription,
+  daysLeftLabel,
   getSubscriptions,
+  subscriptionStage,
 } from "@/api/subscriptions";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
@@ -37,6 +39,7 @@ import { fmtDate } from "@/lib/format";
 import type { Child, Org, PlanDuration, StaffMember, Subscription } from "@/lib/types";
 import { useOrgScope } from "@/lib/org-scope";
 import { useActiveChild } from "@/lib/active-child";
+import { hasPermission } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/children")({
@@ -58,16 +61,18 @@ export const Route = createFileRoute("/admin/children")({
     ],
   }),
   component: () => (
-    <Protected roles={["super_admin"]}>
+    <Protected roles={["super_admin", "ttp_employee"]} permission="children">
       <AdminChildren />
     </Protected>
   ),
 });
 
-type Filter = "all" | "b2c" | "b2b" | "unassigned";
+type Filter = "all" | "b2c" | "b2b" | "unassigned" | "ending";
 
 function AdminChildren() {
   const { session } = useSession();
+  // Granting or cancelling a subscription is billing work, ticked separately for TTP employees.
+  const canBill = hasPermission(session, "billing");
   const queryClient = useQueryClient();
   const { setActiveChildId } = useActiveChild();
   const kids = useQuery({
@@ -101,24 +106,33 @@ function AdminChildren() {
     queryClient.invalidateQueries({ queryKey: ["subs"] });
   };
 
+  const subFor = (childId: string) => subs.data?.find((s) => s.childId === childId);
   const q = search.trim().toLowerCase();
   const filtered = list.filter((child) => {
     if (filter === "b2c" && child.accountType !== "b2c") return false;
     if (filter === "b2b" && child.accountType !== "b2b") return false;
     if (filter === "unassigned" && child.supporterId) return false;
+    if (
+      filter === "ending" &&
+      (child.accountType !== "b2c" || subscriptionStage(subFor(child.id)).stage !== "ending")
+    )
+      return false;
     if (!q) return true;
     return (
       child.name.toLowerCase().includes(q) || (child.parentEmail ?? "").toLowerCase().includes(q)
     );
   });
 
-  const subFor = (childId: string) => subs.data?.find((s) => s.childId === childId);
   const progressFor = (childId: string) =>
     progress.data?.find((report) => report.childId === childId);
   const orgName = (orgId?: string) => orgs.data?.find((o) => o.id === orgId)?.name;
   const supporters = (staff.data ?? []).filter((s) => s.role === "supporter");
 
-  const activeSubs = (subs.data ?? []).filter((s) => s.status === "active").length;
+  // Organisation children are on a license, not a subscription, so only families count here.
+  const familyIds = new Set(list.filter((c) => c.accountType === "b2c").map((c) => c.id));
+  const activeSubs = (subs.data ?? []).filter(
+    (s) => s.status === "active" && familyIds.has(s.childId),
+  ).length;
 
   return (
     <>
@@ -155,6 +169,7 @@ function AdminChildren() {
               ["b2c", "Families"],
               ["b2b", "Organisations"],
               ["unassigned", "No Moderator"],
+              ["ending", "Ending soon"],
             ] as [Filter, string][]
           ).map(([key, label]) => (
             <button
@@ -201,11 +216,11 @@ function AdminChildren() {
           <p className="mt-2 text-sm text-navy/65">Try a different filter or search.</p>
         </div>
       ) : (
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="isolate mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((child, i) => (
             <article
               key={child.id}
-              className="ph-card ph-rise flex flex-col p-5"
+              className="ph-card ph-rise relative z-0 flex flex-col p-5 hover:z-20 focus-within:z-20"
               style={{ animationDelay: `${i * 45}ms` }}
             >
               <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
@@ -236,6 +251,8 @@ function AdminChildren() {
                 <p className="mt-1 text-xs text-navy/55">Started {fmtDate(child.planStartedAt)}</p>
               </div>
 
+              {child.accountType === "b2c" && <SubscriptionSummary sub={subFor(child.id)} />}
+
               <label className="mt-3 block">
                 <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
                   <UserCog className="h-3.5 w-3.5" aria-hidden /> Assigned Moderator
@@ -254,7 +271,7 @@ function AdminChildren() {
                 />
               </label>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
                 <button
                   type="button"
                   onClick={() => setEditing(child)}
@@ -262,13 +279,16 @@ function AdminChildren() {
                 >
                   <Pencil className="h-3.5 w-3.5" aria-hidden /> Profile
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setBilling(child)}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-navy/15 text-xs font-bold hover:border-navy/40"
-                >
-                  <CreditCard className="h-3.5 w-3.5" aria-hidden /> Subscription
-                </button>
+                {/* Organisation children are billed by license, so there's no subscription to manage. */}
+                {child.accountType === "b2c" && canBill && (
+                  <button
+                    type="button"
+                    onClick={() => setBilling(child)}
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-navy/15 text-xs font-bold hover:border-navy/40"
+                  >
+                    <CreditCard className="h-3.5 w-3.5" aria-hidden /> Subscription
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setInviting(child)}
@@ -279,7 +299,10 @@ function AdminChildren() {
                 <Link
                   to="/check-in"
                   onClick={() => setActiveChildId(child.id)}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-navy text-xs font-bold text-cream hover:bg-blue"
+                  className={cn(
+                    "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-navy text-xs font-bold text-cream hover:bg-blue",
+                    (child.accountType !== "b2c" || !canBill) && "col-span-2",
+                  )}
                 >
                   <CalendarCheck className="h-3.5 w-3.5" aria-hidden /> Check-in
                 </Link>
@@ -547,6 +570,52 @@ function EditChildModal({
   );
 }
 
+/** Family children only: plan, last day of subscription and an "ending" flag for the last days. */
+function SubscriptionSummary({ sub }: { sub: Subscription | undefined }) {
+  const { stage, lastDay, daysLeft } = subscriptionStage(sub);
+  return (
+    <div
+      className={cn(
+        "mt-3 rounded-2xl p-3",
+        stage === "ending" ? "bg-amber/15 ring-1 ring-amber/50" : "bg-navy/4",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
+          Subscription
+        </p>
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[10px] font-bold",
+            stage === "active" && "bg-blue/12 text-blue",
+            stage === "ending" && "bg-amber/40 text-navy",
+            stage === "ended" && "bg-coral/12 text-coral",
+            stage === "free" && "bg-navy/8 text-navy/60",
+          )}
+        >
+          {stage === "active"
+            ? `Active${sub?.priceLabel ? ` · ${sub.priceLabel}` : ""}`
+            : stage === "ending"
+              ? `Ends ${daysLeftLabel(daysLeft ?? 0)}`
+              : stage === "ended"
+                ? "Ended"
+                : "Free plan"}
+        </span>
+      </div>
+      <p className="mt-1 text-sm font-bold">
+        {lastDay ? fmtDate(lastDay) : "—"}
+      </p>
+      <p className="text-xs text-navy/55">
+        {lastDay
+          ? stage === "ended"
+            ? "Subscription ended on this day"
+            : "Last day of subscription"
+          : "No paid subscription yet"}
+      </p>
+    </div>
+  );
+}
+
 function SubscriptionModal({
   child,
   sub,
@@ -580,7 +649,10 @@ function SubscriptionModal({
               : "Free plan"}
         </p>
         {current?.expiresAt && (
-          <p className="mt-1 text-xs text-navy/60">Renews / ends {fmtDate(current.expiresAt)}</p>
+          <p className="mt-1 text-xs text-navy/60">
+            {current.status === "active" ? "Last day of subscription" : "Ended on"}{" "}
+            {fmtDate(current.expiresAt)}
+          </p>
         )}
       </div>
 

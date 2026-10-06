@@ -17,6 +17,26 @@ def test_activity_requires_both_video_fields(client, platform_admin):
     assert response.status_code == 422
 
 
+def test_invisible_plans_are_admin_only_and_locked_plans_stay_visible(client, platform_admin):
+    invisible = client.post(
+        "/api/v1/play-plans",
+        headers=platform_admin,
+        json={"name": "Old plan", "slug": "old-plan", "publication_status": "invisible"},
+    ).json()
+    locked = client.post(
+        "/api/v1/play-plans",
+        headers=platform_admin,
+        json={"name": "Upcoming plan", "slug": "upcoming-plan", "publication_status": "locked"},
+    ).json()
+
+    member_catalog = client.get("/api/v1/play-plans", headers=platform_admin).json()
+    assert invisible["id"] not in {plan["id"] for plan in member_catalog}
+    assert next(plan for plan in member_catalog if plan["id"] == locked["id"])["publication_status"] == "locked"
+
+    library = client.get("/api/v1/play-plans?include_inactive=true", headers=platform_admin).json()
+    assert {invisible["id"], locked["id"]} <= {plan["id"] for plan in library}
+
+
 def test_free_catalog_keeps_every_activity_instruction_and_video_unlocked(client, platform_admin):
     plan = client.post(
         "/api/v1/play-plans",

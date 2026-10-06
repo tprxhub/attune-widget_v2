@@ -5,12 +5,16 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  EyeOff,
+  Globe2,
   ImagePlus,
+  Lock,
   Loader2,
   Pencil,
   Plus,
   Search,
   Trash2,
+  UserRound,
   X,
 } from "lucide-react";
 import { GOALS, goalById } from "@/api/domain";
@@ -19,15 +23,20 @@ import {
   createPlan,
   createPlayPlan,
   updatePlayPlanCredit,
+  updatePlayPlanStatus,
   deletePlan,
   entryActivities,
-  listGoals,
+  listAllGoals,
   listPlanUsage,
   listPlans,
   updatePlan,
   type PlanInput,
+  reorderPlayDoses,
+  reorderPlayPlans,
+  type PlanPublicationStatus,
 } from "@/api/plans";
 import { Protected } from "@/auth/guards";
+import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
 import { ModalPortal } from "@/components/ModalPortal";
 import { Select } from "@/components/Select";
@@ -41,6 +50,7 @@ import {
   type PlayPlan,
 } from "@/lib/types";
 
+import { StepsEditor } from "@/components/StepsEditor";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/plans")({
@@ -62,7 +72,7 @@ export const Route = createFileRoute("/admin/plans")({
     ],
   }),
   component: () => (
-    <Protected roles={["super_admin"]}>
+    <Protected roles={["super_admin", "ttp_employee"]} permission="plans">
       <AdminPlans />
     </Protected>
   ),
@@ -73,8 +83,13 @@ const inputCls =
 
 function AdminPlans() {
   const queryClient = useQueryClient();
-  const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
-  const goals = useQuery({ queryKey: ["goals"], queryFn: listGoals });
+  const { session } = useSession();
+  const canDelete = session.role === "super_admin";
+  const plans = useQuery({
+    queryKey: ["plans", "library"],
+    queryFn: () => listPlans(undefined, true),
+  });
+  const goals = useQuery({ queryKey: ["goals", "library"], queryFn: listAllGoals });
   const usage = useQuery({ queryKey: ["plan-usage"], queryFn: listPlanUsage });
 
   const [search, setSearch] = useState("");
@@ -88,6 +103,43 @@ function AdminPlans() {
     queryClient.invalidateQueries({ queryKey: ["plans"] });
     queryClient.invalidateQueries({ queryKey: ["plan-usage"] });
     queryClient.invalidateQueries({ queryKey: ["goals"] });
+  };
+
+  const [reorderError, setReorderError] = useState<string | null>(null);
+  const reorder = useMutation({
+    mutationFn: (job: () => Promise<void>) => job(),
+    onSuccess: () => {
+      setReorderError(null);
+      invalidate();
+    },
+    onError: (error: Error) => setReorderError(error.message),
+  });
+  const statusChange = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: PlanPublicationStatus }) =>
+      updatePlayPlanStatus(id, status),
+    onSuccess: invalidate,
+  });
+  /** Swaps one item with its neighbour in the full (unfiltered) list and saves the new order. */
+  const shift = (ids: string[], id: string, dir: -1 | 1) => {
+    const from = ids.indexOf(id);
+    const to = from + dir;
+    if (from < 0 || to < 0 || to >= ids.length) return null;
+    const next = [...ids];
+    [next[from], next[to]] = [next[to]!, next[from]!];
+    return next;
+  };
+  const movePlayPlan = (goalId: string, dir: -1 | 1) => {
+    const next = shift(
+      (goals.data ?? []).map((g) => g.id),
+      goalId,
+      dir,
+    );
+    if (next) reorder.mutate(() => reorderPlayPlans(next));
+  };
+  const movePlayDose = (goalId: string, doseId: string, dir: -1 | 1) => {
+    const all = (plans.data ?? []).filter((p) => p.goalId === goalId).map((p) => p.id);
+    const next = shift(all, doseId, dir);
+    if (next) reorder.mutate(() => reorderPlayDoses(goalId, next));
   };
 
   const filtered = useMemo(() => {
@@ -109,11 +161,21 @@ function AdminPlans() {
       goalId: g.id,
       name: g.name,
       createdBy: g.createdBy,
+      publicationStatus: g.publicationStatus ?? "published",
       plans: filtered.filter((p) => p.goalId === g.id),
     }));
     const others = filtered.filter((p) => !libraryGoals.some((g) => g.id === p.goalId));
     return others.length
-      ? [...known, { goalId: "other", name: "Other goals", createdBy: undefined, plans: others }]
+      ? [
+          ...known,
+          {
+            goalId: "other",
+            name: "Other goals",
+            createdBy: undefined,
+            publicationStatus: "published" as const,
+            plans: others,
+          },
+        ]
       : known;
   }, [filtered, goals.data]);
 
@@ -186,20 +248,31 @@ function AdminPlans() {
         </div>
       </div>
 
+      {reorderError && (
+        <p role="alert" className="mt-3 text-sm font-semibold text-coral">
+          {reorderError}
+        </p>
+      )}
       <div className="mt-5 space-y-5">
-        {grouped.map((group) => (
+        {grouped.map((group, groupIndex) => (
           <section key={group.goalId} className="ph-card p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="eyebrow text-coral">Play Plan</p>
                 <h2 className="text-lg font-bold">{group.name}</h2>
-                <p className="text-xs font-semibold text-navy/55">
-                  {group.plans.length} {group.plans.length === 1 ? "Play Dose" : "Play Doses"}
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-navy/55">
+                  <span>
+                    {group.plans.length} {group.plans.length === 1 ? "Play Dose" : "Play Doses"}
+                  </span>
                   {group.goalId !== "other" && (
                     <>
-                      {" · "}
-                      <span data-testid="plan-creator">
-                        Created by {group.createdBy ?? "Super Admin"}
+                      <span
+                        data-testid="plan-creator"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue/8 px-2.5 py-1 font-bold text-navy"
+                      >
+                        <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden />
+                        Created by{" "}
+                        <span className="text-blue">{group.createdBy ?? "Super Admin"}</span>
                       </span>
                       <button
                         type="button"
@@ -213,26 +286,76 @@ function AdminPlans() {
                       </button>
                     </>
                   )}
-                </p>
+                </div>
               </div>
               {group.goalId !== "other" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewDoseGoalId(group.goalId);
-                    setEditing("new");
-                  }}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
-                >
-                  <Plus className="h-4 w-4" aria-hidden /> New Play Dose
-                </button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div
+                    className="inline-flex rounded-full border border-navy/12 bg-navy/[0.035] p-1"
+                    aria-label={`Publishing status for ${group.name}`}
+                  >
+                    {(
+                      [
+                        ["published", "Visible", Globe2],
+                        ["invisible", "Invisible", EyeOff],
+                        ["locked", "Locked", Lock],
+                      ] as const
+                    ).map(([value, label, Icon]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        title={
+                          value === "invisible"
+                            ? "Hide this old or unpopular plan"
+                            : value === "locked"
+                              ? "Show as upcoming, but prevent starting it"
+                              : "Show and allow this plan"
+                        }
+                        onClick={() => statusChange.mutate({ id: group.goalId, status: value })}
+                        disabled={statusChange.isPending}
+                        className={cn(
+                          "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold transition",
+                          group.publicationStatus === value
+                            ? value === "published"
+                              ? "bg-blue text-white"
+                              : value === "locked"
+                                ? "bg-amber text-navy"
+                                : "bg-navy text-white"
+                            : "text-navy/55 hover:bg-white",
+                        )}
+                      >
+                        <Icon className="h-3.5 w-3.5" aria-hidden /> {label}
+                      </button>
+                    ))}
+                  </div>
+                  <MoveButtons
+                    label={`Play Plan ${group.name}`}
+                    disabled={reorder.isPending}
+                    first={groupIndex === 0}
+                    last={
+                      groupIndex === grouped.length - 1 ||
+                      grouped[groupIndex + 1]?.goalId === "other"
+                    }
+                    onMove={(dir) => movePlayPlan(group.goalId, dir)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewDoseGoalId(group.goalId);
+                      setEditing("new");
+                    }}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden /> New Play Dose
+                  </button>
+                </div>
               )}
             </div>
             {group.plans.length === 0 ? (
               <p className="mt-2 text-sm text-navy/55">No plans match your filters.</p>
             ) : (
               <ul className="mt-3 space-y-3">
-                {group.plans.map((plan) => {
+                {group.plans.map((plan, doseIndex) => {
                   const used = usage.data?.[plan.id] ?? 0;
                   const acts = plan.entries.reduce((n, e) => n + entryActivities(e).length, 0);
                   const vids = plan.entries.reduce(
@@ -249,9 +372,11 @@ function AdminPlans() {
                           Play Dose · {plan.level}
                         </p>
                         <p className="mt-1 font-bold">{plan.title}</p>
-                        <p className="mt-0.5 text-xs font-semibold text-navy/55">
-                          Created by{" "}
-                          <span data-testid="dose-creator">{plan.createdBy ?? "Super Admin"}</span>
+                        <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-navy/10 bg-navy/[0.035] px-2.5 py-1 text-xs font-semibold text-navy/65">
+                          <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden /> Created by{" "}
+                          <span data-testid="dose-creator" className="font-bold text-navy">
+                            {plan.createdBy ?? "Super Admin"}
+                          </span>
                         </p>
                         <p className="mt-1 text-sm text-navy/65">{plan.summary}</p>
                         <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-navy/55">
@@ -264,7 +389,14 @@ function AdminPlans() {
                           </span>
                         </p>
                       </div>
-                      <div className="mt-3 flex shrink-0 gap-2 md:mt-0">
+                      <div className="mt-3 flex shrink-0 items-center gap-2 md:mt-0">
+                        <MoveButtons
+                          label={`Play Dose ${plan.title} (${plan.level})`}
+                          disabled={reorder.isPending}
+                          first={doseIndex === 0}
+                          last={doseIndex === group.plans.length - 1}
+                          onMove={(dir) => movePlayDose(group.goalId, plan.id, dir)}
+                        />
                         <button
                           type="button"
                           onClick={() => setEditing(plan)}
@@ -272,13 +404,15 @@ function AdminPlans() {
                         >
                           <Pencil className="h-4 w-4" aria-hidden /> Edit Play Dose
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setRemoving(plan)}
-                          className="inline-flex min-h-10 items-center gap-2 rounded-full border border-coral/40 px-4 text-sm font-bold text-coral"
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden /> Delete
-                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => setRemoving(plan)}
+                            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-coral/40 px-4 text-sm font-bold text-coral"
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden /> Delete
+                          </button>
+                        )}
                       </div>
                     </li>
                   );
@@ -312,7 +446,7 @@ function AdminPlans() {
           }}
         />
       )}
-      {removing && (
+      {canDelete && removing && (
         <DeletePlanModal
           plan={removing}
           inUse={usage.data?.[removing.id] ?? 0}
@@ -324,6 +458,45 @@ function AdminPlans() {
         />
       )}
     </>
+  );
+}
+
+function MoveButtons({
+  label,
+  first,
+  last,
+  disabled,
+  onMove,
+}: {
+  label: string;
+  first: boolean;
+  last: boolean;
+  disabled: boolean;
+  onMove: (dir: -1 | 1) => void;
+}) {
+  const cls =
+    "grid h-9 w-9 place-items-center rounded-full bg-navy/6 hover:bg-navy/10 disabled:cursor-not-allowed disabled:opacity-35";
+  return (
+    <div className="flex gap-1.5">
+      <button
+        type="button"
+        onClick={() => onMove(-1)}
+        disabled={first || disabled}
+        aria-label={`Move ${label} up`}
+        className={cls}
+      >
+        <ArrowUp className="h-4 w-4" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={() => onMove(1)}
+        disabled={last || disabled}
+        aria-label={`Move ${label} down`}
+        className={cls}
+      >
+        <ArrowDown className="h-4 w-4" aria-hidden />
+      </button>
+    </div>
   );
 }
 
@@ -368,7 +541,32 @@ function Shell({
   );
 }
 
-const KINDS: EntryKind[] = ["intro", "dose", "redo", "levelup"];
+const ENTRY_KIND_OPTIONS: Array<{
+  value: EntryKind;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "intro",
+    label: "Intro",
+    description: "Introduces the goal and prepares the family for the week.",
+  },
+  {
+    value: "dose",
+    label: "Activity",
+    description: "One of the five guided skill-building activities.",
+  },
+  {
+    value: "redo",
+    label: "Real-Life Try",
+    description: "Practises the skill in an everyday, real-life moment.",
+  },
+  {
+    value: "levelup",
+    label: "Level Up",
+    description: "Ends the week with the prompt for what comes next.",
+  },
+];
 
 function PlanModal({
   plan,
@@ -383,6 +581,8 @@ function PlanModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { session } = useSession();
+  const canDelete = session.role === "super_admin";
   const [title, setTitle] = useState(plan?.title ?? "");
   const [goalId, setGoalId] = useState(plan?.goalId ?? initialGoalId ?? GOALS[0]!.id);
   const [level, setLevel] = useState<Level>(plan?.level ?? "Starter");
@@ -856,14 +1056,16 @@ function PlanModal({
                   >
                     <ArrowDown className="h-4 w-4" aria-hidden />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setEntries((l) => l.filter((e) => e.id !== entry.id))}
-                    aria-label="Remove activity"
-                    className="grid h-9 w-9 place-items-center rounded-full bg-coral/12 text-coral"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                  </button>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => setEntries((l) => l.filter((e) => e.id !== entry.id))}
+                      aria-label="Remove activity"
+                      className="grid h-9 w-9 place-items-center rounded-full bg-coral/12 text-coral"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  )}
                 </div>
 
                 {open && first && (
@@ -895,48 +1097,25 @@ function PlanModal({
                     </div>
 
                     <div>
-                      <span className="text-sm font-bold">Steps</span>
-                      <div className="mt-2 space-y-2">
-                        {first.instructions.map((line, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <input
-                              value={line}
-                              aria-label={`Step ${i + 1}`}
-                              onChange={(e) =>
-                                patchActivity(entry.id, first.id, {
-                                  instructions: first.instructions.map((v, vi) =>
-                                    vi === i ? e.target.value : v,
-                                  ),
-                                })
-                              }
-                              className={cn(inputCls, "mt-0")}
-                            />
-                            <button
-                              type="button"
-                              aria-label={`Remove step ${i + 1}`}
-                              onClick={() =>
-                                patchActivity(entry.id, first.id, {
-                                  instructions: first.instructions.filter((_, vi) => vi !== i),
-                                })
-                              }
-                              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy/6"
-                            >
-                              <X className="h-4 w-4" aria-hidden />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
+                      <label htmlFor={`steps-${first.id}`} className="text-sm font-bold">
+                        Steps
+                      </label>
+                      <p className="mt-0.5 text-xs text-navy/55">
+                        Format it like a document: headings, bold, numbered or bulleted lists. Each
+                        list item counts as one step.
+                      </p>
+                      <StepsEditor
+                        key={first.id}
+                        id={`steps-${first.id}`}
+                        html={first.instructionsHtml}
+                        steps={first.instructions}
+                        onChange={({ html, steps }) =>
                           patchActivity(entry.id, first.id, {
-                            instructions: [...first.instructions, ""],
+                            instructions: steps,
+                            instructionsHtml: html || undefined,
                           })
                         }
-                        className="mt-2 inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
-                      >
-                        <Plus className="h-4 w-4" aria-hidden /> Add step
-                      </button>
+                      />
                     </div>
 
                     <div>
@@ -1016,15 +1195,18 @@ function PlanModal({
                       <div className="mt-4 space-y-4">
                         <div className="sm:max-w-xs">
                           <label htmlFor={`k-${entry.id}`} className="text-sm font-bold">
-                            Type
+                            Activity type
                           </label>
                           <Select
                             id={`k-${entry.id}`}
                             value={entry.kind}
                             onChange={(k) => patch(entry.id, { kind: k as EntryKind })}
-                            options={KINDS.map((k) => ({ value: k, label: k }))}
+                            options={ENTRY_KIND_OPTIONS}
                             className={inputCls}
                           />
+                          <p className="mt-1.5 text-xs leading-relaxed text-navy/55">
+                            Choose where this item belongs in the Play Plan week.
+                          </p>
                         </div>
                         <label className="flex items-center gap-3 text-sm font-semibold">
                           <input

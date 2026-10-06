@@ -87,3 +87,22 @@ export async function changePassword(input: { current: string; next: string }) {
     };
   }
 }
+
+/** Asks for a reset link. The API answers the same way whether or not the email has an account. */
+export async function requestPasswordReset(email: string) {
+  const res = await apiRequest<{ detail: string }>("/auth/password/forgot", {
+    method: "POST",
+    authenticated: false,
+    body: JSON.stringify({ email: email.trim() }),
+  });
+  return res.detail;
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const res = await apiRequest<{ detail: string }>("/auth/password/reset", {
+    method: "POST",
+    authenticated: false,
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+  return res.detail;
+}

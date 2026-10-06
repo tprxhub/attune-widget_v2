@@ -1,5 +1,8 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { isPlatformRole } from "@/lib/roles";
+import type { PermissionKey } from "@/lib/types";
 import {
+  BadgeCheck,
   BarChart3,
   Building2,
   CalendarCheck,
@@ -15,7 +18,7 @@ import {
   Users,
   LogOut,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getOrg } from "@/api/org";
 import { useCapabilities, useSession } from "@/auth/session";
@@ -25,7 +28,10 @@ import { cn } from "@/lib/utils";
 import { ChildSwitcherDropdown } from "@/lib/active-child";
 import { OrgScopeDropdown } from "@/lib/org-scope";
 import { Logo } from "./brand";
+import { RenewalNotice } from "./RenewalNotice";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { useNavigationPreferences } from "@/lib/navigation-preferences";
+import { NavigationTour } from "@/features/guide/NavigationTour";
 
 interface NavItem {
   to: string;
@@ -38,7 +44,7 @@ interface NavItem {
  * Only ever returns destinations this persona is actually allowed to open.
  * Billing / Subscription is an individual-account concept — organisations never see it.
  */
-function navFor(role: string, accountType: string): NavItem[] {
+function navFor(role: string, accountType: string, permissions: PermissionKey[] = []): NavItem[] {
   const account: NavItem = { to: "/account", label: "Account", short: "Account", icon: UserRound };
   const plans: NavItem = { to: "/plans", label: "Play Plans", short: "Plans", icon: LayoutGrid };
   const progress: NavItem = {
@@ -54,20 +60,64 @@ function navFor(role: string, accountType: string): NavItem[] {
     icon: CalendarCheck,
   };
 
-  if (role === "super_admin") {
-    return [
+  if (role === "super_admin" || role === "ttp_employee") {
+    // A TTP employee sees only the pages that were ticked for them.
+    const allowed = (key: PermissionKey) => role === "super_admin" || permissions.includes(key);
+    const items: (NavItem | false)[] = [
       { to: "/admin", label: "Overview", short: "Overview", icon: Home },
-      { to: "/admin/children", label: "Children", short: "Children", icon: Users },
-      checkIn,
-      { to: "/admin/progress", label: "Progress", short: "Progress", icon: BarChart3 },
-      { to: "/admin/audit", label: "Audit log", short: "Audit", icon: ShieldCheck },
-      plans,
-      { to: "/admin/plans", label: "Plans library", short: "Library", icon: ClipboardList },
-      { to: "/admin/homepage", label: "Home page", short: "Home page", icon: LayoutPanelTop },
-      { to: "/admin/orgs", label: "Organisations", short: "Orgs", icon: Building2 },
-      { to: "/admin/educators", label: "Admins & Moderators", short: "Team", icon: HeartHandshake },
+      allowed("children") && {
+        to: "/admin/children",
+        label: "Children",
+        short: "Children",
+        icon: Users,
+      },
+      role === "super_admin" && checkIn,
+      allowed("progress") && {
+        to: "/admin/progress",
+        label: "Progress",
+        short: "Progress",
+        icon: BarChart3,
+      },
+      allowed("audit") && {
+        to: "/admin/audit",
+        label: "Audit log",
+        short: "Audit",
+        icon: ShieldCheck,
+      },
+      allowed("plans") && plans,
+      allowed("plans") && {
+        to: "/admin/plans",
+        label: "Plans library",
+        short: "Library",
+        icon: ClipboardList,
+      },
+      allowed("homepage") && {
+        to: "/admin/homepage",
+        label: "Home page",
+        short: "Home page",
+        icon: LayoutPanelTop,
+      },
+      allowed("organisations") && {
+        to: "/admin/orgs",
+        label: "Organisations",
+        short: "Orgs",
+        icon: Building2,
+      },
+      allowed("team") && {
+        to: "/admin/educators",
+        label: "Admins & Moderators",
+        short: "Team",
+        icon: HeartHandshake,
+      },
+      role === "super_admin" && {
+        to: "/admin/ttp",
+        label: "TTP Employees",
+        short: "TTP",
+        icon: BadgeCheck,
+      },
       account,
     ];
+    return items.filter((item): item is NavItem => item !== false);
   }
 
   // Organisation staff — no billing or subscription anywhere.
@@ -121,7 +171,38 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { canInviteSupporter } = useCapabilities();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const items = navFor(session.role, session.accountType);
+  const { isVisible: isNavigationVisible } = useNavigationPreferences(session.personaId);
+  const items = useMemo(() => {
+    const baseItems = navFor(session.role, session.accountType, session.permissions);
+    return session.accountType === "b2b" && session.role === "educator"
+      ? baseItems.filter((item) => item.to === "/account" || isNavigationVisible(item.to))
+      : baseItems;
+  }, [isNavigationVisible, session.accountType, session.permissions, session.role]);
+  const tourItems = useMemo(() => {
+    const navigationItems = items.map(({ to, label }) => ({ to, label }));
+    if (session.role !== "educator") return navigationItems;
+
+    const childSteps = [
+      {
+        to: "/dashboard",
+        label: "Switch child view",
+        target: "child-switcher",
+        description:
+          "Use this selector to move between children—or choose All children for an organisation-wide dashboard. Your Dashboard and Progress views update for the child you select.",
+      },
+      {
+        to: "/dashboard",
+        label: "Add a child",
+        target: "add-child",
+        description:
+          "Open the child selector and choose Add a Member whenever you need to enrol another child. The guide has opened the menu so you can see exactly where it lives.",
+      },
+    ];
+
+    return navigationItems.length > 0
+      ? [navigationItems[0]!, ...childSteps, ...navigationItems.slice(1)]
+      : childSteps;
+  }, [items, session.role]);
   const org = useQuery({
     queryKey: ["org", session.orgId],
     queryFn: () => getOrg(session.orgId!),
@@ -149,6 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               to={item.to}
               activeOptions={{ exact: true }}
               aria-current={isActive(item.to) ? "page" : undefined}
+              data-tour-path={item.to}
               className={cn(
                 "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors",
                 isActive(item.to)
@@ -224,7 +306,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             </div>
             <div className="flex min-w-0 shrink items-center justify-end gap-2">
-              {session.role === "super_admin" && !pathname.startsWith("/check-in") ? (
+              {isPlatformRole(session.role) && !pathname.startsWith("/check-in") ? (
                 <OrgScopeDropdown className="[&>button]:border-white/25 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
               ) : (
                 <ChildSwitcherDropdown className="[&>button]:border-white/25 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
@@ -243,12 +325,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
               <span className="hidden lg:inline">
                 <span className="[&_button]:min-h-10 [&_button]:border-navy/10 [&_button]:bg-card/80 [&_button]:text-navy [&_button]:shadow-[0_1px_0_rgba(16,42,74,0.04)] [&_button:hover]:border-coral/40 [&_button:hover]:text-coral">
-                  <GuideButton />
+                  <GuideButton tour />
                 </span>
               </span>
               <span className="lg:hidden">
                 <span className="[&_button]:border-white/25 [&_button]:text-white">
-                  <GuideButton />
+                  <GuideButton tour />
                 </span>
               </span>
             </div>
@@ -266,6 +348,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     to={item.to}
                     activeOptions={{ exact: true }}
                     aria-current={isActive(item.to) ? "page" : undefined}
+                    data-tour-path={item.to}
                     className={cn(
                       "inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold whitespace-nowrap",
                       isActive(item.to) ? "bg-amber text-navy" : "text-white/70 hover:bg-white/10",
@@ -281,6 +364,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-28 sm:px-6 sm:pb-10 lg:px-8 lg:pt-8">
+          <RenewalNotice />
           {children}
         </main>
 
@@ -297,6 +381,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     to={item.to}
                     activeOptions={{ exact: true }}
                     aria-current={isActive(item.to) ? "page" : undefined}
+                    data-tour-path={item.to}
                     className={cn(
                       "flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-bold",
                       isActive(item.to) ? "text-coral" : "text-navy/55",
@@ -310,6 +395,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
           </ul>
         </nav>
+        <NavigationTour items={tourItems} />
       </div>
     </div>
   );

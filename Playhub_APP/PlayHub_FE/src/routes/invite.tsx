@@ -128,7 +128,7 @@ function InvitePage() {
             {[
               ["Yes", "Open the Play Plan and every unlocked Play Dose"],
               ["Yes", "Log Sessions, including past sessions"],
-              ["Yes", "Write the Parent win after a session"],
+              ["Yes", "Write the Big Win after a session"],
               ["No", "Change the subscription or payment details"],
               ["No", "Invite other people"],
             ].map(([allowed, line]) => (

@@ -1,4 +1,4 @@
-import type { Org, StaffMember } from "@/lib/types";
+import type { Org, PermissionKey, StaffMember } from "@/lib/types";
 import {
   apiRequest,
   getApiChildren,
@@ -12,7 +12,7 @@ interface ApiInvitation {
   id: string;
   email: string;
   display_name: string | null;
-  role: "super_admin" | "admin" | "moderator" | "member";
+  role: "super_admin" | "ttp_employee" | "admin" | "moderator" | "member";
   account_scope: "platform" | "organisation" | "individual";
   organisation_id: string | null;
   child_id: string | null;
@@ -20,6 +20,7 @@ interface ApiInvitation {
   expires_at: string;
   created_at: string;
   acceptance_token?: string | null;
+  permissions?: string[];
 }
 
 export interface StaffInvitationResult {
@@ -72,6 +73,14 @@ export async function createOrg(input: {
       seat_limit: input.licenses,
       billing_cycle: "annual",
     }),
+  });
+  return mapOrganisation(org);
+}
+
+export async function updateOrgLicenses(orgId: string, licenses: number) {
+  const org = await apiRequest<ApiOrganisation>(`/organisations/${orgId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ seat_limit: licenses }),
   });
   return mapOrganisation(org);
 }
@@ -183,49 +192,194 @@ export async function toggleStaffActive(staffId: string): Promise<StaffMember | 
   return mapStaff(updated, children) ?? undefined;
 }
 
-export async function platformOverview(scope = "all") {
-  const [orgs, staff, children] = await Promise.all([listOrgs(), staffData(), getApiChildren()]);
-  const subscriberId = scope.startsWith("subscriber:")
-    ? scope.slice("subscriber:".length)
-    : undefined;
-  const inScope = (orgId?: string | null) =>
-    scope === "all"
-      ? true
-      : scope === "b2b"
-        ? Boolean(orgId)
-        : scope === "individual"
-          ? !orgId
-          : subscriberId
-            ? false
-            : orgId === scope;
-  const scopedChildren = children.filter((child) =>
-    subscriberId ? child.id === subscriberId : inScope(child.organisation_id),
+export interface TtpEmployee {
+  /** The user id, or `invitation:<id>` while the invitation is still pending. */
+  id: string;
+  name: string;
+  email: string;
+  permissions: PermissionKey[];
+  active: boolean;
+  pending: boolean;
+  createdAt: string;
+}
+
+export interface TtpInvitationResult {
+  employee: TtpEmployee;
+  credentials: { email: string; acceptanceToken: string | null; expiresAt: string };
+}
+
+const ttpFromUser = (user: ApiUser): TtpEmployee => ({
+  id: user.id,
+  name: user.display_name,
+  email: user.email,
+  permissions: (user.permissions ?? []) as PermissionKey[],
+  active: user.is_active,
+  pending: false,
+  createdAt: user.created_at.slice(0, 10),
+});
+
+const ttpFromInvitation = (invite: ApiInvitation): TtpEmployee => ({
+  id: `invitation:${invite.id}`,
+  name: invite.display_name ?? invite.email,
+  email: invite.email,
+  permissions: (invite.permissions ?? []) as PermissionKey[],
+  active: false,
+  pending: true,
+  createdAt: invite.created_at.slice(0, 10),
+});
+
+const ttpResult = (invite: ApiInvitation): TtpInvitationResult => ({
+  employee: ttpFromInvitation(invite),
+  credentials: {
+    email: invite.email,
+    acceptanceToken: invite.acceptance_token ?? null,
+    expiresAt: invite.expires_at,
+  },
+});
+
+export async function listTtpEmployees(): Promise<TtpEmployee[]> {
+  const [users, invitations] = await Promise.all([
+    apiRequest<ApiUser[]>("/users"),
+    apiRequest<ApiInvitation[]>("/invitations"),
+  ]);
+  return [
+    ...users.filter((user) => user.role === "ttp_employee").map(ttpFromUser),
+    ...invitations
+      .filter((invite) => invite.role === "ttp_employee" && invite.status === "pending")
+      .map(ttpFromInvitation),
+  ];
+}
+
+export async function createTtpEmployee(input: {
+  name: string;
+  email: string;
+  permissions: PermissionKey[];
+}): Promise<TtpInvitationResult> {
+  const invitation = await apiRequest<ApiInvitation>("/invitations", {
+    method: "POST",
+    body: JSON.stringify({
+      email: input.email,
+      display_name: input.name,
+      role: "ttp_employee",
+      account_scope: "platform",
+      organisation_id: null,
+      permissions: input.permissions,
+    }),
+  });
+  return ttpResult(invitation);
+}
+
+export async function updateTtpPermissions(userId: string, permissions: PermissionKey[]) {
+  return ttpFromUser(
+    await apiRequest<ApiUser>(`/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ permissions }),
+    }),
   );
-  const scopedStaff = staff.filter((member) => inScope(member.orgId));
-  const scopedOrgs =
-    scope === "all" || scope === "b2b"
-      ? orgs
-      : scope === "individual" || subscriberId
-        ? []
-        : orgs.filter((org) => org.id === scope);
-  const wantedChildren = new Set(scopedChildren.map((child) => child.id));
-  const progress = (await apiRequest<ApiProgress[]>("/admin/progress")).filter((summary) =>
-    wantedChildren.has(summary.child_id),
+}
+
+export async function setTtpActive(userId: string, active: boolean) {
+  return ttpFromUser(
+    await apiRequest<ApiUser>(`/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: active }),
+    }),
   );
-  const totalAttempts = progress.reduce((sum, summary) => sum + summary.total_attempts, 0);
-  const last30 = progress
-    .flatMap((summary) => summary.points)
-    .filter((point) => Date.now() - new Date(point.occurred_on).getTime() < 30 * 86_400_000).length;
-  return {
-    orgs: scopedOrgs.length,
-    activeOrgs: scopedOrgs.filter((org) => org.active).length,
-    educators: scopedStaff.filter((member) => member.role === "educator").length,
-    supporters: scopedStaff.filter((member) => member.role === "supporter").length,
-    childrenTotal: scopedChildren.length,
-    b2cChildren: scopedChildren.filter((child) => child.account_scope === "individual").length,
-    b2bChildren: scopedChildren.filter((child) => child.account_scope === "organisation").length,
-    activeSubs: scopedChildren.filter((child) => child.subscription?.status === "active").length,
-    totalAttempts,
-    attemptsLast30: last30,
-  };
+}
+
+export async function regenerateTtpActivation(employeeId: string): Promise<TtpInvitationResult> {
+  const invitationId = employeeId.replace(/^invitation:/, "");
+  return ttpResult(
+    await apiRequest<ApiInvitation>(`/invitations/${invitationId}/activation`, { method: "POST" }),
+  );
+}
+
+/** Areas of the platform a Super Admin or TTP employee can see on the Overview. */
+export type OverviewArea =
+  "children" | "progress" | "organisations" | "team" | "billing" | "plans" | "audit" | "homepage";
+
+interface OverviewChildRef {
+  id: string;
+  name: string;
+  organisation: string | null;
+  last_check_in: string | null;
+}
+
+interface OverviewOrgRef {
+  id: string;
+  name: string;
+  used: number;
+  limit: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+/**
+ * Key figures for the platform Overview, worked out on the server. A section the person has no
+ * access to is null, so restricted numbers never reach the browser.
+ */
+export interface AdminOverview {
+  generated_at: string;
+  scope: string;
+  access: Record<OverviewArea, boolean>;
+  children: {
+    total: number;
+    individual: number;
+    organisation: number;
+    new_30d: number;
+    active_14d: number;
+    inactive_14d: number;
+    never_logged: number;
+    without_moderator: number;
+  } | null;
+  progress: {
+    sessions_7d: number;
+    sessions_30d: number;
+    sessions_prev_30d: number;
+    finished_rate_30d: number | null;
+    weekly: { week_start: string; sessions: number }[];
+    statuses: Record<string, number>;
+    needs_consult: OverviewChildRef[];
+  } | null;
+  organisations: {
+    total: number;
+    active: number;
+    suspended: number;
+    seats_used: number;
+    seats_total: number;
+    near_capacity: OverviewOrgRef[];
+    newest: OverviewOrgRef[];
+  } | null;
+  team: {
+    admins: number;
+    moderators: number;
+    pending_invitations: number;
+    expired_invitations: number;
+    moderator_load: { name: string; children: number }[];
+  } | null;
+  billing: {
+    currency: string;
+    active: number;
+    ending_14d: number;
+    ended_30d: number;
+    free_families: number;
+    paid_30d: number;
+    by_plan: Record<string, number>;
+  } | null;
+  plans: {
+    plans: number;
+    published: number;
+    invisible: number;
+    locked: number;
+    doses: number;
+    activities: number;
+    activities_without_video: number;
+    most_followed: { name: string; children: number }[];
+  } | null;
+  audit: { recent: { action: string; actor_name: string | null; created_at: string }[] } | null;
+  homepage: { updated_at: string | null; updated_by: string | null } | null;
+}
+
+export function getAdminOverview(scope = "all") {
+  return apiRequest<AdminOverview>(`/admin/overview?scope=${encodeURIComponent(scope)}`);
 }

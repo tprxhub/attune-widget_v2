@@ -34,36 +34,51 @@ export function PolicyLayout({
       </header>
       <main className="mx-auto max-w-3xl px-5 pb-20">
         <h1 className="ph-display text-4xl sm:text-5xl">{title}</h1>
-        <div className="mt-8 space-y-4 text-[15px] leading-relaxed text-navy/80">
-          {intro?.map((p) => (
-            <p key={p}>{p}</p>
-          ))}
-        </div>
-        {sections.map((section, i) => (
-          <section key={section.heading ?? i} className="mt-10">
-            {section.heading && (
-              <h2 className="text-lg font-bold tracking-wide text-navy uppercase">
-                {section.heading}
-              </h2>
-            )}
-            <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-navy/80">
-              {section.paragraphs?.map((p) => (
-                <p key={p}>{p}</p>
-              ))}
-              {section.items && (
-                <ul className="list-disc space-y-1.5 pl-5">
-                  {section.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              )}
-              {section.after?.map((p) => (
-                <p key={p}>{p}</p>
-              ))}
-            </div>
-          </section>
-        ))}
+        <PolicyBody intro={intro} sections={sections} />
       </main>
     </div>
+  );
+}
+
+/** The policy text itself, shared by the full page and the sign-up modal. */
+export function PolicyBody({
+  intro,
+  sections,
+}: {
+  intro?: string[] | undefined;
+  sections: PolicySection[];
+}) {
+  return (
+    <>
+      <div className="mt-8 space-y-4 text-[15px] leading-relaxed text-navy/80">
+        {intro?.map((p) => (
+          <p key={p}>{p}</p>
+        ))}
+      </div>
+      {sections.map((section, i) => (
+        <section key={section.heading ?? i} className="mt-10">
+          {section.heading && (
+            <h2 className="text-lg font-bold tracking-wide text-navy uppercase">
+              {section.heading}
+            </h2>
+          )}
+          <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-navy/80">
+            {section.paragraphs?.map((p) => (
+              <p key={p}>{p}</p>
+            ))}
+            {section.items && (
+              <ul className="list-disc space-y-1.5 pl-5">
+                {section.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            )}
+            {section.after?.map((p) => (
+              <p key={p}>{p}</p>
+            ))}
+          </div>
+        </section>
+      ))}
+    </>
   );
 }

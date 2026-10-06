@@ -37,8 +37,12 @@ export async function listGoals() {
   return (await loadCatalog()).goals;
 }
 
-export async function listPlans(goalId?: string) {
-  const plans = (await loadCatalog()).plans;
+export async function listAllGoals() {
+  return (await loadCatalog(true)).goals;
+}
+
+export async function listPlans(goalId?: string, includeInactive = false) {
+  const plans = (await loadCatalog(includeInactive)).plans;
   return goalId ? plans.filter((plan) => plan.goalId === goalId) : plans;
 }
 
@@ -116,7 +120,10 @@ export function planUsageCount(_planId: string) {
 }
 
 export async function listPlanUsage(): Promise<Record<string, number>> {
-  const [{ getApiChildren }, plans] = await Promise.all([import("./client"), listPlans()]);
+  const [{ getApiChildren }, plans] = await Promise.all([
+    import("./client"),
+    listPlans(undefined, true),
+  ]);
   const children = await getApiChildren();
   return Object.fromEntries(
     plans.map((plan) => [
@@ -156,6 +163,7 @@ async function saveActivity(
     kind: kindValues[row.entry.kind],
     title: row.activity.name,
     instructions: row.activity.instructions,
+    instructions_html: row.activity.instructionsHtml || null,
     video_source_type: remoteVideo(row.activity.videoUrl) ? "link" : null,
     video_url: remoteVideo(row.activity.videoUrl),
     is_loggable: row.entry.loggable,
@@ -234,10 +242,39 @@ export async function createPlayPlan(input: {
   return mapGoal(created);
 }
 
+export async function reorderPlayPlans(planIds: string[]) {
+  await apiRequest<ApiPlan[]>("/play-plans/order", {
+    method: "PUT",
+    body: JSON.stringify({ ids: planIds }),
+  });
+  invalidatePlanCatalog();
+}
+
+export async function reorderPlayDoses(planId: string, doseIds: string[]) {
+  await apiRequest<ApiPlan>(`/play-plans/${planId}/play-doses/order`, {
+    method: "PUT",
+    body: JSON.stringify({ ids: doseIds }),
+  });
+  invalidatePlanCatalog();
+}
+
 export async function updatePlayPlanCredit(planId: string, createdBy: string) {
   await apiRequest<ApiPlan>(`/play-plans/${planId}`, {
     method: "PATCH",
     body: JSON.stringify({ created_by_name: createdBy.trim() || null }),
+  });
+  invalidatePlanCatalog();
+}
+
+export type PlanPublicationStatus = "published" | "invisible" | "locked";
+
+export async function updatePlayPlanStatus(
+  planId: string,
+  publicationStatus: PlanPublicationStatus,
+) {
+  await apiRequest<ApiPlan>(`/play-plans/${planId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ publication_status: publicationStatus }),
   });
   invalidatePlanCatalog();
 }

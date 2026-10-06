@@ -6,11 +6,30 @@ from dataclasses import dataclass
 from app.config import Settings
 
 
+# Prices are charged in UAE dirhams. Amounts are in fils (1 AED = 100 fils); keep them in step
+# with PRICE_PLANS in the frontend (src/api/subscriptions.ts).
+CURRENCY = "aed"
+
 PLAN_CATALOG = {
-    "3m": {"months": 3, "amount": 3900, "name": "Play Hub — 3 months"},
-    "6m": {"months": 6, "amount": 6900, "name": "Play Hub — 6 months"},
-    "12m": {"months": 12, "amount": 11900, "name": "Play Hub — 12 months"},
+    "3m": {"months": 3, "amount": 18900, "name": "Play Hub — 3 months"},
+    "6m": {"months": 6, "amount": 33900, "name": "Play Hub — 6 months"},
+    "12m": {"months": 12, "amount": 57900, "name": "Play Hub — 12 months"},
 }
+
+
+def paid_in_full(session, plan: dict, field) -> bool:
+    """True when a completed Checkout Session charged exactly this plan's price.
+
+    With Stripe Adaptive Pricing switched on, a visitor abroad pays in their own currency; the
+    session then reports that currency, and the AED amount sits under `currency_conversion`.
+    """
+    if field(session, "currency") == CURRENCY and field(session, "amount_total") == plan["amount"]:
+        return True
+    conversion = field(session, "currency_conversion") or {}
+    return (
+        field(conversion, "source_currency") == CURRENCY
+        and field(conversion, "amount_total") == plan["amount"]
+    )
 
 
 class BillingError(RuntimeError):
@@ -40,7 +59,7 @@ def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: s
             line_items=[{
                 "quantity": 1,
                 "price_data": {
-                    "currency": "gbp",
+                    "currency": CURRENCY,
                     "unit_amount": selected["amount"],
                     "product_data": {"name": selected["name"]},
                 },

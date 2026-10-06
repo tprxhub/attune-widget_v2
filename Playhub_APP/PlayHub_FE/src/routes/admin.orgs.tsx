@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Loader2, Mail, Plus, Power } from "lucide-react";
-import { createOrg, listOrgs, toggleOrgActive } from "@/api/admin";
+import { Building2, Loader2, Mail, Pencil, Plus, Power } from "lucide-react";
+import { createOrg, listOrgs, toggleOrgActive, updateOrgLicenses } from "@/api/admin";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { useOrgScope } from "@/lib/org-scope";
+import type { Org } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/orgs")({
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/admin/orgs")({
     ],
   }),
   component: () => (
-    <Protected roles={["super_admin"]}>
+    <Protected roles={["super_admin", "ttp_employee"]} permission="organisations">
       <AdminOrgs />
     </Protected>
   ),
@@ -194,6 +195,7 @@ function AdminOrgs() {
               >
                 {org.active ? "Active" : "Suspended"}
               </span>
+              <LicenseEditor org={org} compact />
               <button
                 type="button"
                 onClick={() => toggle.mutate(org.id)}
@@ -239,6 +241,7 @@ function AdminOrgs() {
               <p className="mt-3 text-xs text-navy/60">
                 {org.licensesUsed} / {org.licenses} licenses used · {org.billingCycle} billing
               </p>
+              <LicenseEditor org={org} />
 
               <button
                 type="button"
@@ -252,5 +255,86 @@ function AdminOrgs() {
         </div>
       )}
     </>
+  );
+}
+
+/** Raise or lower an organisation's licence count without recreating it. */
+function LicenseEditor({ org, compact = false }: { org: Org; compact?: boolean }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(org.licenses));
+  const [error, setError] = useState("");
+  const save = useMutation({
+    mutationFn: () => updateOrgLicenses(org.id, Number(value)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orgs"] });
+      setEditing(false);
+      setError("");
+    },
+    onError: (failure: Error) => setError(failure.message),
+  });
+  const parsed = Number(value);
+  const invalid = !Number.isInteger(parsed) || parsed < 1;
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setValue(String(org.licenses));
+          setEditing(true);
+        }}
+        aria-label={`Edit seat count for ${org.name}`}
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full text-xs font-bold text-blue hover:underline",
+          compact ? "shrink-0 px-2" : "mt-2",
+        )}
+      >
+        <Pencil className="h-3.5 w-3.5" aria-hidden /> Change licenses
+      </button>
+    );
+  }
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!invalid) save.mutate();
+      }}
+      className={cn("flex flex-wrap items-center gap-2", compact ? "shrink-0" : "mt-2")}
+    >
+      <label className="sr-only" htmlFor={`licenses-${org.id}`}>
+        Seat count for {org.name}
+      </label>
+      <input
+        id={`licenses-${org.id}`}
+        type="number"
+        min={Math.max(1, org.licensesUsed)}
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        className="min-h-9 w-24 rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold"
+      />
+      <button
+        type="submit"
+        disabled={invalid || save.isPending}
+        className="min-h-9 rounded-full bg-blue px-4 text-xs font-bold text-white disabled:opacity-50"
+      >
+        Save
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setEditing(false);
+          setError("");
+        }}
+        className="min-h-9 rounded-full px-3 text-xs font-bold text-navy/65"
+      >
+        Cancel
+      </button>
+      {error && (
+        <p role="alert" className="basis-full text-xs font-semibold text-coral">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { PricingSection } from "@/components/landing/PricingSection";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, ArrowUpRight, GraduationCap, HeartHandshake, Quote } from "lucide-react";
@@ -8,6 +9,8 @@ import { DEFAULT_HOMEPAGE_CONTENT, HOMEPAGE_QUERY_KEY, loadHomepage } from "@/ap
 import { Logo } from "@/components/brand";
 import { GoalIcon } from "@/components/icons";
 import { GuideButton } from "@/features/guide/GuideDialog";
+import { ProgressChart } from "@/features/progress/LazyProgressChart";
+import { SAMPLE_PLANS, sampleProgressPoints } from "@/features/progress/sampleProgress";
 import { LEVELS } from "@/lib/types";
 import { useSession } from "@/auth/session";
 import heroKids from "@/assets/hero-kids-playing.jpg";
@@ -53,6 +56,52 @@ function useHomepage() {
     retry: false,
   });
   return data?.content ?? DEFAULT_HOMEPAGE_CONTENT;
+}
+
+/** The real Progress chart with a made-up child's journey, so visitors see what parents get. */
+function SampleProgress() {
+  const points = useMemo(() => sampleProgressPoints(), []);
+  return (
+    <div className="mt-14 px-5 sm:px-0" aria-labelledby="sample-progress-title">
+      <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+        <div>
+          <Eyebrow>See the progress</Eyebrow>
+          <h3
+            id="sample-progress-title"
+            className="ph-display mt-4 max-w-xl text-3xl leading-tight text-navy sm:text-4xl"
+          >
+            Every Play Dose, in one <span className="text-coral italic">honest chart</span>
+          </h3>
+        </div>
+        <ul className="grid gap-3 text-sm leading-relaxed text-navy/70 sm:grid-cols-3">
+          <li>
+            <span className="block font-bold text-navy">Within a Play Plan</span>
+            Each point is a finished Play Dose. Lower means less help was needed.
+          </li>
+          <li>
+            <span className="block font-bold text-navy">Within a Play Dose</span>
+            Day 1 to Day 5 and the Real-Life Try, with how much help each day took.
+          </li>
+          <li>
+            <span className="block font-bold text-navy">A clear next step</span>
+            Every finished dose ends with what we’re seeing and what to do next.
+          </li>
+        </ul>
+      </div>
+
+      <div className="ph-r-xl relative mt-8 bg-card p-4 shadow-card sm:p-6">
+        <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber/25 px-3 py-1 text-xs font-bold text-navy">
+          Example only · sample data, not a real child
+        </p>
+        <ProgressChart
+          points={points}
+          plans={SAMPLE_PLANS}
+          currentPlanId="sample-pincer"
+          landingPreview
+        />
+      </div>
+    </div>
+  );
 }
 
 function PillLink({
@@ -117,12 +166,45 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Play Pulse is its own page; the others scroll to the matching section of this page.
   const nav = [
-    ["Play Pulse", "/play-pulse"],
-    ["Play Plans", signedIn ? "/plans" : "/login"],
-    ["Progress", signedIn ? "/progress" : "/login"],
-    ["Pricing", signedIn ? "/subscription" : "/login"],
+    ["Play Pulse", "/play-pulse", null],
+    ["Play Plans", "#play-plans", "play-plans"],
+    ["Progress", "#progress", "progress"],
+    ["Pricing", "#pricing", "pricing"],
   ] as const;
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ids = nav.flatMap(([, , id]) => (id ? [id] : []));
+    const visible = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.set(entry.target.id, entry.intersectionRatio);
+          else visible.delete(entry.target.id);
+        }
+        const best = [...visible.entries()].sort((a, b) => b[1] - a[1])[0];
+        setActiveSection(best ? best[0] : null);
+      },
+      { rootMargin: "-30% 0px -50% 0px", threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+    for (const id of ids) {
+      const element = document.getElementById(id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const scrollTo = (event: React.MouseEvent, id: string) => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    event.preventDefault();
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    element.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    window.history.replaceState(null, "", `#${id}`);
+  };
 
   return (
     <header
@@ -141,19 +223,32 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
             scrolled ? "bg-navy/6" : "bg-cream/12"
           }`}
         >
-          {nav.map(([label, to]) => (
-            <Link
-              key={label}
-              to={to}
-              className={`ph-pill inline-flex min-h-9 items-center justify-center px-4 text-xs font-semibold transition-colors ${
-                scrolled
+          {nav.map(([label, target, sectionId]) => {
+            const className = `ph-pill inline-flex min-h-9 items-center justify-center px-4 text-xs font-semibold transition-colors ${
+              sectionId && activeSection === sectionId
+                ? scrolled
+                  ? "bg-navy/10 text-navy"
+                  : "bg-cream/20 text-cream"
+                : scrolled
                   ? "text-navy/80 hover:bg-navy/8 hover:text-navy"
                   : "text-cream/85 hover:bg-cream/15 hover:text-cream"
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
+            }`;
+            return sectionId ? (
+              <a
+                key={label}
+                href={target}
+                onClick={(event) => scrollTo(event, sectionId)}
+                aria-current={activeSection === sectionId ? "location" : undefined}
+                className={className}
+              >
+                {label}
+              </a>
+            ) : (
+              <Link key={label} to={target} className={className}>
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -180,7 +275,7 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
                 Log in
               </Link>
               <Link
-                to="/login"
+                to="/signup"
                 className={`ph-pill inline-flex min-h-11 items-center px-5 text-sm font-semibold ${
                   scrolled ? "bg-navy text-cream" : "bg-cream text-navy"
                 }`}
@@ -234,7 +329,9 @@ function Landing() {
               {home.hero.description}
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-3">
-              <PillLink to="/dashboard">{home.hero.primary_cta}</PillLink>
+              <PillLink to="/dashboard" fallbackTo="/signup">
+                {home.hero.primary_cta}
+              </PillLink>
               <Link
                 to={signedIn ? "/org" : "/login"}
                 className="ph-pill inline-flex min-h-12 items-center border border-cream/40 px-6 text-sm font-semibold text-cream hover:bg-cream/10"
@@ -302,7 +399,10 @@ function Landing() {
         </section>
 
         {/* ── Skill areas, compact editorial bento ── */}
-        <section className="relative isolate -mx-1 overflow-hidden bg-navy py-14 sm:-mx-5 lg:py-20">
+        <section
+          id="play-plans"
+          className="relative isolate -mx-1 scroll-mt-16 overflow-hidden bg-navy py-14 sm:-mx-5 lg:py-20"
+        >
           <div
             className="ph-pill pointer-events-none absolute -top-32 -right-24 -z-10 h-96 w-96 bg-blue/25 blur-3xl"
             aria-hidden
@@ -426,7 +526,10 @@ function Landing() {
         </section>
 
         {/* ── The week ── */}
-        <section className="-mx-1 py-16 sm:mx-auto sm:max-w-7xl sm:px-4 lg:py-24">
+        <section
+          id="progress"
+          className="-mx-1 scroll-mt-16 py-16 sm:mx-auto sm:max-w-7xl sm:px-4 lg:py-24"
+        >
           <div className="relative isolate overflow-hidden px-6 py-12 [border-radius:0] sm:px-12 sm:py-16 sm:[border-radius:28px]">
             <img
               src={apiAssetUrl(home.week.image_url) || heroKids}
@@ -495,6 +598,8 @@ function Landing() {
               </div>
             ))}
           </dl>
+
+          <SampleProgress />
         </section>
 
         {/* ── Levels ── */}
@@ -595,6 +700,8 @@ function Landing() {
         </section>
 
         {/* ── Two ways in ── */}
+        <PricingSection signedIn={signedIn} />
+
         <section className="mx-auto max-w-7xl px-2 pb-16 sm:px-4 lg:pb-20">
           <div className="grid gap-5 md:grid-cols-2">
             <div className="ph-r-xl bg-card p-8 shadow-card sm:p-10">
@@ -602,7 +709,7 @@ function Landing() {
               <h3 className="ph-display mt-5 text-3xl text-navy">{home.families.title}</h3>
               <p className="mt-4 text-base leading-relaxed text-navy/70">{home.families.body}</p>
               <div className="mt-8">
-                <PillLink to="/dashboard" tone="navy">
+                <PillLink to="/dashboard" fallbackTo="/signup" tone="navy">
                   {home.families.button_label}
                 </PillLink>
               </div>
@@ -630,7 +737,9 @@ function Landing() {
               {home.footer.description}
             </p>
             <div className="mt-8 flex justify-center">
-              <PillLink to="/dashboard">{home.footer.button_label}</PillLink>
+              <PillLink to="/dashboard" fallbackTo="/signup">
+                {home.footer.button_label}
+              </PillLink>
             </div>
           </div>
 
@@ -654,7 +763,7 @@ function Landing() {
               [
                 "Families",
                 [
-                  ["Sign up free", signedIn ? "/dashboard" : "/login"],
+                  ["Sign up free", signedIn ? "/dashboard" : "/signup"],
                   ["Subscription", signedIn ? "/subscription" : "/login"],
                   ["Invite a Moderator", signedIn ? "/invite" : "/login"],
                 ],

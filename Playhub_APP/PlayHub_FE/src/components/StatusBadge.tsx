@@ -5,6 +5,7 @@ import type { StatusKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const ICONS = {
+  first_dose: Sparkles,
   progressing: TrendingUp,
   holding_steady: Minus,
   needs_check_in: TrendingDown,
@@ -13,6 +14,7 @@ const ICONS = {
 } as const;
 
 const STATUS_STYLES: Record<StatusKey, string> = {
+  first_dose: "bg-amber/25 text-navy",
   progressing: "bg-emerald-100 text-emerald-700",
   holding_steady: "bg-slate-200 text-slate-700",
   needs_check_in: "bg-coral/12 text-coral",

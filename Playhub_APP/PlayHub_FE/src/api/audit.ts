@@ -10,6 +10,7 @@ import {
 export interface AuditEvent {
   id: string;
   actor_id: string | null;
+  actor_name?: string | null;
   action: string;
   resource_type: string;
   resource_id: string;

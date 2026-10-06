@@ -43,6 +43,10 @@ POLICIES = {
         extensions={".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"},
         max_bytes=5 * 1024 * 1024,
     ),
+    "homepage": MediaPolicy(
+        extensions={".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"},
+        max_bytes=10 * 1024 * 1024,
+    ),
     "videos": MediaPolicy(
         extensions={".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"}
     ),

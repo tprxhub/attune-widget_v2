@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
-import { PRICE_PLANS, checkout, getSubscription, refundSubscription } from "@/api/subscriptions";
+import {
+  PLAN_FEATURES,
+  PRICE_PLANS,
+  checkout,
+  daysLeftLabel,
+  getSubscription,
+  refundSubscription,
+  subscriptionStage,
+} from "@/api/subscriptions";
 import { useSession } from "@/auth/session";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
@@ -94,6 +102,9 @@ function SubscriptionPage() {
   }
 
   const active = sub.data?.status === "active";
+  const { stage, lastDay, daysLeft } = subscriptionStage(sub.data);
+  // During the last days an active subscription can be renewed; it carries on from the last day.
+  const canRenew = active && !!sub.data?.renewalOpen;
 
   return (
     <>
@@ -136,22 +147,45 @@ function SubscriptionPage() {
             <p
               className={cn(
                 "mt-3 inline-block rounded-full px-3 py-1 text-xs font-bold",
-                active ? "bg-blue/12 text-blue" : "bg-amber/30 text-navy",
+                active && stage !== "ending" ? "bg-blue/12 text-blue" : "bg-amber/30 text-navy",
               )}
             >
-              {active ? "Subscribed" : "Free plan"}
+              {stage === "ending"
+                ? `Ends ${daysLeftLabel(daysLeft ?? 0)}`
+                : active
+                  ? "Subscribed"
+                  : stage === "ended"
+                    ? "Subscription ended"
+                    : "Free plan"}
             </p>
-            {active && sub.data.expiresAt && (
+            {lastDay && (stage === "active" || stage === "ending" || stage === "ended") && (
               <dl className="mt-4 space-y-2 text-sm">
+                {active && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-navy/60">Plan</dt>
+                    <dd className="font-bold">{sub.data.priceLabel}</dd>
+                  </div>
+                )}
                 <div className="flex justify-between gap-3">
-                  <dt className="text-navy/60">Plan</dt>
-                  <dd className="font-bold">{sub.data.priceLabel}</dd>
+                  <dt className="text-navy/60">
+                    {stage === "ended" ? "Ended on" : "Last day of subscription"}
+                  </dt>
+                  <dd className="text-right font-bold">{fmtDate(lastDay)}</dd>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-navy/60">Access until</dt>
-                  <dd className="font-bold">{fmtDate(sub.data.expiresAt)}</dd>
-                </div>
+                {active && daysLeft !== null && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-navy/60">Days left</dt>
+                    <dd className="font-bold">{daysLeft === 0 ? "Last day today" : daysLeft}</dd>
+                  </div>
+                )}
               </dl>
+            )}
+            {stage === "ending" && (
+              <p className="mt-4 rounded-2xl bg-amber/15 px-4 py-3 text-sm text-navy/80">
+                {canRenew
+                  ? `Renew now to keep ${activeChild?.name ?? "your child"}’s Play Plan going. The new plan starts the day after ${fmtDate(lastDay!)}, so no days are lost.`
+                  : `Renewing opens in the last days of the subscription.`}
+              </p>
             )}
             {active && sub.data.refundWindowEndsAt ? (
               <>
@@ -170,10 +204,15 @@ function SubscriptionPage() {
                   </p>
                 )}
               </>
+            ) : stage === "ended" ? (
+              <p className="mt-4 text-sm text-navy/70">
+                Every Session is still saved. Re-subscribe to unlock logging and the full Progress
+                chart again.
+              </p>
             ) : !active ? (
               <p className="mt-4 text-sm text-navy/70">
-                On the free plan you get the Introduction and the Day 0 Play Dose. Logging Sessions
-                stays locked.
+                On the free plan you get the Introduction and first Activity. Logging Sessions stays
+                locked.
               </p>
             ) : null}
             {(cancel.error || buy.error) && (
@@ -219,14 +258,7 @@ function SubscriptionPage() {
             <div className="ph-card mt-5 p-5">
               <h2 className="text-lg font-bold">What unlocks for {activeChild?.name}</h2>
               <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                {[
-                  "All five Play Doses plus both Redo Days",
-                  "Every activity video, unblurred",
-                  "Unlimited Session logging — nothing overwritten",
-                  "Log Sessions for past dates too",
-                  "Full Progress chart and status",
-                  "Invite a Moderator",
-                ].map((line) => (
+                {PLAN_FEATURES.map((line) => (
                   <li key={line} className="flex gap-2 text-sm text-navy/75">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden />
                     {line}
@@ -237,13 +269,15 @@ function SubscriptionPage() {
               <button
                 type="button"
                 onClick={() => buy.mutate()}
-                disabled={buy.isPending || active}
+                disabled={buy.isPending || (active && !canRenew)}
                 className="mt-5 flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-coral px-6 text-base font-bold text-white disabled:opacity-60"
               >
                 {buy.isPending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
-                {active
-                  ? "Already subscribed"
-                  : `Subscribe ${activeChild?.name} — ${PRICE_PLANS.find((p) => p.duration === selected)?.price}`}
+                {canRenew
+                  ? `Renew ${activeChild?.name} — ${PRICE_PLANS.find((p) => p.duration === selected)?.price}`
+                  : active
+                    ? "Already subscribed"
+                    : `${stage === "ended" ? "Re-subscribe" : "Subscribe"} ${activeChild?.name} — ${PRICE_PLANS.find((p) => p.duration === selected)?.price}`}
               </button>
               <p className="mt-3 inline-flex items-center gap-2 text-xs text-navy/55">
                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Secure card payment via Stripe.

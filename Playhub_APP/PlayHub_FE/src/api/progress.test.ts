@@ -20,7 +20,7 @@ const attempt = (
   date,
   createdAt: `${date}T00:00:00Z`,
   completion,
-  completionStatus: completion >= 4 ? "finished" : completion === 3 ? "partly" : "stopped_early",
+  completionStatus: completion >= 2 ? "finished" : "stopped_early",
   helpLevel:
     completion === 5
       ? "independent"
@@ -28,8 +28,19 @@ const attempt = (
         ? "one_reminder"
         : completion === 3
           ? "few_reminders"
-          : "hands_on",
-  supportScore: completion === 5 ? 0 : completion === 4 ? 33 : completion === 3 ? 67 : 100,
+          : completion === 2
+            ? "hands_on"
+            : null,
+  supportScore:
+    completion === 5
+      ? 0
+      : completion === 4
+        ? 33
+        : completion === 3
+          ? 67
+          : completion === 2
+            ? 100
+            : null,
   isRealLifeTry: false,
   weekNumber: 1,
   runNumber: 1,
@@ -74,7 +85,8 @@ describe("progress data flow", () => {
     expect(report.checkInCount).toBe(2);
     expect(report.activitiesCompleted).toBe(1);
     expect(report.lastCheckIn).toBe("2026-01-03");
-    expect(report.supportScore).toBe(56);
+    expect(report.supportScore).toBe(0);
+    expect(report.latestSessionDate).toBe("2026-01-03");
   });
 
   test("uses the API trend and matching narrative as the single source of truth", () => {
@@ -107,7 +119,9 @@ describe("progress data flow", () => {
           kit_sessions_logged: 5,
           real_life_try_passed: false,
           passed: false,
+          complete: false,
           consult_suggested: false,
+          days: [],
         },
       ],
       points: [
@@ -128,17 +142,17 @@ describe("progress data flow", () => {
 
     const report = reportFromApi(summary, [plan]);
     expect(report.status).toBe("needs_check_in");
-    expect(report.headline).toBe("Needs a check-in");
-    expect(report.narrative).toContain("more support");
+    // No completed dose yet, so the badge text comes from the status, not an insight.
+    expect(report.headline).toBe("Book a Play Consult");
+    expect(report.narrative).toContain("two doses in a row");
     expect(report.supportScore).toBe(71);
+    expect(report.latestSessionDate).toBe("2026-01-03");
     expect(report.checkInCount).toBe(2);
     expect(report.points[0]?.support).toBe(71);
     const nextSteps = progressNextSteps(report);
-    expect(nextSteps).toHaveLength(5);
-    expect(nextSteps[0]?.title).toBe("Step 1");
-    expect(nextSteps[0]?.body).toContain("Starter Activity #9");
-    expect(nextSteps[1]?.body).toContain("in the next session");
-    expect(nextSteps[4]?.title).toBe("Step 5");
-    expect(nextSteps[4]?.body).toContain("at least 3 check-ins");
+    // The dose is still in progress: finish it first. No placeholder steps.
+    expect(nextSteps[0]?.title).toBe("Finish this Starter Play Dose");
+    expect(nextSteps[0]?.body).toContain("5 of 5 practice days logged");
+    expect(nextSteps.some((step) => step.body.includes("Activity #9"))).toBe(false);
   });
 });

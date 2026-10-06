@@ -8,6 +8,7 @@ import { PlayPlanCard } from "@/components/PlayPlanCard";
 import { ListSkeleton } from "@/components/Skeletons";
 import { TOKEN_BG } from "@/components/brand";
 import { cn } from "@/lib/utils";
+import { Lock, UserRound } from "lucide-react";
 
 export const Route = createFileRoute("/plans/")({
   head: () => ({
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/plans/")({
     ],
   }),
   component: () => (
-    <Protected>
+    <Protected permission="plans">
       <PlansPage />
     </Protected>
   ),
@@ -58,9 +59,18 @@ function PlansPage() {
                 />
                 <h2 className="text-lg font-bold">{goal.name}</h2>
               </div>
-              <p className="mt-0.5 text-sm text-navy/55">
-                Best paired with the {goal.kit} · Created by {goal.createdBy ?? "Super Admin"}
-              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-navy/55">
+                <span>Best paired with the {goal.kit}</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue/8 px-3 py-1 text-xs font-bold text-navy">
+                  <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden />
+                  Created by <span className="text-blue">{goal.createdBy ?? "Super Admin"}</span>
+                </span>
+                {goal.publicationStatus === "locked" && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber/35 px-3 py-1 text-xs font-bold text-navy">
+                    <Lock className="h-3.5 w-3.5" aria-hidden /> Upcoming
+                  </span>
+                )}
+              </div>
 
               <ul className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {goalPlans.map((plan) => (

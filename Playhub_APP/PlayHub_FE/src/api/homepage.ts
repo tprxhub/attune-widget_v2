@@ -80,7 +80,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
     title: "Small doses of play,",
     title_highlight: "real skill change",
     description:
-      "Play Hub turns one child-development goal into a one-week Play Plan: nine short entries, five Play Doses and two Redo Days — each one logged, scored and tracked.",
+      "Play Hub turns one child-development goal into a clear one-week Play Plan: an Introduction, five guided Activities, a Real Life Try and a Level-Up Prompt.",
     primary_cta: "For families",
     secondary_cta: "For schools & clinics",
     footnote:
@@ -103,7 +103,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       },
       {
         title: "Log the Session",
-        body: "Record finish, help, Mood and a Parent win. Nothing is ever overwritten.",
+        body: "Record finish, help, Mood and a Big Win. Nothing is ever overwritten.",
         image_url: "",
       },
     ],
@@ -120,36 +120,36 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
     title: "A week that",
     title_highlight: "builds over time",
     description:
-      "Nine entries, fixed order, no guesswork. Sessions done offline can be logged later with a past date.",
+      "One clear sequence, from the Introduction to the Level-Up Prompt. Sessions done offline can be logged later with a past date.",
     button_label: "Daily Check-In",
     image_url: "",
     steps: [
       {
-        when: "Day 0",
+        when: "Start here",
         title: "Introduction",
-        body: "Watch the short intro, then run the first Play Dose the same day.",
+        body: "See what the goal builds and how to set up the Fine Motor Play Kit.",
       },
       {
-        when: "Days 1–2",
-        title: "Finding the rhythm",
-        body: "Two more Play Doses, scored as you go.",
+        when: "Activities 1–5",
+        title: "Five Activities",
+        body: "Work through five short guided Activities, logging each Session as you go.",
       },
       {
-        when: "Days 3–5",
-        title: "Redo Day",
-        body: "The same Activity comes back so the skill sticks, then two fresh Play Doses.",
+        when: "After Activity 5",
+        title: "Real Life Try",
+        body: "Use the new skill in an everyday moment and see how it carries beyond the Play Kit.",
       },
       {
         when: "Week end",
         title: "Level-Up Prompt",
-        body: "The Final Redo Day closes the week and Play Hub suggests the next level.",
+        body: "Review the week and choose whether to move up, repeat or step down a level.",
       },
     ],
     stats: [
-      { value: "9", label: "entries in every Play Plan week" },
-      { value: "7", label: "loggable sessions, scored 1–5" },
-      { value: "3", label: "levels for every skill area" },
-      { value: "1", label: "Fine Motor Play Kit throughout" },
+      { value: "1", label: "Introduction to the goal" },
+      { value: "5", label: "guided skill-building Activities" },
+      { value: "1", label: "Real Life Try in an everyday moment" },
+      { value: "1", label: "Level-Up Prompt for what comes next" },
     ],
   },
   levels: {
@@ -179,7 +179,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       },
       {
         quote:
-          "The Redo Day is what changed things for us. Repeating the same Activity made my son far more confident by the weekend.",
+          "The Real Life Try is what changed things for us. Seeing my son use the skill away from the Play Kit made his progress feel real.",
         name: "Daniel O.",
         role: "Family account",
       },
@@ -187,7 +187,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   },
   families: {
     title: "Families",
-    body: "Sign up free with email or Google and browse every Play Plan. The Introduction and the Day 0 Play Dose are unlocked. Subscribe per child for 3, 6 or 12 months to unlock the full week, log Sessions and invite your nanny.",
+    body: "Sign up free with email or Google and browse every Play Plan and try one Play Dose free. Each week moves from an Introduction through five Activities and a Real Life Try to a clear Level-Up Prompt.",
     button_label: "Create a free account",
   },
   schools: {
@@ -197,7 +197,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   },
   footer: {
     title: "Start this week's Play Plan",
-    description: "A little play each day, nine entries, one clear picture of progress.",
+    description: "A little play each day, one Real Life Try and a clear next step.",
     button_label: "Get started free",
     blurb: "Play Plans, Play Doses and honest progress tracking for children's fine motor skills.",
     copyright: "The Toy Pharmacy · Play Hub",
@@ -219,6 +219,72 @@ export function mergeHomepageContent(stored: unknown): HomepageContent {
     .replace(/\bseats\b/g, "licenses")
     .replace(/\bSeat\b/g, "License")
     .replace(/\bseat\b/g, "license");
+
+  // Replace the original Redo Day structure when it was saved unchanged by the homepage editor.
+  // Custom Super Admin copy remains untouched.
+  const legacyWeekSteps: HomeWeekStep[] = [
+    {
+      when: "Day 0",
+      title: "Introduction",
+      body: "Watch the short intro, then run the first Play Dose the same day.",
+    },
+    {
+      when: "Days 1–2",
+      title: "Finding the rhythm",
+      body: "Two more Play Doses, scored as you go.",
+    },
+    {
+      when: "Days 3–5",
+      title: "Redo Day",
+      body: "The same Activity comes back so the skill sticks, then two fresh Play Doses.",
+    },
+    {
+      when: "Week end",
+      title: "Level-Up Prompt",
+      body: "The Final Redo Day closes the week and Play Hub suggests the next level.",
+    },
+  ];
+  if (JSON.stringify(content.week.steps) === JSON.stringify(legacyWeekSteps)) {
+    content.week.steps = DEFAULT_HOMEPAGE_CONTENT.week.steps;
+  }
+  if (
+    content.week.stats.map((stat) => `${stat.value}:${stat.label}`).join("|") ===
+    "9:entries in every Play Plan week|7:loggable sessions, scored 1–5|3:levels for every skill area|1:Fine Motor Play Kit throughout"
+  ) {
+    content.week.stats = DEFAULT_HOMEPAGE_CONTENT.week.stats;
+  }
+
+  const legacyCopy = new Map<string, string>([
+    [
+      "Play Hub turns one child-development goal into a one-week Play Plan: nine short entries, five Play Doses and two Redo Days — each one logged, scored and tracked.",
+      DEFAULT_HOMEPAGE_CONTENT.hero.description,
+    ],
+    [
+      "Nine entries, fixed order, no guesswork. Sessions done offline can be logged later with a past date.",
+      DEFAULT_HOMEPAGE_CONTENT.week.description,
+    ],
+    [
+      "The Redo Day is what changed things for us. Repeating the same Activity made my son far more confident by the weekend.",
+      DEFAULT_HOMEPAGE_CONTENT.stories.quotes[2]!.quote,
+    ],
+    [
+      "Sign up free with email or Google and browse every Play Plan. The Introduction and the Day 0 Play Dose are unlocked. Subscribe per child for 3, 6 or 12 months to unlock the full week, log Sessions and invite your nanny.",
+      DEFAULT_HOMEPAGE_CONTENT.families.body,
+    ],
+    [
+      "A little play each day, nine entries, one clear picture of progress.",
+      DEFAULT_HOMEPAGE_CONTENT.footer.description,
+    ],
+  ]);
+  content.hero.description = legacyCopy.get(content.hero.description) ?? content.hero.description;
+  content.week.description = legacyCopy.get(content.week.description) ?? content.week.description;
+  content.stories.quotes = content.stories.quotes.map((quote) => ({
+    ...quote,
+    quote: legacyCopy.get(quote.quote) ?? quote.quote,
+  }));
+  content.families.body = legacyCopy.get(content.families.body) ?? content.families.body;
+  content.footer.description =
+    legacyCopy.get(content.footer.description) ?? content.footer.description;
   return content;
 }
 
@@ -283,4 +349,14 @@ export async function saveHomepage(content: HomepageContent): Promise<HomepageSt
 
 export async function resetHomepage(): Promise<void> {
   await apiRequest<void>(ENDPOINT, { method: "DELETE" });
+}
+
+export async function uploadHomepageImage(file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const { url } = await apiRequest<{ url: string }>(`${ENDPOINT}/image`, {
+    method: "POST",
+    body: form,
+  });
+  return url;
 }

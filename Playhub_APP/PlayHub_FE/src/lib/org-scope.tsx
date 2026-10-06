@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { hasPermission, isPlatformRole } from "@/lib/roles";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, ChevronDown, Users } from "lucide-react";
 import { listOrgs } from "@/api/admin";
@@ -17,7 +18,10 @@ export function useOrgScope() {
   const dispatch = useAppDispatch();
   const scopeId = useAppSelector(selectOrgScope);
   const { session } = useSession();
-  const enabled = session.role === "super_admin";
+  const enabled =
+    hasPermission(session, "organisations") ||
+    hasPermission(session, "team") ||
+    hasPermission(session, "children");
   const { data } = useQuery({ queryKey: ["orgs"], queryFn: listOrgs, enabled });
   const children = useQuery({
     queryKey: ["children", session.personaId],
@@ -109,7 +113,7 @@ export function OrgScopeDropdown({ className }: { className?: string }) {
     };
   }, [open]);
 
-  if (session.role !== "super_admin") return null;
+  if (!isPlatformRole(session.role)) return null;
 
   const accountType = scopeId === "all" ? "all" : isOrganisationScope ? "b2b" : "individual";
   const triggerLabel =

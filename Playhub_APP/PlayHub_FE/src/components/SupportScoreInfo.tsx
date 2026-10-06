@@ -2,7 +2,7 @@ import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const SUPPORT_SCORE_DEFINITION =
-  "Support score shows how much help a child needed during sessions, as a percentage. 0% means fully independent and 100% means hands-on help the whole time, so lower is better.";
+  "Calculated only across one specific Play Dose (the latest one), never averaged across many doses. It is the average of that dose’s finished days: independent 0%, one reminder 33%, a few reminders 67%, hands-on help 100%. Lower is better.";
 
 /** "i" icon that explains the Support score on hover or keyboard focus. */
 export function SupportScoreInfo({ className }: { className?: string }) {
@@ -10,7 +10,7 @@ export function SupportScoreInfo({ className }: { className?: string }) {
     <span className={cn("group/info relative inline-flex align-middle normal-case", className)}>
       <button
         type="button"
-        aria-label={SUPPORT_SCORE_DEFINITION}
+        aria-label="How Support Score is calculated"
         className="inline-flex cursor-help rounded-full focus-visible:ring-2 focus-visible:ring-blue focus-visible:outline-none"
       >
         <Info className="h-3.5 w-3.5" aria-hidden />

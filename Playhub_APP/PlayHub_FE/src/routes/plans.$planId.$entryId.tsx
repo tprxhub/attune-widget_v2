@@ -12,10 +12,13 @@ import { CardSkeleton } from "@/components/Skeletons";
 import { LockedOverlay } from "@/components/LockedOverlay";
 import { LevelDots, TOKEN_SOFT } from "@/components/brand";
 import { AttemptScore } from "@/components/AttemptScore";
+import { ParentWinNote } from "@/components/ParentWinNote";
 import { ReflectionForm, type ReflectionValues } from "@/features/attempts/ReflectionForm";
 import { useActiveChild } from "@/lib/active-child";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
+import { MoodIcon, moodMeta } from "@/components/icons";
+import { roundSummary } from "@/features/progress/currentRound";
 
 type VideoSource = { kind: "file" | "embed"; src: string };
 
@@ -50,7 +53,7 @@ export const Route = createFileRoute("/plans/$planId/$entryId")({
     };
   },
   component: () => (
-    <Protected>
+    <Protected permission="plans">
       <PlayDosePage />
     </Protected>
   ),
@@ -123,7 +126,8 @@ function PlayDosePage() {
   const state = states.find((s) => s.entry.id === entryId);
   const entitled = state?.entitled ?? true;
   const entryAttempts = (attempts.data ?? []).filter((a) => a.entryId === entryId).reverse();
-  const weekAttempts = (attempts.data ?? []).filter((a) => a.planId === plan.id);
+  // This round of the dose only: earlier rounds and redos ended at a finished Real-Life Try.
+  const weekSummary = roundSummary((attempts.data ?? []).filter((a) => a.planId === plan.id));
   const loggedEntryIds = [
     ...new Set((attempts.data ?? []).filter((a) => a.planId === plan.id).map((a) => a.entryId)),
   ];
@@ -170,108 +174,104 @@ function PlayDosePage() {
         actions={<LevelDots level={plan.level} />}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[16rem_minmax(0,1fr)] xl:items-start">
-        <DoseRail
-          planId={planId}
-          currentId={entryId}
-          states={states}
-          loggedEntryIds={loggedEntryIds}
-        />
-
-        <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-          <div className="space-y-5">
-            {entry.isRealLifeTry && (
-              <section className="ph-card border-blue/20 bg-blue/5 p-5">
-                <p className="eyebrow text-blue">Before the Real-Life Try</p>
-                <h2 className="mt-1 text-lg font-bold">This week so far</h2>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl bg-card p-3">
-                    <p className="text-xl font-bold">
-                      {weekAttempts.filter((a) => !a.isRealLifeTry).length}/5
-                    </p>
-                    <p className="text-[11px] text-navy/55">Kit sessions</p>
-                  </div>
-                  <div className="rounded-xl bg-card p-3">
-                    <p className="text-xl font-bold">
-                      {weekAttempts.filter((a) => a.completionStatus === "finished").length}
-                    </p>
-                    <p className="text-[11px] text-navy/55">Finished</p>
-                  </div>
-                  <div className="rounded-xl bg-card p-3">
-                    <p className="text-xl font-bold">
-                      {weekAttempts.length
-                        ? (
-                            weekAttempts.reduce((sum, a) => sum + a.mood, 0) / weekAttempts.length
-                          ).toFixed(1)
-                        : "—"}
-                    </p>
-                    <p className="text-[11px] text-navy/55">Average mood</p>
-                  </div>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_25rem]">
+        <div className="min-w-0 space-y-5">
+          {entry.isRealLifeTry && (
+            <section className="ph-card border-blue/20 bg-blue/5 p-5">
+              <p className="eyebrow text-blue">Before the Real-Life Try</p>
+              <h2 className="mt-1 text-lg font-bold">This week so far</h2>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-card p-3">
+                  <p className="text-xl font-bold">{weekSummary.activities}/5</p>
+                  <p className="text-[11px] text-navy/55">Activities</p>
                 </div>
-                {plan.safetyNote && (
-                  <p className="mt-3 rounded-xl bg-coral/10 px-3 py-2 text-xs font-bold text-coral">
-                    Safety: {plan.safetyNote}
-                  </p>
-                )}
-              </section>
-            )}
-            {activities.map((act, ai) => {
-              const source = videoSourceOf(act.videoUrl);
-              const showVideo = entry.kind !== "redo";
-              return (
-                <LockedOverlay key={act.id} locked={!entitled}>
-                  <section className="ph-card overflow-hidden">
-                    {showVideo && (
-                      <div className="relative grid aspect-video place-items-center bg-navy">
-                        {source?.kind === "file" ? (
-                          <video
-                            controls
-                            controlsList="nodownload"
-                            playsInline
-                            preload="metadata"
-                            src={source.src}
-                            aria-label={act.videoLabel || act.name}
-                            className="h-full w-full"
-                            onContextMenu={(event) => event.preventDefault()}
-                          />
-                        ) : source?.kind === "embed" ? (
-                          <iframe
-                            src={source.src}
-                            title={act.videoLabel || act.name}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
-                            allowFullScreen
-                            className="h-full w-full border-0"
-                          />
-                        ) : (
-                          <>
-                            <div className="grid h-16 w-16 place-items-center rounded-full bg-amber text-navy">
-                              <PlayCircle className="h-8 w-8" aria-hidden />
-                            </div>
-                            <span className="absolute bottom-3 left-4 text-xs font-bold text-white/80">
-                              {act.videoLabel || act.name} · video coming soon
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="p-5">
-                      {activities.length > 1 && (
-                        <p className="eyebrow text-coral">Activity {ai + 1}</p>
+                <div className="rounded-xl bg-card p-3">
+                  <p className="text-xl font-bold">{weekSummary.finished}</p>
+                  <p className="text-[11px] text-navy/55">Finished in 15 min</p>
+                </div>
+                <div className="rounded-xl bg-card p-3">
+                  {weekSummary.recentMood ? (
+                    <p className="flex items-center justify-center gap-1.5 text-sm font-bold">
+                      <MoodIcon value={weekSummary.recentMood} className="h-5 w-5 shrink-0" />
+                      {moodMeta(weekSummary.recentMood).label}
+                    </p>
+                  ) : (
+                    <p className="text-xl font-bold">—</p>
+                  )}
+                  <p className="text-[11px] text-navy/55">Recent mood</p>
+                </div>
+              </div>
+              {plan.safetyNote && (
+                <p className="mt-3 rounded-xl bg-coral/10 px-3 py-2 text-xs font-bold text-coral">
+                  Safety: {plan.safetyNote}
+                </p>
+              )}
+            </section>
+          )}
+          {activities.map((act, ai) => {
+            const source = videoSourceOf(act.videoUrl);
+            const showVideo = entry.kind !== "redo";
+            return (
+              <LockedOverlay key={act.id} locked={!entitled}>
+                <section className="ph-card overflow-hidden">
+                  {showVideo && (
+                    <div className="relative grid aspect-video place-items-center bg-navy">
+                      {source?.kind === "file" ? (
+                        <video
+                          controls
+                          controlsList="nodownload"
+                          playsInline
+                          preload="metadata"
+                          src={source.src}
+                          aria-label={act.videoLabel || act.name}
+                          className="h-full w-full"
+                          onContextMenu={(event) => event.preventDefault()}
+                        />
+                      ) : source?.kind === "embed" ? (
+                        <iframe
+                          src={source.src}
+                          title={act.videoLabel || act.name}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+                          allowFullScreen
+                          className="h-full w-full border-0"
+                        />
+                      ) : (
+                        <>
+                          <div className="grid h-16 w-16 place-items-center rounded-full bg-amber text-navy">
+                            <PlayCircle className="h-8 w-8" aria-hidden />
+                          </div>
+                          <span className="absolute bottom-3 left-4 text-xs font-bold text-white/80">
+                            {act.videoLabel || act.name} · video coming soon
+                          </span>
+                        </>
                       )}
-                      <h2 className="mt-0.5 text-lg font-bold">{act.name || "The Activity"}</h2>
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-navy/60">
-                        <span
-                          className={cn(
-                            "rounded-full px-2.5 py-1",
-                            TOKEN_SOFT[goal?.color ?? "navy"],
-                          )}
-                        >
-                          {goal?.short}
-                        </span>
-                        <span>{plan.kit}</span>
-                      </div>
+                    </div>
+                  )}
 
+                  <div className="p-5">
+                    {activities.length > 1 && (
+                      <p className="eyebrow text-coral">Activity {ai + 1}</p>
+                    )}
+                    <h2 className="mt-0.5 text-lg font-bold">{act.name || "The Activity"}</h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold text-navy/60">
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-1",
+                          TOKEN_SOFT[goal?.color ?? "navy"],
+                        )}
+                      >
+                        {goal?.short}
+                      </span>
+                      <span>{plan.kit}</span>
+                    </div>
+
+                    {act.instructionsHtml ? (
+                      // Sanitised by the API when saved: only simple formatting tags survive.
+                      <div
+                        className="ph-rich mt-4"
+                        dangerouslySetInnerHTML={{ __html: act.instructionsHtml }}
+                      />
+                    ) : (
                       <ol className="mt-4 space-y-2.5">
                         {act.instructions.map((step, i) => (
                           <li key={step} className="flex gap-3">
@@ -282,43 +282,52 @@ function PlayDosePage() {
                           </li>
                         ))}
                       </ol>
-                    </div>
-                  </section>
-                </LockedOverlay>
-              );
-            })}
-
-            {/* Attune */}
-            <section className="ph-card p-5">
-              <div className="rounded-2xl border border-blue/25 bg-blue/5 p-4">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-blue">Ask Attune™</p>
-                    <p className="text-xs text-navy/65">
-                      Your AI play coach — adapts the activity in the moment.
-                    </p>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setAttuneOpen((v) => !v)}
-                    aria-expanded={attuneOpen}
-                    className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-blue/40 px-4 text-sm font-bold text-blue"
-                  >
-                    <Sparkles className="h-4 w-4" aria-hidden /> Ask Attune™
-                  </button>
-                </div>
-                {attuneOpen && (
-                  <p className="mt-3 rounded-xl bg-card px-3 py-2 text-sm font-semibold text-navy/70">
-                    Attune™ is coming soon. Until then, your Play Consult Notes go straight to your
-                    organisation Admin.
+                </section>
+              </LockedOverlay>
+            );
+          })}
+
+          {/* Attune */}
+          <section className="ph-card p-5">
+            <div className="rounded-2xl border border-blue/25 bg-blue/5 p-4">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-blue">Ask Attune™</p>
+                  <p className="text-xs text-navy/65">
+                    Your AI play coach — adapts the activity in the moment.
                   </p>
-                )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAttuneOpen((v) => !v)}
+                  aria-expanded={attuneOpen}
+                  className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-blue/40 px-4 text-sm font-bold text-blue"
+                >
+                  <Sparkles className="h-4 w-4" aria-hidden /> Ask Attune™
+                </button>
               </div>
-            </section>
-          </div>
+              {attuneOpen && (
+                <p className="mt-3 rounded-xl bg-card px-3 py-2 text-sm font-semibold text-navy/70">
+                  Attune™ is coming soon. Until then, your Play Consult Notes go straight to your
+                  organisation Admin.
+                </p>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <aside className="min-w-0 space-y-5">
+          <DoseRail
+            planId={planId}
+            currentId={entryId}
+            states={states}
+            loggedEntryIds={loggedEntryIds}
+          />
 
           {/* Reflection */}
-          <section className="ph-card p-5 lg:sticky lg:top-24">
+          <section className="ph-card p-5">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
               <div className="min-w-0">
                 <p className="eyebrow text-coral">Daily Check-In</p>
@@ -336,17 +345,19 @@ function PlayDosePage() {
                 <h3 className="text-sm font-bold">Previous Session Logs</h3>
                 <ul className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
                   {entryAttempts.map((a) => (
-                    <li
-                      key={a.id}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-navy/4 p-3"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-bold">{a.bigWin}</span>
-                        <span className="block text-[11px] text-navy/55">
+                    <li key={a.id} className="rounded-2xl bg-navy/4 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                        <span className="min-w-0 flex-1 basis-40 text-[11px] text-navy/55">
                           {fmtDate(a.date)} · {a.loggedBy}
                         </span>
-                      </span>
-                      <AttemptScore completion={a.completion} mood={a.mood} />
+                        <AttemptScore
+                          completion={a.completion}
+                          mood={a.mood}
+                          completionStatus={a.completionStatus}
+                          helpLevel={a.helpLevel}
+                        />
+                      </div>
+                      <ParentWinNote text={a.bigWin} className="mt-2.5" />
                     </li>
                   ))}
                 </ul>
@@ -381,7 +392,7 @@ function PlayDosePage() {
                 <Lock className="mx-auto h-5 w-5 text-navy/60" aria-hidden />
                 <p className="mt-2 text-sm font-bold">Logging is locked on the free plan</p>
                 <p className="mt-1 text-xs text-navy/65">
-                  Subscribe for this child to log Sessions, track support and record Parent wins.
+                  Subscribe for this child to log Sessions, track support and record Big Wins.
                 </p>
                 {isFreeGated && canManageSubscription && (
                   <Link
@@ -422,7 +433,7 @@ function PlayDosePage() {
               </div>
             )}
           </section>
-        </div>
+        </aside>
       </div>
     </>
   );
@@ -440,36 +451,40 @@ function DoseRail({
   loggedEntryIds: string[];
 }) {
   const [blocked, setBlocked] = useState<string | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const currentEntry = states.find(({ entry }) => entry.id === currentId)?.entry;
 
   return (
-    <nav aria-label="Play Doses in this Play Plan" className="ph-card p-3 xl:sticky xl:top-24">
+    <nav aria-label="Play Doses in this Play Plan" className="ph-card p-3">
       <button
         type="button"
-        onClick={() => setMobileOpen((open) => !open)}
-        aria-expanded={mobileOpen}
-        className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-2 text-left xl:hidden"
+        onClick={() => setListOpen((open) => !open)}
+        aria-expanded={listOpen}
+        aria-controls="activities-this-week-list"
+        className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-2 text-left transition-colors hover:bg-navy/4"
       >
-        <span>
+        <span className="min-w-0">
           <span className="block text-xs font-bold tracking-wide text-navy/55 uppercase">
             Activities this week
           </span>
-          <span className="mt-0.5 block text-xs text-navy/55">
-            {states.length} activities · tap to {mobileOpen ? "hide" : "view"}
+          <span className="mt-1 block truncate text-sm font-bold text-navy">
+            {currentEntry?.title ?? `${states.length} activities`}
+          </span>
+          <span className="mt-0.5 block text-[11px] text-navy/55">
+            {states.length} activities · {listOpen ? "Hide list" : "View full list"}
           </span>
         </span>
-        <ChevronDown
-          className={cn(
-            "h-5 w-5 shrink-0 text-navy/60 transition-transform",
-            mobileOpen && "rotate-180",
-          )}
-          aria-hidden
-        />
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy/6">
+          <ChevronDown
+            className={cn("h-5 w-5 text-navy/60 transition-transform", listOpen && "rotate-180")}
+            aria-hidden
+          />
+        </span>
       </button>
-      <p className="hidden px-2 pb-2 text-xs font-bold tracking-wide text-navy/55 uppercase xl:block">
-        Activities this week
-      </p>
-      <ul className={cn("mt-2 space-y-1", !mobileOpen && "hidden", "xl:mt-0 xl:block")}>
+      <ul
+        id="activities-this-week-list"
+        className={cn("mt-2 space-y-1 border-t border-navy/10 pt-2", !listOpen && "hidden")}
+      >
         {states.map(({ entry, entitled }) => {
           const open = entitled;
           const active = entry.id === currentId;

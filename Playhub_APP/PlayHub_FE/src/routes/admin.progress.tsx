@@ -7,7 +7,6 @@ import {
   Building2,
   ChevronDown,
   Download,
-  Gauge,
   Search,
   Users,
   type LucideIcon,
@@ -24,7 +23,6 @@ import { PageHeader } from "@/components/AppShell";
 import { ChildAvatar, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
 import { MoodIcon } from "@/components/icons";
 import { CardSkeleton } from "@/components/Skeletons";
-import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { fmtDate } from "@/lib/format";
 import { useOrgScope } from "@/lib/org-scope";
 import type { StatusKey } from "@/lib/types";
@@ -37,17 +35,17 @@ export const Route = createFileRoute("/admin/progress")({
       {
         name: "description",
         content:
-          "Super Admin view of weekly Support Score and Mood trends for every child, by organisation or individual family, with CSV export.",
+          "Super Admin view of progress and Mood trends for every child, by organisation or individual family, with CSV export.",
       },
       { property: "og:title", content: "Progress across the platform — Play Hub admin" },
       {
         property: "og:description",
-        content: "Weekly Support Score and Mood trends for every child, by organisation or family.",
+        content: "Progress and Mood trends for every child, by organisation or family.",
       },
     ],
   }),
   component: () => (
-    <Protected roles={["super_admin"]}>
+    <Protected roles={["super_admin", "ttp_employee"]} permission="progress">
       <AdminProgress />
     </Protected>
   ),
@@ -77,11 +75,9 @@ const STATUS_ORDER: StatusKey[] = [
   "holding_steady",
   "progressing",
   "settling_in",
+  "first_dose",
   "no_data",
 ];
-
-/** Lower support means the child needed less help, so low is good. */
-const supportToken = (score: number) => (score <= 33 ? "blue" : score <= 66 ? "amber" : "coral");
 
 function daysSince(date: string) {
   const then = new Date(`${date}T00:00:00`).getTime();
@@ -101,22 +97,15 @@ function lastSeen(date: string | null) {
 /** Why a child is in the "needs attention" list; empty when nothing is wrong. */
 function attentionReasons({ report }: AdminProgressRow) {
   const reasons: string[] = [];
-  if (report.status === "needs_check_in") reasons.push("Support rising");
-  if (report.points.at(-1)?.consultSuggested) reasons.push("Play Consult suggested");
+  if (report.status === "needs_check_in") reasons.push("Play Consult suggested");
   if (report.moveDownOffered) reasons.push("Level below suggested");
   if (report.reminderDue) reasons.push("No session for 3+ days");
   return reasons;
 }
 
 function groupStats(rows: AdminProgressRow[]) {
-  const scores = rows.flatMap(({ report }) =>
-    report.totalSessions > 0 && report.supportScore !== null ? [report.supportScore] : [],
-  );
   return {
     sessions: rows.reduce((sum, { report }) => sum + report.totalSessions, 0),
-    support: scores.length
-      ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
-      : null,
   };
 }
 
@@ -192,6 +181,7 @@ function AdminProgress() {
       holding_steady: 0,
       progressing: 0,
       settling_in: 0,
+      first_dose: 0,
       no_data: 0,
     };
     for (const { report } of rows) byStatus[report.status] += 1;
@@ -235,7 +225,7 @@ function AdminProgress() {
       <PageHeader
         eyebrow="Super Admin"
         title="Progress"
-        description="How every child is doing across the platform. Lower support means more independence."
+        description="How every child is doing across the platform."
         actions={
           <button
             type="button"
@@ -252,7 +242,7 @@ function AdminProgress() {
         }
       />
 
-      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <Tile
           icon={Users}
           label="Children"
@@ -260,12 +250,6 @@ function AdminProgress() {
           sub={`${scoped.length} ${scoped.length === 1 ? "account" : "accounts"}`}
         />
         <Tile icon={Activity} label="Sessions" value={String(totals.sessions)} sub="all time" />
-        <Tile
-          icon={Gauge}
-          label="Average support"
-          value={totals.support === null ? "—" : `${totals.support}%`}
-          sub="lower is better"
-        />
         <Tile
           icon={AlertTriangle}
           label="Need attention"
@@ -470,7 +454,7 @@ function FilterChip({
 
 /** Column layout of the table on wide screens; narrow screens stack each row instead. */
 const COLUMNS =
-  "lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_9.5rem_8.5rem_4.5rem_4.5rem_6.5rem_1rem] lg:items-center lg:gap-4";
+  "lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_9.5rem_4.5rem_4.5rem_6.5rem_1rem] lg:items-center lg:gap-4";
 
 function GroupCard({
   group,
@@ -499,20 +483,12 @@ function GroupCard({
           </div>
         </div>
         <div className="flex items-center gap-5">
-          <dl className="hidden gap-6 text-right sm:flex">
+          <dl className="hidden text-right sm:flex">
             <div>
               <dt className="text-[10px] font-bold tracking-wide text-navy/45 uppercase">
                 Sessions
               </dt>
               <dd className="text-sm font-bold">{stats.sessions}</dd>
-            </div>
-            <div>
-              <dt className="text-[10px] font-bold tracking-wide text-navy/45 uppercase">
-                Avg support
-              </dt>
-              <dd className="text-sm font-bold">
-                {stats.support === null ? "—" : `${stats.support}%`}
-              </dd>
             </div>
           </dl>
           <button
@@ -537,7 +513,6 @@ function GroupCard({
         <span>Child</span>
         <span>Current plan</span>
         <span>Status</span>
-        <span>Support</span>
         <span>Mood</span>
         <span className="text-right">Sessions</span>
         <span>Last check-in</span>
@@ -569,8 +544,6 @@ function ChildRow({
 }) {
   const { child, report, planTitle } = row;
   const seen = lastSeen(report.lastCheckIn);
-  const support = report.totalSessions > 0 ? report.supportScore : null;
-  const token = support === null ? "navy" : supportToken(support);
   const moodValue = Math.round(report.averageMood);
 
   return (
@@ -595,25 +568,6 @@ function ChildRow({
         <span className="hidden min-w-0 truncate text-sm text-navy/75 lg:block">{planTitle}</span>
 
         <StatusPill status={report.status} />
-
-        <span
-          className="hidden items-center gap-3 lg:flex"
-          title="Lower support means less help was needed"
-        >
-          {support === null ? (
-            <span className="text-sm text-navy/40">—</span>
-          ) : (
-            <>
-              <span className="w-10 text-sm font-bold tabular-nums">{support}%</span>
-              <span className="h-1.5 w-14 overflow-hidden rounded-full bg-navy/8">
-                <span
-                  className={cn("block h-full rounded-full", TOKEN_BG[token])}
-                  style={{ width: `${Math.max(support, 4)}%` }}
-                />
-              </span>
-            </>
-          )}
-        </span>
 
         <span className="hidden items-center gap-1.5 text-sm lg:flex">
           {report.totalSessions > 0 ? (
@@ -645,8 +599,7 @@ function ChildRow({
         />
 
         <span className="basis-full text-xs text-navy/55 lg:hidden">
-          {planTitle} · {support === null ? "no support score yet" : `${support}% support`} ·{" "}
-          {report.totalSessions} sessions · {seen.text.toLowerCase()}
+          {planTitle} · {report.totalSessions} sessions · {seen.text.toLowerCase()}
         </span>
       </button>
 
@@ -659,7 +612,7 @@ function ChildDetail({ row }: { row: AdminProgressRow }) {
   const { child, report } = row;
   const notes: ReactNode[] = [];
   if (report.fastTrackOffered) notes.push("Ready to try the Real-Life skill early");
-  for (const reason of attentionReasons(row)) if (reason !== "Support rising") notes.push(reason);
+  for (const reason of attentionReasons(row)) notes.push(reason);
 
   const facts: Array<[string, string]> = [
     ["Daily check-ins", String(report.checkInCount)],
@@ -668,15 +621,12 @@ function ChildDetail({ row }: { row: AdminProgressRow }) {
   ];
 
   return (
-    <div className="grid gap-4 border-t border-navy/8 bg-navy/3 p-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
-      <div className="min-w-0 rounded-2xl bg-card p-4">
-        <p className="eyebrow text-blue">Weekly trend</p>
-        <div className="mt-3">
-          <ProgressChart points={report.points} compact />
+    <div className="border-t border-navy/8 bg-navy/3 p-4">
+      <div className="space-y-4 rounded-2xl bg-card p-4 sm:p-5">
+        <div>
+          <p className="eyebrow text-blue">Latest Play Dose</p>
+          <p className="mt-1 text-sm font-semibold text-navy">{STATUS_META[report.status].hint}</p>
         </div>
-      </div>
-      <div className="space-y-4 rounded-2xl bg-card p-4">
-        <p className="text-sm font-semibold text-navy">{STATUS_META[report.status].hint}</p>
         {notes.length > 0 && (
           <ul className="flex flex-wrap gap-1.5">
             {notes.map((note, index) => (

@@ -7,9 +7,11 @@ import {
   getApiChildren,
   getCurrentUser,
   login,
-  loginWithGoogle,
+  loginWithProvider,
   refreshAccessToken,
   registerFamily as registerFamilyRequest,
+  registerFamilyWithProvider,
+  type SocialProvider,
   setAccessToken,
   type ApiToken,
 } from "@/api/client";
@@ -108,7 +110,19 @@ function SessionPersistence() {
 interface SessionContextValue {
   session: ReturnType<typeof selectSession>;
   signIn: (email: string, password: string) => Promise<ReturnType<typeof selectSession>>;
-  signInWithGoogle: (credential: string) => Promise<ReturnType<typeof selectSession>>;
+  /** Google, Apple or Microsoft; `name` is the one Apple shares with the browser on first sign-in. */
+  signInWithProvider: (
+    provider: SocialProvider,
+    credential: string,
+    name?: string,
+  ) => Promise<ReturnType<typeof selectSession>>;
+  registerWithProvider: (input: {
+    provider: SocialProvider;
+    credential: string;
+    name?: string | undefined;
+    childName: string;
+    childAge: number;
+  }) => Promise<ReturnType<typeof selectSession>>;
   registerFamily: (input: FamilySignupInput) => Promise<ReturnType<typeof selectSession>>;
   switchPersona: (id: string) => Promise<ReturnType<typeof selectSession>>;
   refreshSession: () => Promise<ReturnType<typeof selectSession>>;
@@ -165,9 +179,35 @@ export function useSession(): SessionContextValue {
     [dispatch, queryClient],
   );
 
-  const signInWithGoogle = useCallback(
-    async (credential: string) => {
-      await loginWithGoogle(credential);
+  const signInWithProvider = useCallback(
+    async (provider: SocialProvider, credential: string, name?: string) => {
+      await loginWithProvider(provider, credential, name);
+      invalidatePlanCatalog();
+      const next = await loadSession();
+      queryClient.clear();
+      dispatch(authenticated(next));
+      return next;
+    },
+    [dispatch, queryClient],
+  );
+
+  const registerWithProvider = useCallback(
+    async (input: {
+      provider: SocialProvider;
+      credential: string;
+      name?: string | undefined;
+      childName: string;
+      childAge: number;
+    }) => {
+      const birth = new Date();
+      birth.setFullYear(birth.getFullYear() - input.childAge);
+      await registerFamilyWithProvider({
+        provider: input.provider,
+        credential: input.credential,
+        name: input.name,
+        childName: input.childName,
+        childDateOfBirth: birth.toISOString().slice(0, 10),
+      });
       invalidatePlanCatalog();
       const next = await loadSession();
       queryClient.clear();
@@ -203,7 +243,8 @@ export function useSession(): SessionContextValue {
     () => ({
       session,
       signIn,
-      signInWithGoogle,
+      signInWithProvider,
+      registerWithProvider,
       registerFamily,
       switchPersona,
       refreshSession,
@@ -213,7 +254,8 @@ export function useSession(): SessionContextValue {
     [
       session,
       signIn,
-      signInWithGoogle,
+      signInWithProvider,
+      registerWithProvider,
       registerFamily,
       switchPersona,
       refreshSession,

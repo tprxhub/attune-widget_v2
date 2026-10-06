@@ -19,12 +19,14 @@ import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
 import { AttemptScore } from "@/components/AttemptScore";
+import { ParentWinNote } from "@/components/ParentWinNote";
 import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { Select } from "@/components/Select";
 import { ReflectionForm, type ReflectionValues } from "@/features/attempts/ReflectionForm";
 import { useActiveChild } from "@/lib/active-child";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
+import type { Attempt } from "@/lib/types";
 
 export const Route = createFileRoute("/check-in")({
   head: () => ({
@@ -378,7 +380,8 @@ function CheckInPage() {
               </div>
               <div className="ph-card p-4">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
-                  <Sparkles className="h-3.5 w-3.5 text-blue" aria-hidden /> Support Score <SupportScoreInfo />
+                  <Sparkles className="h-3.5 w-3.5 text-blue" aria-hidden /> Support Score{" "}
+                  <SupportScoreInfo />
                 </p>
                 <p className="mt-1 text-2xl font-bold text-blue">
                   {progress.data?.supportScore != null ? `${progress.data.supportScore}%` : "—"}
@@ -386,57 +389,144 @@ function CheckInPage() {
               </div>
             </section>
 
-            <section className="ph-card p-5">
-              <h2 className="flex items-center gap-2 text-lg font-bold">
-                <History className="h-5 w-5 text-navy/50" aria-hidden /> Recent Sessions
-              </h2>
-              {attempts.isLoading ? (
-                <div className="mt-4">
-                  <CardSkeleton lines={3} />
-                </div>
-              ) : logged.length === 0 ? (
-                <p className="mt-4 text-sm text-navy/65">
-                  Nothing logged for {activeChild?.name} yet.
-                </p>
-              ) : (
-                <ol className="mt-4 space-y-2 border-l-2 border-navy/8 pl-4">
-                  {[...logged]
-                    .sort(
-                      (a, b) =>
-                        b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
-                    )
-                    .slice(0, 8)
-                    .map((a) => (
-                      <li
-                        key={a.id}
-                        className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-navy/4 p-3"
-                      >
-                        <span
-                          className="absolute top-1/2 -left-[21px] h-2.5 w-2.5 -translate-y-1/2 bg-blue"
-                          style={{ borderRadius: "9999px" }}
-                          aria-hidden
-                        />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-bold">{a.activity}</span>
-                          <span className="block truncate text-[11px] text-navy/55">
-                            {fmtDate(a.date)} ·{" "}
-                            {a.source === "daily_check_in" ? "Daily Check-In" : "In activity"}
-                          </span>
+            <RecentSessions
+              loading={attempts.isLoading}
+              childName={activeChild?.name}
+              sessions={[...logged]
+                .sort(
+                  (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
+                )
+                .slice(0, 8)}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Collapsible list of the latest sessions; each one opens to show its Big Win. */
+function RecentSessions({
+  loading,
+  childName,
+  sessions,
+}: {
+  loading: boolean;
+  childName: string | undefined;
+  sessions: Attempt[];
+}) {
+  const [open, setOpen] = useState(true);
+  // Until someone picks a session, the newest one stays open so a just-saved Big Win shows.
+  const [picked, setPicked] = useState<string | null | undefined>(undefined);
+  const expanded = picked === undefined ? (sessions[0]?.id ?? null) : picked;
+  // Only the latest log shows at first; the rest are one tap away.
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? sessions : sessions.slice(0, 1);
+  const hidden = sessions.length - visible.length;
+  return (
+    <section className="ph-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-controls="recent-sessions-list"
+        className="flex w-full items-center gap-2 p-5 text-left transition hover:bg-navy/[0.02]"
+      >
+        <History className="h-5 w-5 shrink-0 text-navy/50" aria-hidden />
+        <h2 className="flex-1 text-lg font-bold">Recent Sessions</h2>
+        {sessions.length > 0 && (
+          <span className="shrink-0 rounded-full bg-navy/6 px-2.5 py-0.5 text-[11px] font-bold text-navy/65">
+            {sessions.length}
+          </span>
+        )}
+        <ChevronDown
+          className={cn(
+            "h-5 w-5 shrink-0 text-navy/55 transition-transform duration-200",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+      {open && (
+        <div id="recent-sessions-list" className="px-5 pb-5">
+          {loading ? (
+            <CardSkeleton lines={3} />
+          ) : sessions.length === 0 ? (
+            <p className="text-sm text-navy/65">Nothing logged for {childName} yet.</p>
+          ) : (
+            <ol className="space-y-2 border-l-2 border-navy/8 pl-4">
+              {visible.map((a) => {
+                const isOpen = expanded === a.id;
+                const hasWin = !!a.bigWin?.trim();
+                return (
+                  <li key={a.id} className="relative rounded-2xl bg-navy/4">
+                    <span
+                      className="absolute top-[26px] -left-[21px] h-2.5 w-2.5 bg-blue"
+                      style={{ borderRadius: "9999px" }}
+                      aria-hidden
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPicked(isOpen ? null : a.id)}
+                      disabled={!hasWin}
+                      aria-expanded={hasWin ? isOpen : undefined}
+                      className="flex w-full flex-wrap items-start justify-between gap-x-3 gap-y-2 p-3 text-left enabled:cursor-pointer"
+                    >
+                      <span className="min-w-0 flex-1 basis-40">
+                        <span className="block truncate text-sm font-bold">{a.activity}</span>
+                        <span className="block truncate text-[11px] text-navy/55">
+                          {fmtDate(a.date)} ·{" "}
+                          {a.source === "daily_check_in" ? "Daily Check-In" : "In activity"}
                         </span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
                         <AttemptScore
                           completion={a.completion}
                           mood={a.mood}
                           completionStatus={a.completionStatus}
                           helpLevel={a.helpLevel}
                         />
-                      </li>
-                    ))}
-                </ol>
-              )}
-            </section>
-          </div>
+                        {hasWin && (
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 shrink-0 text-navy/45 transition-transform",
+                              isOpen && "rotate-180",
+                            )}
+                            aria-label={isOpen ? "Hide Big Win" : "Show Big Win"}
+                          />
+                        )}
+                      </span>
+                    </button>
+                    {isOpen && <ParentWinNote text={a.bigWin} className="mx-3 mb-3 w-auto" />}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+          {!loading && sessions.length > 1 && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pl-4">
+              <button
+                type="button"
+                onClick={() => setShowAll((value) => !value)}
+                aria-expanded={showAll}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-navy/15 px-4 text-xs font-bold text-navy transition hover:border-navy/35"
+              >
+                {showAll ? "Show less" : `See more (${hidden})`}
+                <ChevronDown
+                  className={cn("h-3.5 w-3.5 transition-transform", showAll && "rotate-180")}
+                  aria-hidden
+                />
+              </button>
+              <Link
+                to="/progress"
+                className="text-xs font-bold text-blue underline-offset-4 hover:underline"
+              >
+                Full history in Progress
+              </Link>
+            </div>
+          )}
         </div>
       )}
-    </>
+    </section>
   );
 }

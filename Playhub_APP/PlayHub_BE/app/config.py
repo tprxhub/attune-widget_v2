@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 10080
     frontend_base_url: str = "http://localhost:3000"
     google_client_id: str | None = None
+    # Sign in with Apple: the Services ID (e.g. com.thetoypharmacy.playhub.web).
+    apple_client_id: str | None = None
+    # Sign in with Microsoft: the Application (client) ID from the Azure app registration.
+    microsoft_client_id: str | None = None
+    # Outgoing email (password reset). With no SMTP host, emails are logged instead of sent.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "Play Hub <no-reply@thetoypharmacy.com>"
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
     cors_origins: str = (

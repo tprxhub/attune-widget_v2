@@ -91,7 +91,7 @@ def test_starter_week_passes_with_four_qualifying_kit_days_and_real_life_try(cli
     assert "plan_complete" not in summary
 
 
-def test_pro_real_life_try_requires_independent_help_level(client, platform_admin):
+def test_real_life_try_passes_with_one_reminder_at_any_level_and_completes_the_dose(client, platform_admin):
     plan = client.post(
         "/api/v1/play-plans",
         headers=platform_admin,
@@ -129,4 +129,28 @@ def test_pro_real_life_try_requires_independent_help_level(client, platform_admi
     summary = client.get(
         f"/api/v1/children/{child['id']}/progress", headers=platform_admin
     ).json()
-    assert summary["weekly_points"][0]["real_life_try_passed"] is False
+    week = summary["weekly_points"][0]
+    # Spec: the Try passes at one reminder or less at every level, and finishing it completes the dose.
+    assert week["real_life_try_passed"] is True
+    assert week["complete"] is True
+    assert week["passed"] is False  # fewer than 4 practice days finished easily
+    assert week["support_score"] == 33
+    assert week["days"][-1]["is_try"] is True
+
+
+def test_check_in_without_finishing_has_no_help_level_or_score(client, platform_admin):
+    plan = client.post("/api/v1/play-plans", headers=platform_admin, json={"name": "Unfinished", "slug": "unfinished"}).json()
+    dose = client.post(f"/api/v1/play-plans/{plan['id']}/play-doses", headers=platform_admin, json={"level": "starter", "title": "S"}).json()
+    activity = client.post(f"/api/v1/play-doses/{dose['id']}/activities", headers=platform_admin, json={"sequence": 1, "day": 1, "title": "Day 1"}).json()
+    child = client.post("/api/v1/children", headers=platform_admin, json={"name": "U Child", "account_scope": "individual", "current_play_dose_id": dose["id"]}).json()
+    base = {"play_dose_id": dose["id"], "activity_id": activity["id"], "occurred_on": str(date.today()), "mood_score": 3}
+    no = client.post(f"/api/v1/children/{child['id']}/attempts", headers=platform_admin,
+                     json={**base, "completion_status": "stopped_early", "help_level": "hands_on"})
+    assert no.status_code == 201
+    assert no.json()["help_level"] is None and no.json()["completion_status"] == "stopped_early"
+    partly = client.post(f"/api/v1/children/{child['id']}/attempts", headers=platform_admin, json={**base, "completion_status": "partly"})
+    assert partly.json()["completion_status"] == "stopped_early"
+    missing = client.post(f"/api/v1/children/{child['id']}/attempts", headers=platform_admin, json={**base, "completion_status": "finished"})
+    assert missing.status_code == 422
+    week = client.get(f"/api/v1/children/{child['id']}/progress", headers=platform_admin).json()["weekly_points"][0]
+    assert week["support_score"] is None and week["finished_count"] == 0

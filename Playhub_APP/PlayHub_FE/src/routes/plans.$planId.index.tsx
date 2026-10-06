@@ -27,7 +27,7 @@ export const Route = createFileRoute("/plans/$planId/")({
   head: ({ params }) => {
     const plan = planById(params.planId);
     const title = plan ? `${plan.title} — ${plan.level} — Play Hub` : "Play Plan — Play Hub";
-    const description = plan?.summary ?? "A one-week Play Plan of nine checkpoints.";
+    const description = plan?.summary ?? "A guided one-week Play Plan with a clear next step.";
     return {
       meta: [
         { title },
@@ -38,7 +38,7 @@ export const Route = createFileRoute("/plans/$planId/")({
     };
   },
   component: () => (
-    <Protected>
+    <Protected permission="plans">
       <PlanWeek />
     </Protected>
   ),

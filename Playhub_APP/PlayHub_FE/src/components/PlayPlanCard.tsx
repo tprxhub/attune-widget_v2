@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Lock } from "lucide-react";
 import type { Goal, PlayPlan } from "@/lib/types";
 import { LevelDots, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
 import { GoalIcon } from "@/components/icons";
@@ -28,11 +28,23 @@ const PLAN_THUMBNAILS: Record<string, string> = {
 };
 
 export function PlayPlanCard({ plan, goal }: { plan: PlayPlan; goal: Goal }) {
+  const locked = plan.publicationStatus === "locked" || goal.publicationStatus === "locked";
   return (
     <Link
       to="/plans/$planId"
       params={{ planId: plan.id }}
-      className="group relative block h-full border-2 border-navy/8 bg-white p-3 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.08)] transition-all duration-300 ph-r-3xl hover:-translate-y-2 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)]"
+      aria-disabled={locked || undefined}
+      tabIndex={locked ? -1 : undefined}
+      onClick={(event) => locked && event.preventDefault()}
+      onKeyDown={(event) => {
+        if (locked && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+      }}
+      className={cn(
+        "group relative block h-full border-2 border-navy/8 bg-white p-3 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.08)] transition-all duration-300 ph-r-3xl",
+        locked
+          ? "cursor-not-allowed border-dashed border-navy/25"
+          : "hover:-translate-y-2 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)]",
+      )}
     >
       <span
         className={cn(
@@ -72,6 +84,12 @@ export function PlayPlanCard({ plan, goal }: { plan: PlayPlan; goal: Goal }) {
           </span>
         </span>
 
+        {locked && (
+          <span className="relative inline-flex w-fit items-center gap-1.5 rounded-full bg-amber px-3 py-1.5 text-[10px] font-extrabold tracking-wider text-navy uppercase shadow-sm">
+            <Lock className="h-3.5 w-3.5" aria-hidden /> Coming soon
+          </span>
+        )}
+
         <span className="relative grid h-9 w-9 place-items-center self-end bg-white shadow-lg ph-r-md transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
           <GoalIcon goalId={goal.id} className="h-5 w-5 text-navy" />
         </span>
@@ -93,9 +111,23 @@ export function PlayPlanCard({ plan, goal }: { plan: PlayPlan; goal: Goal }) {
             Ages {plan.age ?? "3+"}
           </span>
         </span>
-        <span className="mt-5 flex h-12 w-full items-center justify-center gap-2 bg-navy text-sm font-extrabold text-white shadow-[0_6px_0_0_#000] transition-all ph-r-md group-active:translate-y-[2px] group-active:shadow-[0_4px_0_0_#000]">
-          Start Play Dose
-          <ArrowRight className="h-4 w-4" aria-hidden />
+        <span
+          className={cn(
+            "mt-5 flex h-12 w-full items-center justify-center gap-2 text-sm font-extrabold transition-all ph-r-md",
+            locked
+              ? "border border-dashed border-navy/35 bg-navy/[0.04] text-navy/65"
+              : "bg-navy text-white shadow-[0_6px_0_0_#000] group-active:translate-y-[2px] group-active:shadow-[0_4px_0_0_#000]",
+          )}
+        >
+          {locked ? (
+            <>
+              <Lock className="h-4 w-4" aria-hidden /> Available soon
+            </>
+          ) : (
+            <>
+              Start Play Dose <ArrowRight className="h-4 w-4" aria-hidden />
+            </>
+          )}
         </span>
       </span>
     </Link>

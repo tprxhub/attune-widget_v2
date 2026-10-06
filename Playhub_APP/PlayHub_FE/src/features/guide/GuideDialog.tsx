@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { HelpCircle, X } from "lucide-react";
+import { HelpCircle, Map, X } from "lucide-react";
 import { LEVEL_GUIDANCE } from "@/api/domain";
 import { STATUS_META } from "@/api/progress";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -7,9 +7,18 @@ import { LevelDots } from "@/components/brand";
 import { ModalPortal } from "@/components/ModalPortal";
 import { useSession } from "@/auth/session";
 import { LEVELS } from "@/lib/types";
+import { startNavigationTour } from "./navigation-tour-events";
 
-export function GuideButton({ label = "How Play Hub works" }: { label?: string }) {
+export function GuideButton({
+  label,
+  tour = false,
+}: {
+  label?: string;
+  tour?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const resolvedLabel = label ?? (tour ? "Start guide" : "How Play Hub works");
+  const Icon = tour ? Map : HelpCircle;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
@@ -20,14 +29,15 @@ export function GuideButton({ label = "How Play Hub works" }: { label?: string }
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => (tour ? startNavigationTour() : setOpen(true))}
+        aria-label={tour ? "Start navigation guide" : resolvedLabel}
         className="inline-flex min-h-11 items-center gap-2 rounded-full border border-navy/15 px-4 text-sm font-semibold transition-colors hover:border-navy/40"
       >
-        <HelpCircle className="h-4 w-4 shrink-0" aria-hidden />
-        <span className="hidden sm:inline">{label}</span>
+        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="hidden sm:inline">{resolvedLabel}</span>
         <span className="sm:hidden">Guide</span>
       </button>
-      {open && <GuideSheet onClose={() => setOpen(false)} />}
+      {!tour && open && <GuideSheet onClose={() => setOpen(false)} />}
     </>
   );
 }
@@ -108,16 +118,20 @@ function GuideSheet({ onClose }: { onClose: () => void }) {
           <section className="mt-6">
             <h3 className="text-sm font-bold">What the status means</h3>
             <ul className="mt-3 space-y-2">
-              {(["progressing", "holding_steady", "needs_check_in", "settling_in"] as const).map(
-                (s) => (
-                  <li key={s} className="flex flex-wrap items-center gap-3">
-                    <StatusBadge status={s} size="sm" />
-                    <span className="min-w-0 flex-1 text-sm text-navy/90">
-                      {STATUS_META[s].hint}
-                    </span>
-                  </li>
-                ),
-              )}
+              {(
+                [
+                  "first_dose",
+                  "settling_in",
+                  "progressing",
+                  "holding_steady",
+                  "needs_check_in",
+                ] as const
+              ).map((s) => (
+                <li key={s} className="flex flex-wrap items-center gap-3">
+                  <StatusBadge status={s} size="sm" />
+                  <span className="min-w-0 flex-1 text-sm text-navy/90">{STATUS_META[s].hint}</span>
+                </li>
+              ))}
             </ul>
           </section>
 
@@ -128,8 +142,9 @@ function GuideSheet({ onClose }: { onClose: () => void }) {
                 <div className="rounded-2xl border border-navy/12 p-4">
                   <p className="text-sm font-bold">Free</p>
                   <p className="mt-1 text-sm text-navy/90">
-                    Browse every Play Plan, Play Dose and Activity. Logging daily check-ins is
-                    locked until the child has an active subscription.
+                    See every Play Plan and try one Play Dose free to feel how it works. The
+                    remaining Play Doses and daily check-ins unlock when the child has an active
+                    subscription.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-blue/30 bg-blue/6 p-4">

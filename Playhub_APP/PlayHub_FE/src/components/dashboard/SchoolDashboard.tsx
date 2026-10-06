@@ -1,38 +1,31 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   Activity,
-  ArrowLeft,
   ArrowUpRight,
   CalendarCheck,
-  CalendarClock,
   ChevronDown,
   HeartHandshake,
   Plus,
-  Smile,
   TriangleAlert,
   Users,
 } from "lucide-react";
-import { listAttempts } from "@/api/attempts";
-import { assignSupporter } from "@/api/children";
 import { getOrg, listSupporters } from "@/api/org";
-import { listGoals, listPlans } from "@/api/plans";
+import { listGoals } from "@/api/plans";
 import { getProgress, STATUS_META } from "@/api/progress";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
-import { AttemptScore } from "@/components/AttemptScore";
-import { ChildAvatar, LevelDots } from "@/components/brand";
-import { Select } from "@/components/Select";
+import { ChildAvatar } from "@/components/brand";
 import { CardSkeleton } from "@/components/Skeletons";
 import { ConsultationCard, ComingSoonTiles } from "@/components/dashboard/DashboardExtras";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { StatusBadge } from "@/components/StatusBadge";
-import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { ALL_CHILDREN, useActiveChild } from "@/lib/active-child";
 import { fmtDate } from "@/lib/format";
 import type { Child, ProgressReport, StaffMember, StatusKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ProgressPage } from "@/routes/progress";
 import { useAppSelector } from "@/store/hooks";
 import { selectActiveChildOverride } from "@/store/active-child-slice";
 
@@ -42,8 +35,6 @@ interface Row {
   child: Child;
   report: ProgressReport | undefined;
   supporter: StaffMember | undefined;
-  planTitle: string;
-  level: "Rookie" | "Starter" | "Pro" | undefined;
 }
 
 export function SchoolDashboard() {
@@ -61,7 +52,6 @@ export function SchoolDashboard() {
     queryKey: ["supporters", session.orgId],
     queryFn: () => listSupporters(session.orgId),
   });
-  const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
   const goals = useQuery({ queryKey: ["goals"], queryFn: () => listGoals() });
   // The graph follows one Play Plan (a goal) through its levels, like the Progress page.
   const chartPlans = useMemo(
@@ -78,17 +68,14 @@ export function SchoolDashboard() {
   const rows: Row[] = useMemo(
     () =>
       children.map((child, index) => {
-        const plan = plans.data?.find((item) => item.id === child.currentPlanId);
         return {
           child,
           report: reports[index]?.data,
           supporter: supporters.data?.find((member) => member.id === child.supporterId),
-          planTitle: plan?.title ?? "No Play Plan yet",
-          level: plan?.level,
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [children, plans.data, supporters.data, reports.map((r) => r.dataUpdatedAt).join(",")],
+    [children, supporters.data, reports.map((r) => r.dataUpdatedAt).join(",")],
   );
 
   const selected =
@@ -139,23 +126,7 @@ export function SchoolDashboard() {
   }
 
   if (selected) {
-    return (
-      <>
-        <PageHeader
-          eyebrow={org.data ? org.data.name : "Your school"}
-          title={selected.child.name}
-          description="Progress, Play Plan and who supports this child."
-          actions={actions}
-        />
-        <ChildDetail
-          row={selected}
-          supporters={(supporters.data ?? []).filter((member) => member.role === "supporter")}
-          onBack={() => setActiveChildId(ALL_CHILDREN)}
-        />
-        <ComingSoonTiles />
-        <ConsultationCard />
-      </>
-    );
+    return <ProgressPage />;
   }
 
   const withModerator = rows.filter((row) => row.child.supporterId).length;
@@ -330,30 +301,9 @@ function Chip({
   );
 }
 
-function SupportMeter({ score }: { score: number | null }) {
-  return (
-    <div>
-      <div className="flex items-baseline justify-between">
-        <span className="text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
-          Support score <SupportScoreInfo />
-        </span>
-        <span className="text-sm font-bold text-navy">
-          {score === null ? "—" : `${score}%`}
-        </span>
-      </div>
-      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-navy/8">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-blue to-coral"
-          style={{ width: `${score ?? 0}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function ModeratorChip({ supporter }: { supporter: StaffMember | undefined }) {
   return supporter ? (
-    <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-navy/5 py-1 pr-3 pl-1 text-xs font-bold text-navy">
+    <span className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-full bg-navy/5 py-1 pr-3 pl-1 text-xs font-bold text-navy">
       <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-navy text-[10px] text-cream">
         {supporter.name.slice(0, 1).toUpperCase()}
       </span>
@@ -384,7 +334,7 @@ function ChildTile({
       className={cn("ph-card ph-rise flex flex-col p-5 sm:p-6", open && "2xl:col-span-2")}
       style={{ animationDelay: `${index * 40}ms` }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3.5">
           <ChildAvatar name={child.name} token={child.colorToken ?? "blue"} size={56} />
           <div className="min-w-0">
@@ -395,32 +345,40 @@ function ChildTile({
             </div>
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <div>
-            <p className="text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
-              Sessions
-            </p>
-            <p className="mt-0.5 text-xl leading-none font-bold">{report?.totalSessions ?? 0}</p>
-          </div>
-          <div>
-            <p className="text-[11px] font-bold tracking-[0.12em] whitespace-nowrap text-navy/45 uppercase">
-              Last check-in
-            </p>
-            <p className="mt-0.5 text-sm font-semibold text-navy/75">
-              {report?.lastCheckIn ? fmtDate(report.lastCheckIn) : "None yet"}
-            </p>
-          </div>
-          <ModeratorChip supporter={supporter} />
-          <button
-            type="button"
-            onClick={onOpen}
-            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-navy px-4 text-xs font-bold text-white transition hover:bg-navy/90"
-          >
-            View <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-navy px-4 text-xs font-bold text-white transition hover:bg-navy/90"
+        >
+          View <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
+        </button>
       </div>
+
+      {/* Same three columns on every card, so the figures line up across the grid. */}
+      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-navy/8 pt-4 sm:grid-cols-[auto_auto_minmax(0,1fr)] sm:gap-x-8">
+        <div>
+          <dt className="text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
+            Sessions
+          </dt>
+          <dd className="mt-1.5 text-xl leading-none font-bold">{report?.totalSessions ?? 0}</dd>
+        </div>
+        <div>
+          <dt className="text-[11px] font-bold tracking-[0.12em] whitespace-nowrap text-navy/45 uppercase">
+            Last check-in
+          </dt>
+          <dd className="mt-1.5 text-sm leading-5 font-semibold whitespace-nowrap text-navy/75">
+            {report?.lastCheckIn ? fmtDate(report.lastCheckIn) : "None yet"}
+          </dd>
+        </div>
+        <div className="col-span-2 min-w-0 sm:col-span-1">
+          <dt className="text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
+            Moderator
+          </dt>
+          <dd className="mt-1">
+            <ModeratorChip supporter={supporter} />
+          </dd>
+        </div>
+      </dl>
 
       <button
         type="button"
@@ -439,7 +397,11 @@ function ChildTile({
       {open && (
         <div id={`progress-graph-${child.id}`} className="mt-4">
           {report && report.points.length > 0 ? (
-            <ProgressChart points={report.points} plans={chartPlans} />
+            <ProgressChart
+              points={report.points}
+              plans={chartPlans}
+              currentPlanId={report.currentPlanId}
+            />
           ) : (
             <div className="grid h-40 place-items-center rounded-2xl bg-navy/[0.035] px-4 text-center text-sm text-navy/55">
               Progress appears after the first check-in.
@@ -508,190 +470,5 @@ function ModeratorPanel({
         </div>
       )}
     </section>
-  );
-}
-
-function ChildDetail({
-  row,
-  supporters,
-  onBack,
-}: {
-  row: Row;
-  supporters: StaffMember[];
-  onBack: () => void;
-}) {
-  const { child, report, planTitle, level } = row;
-  const { setActiveChildId } = useActiveChild();
-  const queryClient = useQueryClient();
-  const attempts = useQuery({
-    queryKey: ["attempts", child.id],
-    queryFn: () => listAttempts(child.id),
-  });
-  const assign = useMutation({
-    mutationFn: (supporterId: string) => assignSupporter(child.id, supporterId || undefined),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["children"] }),
-  });
-  const recent = [...(attempts.data ?? [])]
-    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 5);
-  const goals = useQuery({ queryKey: ["goals"], queryFn: () => listGoals() });
-  // The graph follows one Play Plan (a goal) through its levels, like the Progress page.
-  const chartPlans = (goals.data ?? []).map((goal) => ({ id: goal.id, title: goal.name }));
-
-  return (
-    <div className="space-y-5">
-      <button
-        type="button"
-        onClick={onBack}
-        className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-navy/15 px-3.5 text-xs font-bold text-navy/80 hover:border-navy/35"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> All children
-      </button>
-
-      <section className="relative overflow-hidden rounded-[var(--radius-xl,1.75rem)] bg-navy p-6 text-cream sm:p-7">
-        <div
-          className="pointer-events-none absolute -top-24 -right-16 h-64 w-64 rounded-full bg-blue/30 blur-3xl"
-          aria-hidden
-        />
-        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-center">
-          <div className="flex flex-wrap items-center gap-4">
-            <ChildAvatar name={child.name} token={child.colorToken ?? "blue"} size={64} />
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl font-bold">{child.name}</h2>
-                {/* The chip colours are tuned for light surfaces; sit it on a cream pill over the navy hero. */}
-                <span className="inline-flex rounded-full bg-cream p-0.5">
-                  <StatusBadge status={report?.status ?? "no_data"} size="sm" />
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-cream/70">
-                Age {child.age} · {planTitle}
-              </p>
-              {level && (
-                <div className="mt-2 text-cream">
-                  <LevelDots level={level} />
-                </div>
-              )}
-              <p className="mt-3 flex items-center gap-2 text-xs text-cream/65">
-                <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-                {report?.lastCheckIn
-                  ? `Last check-in ${fmtDate(report.lastCheckIn)}`
-                  : "No check-ins yet"}
-              </p>
-            </div>
-          </div>
-          <div className="rounded-2xl bg-cream/10 p-4">
-            <p className="text-[11px] font-bold tracking-[0.12em] text-cream/60 uppercase">
-              Support score <SupportScoreInfo />
-            </p>
-            <p className="mt-1 text-4xl font-bold text-amber">
-              {report?.supportScore != null ? `${report.supportScore}%` : "—"}
-            </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-cream/15">
-              <div
-                className="h-full rounded-full bg-amber"
-                style={{ width: `${report?.supportScore ?? 0}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Key numbers">
-        <Stat icon={Activity} tone="blue" label="Sessions" value={report?.totalSessions ?? 0} />
-        <Stat
-          icon={CalendarCheck}
-          tone="coral"
-          label="Activities completed"
-          value={report?.activitiesCompleted ?? 0}
-        />
-        <Stat
-          icon={ArrowUpRight}
-          tone="navy"
-          label="Average completion"
-          value={report && report.totalSessions ? `${report.averageCompletion} / 5` : "—"}
-        />
-        <Stat
-          icon={Smile}
-          tone="amber"
-          label="Average mood"
-          value={report && report.totalSessions ? `${report.averageMood} / 5` : "—"}
-        />
-      </section>
-
-      <section className="ph-card p-5" aria-label="Progress graph">
-        <p className="eyebrow text-blue">Progress</p>
-        <h2 className="mt-1 text-lg font-bold">Support and mood over time</h2>
-        <div className="mt-4">
-          <ProgressChart points={report?.points ?? []} plans={chartPlans} />
-        </div>
-      </section>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <section className="ph-card p-5">
-          <p className="eyebrow text-blue">Next step</p>
-          <div className="mt-3 rounded-2xl border-l-4 border-coral bg-cream p-4">
-            <p className="text-sm leading-relaxed text-navy/85">
-              {report?.narrative ?? "Progress will appear after the first check-in."}
-            </p>
-          </div>
-
-          <p className="eyebrow mt-5 text-blue">Assigned moderator</p>
-          <div className="mt-3">
-            <Select
-              aria-label={`Moderator for ${child.name}`}
-              value={child.supporterId ?? ""}
-              onChange={(value) => assign.mutate(value)}
-              options={[
-                { value: "", label: "Not assigned" },
-                ...supporters.map((member) => ({ value: member.id, label: member.name })),
-              ]}
-            />
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Link
-              to="/progress"
-              onClick={() => setActiveChildId(child.id)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white hover:bg-navy/90"
-            >
-              Full progress <ArrowUpRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link
-              to="/plans"
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-navy/15 px-5 text-sm font-bold hover:border-navy/40"
-            >
-              Play Plans
-            </Link>
-          </div>
-        </section>
-
-        <section className="ph-card p-5">
-          <p className="eyebrow text-blue">Recent check-ins</p>
-          {attempts.isLoading ? (
-            <div className="mt-3">
-              <CardSkeleton lines={3} />
-            </div>
-          ) : recent.length === 0 ? (
-            <p className="mt-3 text-sm text-navy/60">No check-ins have been logged yet.</p>
-          ) : (
-            <ul className="mt-3 space-y-2">
-              {recent.map((attempt) => (
-                <li
-                  key={attempt.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-navy/[0.035] p-3"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-bold">{attempt.activity}</span>
-                    <span className="block text-[11px] text-navy/50">{fmtDate(attempt.date)}</span>
-                  </span>
-                  <AttemptScore completion={attempt.completion} mood={attempt.mood} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      </div>
-    </div>
   );
 }

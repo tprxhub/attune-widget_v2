@@ -19,8 +19,18 @@ export interface AdminProgressGroup {
   kind: "Organisation" | "Individual";
   rows: AdminProgressRow[];
   averageCompletion: number;
-  averageSupportScore: number | null;
+  supportScore: number | null;
   totalSessions: number;
+}
+
+/** The score from the most recently logged session in a set of child reports. */
+export function latestSupportScore(rows: AdminProgressRow[]): number | null {
+  const latest = rows
+    .filter(({ report }) => report.totalSessions > 0 && report.supportScore !== null)
+    .sort((a, b) =>
+      (b.report.latestSessionDate ?? "").localeCompare(a.report.latestSessionDate ?? ""),
+    )[0];
+  return latest?.report.supportScore ?? null;
 }
 
 function summarise(org: Org | null, rows: AdminProgressRow[]): AdminProgressGroup {
@@ -36,18 +46,13 @@ function summarise(org: Org | null, rows: AdminProgressRow[]): AdminProgressGrou
         ).toFixed(1),
       )
     : 0;
-  const supportScores = scored.flatMap((row) =>
-    row.report.supportScore === null ? [] : [row.report.supportScore],
-  );
   return {
     org,
     label: org ? org.name : "Individual families",
     kind: org ? "Organisation" : "Individual",
     rows,
     averageCompletion,
-    averageSupportScore: supportScores.length
-      ? Math.round(supportScores.reduce((sum, score) => sum + score, 0) / supportScores.length)
-      : null,
+    supportScore: latestSupportScore(rows),
     totalSessions,
   };
 }
@@ -114,7 +119,6 @@ export function progressCsv(groups: AdminProgressGroup[]): string {
     "Status",
     "Sessions",
     "Activities Completed",
-    "Support Score",
     "Avg Mood",
     "Last check-in",
   ];
@@ -131,7 +135,6 @@ export function progressCsv(groups: AdminProgressGroup[]): string {
           report.headline,
           report.totalSessions,
           report.activitiesCompleted,
-          report.supportScore ?? "",
           report.totalSessions ? report.averageMood : "",
           report.lastCheckIn ?? "",
         ]

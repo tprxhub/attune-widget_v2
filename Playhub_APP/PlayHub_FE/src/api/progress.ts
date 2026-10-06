@@ -2,88 +2,96 @@ import type { Attempt, ProgressReport, StatusKey } from "@/lib/types";
 import { apiRequest, type ApiProgress } from "./client";
 import { listPlans } from "./plans";
 import type { PlayPlan } from "@/lib/types";
+import { insightFor, lastCompleteIndex } from "@/features/progress/insights";
 
 export const STATUS_META: Record<
   StatusKey,
   { label: string; token: "blue" | "amber" | "coral" | "navy"; hint: string }
 > = {
-  progressing: {
-    label: "Progressing",
-    token: "blue",
-    hint: "Needing less support, or moving up a level.",
-  },
-  holding_steady: {
-    label: "Holding steady",
+  first_dose: {
+    label: "First dose at this level",
     token: "amber",
-    hint: "About the same for a few weeks. Keep going.",
-  },
-  needs_check_in: {
-    label: "Needs a check-in",
-    token: "coral",
-    hint: "Needing more support each week.",
+    hint: "The first Play Dose in this plan is complete.",
   },
   settling_in: {
     label: "Settling in",
     token: "navy",
-    hint: "New level. Give it a week or two.",
+    hint: "Just moved up a level, so a bit more support is natural.",
+  },
+  progressing: {
+    label: "Progressing",
+    token: "blue",
+    hint: "Needed less help by the end of the dose than at the start.",
+  },
+  holding_steady: {
+    label: "Holding steady",
+    token: "amber",
+    hint: "About the same support as at the start of the dose.",
+  },
+  needs_check_in: {
+    label: "Book a Play Consult",
+    token: "coral",
+    hint: "The Real-Life Try wasn’t passed for two doses in a row.",
   },
   no_data: {
-    label: "Not enough data",
+    label: "Dose in progress",
     token: "navy",
-    hint: "Log the five kit sessions and Real-Life Try to complete a week.",
+    hint: "Log the five practice days and the Real-Life Try to complete a Play Dose.",
   },
 };
 
-const messaging = (status: StatusKey) => ({
-  headline: STATUS_META[status].label,
-  narrative: STATUS_META[status].hint,
-});
+/** Points of the plan the child is on now, in the order they happened. */
+export function currentPlanDoses(report: ProgressReport) {
+  const planId = report.currentPlanId ?? report.points.at(-1)?.planId;
+  return report.points.filter((point) => point.planId === planId);
+}
 
+/** The insight for the latest completed dose of the current plan, as the Play Progress spec words it. */
+export function latestInsight(report: ProgressReport) {
+  const doses = currentPlanDoses(report);
+  return insightFor(doses, lastCompleteIndex(doses));
+}
+
+function messaging(
+  status: StatusKey,
+  points: ProgressReport["points"],
+  currentPlanId: string | null,
+) {
+  const doses = points.filter((point) => point.planId === (currentPlanId ?? points.at(-1)?.planId));
+  const insight = insightFor(doses, lastCompleteIndex(doses));
+  return insight
+    ? { headline: insight.title, narrative: insight.seeing }
+    : { headline: STATUS_META[status].label, narrative: STATUS_META[status].hint };
+}
+
+/** "What's next?" for the current plan, then any timely nudges. Nothing here is free-form. */
 export function progressNextSteps(report: ProgressReport) {
   const steps: Array<{ title: string; body: string }> = [];
-  const baselineSteps = [
-    {
-      title: "Step 1",
-      body: "Continue Child A through Starter Activity #9 to maintain momentum. For Child B, hold at the current Forerunner level and aim for 2–3 more consecutive sessions before considering advancement — an improving mood score above 3 is the key signal to watch.",
-    },
-    {
-      title: "Step 2",
-      body: "This child has completed all four Bilateral Coordination Forerunner activities. Introduce Starter-level Bilateral Coordination (Activity #6) in the next session — consistent 5/5 scores and high mood indicate clear readiness for the next tier.",
-    },
-    {
-      title: "Step 3",
-      body: "Log 2–3 more Visual-Motor Integration sessions to build a baseline for that goal. For Pinch & Grip, consider introducing Starter Activity #8 or #9 to continue advancing — the Feb 2026 results show readiness to push further on both tracks.",
-    },
-    {
-      title: "Step 4",
-      body: "Prioritise consistent weekly check-ins over the next month. If Bilateral Coordination scores remain at 3/5 after 2–3 more sessions, consider returning to Pinch & Grip Forerunner activities to rebuild confidence before re-attempting Bilateral at higher frequency.",
-    },
-    {
-      title: "Step 5",
-      body: "Schedule at least 3 check-ins over the next two weeks and log each one. Starting with Forerunner Activity #1 or #3 may help build a stronger baseline — simpler activities will give a clearer picture of capability and mood before returning to Activity #2.",
-    },
-  ];
+  const doses = currentPlanDoses(report);
+  const latest = doses.at(-1);
+  const insight = latestInsight(report);
+  if (latest && !latest.complete) {
+    steps.push({
+      title: `Finish this ${latest.level} Play Dose`,
+      body: `${latest.kitSessionsLogged} of 5 practice days logged. Log the remaining days and the Real-Life Try to see how this dose went.`,
+    });
+  }
+  if (insight) steps.push({ title: insight.title, body: insight.next });
   if (report.fastTrackOffered)
     steps.push({
       title: "Real-Life Try is ready early",
-      body: "Three sessions in a row were finished independently with a happy mood. Try the Real-Life skill now, or stay and master this level.",
-    });
-  if (report.moveDownOffered)
-    steps.push({
-      title: "Consider the level below",
-      body: "The latest three sessions needed hands-on help, stopped early or had a low mood. Offer the easier level without losing earlier progress.",
-    });
-  if (report.points.at(-1)?.consultSuggested)
-    steps.push({
-      title: "Suggest a Play Consult",
-      body: "This level was not passed twice in a row. A Play Consult can adapt the plan before a third week.",
+      body: "Three sessions in a row were finished on their own with a happy mood. Try the Real-Life skill now, or stay and master this level.",
     });
   if (report.reminderDue)
     steps.push({
       title: "Continue this week",
       body: "No session has been logged for three days. A short, playful session will keep the routine moving.",
     });
-  if (!steps.length) steps.push(...baselineSteps);
+  if (!steps.length)
+    steps.push({
+      title: "Log the first session",
+      body: "Pick today’s activity on the Daily Check-In. Progress appears once Day 1 is logged.",
+    });
   return steps;
 }
 
@@ -93,15 +101,16 @@ export function buildReport(childId: string, rows: Attempt[]): ProgressReport {
   const averageMood = sorted.length
     ? Number((sorted.reduce((sum, row) => sum + row.mood, 0) / sorted.length).toFixed(1))
     : 0;
-  const supportScore = sorted.length
-    ? Math.round(sorted.reduce((sum, row) => sum + row.supportScore, 0) / sorted.length)
-    : null;
+  const supportScore =
+    [...sorted].reverse().find((row) => row.supportScore !== null)?.supportScore ?? null;
   const status: StatusKey = "no_data";
   return {
     childId,
     status,
-    ...messaging(status),
+    currentPlanId: last?.goalId ?? null,
+    ...messaging(status, [], null),
     lastCheckIn: last?.date ?? null,
+    latestSessionDate: last?.date ?? null,
     totalSessions: sorted.length,
     checkInCount: sorted.filter((row) => row.source === "daily_check_in").length,
     activitiesCompleted: new Set(sorted.map((row) => row.entryId)).size,
@@ -120,29 +129,46 @@ export function buildReport(childId: string, rows: Attempt[]): ProgressReport {
 export function reportFromApi(summary: ApiProgress, _plans: PlayPlan[]): ProgressReport {
   const status: StatusKey =
     summary.headline_status === "insufficient_data" ? "no_data" : summary.headline_status;
+  const currentPlanId = summary.current_play_plan_id ?? summary.points.at(-1)?.play_plan_id ?? null;
+  const points: ProgressReport["points"] = summary.weekly_points.map((point) => ({
+    date: point.week_start,
+    weekNumber: point.week_number,
+    support: point.support_score,
+    mood: point.average_mood,
+    level: point.level === "rookie" ? "Rookie" : point.level === "pro" ? "Pro" : "Starter",
+    planId: point.play_plan_id,
+    doseId: point.play_dose_id,
+    finishedCount: point.finished_count,
+    kitSessionsLogged: point.kit_sessions_logged,
+    realLifeTryPassed: point.real_life_try_passed,
+    passed: point.passed,
+    complete: point.complete,
+    consultSuggested: point.consult_suggested,
+    scenario: point.scenario ?? null,
+    days: point.days.map((day) => ({
+      day: day.day,
+      isTry: day.is_try,
+      date: day.occurred_on,
+      finished: day.finished,
+      helpLevel: day.help_level,
+      score: day.score,
+      mood: day.mood,
+      tryPassed: day.try_passed,
+    })),
+  }));
   return {
     childId: summary.child_id,
     status,
-    ...messaging(status),
+    currentPlanId,
+    ...messaging(status, points, currentPlanId),
     lastCheckIn: summary.last_check_in,
+    latestSessionDate: summary.points.at(-1)?.occurred_on ?? summary.last_check_in,
     totalSessions: summary.total_attempts,
     checkInCount: summary.check_in_count,
     activitiesCompleted: summary.activities_completed,
-    supportScore: summary.support_score,
-    points: summary.weekly_points.map((point) => ({
-      date: point.week_start,
-      weekNumber: point.week_number,
-      support: point.support_score,
-      mood: point.average_mood,
-      level: point.level === "rookie" ? "Rookie" : point.level === "pro" ? "Pro" : "Starter",
-      planId: point.play_plan_id,
-      doseId: point.play_dose_id,
-      finishedCount: point.finished_count,
-      kitSessionsLogged: point.kit_sessions_logged,
-      realLifeTryPassed: point.real_life_try_passed,
-      passed: point.passed,
-      consultSuggested: point.consult_suggested,
-    })),
+    // The dose score is stored unrounded (spec); round only where it is shown.
+    supportScore: summary.support_score === null ? null : Math.round(summary.support_score),
+    points,
     averageCompletion: summary.average_completion_score ?? 0,
     averageMood: summary.average_mood_score ?? 0,
     fastTrackOffered: summary.fast_track_offered,

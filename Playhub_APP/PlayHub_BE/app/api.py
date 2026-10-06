@@ -1,30 +1,41 @@
 """REST API routes consumed by the Play Hub frontend."""
 from __future__ import annotations
 import calendar
+import hashlib
 from datetime import date, datetime, timedelta, timezone
 
 import logging
 from secrets import token_urlsafe
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, false, func, not_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.dependencies import get_current_user, require_child_access, require_roles
-from app.models import AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PlanLevel, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
+from app.dependencies import get_current_user, require_child_access, require_permission, require_roles
+from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, PlanPublicationStatus, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
 from app.config import get_settings
-from app.billing import BillingError, PLAN_CATALOG, create_checkout, create_refund, parse_webhook
+from app.billing import BillingError, PLAN_CATALOG, create_checkout, create_refund, paid_in_full, parse_webhook
 from app.google_identity import GoogleIdentityError, verify_google_credential
+from app.overview import Overview, build_overview
+from app.oidc_identity import (
+    PROVIDER_LABEL,
+    OidcIdentity,
+    OidcIdentityError,
+    Provider,
+    verify_apple_credential,
+    verify_microsoft_credential,
+)
 from app.schemas import (
     ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, AttemptRead, AvatarStickerUpdate, ChildCreate, ChildRead, ChildUpdate,
-    CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
-    LoginRequest, OrganisationCreate, OrganisationRead, OrganisationUpdate, PasswordChange, PlayDoseCreate, PlayDoseRead,
-    PlayDoseUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
+    AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
+    LoginRequest, OrganisationCreate, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
+    PlayDoseUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
     SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, SiteContentRead,
 )
 from app.security import create_access_token, hash_password, verify_password
 from app.services import audit, progress_summary
+from app.mailer import OutgoingEmail, send_email
 from app.storage import StorageService, StorageUnavailable, UploadRejected, get_storage
 
 router = APIRouter(prefix="/api/v1")
@@ -89,9 +100,9 @@ def validate_user_values(
     require_active_organisation: bool = True,
 ) -> None:
     """Keep role, account scope and organisation membership internally consistent."""
-    if role == Role.SUPER_ADMIN:
+    if role in (Role.SUPER_ADMIN, Role.TTP_EMPLOYEE):
         if account_scope != AccountScope.PLATFORM or organisation_id is not None:
-            raise HTTPException(status_code=422, detail="Super Admin accounts must use platform scope")
+            raise HTTPException(status_code=422, detail="Super Admin and TTP employee accounts must use platform scope")
         return
     if account_scope == AccountScope.PLATFORM:
         raise HTTPException(status_code=422, detail="Platform scope is reserved for Super Admin accounts")
@@ -146,8 +157,12 @@ def validate_child_values(db: Session, values: dict, child_id: str | None = None
     dose_id = values.get("current_play_dose_id")
     if dose_id:
         dose = one_or_404(db, PlayDose, dose_id)
-        if not dose.is_active or not dose.play_plan.is_active:
-            raise HTTPException(status_code=422, detail="Assign an active Play Dose")
+        if (
+            not dose.is_active
+            or not dose.play_plan.is_active
+            or dose.play_plan.publication_status != PlanPublicationStatus.PUBLISHED
+        ):
+            raise HTTPException(status_code=422, detail="Assign a published Play Dose")
 
     assignments = {
         "owner_id": {Role.ADMIN, Role.MEMBER},
@@ -176,6 +191,7 @@ def default_starter_dose(db: Session) -> PlayDose | None:
             PlayDose.level == PlanLevel.STARTER,
             PlayDose.is_active.is_(True),
             PlayPlan.is_active.is_(True),
+            PlayPlan.publication_status == PlanPublicationStatus.PUBLISHED,
         )
         .order_by(PlayPlan.created_at, PlayDose.sort_order, PlayDose.created_at)
     )
@@ -247,6 +263,148 @@ def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
     return Token(access_token=create_access_token(user.id))
 
 
+@router.post("/auth/google/register-family", response_model=Token, status_code=status.HTTP_201_CREATED)
+def google_register_family(payload: GoogleFamilyRegistration, db: Session = Depends(get_db)):
+    """First-time Google sign-in: create the family administrator, their child and a free subscription."""
+    try:
+        identity = verify_google_credential(payload.credential, get_settings())
+    except GoogleIdentityError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+    if db.scalar(select(User).where((User.google_subject == identity.subject) | (User.email == identity.email))):
+        raise HTTPException(status_code=409, detail="A Play Hub account already uses this Google email. Log in instead.")
+    first_dose = default_starter_dose(db)
+    user = User(
+        email=identity.email,
+        display_name=identity.name[:120],
+        # Google accounts have no password; this random hash can never be guessed or used to log in.
+        password_hash=hash_password(token_urlsafe(32)),
+        google_subject=identity.subject,
+        role=Role.ADMIN,
+        account_scope=AccountScope.INDIVIDUAL,
+    )
+    db.add(user)
+    db.flush()
+    child = Child(
+        name=payload.child_name,
+        date_of_birth=payload.child_date_of_birth,
+        colour_token="blue",
+        account_scope=AccountScope.INDIVIDUAL,
+        owner_id=user.id,
+        admin_id=user.id,
+        current_play_dose_id=first_dose.id if first_dose else None,
+        plan_started_at=date.today() if first_dose else None,
+    )
+    db.add(child)
+    db.flush()
+    db.add(Subscription(child_id=child.id, status=SubscriptionStatus.FREE))
+    audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id, "via": "google"})
+    db.commit()
+    return Token(access_token=create_access_token(user.id))
+
+
+SOCIAL_COLUMN = {"apple": User.apple_subject, "microsoft": User.microsoft_subject}
+
+
+def _verify_social(provider: Provider, payload: SocialLoginRequest) -> OidcIdentity:
+    try:
+        if provider == "apple":
+            return verify_apple_credential(payload.credential, get_settings(), payload.name)
+        return verify_microsoft_credential(payload.credential, get_settings())
+    except OidcIdentityError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+def social_login(provider: Provider, payload: SocialLoginRequest, db: Session) -> Token:
+    """Sign in with Apple or Microsoft. Same linking rules as Google: an existing account is only
+    linked automatically when the provider owns the mailbox (e.g. iCloud or Outlook.com)."""
+    identity = _verify_social(provider, payload)
+    label = PROVIDER_LABEL[provider]
+    column = SOCIAL_COLUMN[provider]
+    attr = column.key
+    user = db.scalar(select(User).where(column == identity.subject))
+    if not user:
+        user = db.scalar(select(User).where(User.email == identity.email))
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No Play Hub account uses this {label} email. Create or accept an account first.",
+            )
+        if getattr(user, attr) and getattr(user, attr) != identity.subject:
+            raise HTTPException(status_code=409, detail=f"This account is linked to another {label} identity")
+        if not identity.authoritative_email:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Sign in with your password first; this {label} address cannot be linked automatically.",
+            )
+        setattr(user, attr, identity.subject)
+        audit(db, user.id, f"user.{provider}_linked", "user", user.id)
+        db.commit()
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Account is unavailable")
+    if user.organisation_id and (not user.organisation or not user.organisation.is_active):
+        raise HTTPException(status_code=403, detail="Organisation is suspended")
+    return Token(access_token=create_access_token(user.id))
+
+
+def social_register_family(provider: Provider, payload: SocialFamilyRegistration, db: Session) -> Token:
+    """First-time Apple or Microsoft sign-in: create the family administrator, their child and a free subscription."""
+    identity = _verify_social(provider, payload)
+    column = SOCIAL_COLUMN[provider]
+    if db.scalar(select(User).where((column == identity.subject) | (User.email == identity.email))):
+        raise HTTPException(
+            status_code=409,
+            detail=f"A Play Hub account already uses this {PROVIDER_LABEL[provider]} email. Log in instead.",
+        )
+    first_dose = default_starter_dose(db)
+    user = User(
+        email=identity.email,
+        display_name=identity.name[:120],
+        # No password; this random hash can never be guessed or used to log in.
+        password_hash=hash_password(token_urlsafe(32)),
+        role=Role.ADMIN,
+        account_scope=AccountScope.INDIVIDUAL,
+    )
+    setattr(user, column.key, identity.subject)
+    db.add(user)
+    db.flush()
+    child = Child(
+        name=payload.child_name,
+        date_of_birth=payload.child_date_of_birth,
+        colour_token="blue",
+        account_scope=AccountScope.INDIVIDUAL,
+        owner_id=user.id,
+        admin_id=user.id,
+        current_play_dose_id=first_dose.id if first_dose else None,
+        plan_started_at=date.today() if first_dose else None,
+    )
+    db.add(child)
+    db.flush()
+    db.add(Subscription(child_id=child.id, status=SubscriptionStatus.FREE))
+    audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id, "via": provider})
+    db.commit()
+    return Token(access_token=create_access_token(user.id))
+
+
+@router.post("/auth/apple", response_model=Token)
+def apple_login(payload: SocialLoginRequest, db: Session = Depends(get_db)):
+    return social_login("apple", payload, db)
+
+
+@router.post("/auth/apple/register-family", response_model=Token, status_code=status.HTTP_201_CREATED)
+def apple_register_family(payload: SocialFamilyRegistration, db: Session = Depends(get_db)):
+    return social_register_family("apple", payload, db)
+
+
+@router.post("/auth/microsoft", response_model=Token)
+def microsoft_login(payload: SocialLoginRequest, db: Session = Depends(get_db)):
+    return social_login("microsoft", payload, db)
+
+
+@router.post("/auth/microsoft/register-family", response_model=Token, status_code=status.HTTP_201_CREATED)
+def microsoft_register_family(payload: SocialFamilyRegistration, db: Session = Depends(get_db)):
+    return social_register_family("microsoft", payload, db)
+
+
 @router.post("/auth/register-family", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register_family(payload: FamilyRegistration, db: Session = Depends(get_db)):
     """Create the family administrator, their child, and a free subscription atomically."""
@@ -288,6 +446,72 @@ def change_password(payload: PasswordChange, user: User = Depends(get_current_us
     audit(db, user.id, "user.password_changed", "user", user.id)
     db.commit()
     return {"detail": "Password updated"}
+
+
+RESET_TTL = timedelta(hours=1)
+RESET_REQUESTS_PER_HOUR = 3
+
+
+def _reset_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+@router.post("/auth/password/forgot", status_code=status.HTTP_202_ACCEPTED)
+def forgot_password(payload: PasswordForgot, db: Session = Depends(get_db)):
+    """Emails a one-time reset link. The reply is the same whether or not the email has an account."""
+    reply = {"detail": "If an account uses that email, a reset link is on its way."}
+    user = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
+    if not user or not user.is_active:
+        return reply
+    now = datetime.now(timezone.utc)
+    recent = db.scalar(
+        select(func.count(PasswordResetToken.id)).where(
+            PasswordResetToken.user_id == user.id, PasswordResetToken.created_at >= now - timedelta(hours=1)
+        )
+    ) or 0
+    if recent >= RESET_REQUESTS_PER_HOUR:
+        return reply
+    # Only the newest link works.
+    for old in db.scalars(
+        select(PasswordResetToken).where(PasswordResetToken.user_id == user.id, PasswordResetToken.used_at.is_(None))
+    ):
+        old.used_at = now
+    token = token_urlsafe(32)
+    db.add(PasswordResetToken(user_id=user.id, token_hash=_reset_hash(token), expires_at=now + RESET_TTL, created_at=now))
+    audit(db, user.id, "user.password_reset_requested", "user", user.id)
+    db.commit()
+    link = f"{get_settings().frontend_base_url.rstrip('/')}/reset-password?token={token}"
+    send_email(
+        OutgoingEmail(
+            to=user.email,
+            subject="Reset your Play Hub password",
+            text=(
+                f"Hi {user.display_name},\n\n"
+                f"Someone asked to reset the password for your Play Hub account. Use this link within one hour:\n\n"
+                f"{link}\n\n"
+                "If you didn't ask for this, you can ignore this email; your password stays the same.\n\n"
+                "The Play Hub team"
+            ),
+        )
+    )
+    return reply
+
+
+@router.post("/auth/password/reset")
+def reset_password(payload: PasswordReset, db: Session = Depends(get_db)):
+    row = db.scalar(select(PasswordResetToken).where(PasswordResetToken.token_hash == _reset_hash(payload.token)))
+    now = datetime.now(timezone.utc)
+    expires_at = row.expires_at if row and row.expires_at.tzinfo else (row.expires_at.replace(tzinfo=timezone.utc) if row else None)
+    if not row or row.used_at is not None or expires_at < now:
+        raise HTTPException(status_code=400, detail="This reset link has expired or was already used. Ask for a new one.")
+    user = db.get(User, row.user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=400, detail="This reset link has expired or was already used. Ask for a new one.")
+    user.password_hash = hash_password(payload.new_password)
+    row.used_at = now
+    audit(db, user.id, "user.password_reset", "user", user.id)
+    db.commit()
+    return {"detail": "Password updated. You can log in with your new password."}
 
 
 @router.get("/auth/me", response_model=UserRead)
@@ -348,8 +572,11 @@ def remove_my_avatar(
 
 
 @router.get("/users", response_model=list[UserRead])
-def list_users(user: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN)), db: Session = Depends(get_db)):
+def list_users(user: User = Depends(require_permission("team", "children", "organisations", roles=(Role.ADMIN,))), db: Session = Depends(get_db)):
     query = select(User).order_by(User.display_name)
+    if user.role == Role.TTP_EMPLOYEE:
+        # Platform staff accounts are managed by the Super Admin only.
+        query = query.where(User.role.notin_([Role.SUPER_ADMIN, Role.TTP_EMPLOYEE]))
     if user.role == Role.ADMIN:
         if user.organisation_id:
             query = query.where(User.organisation_id == user.organisation_id)
@@ -365,8 +592,14 @@ def list_users(user: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN))
 
 
 @router.patch("/users/{user_id}", response_model=UserRead)
-def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN)), db: Session = Depends(get_db)):
+def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require_permission("team", roles=(Role.ADMIN,))), db: Session = Depends(get_db)):
     target = one_or_404(db, User, user_id)
+    if target.is_platform and actor.role != Role.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Only a Super Admin can manage platform staff")
+    if payload.permissions is not None and target.role != Role.TTP_EMPLOYEE:
+        raise HTTPException(status_code=422, detail="Permissions apply to TTP employees only")
+    if payload.permissions is not None and actor.role != Role.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Only a Super Admin can change permissions")
     if actor.role == Role.ADMIN:
         if actor.organisation_id and target.organisation_id != actor.organisation_id:
             raise HTTPException(status_code=403, detail="You can manage only your organisation's users")
@@ -397,9 +630,13 @@ def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require
 
 
 @router.post("/invitations", response_model=InvitationCreated, status_code=201)
-def create_invitation(payload: InvitationCreate, actor: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN)), db: Session = Depends(get_db)):
+def create_invitation(payload: InvitationCreate, actor: User = Depends(require_permission("team", roles=(Role.ADMIN,))), db: Session = Depends(get_db)):
     if db.scalar(select(User).where(User.email == payload.email)):
         raise HTTPException(status_code=409, detail="This email already belongs to an account")
+    if payload.role in (Role.SUPER_ADMIN, Role.TTP_EMPLOYEE) and actor.role != Role.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Only a Super Admin can add platform staff")
+    if payload.role != Role.TTP_EMPLOYEE:
+        payload = payload.model_copy(update={"permissions": []})
     if actor.role == Role.ADMIN:
         if actor.organisation_id:
             if payload.organisation_id != actor.organisation_id or payload.account_scope != AccountScope.ORGANISATION:
@@ -439,8 +676,10 @@ def create_invitation(payload: InvitationCreate, actor: User = Depends(require_r
 
 
 @router.get("/invitations", response_model=list[InvitationRead])
-def list_invitations(actor: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN)), db: Session = Depends(get_db)):
+def list_invitations(actor: User = Depends(require_permission("team", roles=(Role.ADMIN,))), db: Session = Depends(get_db)):
     query = select(Invitation).order_by(Invitation.created_at.desc())
+    if actor.role == Role.TTP_EMPLOYEE:
+        query = query.where(Invitation.role.notin_([Role.SUPER_ADMIN, Role.TTP_EMPLOYEE]))
     if actor.role == Role.ADMIN:
         query = (
             query.where(Invitation.organisation_id == actor.organisation_id)
@@ -453,12 +692,14 @@ def list_invitations(actor: User = Depends(require_roles(Role.SUPER_ADMIN, Role.
 @router.post("/invitations/{invitation_id}/activation", response_model=InvitationCreated)
 def regenerate_invitation_activation(
     invitation_id: str,
-    actor: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN)),
+    actor: User = Depends(require_permission("team", roles=(Role.ADMIN,))),
     db: Session = Depends(get_db),
 ):
     invitation = one_or_404(db, Invitation, invitation_id)
     if invitation.status != InvitationStatus.PENDING:
         raise HTTPException(status_code=409, detail="Only pending invitations can receive a new activation link")
+    if invitation.role in (Role.SUPER_ADMIN, Role.TTP_EMPLOYEE) and actor.role != Role.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Only a Super Admin can manage platform staff invitations")
     if actor.role == Role.ADMIN:
         if actor.organisation_id:
             if invitation.organisation_id != actor.organisation_id:
@@ -509,7 +750,8 @@ def accept_invitation(payload: InvitationAccept, db: Session = Depends(get_db)):
         child = validate_invitation_child(db, invitation_payload)
     user = User(email=invitation.email, display_name=payload.display_name or invitation.display_name or invitation.email.split("@", 1)[0],
                 password_hash=hash_password(payload.password), role=invitation.role, account_scope=invitation.account_scope,
-                organisation_id=invitation.organisation_id)
+                organisation_id=invitation.organisation_id,
+                permissions=list(invitation.permissions or []) if invitation.role == Role.TTP_EMPLOYEE else [])
     invitation.status = InvitationStatus.ACCEPTED
     invitation.accepted_at = now
     db.add(user); db.flush()
@@ -523,13 +765,51 @@ def accept_invitation(payload: InvitationAccept, db: Session = Depends(get_db)):
     return Token(access_token=create_access_token(user.id))
 
 
-@router.get("/audit-events")
-def list_audit_events(limit: int = Query(default=100, ge=1, le=500), _: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
-    return db.scalars(select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(limit)).all()
+def audit_filter_for(user: User):
+    """SQL condition limiting audit events to the categories this user was given; None means all."""
+    if user.role == Role.SUPER_ADMIN:
+        return None
+    all_prefixes = [prefix for prefixes in AUDIT_CATEGORY_PREFIXES.values() for prefix in prefixes]
+    clauses = []
+    for category in AUDIT_CATEGORIES:
+        if not user.can(f"audit_{category}"):
+            continue
+        if category == "system":
+            clauses.append(and_(*[not_(AuditEvent.action.startswith(prefix)) for prefix in all_prefixes]))
+        else:
+            clauses.append(or_(*[AuditEvent.action.startswith(prefix) for prefix in AUDIT_CATEGORY_PREFIXES[category]]))
+    return or_(*clauses) if clauses else false()
+
+
+@router.get("/audit-events", response_model=list[AuditEventRead])
+def list_audit_events(limit: int = Query(default=100, ge=1, le=500), user: User = Depends(require_permission("audit")), db: Session = Depends(get_db)):
+    query = select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(limit)
+    condition = audit_filter_for(user)
+    if condition is not None:
+        query = query.where(condition)
+    events = db.scalars(query).all()
+    names = {
+        row.id: row.display_name
+        for row in db.scalars(select(User).where(User.id.in_({e.actor_id for e in events if e.actor_id}))).all()
+    } if events else {}
+    return [
+        AuditEventRead.model_validate(event).model_copy(update={"actor_name": names.get(event.actor_id) if event.actor_id else None})
+        for event in events
+    ]
+
+
+@router.get("/admin/overview", response_model=Overview)
+def get_admin_overview(
+    scope: str = Query(default="all", max_length=80),
+    user: User = Depends(require_roles(Role.SUPER_ADMIN, Role.TTP_EMPLOYEE)),
+    db: Session = Depends(get_db),
+):
+    """Key figures for the platform Overview, limited to the areas this person may see."""
+    return build_overview(db, user, scope, audit_filter_for(user))
 
 
 @router.get("/admin/progress", response_model=list[ProgressSummary])
-def get_platform_progress(_: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def get_platform_progress(_: User = Depends(require_permission("progress")), db: Session = Depends(get_db)):
     children = db.scalars(select(Child).order_by(Child.name)).all()
     attempts_by_child: dict[str, list[Attempt]] = {child.id: [] for child in children}
     for attempt in db.scalars(select(Attempt).order_by(Attempt.occurred_on, Attempt.created_at)).all():
@@ -538,19 +818,19 @@ def get_platform_progress(_: User = Depends(require_roles(Role.SUPER_ADMIN)), db
 
 
 @router.get("/organisations", response_model=list[OrganisationRead])
-def list_organisations(_: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def list_organisations(_: User = Depends(require_permission("organisations", "team", "children")), db: Session = Depends(get_db)):
     return db.scalars(select(Organisation).order_by(Organisation.name)).all()
 
 
 @router.get("/organisations/{organisation_id}", response_model=OrganisationRead)
 def get_organisation(organisation_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != Role.SUPER_ADMIN and user.organisation_id != organisation_id:
+    if not user.is_platform and user.organisation_id != organisation_id:
         raise HTTPException(status_code=403, detail="You cannot access this organisation")
     return one_or_404(db, Organisation, organisation_id)
 
 
 @router.post("/organisations", response_model=OrganisationRead, status_code=201)
-def create_organisation(payload: OrganisationCreate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def create_organisation(payload: OrganisationCreate, actor: User = Depends(require_permission("organisations")), db: Session = Depends(get_db)):
     if db.scalar(select(Organisation).where(Organisation.name == payload.name)):
         raise HTTPException(status_code=409, detail="Organisation name already exists")
     return commit_audited(
@@ -563,13 +843,22 @@ def create_organisation(payload: OrganisationCreate, actor: User = Depends(requi
 
 
 @router.patch("/organisations/{organisation_id}", response_model=OrganisationRead)
-def update_organisation(organisation_id: str, payload: OrganisationUpdate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def update_organisation(organisation_id: str, payload: OrganisationUpdate, actor: User = Depends(require_permission("organisations")), db: Session = Depends(get_db)):
     item = one_or_404(db, Organisation, organisation_id)
     if payload.name is not None and db.scalar(
         select(Organisation).where(Organisation.name == payload.name, Organisation.id != item.id)
     ):
         raise HTTPException(status_code=409, detail="Organisation name already exists")
     changes = payload.model_dump(exclude_unset=True)
+    if changes.get("seat_limit"):
+        in_use = db.scalar(
+            select(func.count(Child.id)).where(Child.organisation_id == item.id, Child.is_active.is_(True))
+        ) or 0
+        if changes["seat_limit"] < in_use:
+            raise HTTPException(
+                status_code=409,
+                detail=f"{in_use} licenses are in use. Deactivate children first, or choose {in_use} or more.",
+            )
     for key, value in changes.items(): setattr(item, key, value)
     return commit_audited(
         db,
@@ -583,10 +872,16 @@ def update_organisation(organisation_id: str, payload: OrganisationUpdate, actor
 
 @router.get("/play-plans", response_model=list[PlayPlanRead])
 def list_plans(include_inactive: bool = False, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if include_inactive and user.role != Role.SUPER_ADMIN:
+    if user.role == Role.TTP_EMPLOYEE and not user.can("plans"):
+        raise HTTPException(status_code=403, detail="You do not have permission to view Play Plans")
+    if include_inactive and not user.can("plans"):
         raise HTTPException(status_code=403, detail="Only a platform administrator can view inactive content")
-    query = select(PlayPlan).options(selectinload(PlayPlan.play_doses).selectinload(PlayDose.activities)).order_by(PlayPlan.name)
-    if not include_inactive: query = query.where(PlayPlan.is_active.is_(True))
+    query = select(PlayPlan).options(selectinload(PlayPlan.play_doses).selectinload(PlayDose.activities)).order_by(PlayPlan.sort_order, PlayPlan.name)
+    if not include_inactive:
+        query = query.where(
+            PlayPlan.is_active.is_(True),
+            PlayPlan.publication_status != PlanPublicationStatus.INVISIBLE,
+        )
     rows = db.scalars(query).unique().all()
     if include_inactive:
         return rows
@@ -602,15 +897,50 @@ def list_plans(include_inactive: bool = False, user: User = Depends(get_current_
     return plans
 
 
+def _apply_order(rows: list, ids: list[str]) -> None:
+    """Number rows in the order given; rows the caller did not list (e.g. hidden ones) follow in their old order."""
+    known = {row.id for row in rows}
+    if len(set(ids)) != len(ids) or not set(ids) <= known:
+        raise HTTPException(status_code=422, detail="Send each known item at most once")
+    rest = sorted((row for row in rows if row.id not in set(ids)), key=lambda row: row.sort_order)
+    by_id = {row.id: row for row in rows}
+    for index, row in enumerate([by_id[i] for i in ids] + rest):
+        row.sort_order = index
+
+
+@router.put("/play-plans/order", response_model=list[PlayPlanRead])
+def reorder_plans(payload: OrderUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
+    rows = db.scalars(select(PlayPlan)).unique().all()
+    _apply_order(rows, payload.ids)
+    audit(db, actor.id, "play_plan.reordered", "play_plan", payload.ids[0])
+    db.commit()
+    return db.scalars(
+        select(PlayPlan)
+        .options(selectinload(PlayPlan.play_doses).selectinload(PlayDose.activities))
+        .order_by(PlayPlan.sort_order, PlayPlan.name)
+    ).unique().all()
+
+
+@router.put("/play-plans/{plan_id}/play-doses/order", response_model=PlayPlanRead)
+def reorder_doses(plan_id: str, payload: OrderUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
+    plan = one_or_404(db, PlayPlan, plan_id)
+    _apply_order(list(plan.play_doses), payload.ids)
+    audit(db, actor.id, "play_dose.reordered", "play_plan", plan.id)
+    db.commit()
+    db.refresh(plan)
+    return plan
+
+
 @router.post("/play-plans", response_model=PlayPlanRead, status_code=201)
-def create_plan(payload: PlayPlanCreate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def create_plan(payload: PlayPlanCreate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     if db.scalar(select(PlayPlan).where((PlayPlan.slug == payload.slug) | (PlayPlan.name == payload.name))):
         raise HTTPException(status_code=409, detail="Play Plan name or slug already exists")
     data = payload.model_dump()
     credit = (data.pop("created_by_name", None) or "").strip()
+    last = db.scalar(select(func.max(PlayPlan.sort_order)))
     return commit_audited(
         db,
-        PlayPlan(**data, created_by_id=actor.id, created_by_label=credit or actor.display_name),
+        PlayPlan(**data, sort_order=0 if last is None else last + 1, created_by_id=actor.id, created_by_label=credit or actor.display_name),
         actor_id=actor.id,
         action="play_plan.created",
         resource_type="play_plan",
@@ -618,7 +948,7 @@ def create_plan(payload: PlayPlanCreate, actor: User = Depends(require_roles(Rol
 
 
 @router.patch("/play-plans/{plan_id}", response_model=PlayPlanRead)
-def update_plan(plan_id: str, payload: PlayPlanUpdate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def update_plan(plan_id: str, payload: PlayPlanUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     item = one_or_404(db, PlayPlan, plan_id)
     changes = payload.model_dump(exclude_unset=True)
     if "name" in changes or "slug" in changes:
@@ -645,12 +975,15 @@ def update_plan(plan_id: str, payload: PlayPlanUpdate, actor: User = Depends(req
 
 
 @router.post("/play-plans/{plan_id}/play-doses", response_model=PlayDoseRead, status_code=201)
-def create_dose(plan_id: str, payload: PlayDoseCreate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def create_dose(plan_id: str, payload: PlayDoseCreate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     one_or_404(db, PlayPlan, plan_id)
     if db.scalar(select(PlayDose).where(PlayDose.play_plan_id == plan_id, PlayDose.level == payload.level)):
         raise HTTPException(status_code=409, detail="This Play Plan already has a Play Dose at this level")
     data = payload.model_dump()
     credit = (data.pop("created_by_name", None) or "").strip()
+    # New doses join the end; admins reorder them afterwards.
+    last = db.scalar(select(func.max(PlayDose.sort_order)).where(PlayDose.play_plan_id == plan_id))
+    data["sort_order"] = 0 if last is None else last + 1
     return commit_audited(
         db,
         PlayDose(play_plan_id=plan_id, **data, created_by_id=actor.id, created_by_label=credit or actor.display_name),
@@ -662,7 +995,7 @@ def create_dose(plan_id: str, payload: PlayDoseCreate, actor: User = Depends(req
 
 
 @router.patch("/play-doses/{dose_id}", response_model=PlayDoseRead)
-def update_dose(dose_id: str, payload: PlayDoseUpdate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def update_dose(dose_id: str, payload: PlayDoseUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     item = one_or_404(db, PlayDose, dose_id)
     old_thumbnail_url = item.thumbnail_url
     changes = payload.model_dump(exclude_unset=True)
@@ -705,7 +1038,7 @@ def delete_dose(dose_id: str, actor: User = Depends(require_roles(Role.SUPER_ADM
 
 
 @router.post("/play-doses/{dose_id}/activities", response_model=ActivityRead, status_code=201)
-def create_activity(dose_id: str, payload: ActivityCreate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def create_activity(dose_id: str, payload: ActivityCreate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     one_or_404(db, PlayDose, dose_id)
     if db.scalar(
         select(Activity).where(Activity.play_dose_id == dose_id, Activity.sequence == payload.sequence)
@@ -722,7 +1055,7 @@ def create_activity(dose_id: str, payload: ActivityCreate, actor: User = Depends
 
 
 @router.patch("/activities/{activity_id}", response_model=ActivityRead)
-def update_activity(activity_id: str, payload: ActivityUpdate, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def update_activity(activity_id: str, payload: ActivityUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     item = one_or_404(db, Activity, activity_id)
     old_video_url = item.video_url
     values = payload.model_dump(exclude_unset=True)
@@ -769,7 +1102,7 @@ def delete_activity(activity_id: str, actor: User = Depends(require_roles(Role.S
 def list_children(_: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user = _
     query = select(Child).options(selectinload(Child.subscription), selectinload(Child.owner)).order_by(Child.name)
-    if user.role != Role.SUPER_ADMIN:
+    if not user.can("children", "progress"):
         if user.organisation_id and user.role == Role.ADMIN:
             query = query.where(Child.organisation_id == user.organisation_id)
         else:
@@ -778,7 +1111,7 @@ def list_children(_: User = Depends(get_current_user), db: Session = Depends(get
 
 
 @router.post("/children", response_model=ChildRead, status_code=201)
-def create_child(payload: ChildCreate, user: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN)), db: Session = Depends(get_db)):
+def create_child(payload: ChildCreate, user: User = Depends(require_permission("children", roles=(Role.ADMIN,))), db: Session = Depends(get_db)):
     data = payload.model_dump()
     if user.role == Role.ADMIN:
         if user.organisation_id:
@@ -808,9 +1141,9 @@ def create_child(payload: ChildCreate, user: User = Depends(require_roles(Role.S
 
 
 @router.patch("/children/{child_id}", response_model=ChildRead)
-def update_child(child_id: str, payload: ChildUpdate, user: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN)), db: Session = Depends(get_db)):
+def update_child(child_id: str, payload: ChildUpdate, user: User = Depends(require_permission("children", roles=(Role.ADMIN,))), db: Session = Depends(get_db)):
     child = one_or_404(db, Child, child_id); require_child_access(child, user)
-    if user.role != Role.SUPER_ADMIN and (payload.account_scope is not None or payload.organisation_id is not None):
+    if not user.is_platform and (payload.account_scope is not None or payload.organisation_id is not None):
         raise HTTPException(status_code=403, detail="Only a platform administrator can move a child between account scopes")
     changes = payload.model_dump(exclude_unset=True)
     proposed = {
@@ -836,11 +1169,14 @@ def update_child(child_id: str, payload: ChildUpdate, user: User = Depends(requi
 
 
 @router.put("/children/{child_id}/subscription", response_model=SubscriptionRead)
-def upsert_subscription(child_id: str, payload: SubscriptionUpsert, user: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN)), db: Session = Depends(get_db)):
-    child = one_or_404(db, Child, child_id); require_child_access(child, user)
+def upsert_subscription(child_id: str, payload: SubscriptionUpsert, user: User = Depends(require_permission("billing", roles=(Role.ADMIN,))), db: Session = Depends(get_db)):
+    child = one_or_404(db, Child, child_id)
+    # Billing staff manage any family's subscription without needing the Children area too.
+    if not user.can("billing"):
+        require_child_access(child, user)
     if (
         get_settings().environment == "production"
-        and user.role != Role.SUPER_ADMIN
+        and not user.is_platform
         and child.account_scope == AccountScope.INDIVIDUAL
     ):
         raise HTTPException(status_code=503, detail="Paid subscriptions must be activated by the payment provider")
@@ -875,9 +1211,10 @@ def create_billing_checkout(
         raise HTTPException(status_code=422, detail="Organisation children are billed by license")
     if user.role != Role.SUPER_ADMIN and child.owner_id != user.id and child.admin_id != user.id:
         raise HTTPException(status_code=403, detail="Only the family account owner can purchase this plan")
-    if child.subscription and child.subscription.status == SubscriptionStatus.ACTIVE and (
-        child.subscription.ends_on is None or child.subscription.ends_on >= date.today()
-    ):
+    current = child.subscription
+    if current and current.status == SubscriptionStatus.ACTIVE and (
+        current.ends_on is None or current.ends_on >= date.today()
+    ) and not current.renewal_open:
         raise HTTPException(status_code=409, detail="This child already has an active subscription")
     try:
         checkout = create_checkout(
@@ -917,6 +1254,16 @@ def refund_billing_payment(
         )
     except BillingError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if subscription.previous_ends_on and subscription.previous_ends_on >= date.today():
+        # Refunding a renewal: the child keeps the period that was already paid for.
+        # Nothing is left to refund or restore, so later refund webhooks must not touch it.
+        refund_id = subscription.stripe_refund_id
+        subscription.ends_on = subscription.previous_ends_on
+        subscription.previous_ends_on = None
+        subscription.stripe_payment_intent_id = None
+        subscription.stripe_refund_id = None
+        audit(db, user.id, "billing.renewal_refunded", "subscription", subscription.id, {"refund_id": refund_id})
+        return commit(db, subscription)
     subscription.status = SubscriptionStatus.CANCELLED
     subscription.ends_on = date.today()
     audit(db, user.id, "billing.refunded", "subscription", subscription.id)
@@ -975,7 +1322,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     if not child or not selected:
         logger.error("Stripe webhook has invalid metadata", extra={"child_id": child_id, "plan": plan})
         raise HTTPException(status_code=422, detail="Stripe metadata does not match a purchase")
-    if stripe_field(data, "currency") != "gbp" or stripe_field(data, "amount_total") != selected["amount"]:
+    if not paid_in_full(data, selected, stripe_field):
         raise HTTPException(status_code=422, detail="Stripe payment amount does not match the selected plan")
     session_id = stripe_field(data, "id")
     payment_intent_id = stripe_field(data, "payment_intent")
@@ -988,10 +1335,17 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         int(stripe_field(data, "created", datetime.now(timezone.utc).timestamp())),
         tz=timezone.utc,
     ).date()
+    # A renewal bought during the last days carries on from the current last day, so no paid day is lost.
+    renewing_from = (
+        subscription.ends_on
+        if subscription.status == SubscriptionStatus.ACTIVE and subscription.ends_on and subscription.ends_on >= paid_at
+        else None
+    )
     subscription.status = SubscriptionStatus.ACTIVE
     subscription.plan_name = plan
     subscription.started_on = paid_at
-    subscription.ends_on = add_months(paid_at, selected["months"])
+    subscription.ends_on = add_months(renewing_from or paid_at, selected["months"])
+    subscription.previous_ends_on = renewing_from
     subscription.stripe_checkout_session_id = session_id
     subscription.stripe_payment_intent_id = payment_intent_id
     subscription.stripe_customer_id = stripe_field(data, "customer")
@@ -1035,8 +1389,12 @@ def create_attempt(child_id: str, payload: AttemptCreate, user: User = Depends(r
     ):
         raise HTTPException(status_code=403, detail="An active subscription is required to log attempts")
     dose = one_or_404(db, PlayDose, payload.play_dose_id)
-    if not dose.is_active or not dose.play_plan.is_active:
-        raise HTTPException(status_code=409, detail="Attempts cannot be logged against inactive content")
+    if (
+        not dose.is_active
+        or not dose.play_plan.is_active
+        or dose.play_plan.publication_status != PlanPublicationStatus.PUBLISHED
+    ):
+        raise HTTPException(status_code=409, detail="Attempts can only be logged against published content")
     activity = one_or_404(db, Activity, payload.activity_id) if payload.activity_id else None
     if activity and activity.play_dose_id != dose.id: raise HTTPException(status_code=422, detail="Activity does not belong to Play Dose")
     if activity and not activity.is_loggable:
@@ -1082,7 +1440,7 @@ def get_progress(child_id: str, play_plan_id: str | None = Query(default=None), 
 
 
 @router.post("/play-doses/{dose_id}/thumbnail", response_model=PlayDoseRead)
-def upload_dose_thumbnail(dose_id: str, file: UploadFile = File(...), actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db), storage: StorageService = Depends(get_storage)):
+def upload_dose_thumbnail(dose_id: str, file: UploadFile = File(...), actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db), storage: StorageService = Depends(get_storage)):
     dose = one_or_404(db, PlayDose, dose_id)
     old_url = dose.thumbnail_url
     new_url = store_upload(file, "thumbnails", storage)
@@ -1099,7 +1457,7 @@ def upload_dose_thumbnail(dose_id: str, file: UploadFile = File(...), actor: Use
 
 
 @router.post("/activities/{activity_id}/video", response_model=ActivityRead)
-def upload_activity_video(activity_id: str, file: UploadFile = File(...), actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db), storage: StorageService = Depends(get_storage)):
+def upload_activity_video(activity_id: str, file: UploadFile = File(...), actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db), storage: StorageService = Depends(get_storage)):
     activity = one_or_404(db, Activity, activity_id)
     old_url = activity.video_url
     new_url = store_upload(file, "videos", storage)
@@ -1157,7 +1515,7 @@ def get_homepage_content(db: Session = Depends(get_db)):
 @router.put("/site-content/homepage", response_model=SiteContentRead)
 def save_homepage_content(
     payload: HomepageContent,
-    actor: User = Depends(require_roles(Role.SUPER_ADMIN)),
+    actor: User = Depends(require_permission("homepage")),
     db: Session = Depends(get_db),
 ):
     row = db.get(SiteContent, HOMEPAGE_KEY) or SiteContent(key=HOMEPAGE_KEY, content={})
@@ -1171,8 +1529,22 @@ def save_homepage_content(
     return _site_content_read(row)
 
 
+@router.post("/site-content/homepage/image")
+def upload_homepage_image(
+    file: UploadFile = File(...),
+    actor: User = Depends(require_permission("homepage")),
+    db: Session = Depends(get_db),
+    storage: StorageService = Depends(get_storage),
+):
+    """Stores a picture for the home page and returns its address; it goes live once the page is saved."""
+    url = store_upload(file, "homepage", storage)
+    audit(db, actor.id, "site_content.image_uploaded", "site_content", HOMEPAGE_KEY)
+    db.commit()
+    return {"url": url}
+
+
 @router.delete("/site-content/homepage", status_code=status.HTTP_204_NO_CONTENT)
-def reset_homepage_content(actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+def reset_homepage_content(actor: User = Depends(require_permission("homepage")), db: Session = Depends(get_db)):
     """Removes the saved copy so the landing page shows its built-in defaults again."""
     row = db.get(SiteContent, HOMEPAGE_KEY)
     if row:

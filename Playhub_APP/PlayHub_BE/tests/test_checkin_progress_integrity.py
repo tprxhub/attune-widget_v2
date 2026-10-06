@@ -86,9 +86,11 @@ def test_checkin_is_persisted_and_progress_is_calculated_from_authoritative_data
     assert summary["activities_completed"] == 1
     assert summary["average_completion_score"] == 3.33
     assert summary["average_mood_score"] == 4
-    assert summary["support_score"] == 56
+    # The Support Score belongs to a Play Dose's Day 1-5 and Real-Life Try; an activity without a
+    # day is still logged and counted above, but it is not a dose day, so there is no score yet.
+    assert summary["support_score"] is None
     assert summary["last_check_in"] == str(date.today() - timedelta(days=1))
-    assert summary["trend"] == "progress"
+    assert summary["trend"] == "insufficient_data"
     assert [point["source"] for point in summary["points"]] == [
         "daily_check_in",
         "daily_check_in",
@@ -164,15 +166,15 @@ def test_checkin_is_persisted_and_progress_is_calculated_from_authoritative_data
     assert expired.status_code == 403
 
 
-def test_recent_eight_attempts_drive_the_current_trend(client, platform_admin):
+def test_trend_comes_only_from_completed_doses_never_from_averaging_sessions(client, platform_admin):
     _, dose, _, activity, _ = create_catalog(client, platform_admin)
     child = client.post(
         "/api/v1/children",
         headers=platform_admin,
         json={"name": "Trend Child", "account_scope": "individual", "current_play_dose_id": dose["id"]},
     ).json()
-    # Old high scores must not mask a current decline.
-    scores = [5, 5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 3, 3, 2]
+    # Falling scores without a finished Real-Life Try are still one dose in progress.
+    scores = [5, 5, 5, 5, 4, 4, 3, 3, 2]
     start = date.today() - timedelta(days=len(scores))
     for index, score in enumerate(scores):
         assert client.post(
@@ -186,6 +188,6 @@ def test_recent_eight_attempts_drive_the_current_trend(client, platform_admin):
                 "mood_score": 3,
             },
         ).status_code == 201
-    assert client.get(
-        f"/api/v1/children/{child['id']}/progress", headers=platform_admin
-    ).json()["trend"] == "decline"
+    summary = client.get(f"/api/v1/children/{child['id']}/progress", headers=platform_admin).json()
+    assert summary["trend"] == "insufficient_data"
+    assert len(summary["weekly_points"]) == 1

@@ -25,6 +25,38 @@ class Role(str, enum.Enum):
     ADMIN = "admin"
     MODERATOR = "moderator"
     MEMBER = "member"
+    TTP_EMPLOYEE = "ttp_employee"
+
+
+# Pages a TTP employee can be allowed to use; the Overview page is always available to them.
+PERMISSION_KEYS = (
+    "children",
+    "progress",
+    "audit",
+    "plans",
+    "homepage",
+    "organisations",
+    "team",
+    # Family subscriptions: see revenue, grant or cancel a subscription by hand.
+    "billing",
+    # Which kinds of audit log entries the person may read. They also need "audit" for the page.
+    "audit_activity",
+    "audit_accounts",
+    "audit_content",
+    "audit_billing",
+    "audit_organisations",
+    "audit_system",
+)
+
+# Audit log categories and the action prefixes that belong to each. "system" is everything else.
+AUDIT_CATEGORY_PREFIXES = {
+    "activity": ("attempt.",),
+    "accounts": ("user.", "family.", "invitation."),
+    "content": ("play_", "activity.", "site_content."),
+    "billing": ("billing.", "subscription."),
+    "organisations": ("organisation.", "child."),
+}
+AUDIT_CATEGORIES = (*AUDIT_CATEGORY_PREFIXES, "system")
 
 
 class AccountScope(str, enum.Enum):
@@ -37,6 +69,14 @@ class PlanLevel(str, enum.Enum):
     ROOKIE = "rookie"
     STARTER = "starter"
     PRO = "pro"
+
+
+class PlanPublicationStatus(str, enum.Enum):
+    """How a Play Plan appears outside the content library."""
+
+    PUBLISHED = "published"
+    INVISIBLE = "invisible"
+    LOCKED = "locked"
 
 
 class ActivityKind(str, enum.Enum):
@@ -111,14 +151,29 @@ class User(TimestampMixin, Base):
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     google_subject: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
+    apple_subject: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
+    microsoft_subject: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(1000))
     avatar_sticker: Mapped[Optional[str]] = mapped_column(String(32))
     role: Mapped[Role] = mapped_column(Enum(Role), nullable=False, default=Role.MEMBER)
     account_scope: Mapped[AccountScope] = mapped_column(Enum(AccountScope), nullable=False)
     organisation_id: Mapped[Optional[str]] = mapped_column(ForeignKey("organisations.id", ondelete="SET NULL"), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Only used by TTP employees: the PERMISSION_KEYS they may use.
+    permissions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     organisation: Mapped[Optional[Organisation]] = relationship(back_populates="users")
+
+    @property
+    def is_platform(self) -> bool:
+        """Super Admins and TTP employees work on the whole platform rather than one organisation."""
+        return self.role in (Role.SUPER_ADMIN, Role.TTP_EMPLOYEE)
+
+    def can(self, *keys: str) -> bool:
+        """Super Admin may do everything; a TTP employee only what was ticked when they were added."""
+        if self.role == Role.SUPER_ADMIN:
+            return True
+        return self.role == Role.TTP_EMPLOYEE and any(key in (self.permissions or []) for key in keys)
     owned_children: Mapped[list[Child]] = relationship(foreign_keys="Child.owner_id", back_populates="owner")
     administered_children: Mapped[list[Child]] = relationship(foreign_keys="Child.admin_id", back_populates="admin")
     moderated_children: Mapped[list[Child]] = relationship(foreign_keys="Child.moderator_id", back_populates="moderator")
@@ -136,6 +191,11 @@ class PlayPlan(TimestampMixin, Base):
     icon: Mapped[Optional[str]] = mapped_column(String(64))
     colour: Mapped[Optional[str]] = mapped_column(String(24))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    publication_status: Mapped[PlanPublicationStatus] = mapped_column(
+        Enum(PlanPublicationStatus), default=PlanPublicationStatus.PUBLISHED, nullable=False
+    )
+    # Position in the library; lower comes first. Admins reorder plans from the Play Plans page.
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     # Free-text credit shown as "Created by"; an admin can set it to any person's full name.
     created_by_label: Mapped[Optional[str]] = mapped_column(String(120))
@@ -206,6 +266,8 @@ class Activity(TimestampMixin, Base):
     kind: Mapped[ActivityKind] = mapped_column(Enum(ActivityKind), default=ActivityKind.ACTIVITY, nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     instructions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    # The same steps with formatting (bold, headings, lists), as sanitised HTML; None for plain lists.
+    instructions_html: Mapped[Optional[str]] = mapped_column(Text)
     video_source_type: Mapped[Optional[VideoSourceType]] = mapped_column(Enum(VideoSourceType))
     video_url: Mapped[Optional[str]] = mapped_column(String(1000))
     duration_minutes: Mapped[Optional[int]] = mapped_column(Integer)
@@ -263,9 +325,8 @@ class Attempt(Base):
     completion_status: Mapped[CompletionStatus] = mapped_column(
         Enum(CompletionStatus), nullable=False, default=CompletionStatus.PARTLY
     )
-    help_level: Mapped[HelpLevel] = mapped_column(
-        Enum(HelpLevel), nullable=False, default=HelpLevel.FEW_REMINDERS
-    )
+    # Only asked when the child finished (completion_status FINISHED); empty otherwise.
+    help_level: Mapped[Optional[HelpLevel]] = mapped_column(Enum(HelpLevel), nullable=True)
     is_real_life_try: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     week_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     run_number: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
@@ -287,6 +348,9 @@ class Attempt(Base):
         return self.logged_by.display_name
 
 
+RENEWAL_WINDOW_DAYS = 14
+
+
 class Subscription(TimestampMixin, Base):
     __tablename__ = "subscriptions"
 
@@ -296,6 +360,8 @@ class Subscription(TimestampMixin, Base):
     plan_name: Mapped[Optional[str]] = mapped_column(String(100))
     started_on: Mapped[Optional[date]] = mapped_column(Date)
     ends_on: Mapped[Optional[date]] = mapped_column(Date)
+    # The last day before the latest renewal; a refund of that renewal falls back to it.
+    previous_ends_on: Mapped[Optional[date]] = mapped_column(Date)
     stripe_checkout_session_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
     stripe_payment_intent_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
     stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
@@ -306,6 +372,13 @@ class Subscription(TimestampMixin, Base):
     @property
     def payment_managed(self) -> bool:
         return bool(self.stripe_payment_intent_id)
+
+    @property
+    def renewal_open(self) -> bool:
+        """Families can renew during the last RENEWAL_WINDOW_DAYS days of a paid period."""
+        if self.status != SubscriptionStatus.ACTIVE or not self.ends_on:
+            return False
+        return 0 <= (self.ends_on - date.today()).days <= RENEWAL_WINDOW_DAYS
 
     @property
     def refundable_until(self) -> date | None:
@@ -331,6 +404,7 @@ class Invitation(TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     invited_by_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     accepted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    permissions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
 
 class AuditEvent(Base):
@@ -361,4 +435,17 @@ class StripeEvent(Base):
 
     id: Mapped[str] = mapped_column(String(255), primary_key=True)
     event_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class PasswordResetToken(Base):
+    """One-time password reset link. Only a hash of the token is stored."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -14,10 +14,12 @@ import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as CheckInRouteImport } from './routes/check-in'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PlayPulseRouteImport } from './routes/play-pulse'
 import { Route as ProgressRouteImport } from './routes/progress'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SubscriptionRouteImport } from './routes/subscription'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -28,6 +30,8 @@ import { Route as AdminHomepageRouteImport } from './routes/admin.homepage'
 import { Route as AdminOrgsRouteImport } from './routes/admin.orgs'
 import { Route as AdminPlansRouteImport } from './routes/admin.plans'
 import { Route as AdminProgressRouteImport } from './routes/admin.progress'
+import { Route as AdminTtpRouteImport } from './routes/admin.ttp'
+import { Route as AuthMicrosoftCallbackRouteImport } from './routes/auth.microsoft-callback'
 import { Route as OrgIndexRouteImport } from './routes/org.index'
 import { Route as OrgEnrollRouteImport } from './routes/org.enroll'
 import { Route as OrgSupportersRouteImport } from './routes/org.supporters'
@@ -62,6 +66,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InviteRoute = InviteRouteImport.update({
   id: '/invite',
   path: '/invite',
@@ -80,6 +89,11 @@ const PlayPulseRoute = PlayPulseRouteImport.update({
 const ProgressRoute = ProgressRouteImport.update({
   id: '/progress',
   path: '/progress',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -132,6 +146,16 @@ const AdminProgressRoute = AdminProgressRouteImport.update({
   path: '/admin/progress',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTtpRoute = AdminTtpRouteImport.update({
+  id: '/admin/ttp',
+  path: '/admin/ttp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthMicrosoftCallbackRoute = AuthMicrosoftCallbackRouteImport.update({
+  id: '/auth/microsoft-callback',
+  path: '/auth/microsoft-callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgIndexRoute = OrgIndexRouteImport.update({
   id: '/org/',
   path: '/org/',
@@ -179,10 +203,12 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/play-pulse': typeof PlayPulseRoute
   '/progress': typeof ProgressRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -192,6 +218,8 @@ export interface FileRoutesByFullPath {
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/progress': typeof AdminProgressRoute
+  '/admin/ttp': typeof AdminTtpRoute
+  '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
   '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
@@ -208,10 +236,12 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/play-pulse': typeof PlayPulseRoute
   '/progress': typeof ProgressRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -221,6 +251,8 @@ export interface FileRoutesByTo {
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/progress': typeof AdminProgressRoute
+  '/admin/ttp': typeof AdminTtpRoute
+  '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
   '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
@@ -238,10 +270,12 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/play-pulse': typeof PlayPulseRoute
   '/progress': typeof ProgressRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -251,6 +285,8 @@ export interface FileRoutesById {
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/progress': typeof AdminProgressRoute
+  '/admin/ttp': typeof AdminTtpRoute
+  '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
   '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
@@ -269,10 +305,12 @@ export interface FileRouteTypes {
     | '/account'
     | '/check-in'
     | '/dashboard'
+    | '/forgot-password'
     | '/invite'
     | '/login'
     | '/play-pulse'
     | '/progress'
+    | '/reset-password'
     | '/signup'
     | '/subscription'
     | '/admin/audit'
@@ -282,6 +320,8 @@ export interface FileRouteTypes {
     | '/admin/orgs'
     | '/admin/plans'
     | '/admin/progress'
+    | '/admin/ttp'
+    | '/auth/microsoft-callback'
     | '/org/enroll'
     | '/org/supporters'
     | '/policies/privacy-policy'
@@ -298,10 +338,12 @@ export interface FileRouteTypes {
     | '/account'
     | '/check-in'
     | '/dashboard'
+    | '/forgot-password'
     | '/invite'
     | '/login'
     | '/play-pulse'
     | '/progress'
+    | '/reset-password'
     | '/signup'
     | '/subscription'
     | '/admin/audit'
@@ -311,6 +353,8 @@ export interface FileRouteTypes {
     | '/admin/orgs'
     | '/admin/plans'
     | '/admin/progress'
+    | '/admin/ttp'
+    | '/auth/microsoft-callback'
     | '/org/enroll'
     | '/org/supporters'
     | '/policies/privacy-policy'
@@ -327,10 +371,12 @@ export interface FileRouteTypes {
     | '/account'
     | '/check-in'
     | '/dashboard'
+    | '/forgot-password'
     | '/invite'
     | '/login'
     | '/play-pulse'
     | '/progress'
+    | '/reset-password'
     | '/signup'
     | '/subscription'
     | '/admin/audit'
@@ -340,6 +386,8 @@ export interface FileRouteTypes {
     | '/admin/orgs'
     | '/admin/plans'
     | '/admin/progress'
+    | '/admin/ttp'
+    | '/auth/microsoft-callback'
     | '/org/enroll'
     | '/org/supporters'
     | '/policies/privacy-policy'
@@ -357,10 +405,12 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   CheckInRoute: typeof CheckInRoute
   DashboardRoute: typeof DashboardRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
   PlayPulseRoute: typeof PlayPulseRoute
   ProgressRoute: typeof ProgressRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   SubscriptionRoute: typeof SubscriptionRoute
   AdminAuditRoute: typeof AdminAuditRoute
@@ -370,6 +420,8 @@ export interface RootRouteChildren {
   AdminOrgsRoute: typeof AdminOrgsRoute
   AdminPlansRoute: typeof AdminPlansRoute
   AdminProgressRoute: typeof AdminProgressRoute
+  AdminTtpRoute: typeof AdminTtpRoute
+  AuthMicrosoftCallbackRoute: typeof AuthMicrosoftCallbackRoute
   OrgEnrollRoute: typeof OrgEnrollRoute
   OrgSupportersRoute: typeof OrgSupportersRoute
   PoliciesPrivacyPolicyRoute: typeof PoliciesPrivacyPolicyRoute
@@ -418,6 +470,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/invite': {
       id: '/invite'
       path: '/invite'
@@ -444,6 +503,13 @@ declare module '@tanstack/react-router' {
       path: '/progress'
       fullPath: '/progress'
       preLoaderRoute: typeof ProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -516,6 +582,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProgressRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/ttp': {
+      id: '/admin/ttp'
+      path: '/admin/ttp'
+      fullPath: '/admin/ttp'
+      preLoaderRoute: typeof AdminTtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/microsoft-callback': {
+      id: '/auth/microsoft-callback'
+      path: '/auth/microsoft-callback'
+      fullPath: '/auth/microsoft-callback'
+      preLoaderRoute: typeof AuthMicrosoftCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/org/': {
       id: '/org/'
       path: '/org'
@@ -581,10 +661,12 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   CheckInRoute: CheckInRoute,
   DashboardRoute: DashboardRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,
   PlayPulseRoute: PlayPulseRoute,
   ProgressRoute: ProgressRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   SubscriptionRoute: SubscriptionRoute,
   AdminAuditRoute: AdminAuditRoute,
@@ -594,6 +676,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminOrgsRoute: AdminOrgsRoute,
   AdminPlansRoute: AdminPlansRoute,
   AdminProgressRoute: AdminProgressRoute,
+  AdminTtpRoute: AdminTtpRoute,
+  AuthMicrosoftCallbackRoute: AuthMicrosoftCallbackRoute,
   OrgEnrollRoute: OrgEnrollRoute,
   OrgSupportersRoute: OrgSupportersRoute,
   PoliciesPrivacyPolicyRoute: PoliciesPrivacyPolicyRoute,

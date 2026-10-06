@@ -6,9 +6,11 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
+from app.rich_text import MAX_LENGTH as MAX_RICH_TEXT, clean_rich_text
 from app.models import (
-    AccountScope, ActivityKind, AttemptSource, CompletionStatus, HelpLevel, PlanLevel, Role,
-    InvitationStatus, SubscriptionStatus, VideoSourceType,
+    AccountScope, ActivityKind, AttemptSource, CompletionStatus, HelpLevel, PlanLevel,
+    PlanPublicationStatus, Role,
+    InvitationStatus, SubscriptionStatus, VideoSourceType, PERMISSION_KEYS,
 )
 
 
@@ -34,8 +36,33 @@ class GoogleLoginRequest(APIModel):
     credential: str = Field(min_length=100, max_length=10000)
 
 
+class GoogleFamilyRegistration(GoogleLoginRequest):
+    child_name: str = Field(min_length=1, max_length=120)
+    child_date_of_birth: date | None = None
+
+
+class SocialLoginRequest(APIModel):
+    """An Apple or Microsoft ID token, plus the name Apple hands the browser on first sign-in."""
+    credential: str = Field(min_length=100, max_length=10000)
+    name: str | None = Field(default=None, max_length=120)
+
+
+class SocialFamilyRegistration(SocialLoginRequest):
+    child_name: str = Field(min_length=1, max_length=120)
+    child_date_of_birth: date | None = None
+
+
 class PasswordChange(APIModel):
     current_password: str = Field(min_length=8, max_length=256)
+    new_password: str = Field(min_length=8, max_length=256)
+
+
+class PasswordForgot(APIModel):
+    email: str = Field(min_length=3, max_length=255)
+
+
+class PasswordReset(APIModel):
+    token: str = Field(min_length=20, max_length=200)
     new_password: str = Field(min_length=8, max_length=256)
 
 
@@ -91,12 +118,28 @@ class UserRead(APIModel):
     organisation_id: str | None
     is_active: bool
     created_at: datetime
+    permissions: list[str] = Field(default_factory=list)
+
+
+def _clean_permissions(value: list[str] | None) -> list[str] | None:
+    if value is None:
+        return None
+    unknown = sorted(set(value) - set(PERMISSION_KEYS))
+    if unknown:
+        raise ValueError(f"Unknown permissions: {', '.join(unknown)}")
+    return [key for key in PERMISSION_KEYS if key in value]
 
 
 class UserUpdate(APIModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=120)
     role: Role | None = None
     is_active: bool | None = None
+    permissions: list[str] | None = None
+
+    @field_validator("permissions")
+    @classmethod
+    def check_permissions(cls, value):
+        return _clean_permissions(value)
 
 
 class InvitationCreate(APIModel):
@@ -107,6 +150,12 @@ class InvitationCreate(APIModel):
     organisation_id: str | None = None
     child_id: str | None = None
     expires_in_days: int = Field(default=7, ge=1, le=30)
+    permissions: list[str] = Field(default_factory=list)
+
+    @field_validator("permissions")
+    @classmethod
+    def check_permissions(cls, value):
+        return _clean_permissions(value) or []
 
     @field_validator("email")
     @classmethod
@@ -125,6 +174,7 @@ class InvitationRead(APIModel):
     status: InvitationStatus
     expires_at: datetime
     created_at: datetime
+    permissions: list[str] = Field(default_factory=list)
 
 
 class InvitationCreated(InvitationRead):
@@ -136,6 +186,17 @@ class InvitationAccept(APIModel):
     token: str = Field(min_length=20, max_length=64)
     display_name: str | None = Field(default=None, min_length=1, max_length=120)
     password: str = Field(min_length=8, max_length=256)
+
+
+class AuditEventRead(APIModel):
+    id: str
+    actor_id: str | None
+    actor_name: str | None = None
+    action: str
+    resource_type: str
+    resource_id: str
+    metadata_json: dict
+    created_at: datetime
 
 
 class PersonaRead(APIModel):
@@ -177,11 +238,17 @@ class ActivityCreate(APIModel):
     kind: ActivityKind = ActivityKind.ACTIVITY
     title: str = Field(min_length=1, max_length=200)
     instructions: list[str] = Field(default_factory=list)
+    instructions_html: str | None = Field(default=None, max_length=MAX_RICH_TEXT)
     video_source_type: VideoSourceType | None = None
     video_url: str | None = Field(default=None, max_length=1000)
     duration_minutes: int | None = Field(default=None, ge=0, le=1440)
     is_loggable: bool = True
     is_real_life_try: bool = False
+
+    @field_validator("instructions_html")
+    @classmethod
+    def clean_html(cls, value: str | None) -> str | None:
+        return clean_rich_text(value)
 
     @model_validator(mode="after")
     def validate_video(self) -> "ActivityCreate":
@@ -196,11 +263,17 @@ class ActivityUpdate(APIModel):
     kind: ActivityKind | None = None
     title: str | None = Field(default=None, min_length=1, max_length=200)
     instructions: list[str] | None = None
+    instructions_html: str | None = Field(default=None, max_length=MAX_RICH_TEXT)
     video_source_type: VideoSourceType | None = None
     video_url: str | None = Field(default=None, max_length=1000)
     duration_minutes: int | None = Field(default=None, ge=0, le=1440)
     is_loggable: bool | None = None
     is_real_life_try: bool | None = None
+
+    @field_validator("instructions_html")
+    @classmethod
+    def clean_html(cls, value: str | None) -> str | None:
+        return clean_rich_text(value)
 
 
 class ActivityRead(APIModel):
@@ -211,6 +284,7 @@ class ActivityRead(APIModel):
     kind: ActivityKind
     title: str
     instructions: list[str]
+    instructions_html: str | None = None
     video_source_type: VideoSourceType | None
     video_url: str | None
     duration_minutes: int | None
@@ -265,7 +339,14 @@ class PlayPlanCreate(APIModel):
     icon: str | None = Field(default=None, max_length=64)
     colour: str | None = Field(default=None, max_length=24)
     is_active: bool = True
+    publication_status: PlanPublicationStatus = PlanPublicationStatus.PUBLISHED
     created_by_name: str | None = Field(default=None, max_length=120)
+
+
+class OrderUpdate(APIModel):
+    """Every id in the list, in the order they should appear."""
+
+    ids: list[str] = Field(min_length=1, max_length=500)
 
 
 class PlayPlanUpdate(APIModel):
@@ -276,6 +357,7 @@ class PlayPlanUpdate(APIModel):
     icon: str | None = Field(default=None, max_length=64)
     colour: str | None = Field(default=None, max_length=24)
     is_active: bool | None = None
+    publication_status: PlanPublicationStatus | None = None
     created_by_name: str | None = Field(default=None, max_length=120)
 
 
@@ -288,6 +370,8 @@ class PlayPlanRead(APIModel):
     icon: str | None
     colour: str | None
     is_active: bool
+    publication_status: PlanPublicationStatus = PlanPublicationStatus.PUBLISHED
+    sort_order: int = 0
     created_by_name: str | None = None
     play_doses: list[PlayDoseRead] = Field(default_factory=list)
 
@@ -339,6 +423,7 @@ class SubscriptionRead(APIModel):
     ends_on: date | None
     payment_managed: bool = False
     refundable_until: date | None = None
+    renewal_open: bool = False
 
 
 class CheckoutCreate(APIModel):
@@ -406,16 +491,20 @@ class AttemptCreate(APIModel):
 
     @model_validator(mode="after")
     def normalise_daily_check(self) -> "AttemptCreate":
+        """A session either finished (once, within 15 minutes) or it did not.
+
+        Help is only asked, and only kept, when it finished. Older clients may still send
+        "partly", which now counts as not finished.
+        """
         if self.completion_status is None:
             if self.completion_score is None:
-                raise ValueError("Choose whether the activity was finished, partly finished or stopped early")
-            self.completion_status = (
-                CompletionStatus.FINISHED
-                if self.completion_score >= 4
-                else CompletionStatus.PARTLY
-                if self.completion_score == 3
-                else CompletionStatus.STOPPED_EARLY
-            )
+                raise ValueError("Choose whether the child finished the activity")
+            self.completion_status = CompletionStatus.FINISHED if self.completion_score >= 2 else CompletionStatus.STOPPED_EARLY
+        if self.completion_status != CompletionStatus.FINISHED:
+            self.completion_status = CompletionStatus.STOPPED_EARLY
+            self.help_level = None
+            self.completion_score = 1
+            return self
         if self.help_level is None:
             if self.completion_score is None:
                 raise ValueError("Choose how much help was needed")
@@ -428,19 +517,12 @@ class AttemptCreate(APIModel):
                 if self.completion_score == 3
                 else HelpLevel.HANDS_ON
             )
-        if self.completion_score is None:
-            status_base = {
-                CompletionStatus.FINISHED: 5,
-                CompletionStatus.PARTLY: 3,
-                CompletionStatus.STOPPED_EARLY: 1,
-            }[self.completion_status]
-            help_cap = {
-                HelpLevel.INDEPENDENT: 5,
-                HelpLevel.ONE_REMINDER: 4,
-                HelpLevel.FEW_REMINDERS: 3,
-                HelpLevel.HANDS_ON: 2,
-            }[self.help_level]
-            self.completion_score = min(status_base, help_cap)
+        self.completion_score = {
+            HelpLevel.INDEPENDENT: 5,
+            HelpLevel.ONE_REMINDER: 4,
+            HelpLevel.FEW_REMINDERS: 3,
+            HelpLevel.HANDS_ON: 2,
+        }[self.help_level]
         return self
 
     @field_validator("occurred_on")
@@ -460,7 +542,7 @@ class AttemptRead(APIModel):
     occurred_on: date
     completion_score: int
     completion_status: CompletionStatus
-    help_level: HelpLevel
+    help_level: HelpLevel | None
     is_real_life_try: bool
     week_number: int
     run_number: int
@@ -484,6 +566,19 @@ class ProgressPoint(APIModel):
     source: AttemptSource
 
 
+class ProgressDay(APIModel):
+    """One logged day inside a Play Dose: Day 1-5 (`day`) or the Real-Life Try (`is_try`)."""
+
+    day: int | None = None
+    is_try: bool = False
+    occurred_on: date
+    finished: bool
+    help_level: HelpLevel | None = None
+    score: int | None = None
+    mood: int | None = None
+    try_passed: bool | None = None
+
+
 class WeeklyProgressPoint(APIModel):
     week_number: int
     week_start: date
@@ -491,13 +586,18 @@ class WeeklyProgressPoint(APIModel):
     play_plan_id: str
     play_dose_id: str
     level: PlanLevel
-    support_score: int | None
+    support_score: float | None
     average_mood: float | None
     finished_count: int
     kit_sessions_logged: int
     real_life_try_passed: bool
     passed: bool
+    # True once the Real-Life Try day is finished; until then the dose is in progress and has no verdict.
+    complete: bool = False
     consult_suggested: bool = False
+    # Insight scenario for a completed dose: first | settling | consult | progressing | steady.
+    scenario: Literal["first", "settling", "consult", "progressing", "steady"] | None = None
+    days: list[ProgressDay] = Field(default_factory=list)
 
 
 class ProgressSummary(APIModel):
@@ -507,13 +607,14 @@ class ProgressSummary(APIModel):
     activities_completed: int
     average_completion_score: float | None
     average_mood_score: float | None
-    support_score: int | None
+    support_score: float | None
     last_check_in: date | None
     trend: Literal["progress", "plateau", "decline", "insufficient_data"]
     points: list[ProgressPoint]
     headline_status: Literal[
-        "progressing", "holding_steady", "needs_check_in", "settling_in", "insufficient_data"
+        "first_dose", "progressing", "holding_steady", "needs_check_in", "settling_in", "insufficient_data"
     ] = "insufficient_data"
+    current_play_plan_id: str | None = None
     fast_track_offered: bool = False
     move_down_offered: bool = False
     reminder_due: bool = False

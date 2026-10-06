@@ -73,10 +73,11 @@ and assignments, subscription enforcement, Check-In validation, authoritative pr
 invitations, catalog management, uploads, audit events, and storage behavior. The frontend's
 `bun run test:e2e` adds browser-level verification against an isolated seeded instance of this API.
 
-Progress is calculated from append-only Attempts. The trend uses the latest eight Completion
-Scores; at least three Attempts are required. Support Score is a 0–100 normalized blend of recent
-Completion (70%) and Mood (30%). `check_in_count`, distinct activities, last Check-In, and the
-individual chart points all come from the backend response so every client uses the same result.
+Progress is calculated from append-only Attempts. The summary Support Score is the most recent
+session's help level: independent is 0, one reminder is 33, a few reminders is 67, and hands-on
+help is 100. Weekly chart points continue to average those values across the week's kit sessions.
+`check_in_count`, distinct activities, last Check-In, and the individual chart points all come from
+the backend response so every client uses the same result.
 
 Use PostgreSQL through `DATABASE_URL` in hosted environments, change `JWT_SECRET`, and run `alembic upgrade head`. Local upload storage is intentionally for development only; use object storage before production.
 

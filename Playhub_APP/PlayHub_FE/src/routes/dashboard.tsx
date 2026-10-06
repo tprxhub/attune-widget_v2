@@ -141,65 +141,68 @@ function ChildDashboard() {
         }
       />
 
-      {/* Play Hub Summary */}
-      <section className="ph-card mt-5 p-5">
-        <p className="eyebrow text-blue">Play Hub Summary</p>
-        <div className="mt-3 flex flex-wrap items-center gap-4">
-          <StatusIcon status={report?.status ?? "no_data"} size="lg" />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-lg font-bold">{activeChild.name}</p>
-              <StatusBadge status={report?.status ?? "no_data"} size="sm" />
-            </div>
-            <p className="mt-2 text-sm text-navy/60">
-              {report?.lastCheckIn
-                ? `Last check-in ${fmtDate(report.lastCheckIn)}`
-                : "No check-ins yet"}
-            </p>
-            <p className="text-sm text-navy/60">
-              {report?.totalSessions ?? 0} sessions · {report?.activitiesCompleted ?? 0} Activities
-              completed
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Today's Play Dose */}
-      <section className="ph-card mt-4 p-5">
-        {today && plan ? (
-          <LockedOverlay locked={!today.entitled}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="eyebrow text-blue">Today's Play Dose</p>
-                <h2 className="mt-2.5 text-lg leading-snug font-bold">{today.entry.title}</h2>
-                <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                  <LevelDots level={plan.level} />
-                  <span className="text-sm text-navy/60">{goal?.name}</span>
-                </div>
+      <div className="isolate mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        {/* Play Hub Summary */}
+        <section className="ph-card relative z-0 h-full p-5 hover:z-20 focus-within:z-20">
+          <p className="eyebrow text-blue">Play Hub Summary</p>
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            <StatusIcon status={report?.status ?? "no_data"} size="lg" />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-lg font-bold">{activeChild.name}</p>
+                <StatusBadge status={report?.status ?? "no_data"} size="sm" />
               </div>
-              <Link
-                to="/plans/$planId/$entryId"
-                params={{ planId: plan.id, entryId: today.entry.id }}
-                className="inline-flex min-h-12 items-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white shadow-[var(--shadow-card)] transition-transform active:scale-[0.98]"
-              >
-                <PlayCircle className="h-5 w-5" aria-hidden /> Start Now
-              </Link>
-            </div>
-            <div className="mt-4 rounded-2xl border-l-4 border-coral bg-cream p-4">
-              <p className="text-[10.5px] font-bold tracking-[0.05em] text-coral uppercase">
-                Next step
+              <p className="mt-2 text-sm text-navy/60">
+                {report?.lastCheckIn
+                  ? `Last check-in ${fmtDate(report.lastCheckIn)}`
+                  : "No check-ins yet"}
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-navy/85">
-                {report?.narrative ?? "Run today's Play Dose and log the Session while it's fresh."}
+              <p className="text-sm text-navy/60">
+                {report?.totalSessions ?? 0} sessions · {report?.activitiesCompleted ?? 0}{" "}
+                Activities completed
               </p>
             </div>
-          </LockedOverlay>
-        ) : (
-          <div className="py-6 text-center text-sm text-navy/65">
-            Nothing scheduled today — the week is complete.
           </div>
-        )}
-      </section>
+        </section>
+
+        {/* Today's Play Dose */}
+        <section className="ph-card relative z-0 h-full p-5">
+          {today && plan ? (
+            <LockedOverlay locked={!today.entitled}>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="eyebrow text-blue">Today's Play Dose</p>
+                  <h2 className="mt-2.5 text-lg leading-snug font-bold">{today.entry.title}</h2>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                    <LevelDots level={plan.level} />
+                    <span className="text-sm text-navy/60">{goal?.name}</span>
+                  </div>
+                </div>
+                <Link
+                  to="/plans/$planId/$entryId"
+                  params={{ planId: plan.id, entryId: today.entry.id }}
+                  className="inline-flex min-h-12 items-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white shadow-[var(--shadow-card)] transition-transform active:scale-[0.98]"
+                >
+                  <PlayCircle className="h-5 w-5" aria-hidden /> Start Now
+                </Link>
+              </div>
+              <div className="mt-4 rounded-2xl border-l-4 border-coral bg-cream p-4">
+                <p className="text-[10.5px] font-bold tracking-[0.05em] text-coral uppercase">
+                  Next step
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-navy/85">
+                  {report?.narrative ??
+                    "Run today's Play Dose and log the Session while it's fresh."}
+                </p>
+              </div>
+            </LockedOverlay>
+          ) : (
+            <div className="py-6 text-center text-sm text-navy/65">
+              Nothing scheduled today — the week is complete.
+            </div>
+          )}
+        </section>
+      </div>
 
       {/* Featured Play Plans */}
       <section className="mt-8">
@@ -254,8 +257,8 @@ function ChildDashboard() {
             <p className="eyebrow text-coral">Free plan</p>
             <h2 className="mt-1 text-lg font-bold">Unlock the whole week for {activeChild.name}</h2>
             <p className="mt-1 text-sm text-navy/70">
-              You have the Introduction and the Day 0 Play Dose. Subscribe per child to unlock all
-              five Play Doses, both Redo Days and Session logging.
+              You have the Introduction and first Activity. Subscribe per child to unlock all five
+              Activities, the Real Life Try, Level-Up Prompt and Session logging.
             </p>
           </div>
           <Link

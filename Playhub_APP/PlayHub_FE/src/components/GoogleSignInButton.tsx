@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface GoogleCredentialResponse {
   credential: string;
@@ -27,7 +28,7 @@ export function GoogleSignInButton({
   disabled,
 }: {
   onCredential: (credential: string) => void;
-  disabled?: boolean;
+  disabled?: boolean | undefined;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const callback = useRef(onCredential);
@@ -77,5 +78,10 @@ export function GoogleSignInButton({
   if (loadError) {
     return <p className="text-center text-xs text-coral">Google sign-in could not load.</p>;
   }
-  return <div ref={container} className={disabled ? "pointer-events-none opacity-50" : ""} />;
+  return (
+    <div
+      ref={container}
+      className={cn("flex w-full justify-center", disabled && "pointer-events-none opacity-50")}
+    />
+  );
 }

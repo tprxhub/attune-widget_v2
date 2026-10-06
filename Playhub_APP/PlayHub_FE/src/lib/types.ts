@@ -1,13 +1,33 @@
-export type Role = "super_admin" | "educator" | "supporter" | "parent" | "anonymous";
+export type Role =
+  "super_admin" | "ttp_employee" | "educator" | "supporter" | "parent" | "anonymous";
+
+/** Pages a TTP employee can be allowed to use (their Overview is always available). */
+export type PermissionKey =
+  | "children"
+  | "progress"
+  | "audit"
+  | "plans"
+  | "homepage"
+  | "organisations"
+  | "team"
+  | "billing"
+  | "audit_activity"
+  | "audit_accounts"
+  | "audit_content"
+  | "audit_billing"
+  | "audit_organisations"
+  | "audit_system";
 export type AccountType = "b2c" | "b2b" | "platform" | "none";
 export type Tier = "free" | "subscribed" | "org" | "none";
 
 export type Level = "Rookie" | "Starter" | "Pro";
 export const LEVELS: Level[] = ["Rookie", "Starter", "Pro"];
 
+/** Mirrors the insight scenario of the latest completed Play Dose (Play Progress Logic Spec). */
 export type StatusKey =
-  "progressing" | "holding_steady" | "needs_check_in" | "settling_in" | "no_data";
-export type CompletionStatus = "finished" | "partly" | "stopped_early";
+  "first_dose" | "progressing" | "holding_steady" | "needs_check_in" | "settling_in" | "no_data";
+export type InsightScenario = "first" | "settling" | "consult" | "progressing" | "steady";
+export type CompletionStatus = "finished" | "stopped_early";
 export type HelpLevel = "hands_on" | "few_reminders" | "one_reminder" | "independent";
 export type AvatarSticker =
   "bunny" | "bear" | "fox" | "owl" | "elephant" | "cat" | "turtle" | "duck";
@@ -28,6 +48,8 @@ export interface Session {
   orgId?: string | undefined;
   childIds: string[];
   homePath: string;
+  /** For TTP employees: the pages they were given access to. */
+  permissions?: PermissionKey[] | undefined;
 }
 
 export interface Goal {
@@ -40,6 +62,7 @@ export interface Goal {
   blurb: string;
   /** Full name of the person who created this Play Plan; absent for built-in plans. */
   createdBy?: string | undefined;
+  publicationStatus?: "published" | "invisible" | "locked" | undefined;
 }
 
 export type EntryKind = "intro" | "dose" | "redo" | "levelup";
@@ -50,6 +73,8 @@ export interface PlanActivity {
   name: string;
   minutes: number;
   instructions: string[];
+  /** The same steps with formatting from the admin editor (sanitised HTML from the API). */
+  instructionsHtml?: string | undefined;
   /** Title shown on the video player for this activity. */
   videoLabel: string;
   /** Link to the demo video (MP4/YouTube/Vimeo). Empty until a video is uploaded. */
@@ -91,6 +116,7 @@ export interface PlayPlan {
   safetyNote?: string | undefined;
   /** Full name of the person who created this Play Dose; absent for built-in content. */
   createdBy?: string | undefined;
+  publicationStatus?: "published" | "invisible" | "locked" | undefined;
   entries: PlanEntry[];
 }
 
@@ -122,8 +148,10 @@ export interface Attempt {
   createdAt: string;
   completion: number;
   completionStatus: CompletionStatus;
-  helpLevel: HelpLevel;
-  supportScore: 0 | 33 | 67 | 100;
+  /** Only recorded when the child finished. */
+  helpLevel: HelpLevel | null;
+  /** Null when the child did not finish: the session has no score. */
+  supportScore: 0 | 33 | 67 | 100 | null;
   isRealLifeTry: boolean;
   weekNumber: number;
   runNumber: number;
@@ -144,6 +172,8 @@ export interface Subscription {
   expiresAt: string | null;
   refundWindowEndsAt: string | null;
   priceLabel: string | null;
+  /** True during the last days of a paid period, when the family can renew early. */
+  renewalOpen: boolean;
 }
 
 export interface Org {
@@ -184,15 +214,35 @@ export interface ProgressPoint {
   kitSessionsLogged: number;
   realLifeTryPassed: boolean;
   passed: boolean;
+  /** The Real-Life Try day is finished; until then the dose has no verdict. */
+  complete: boolean;
   consultSuggested: boolean;
+  /** Insight scenario, set by the API once the dose is complete. */
+  scenario: InsightScenario | null;
+  days: ProgressDay[];
+}
+
+/** One logged day inside a Play Dose: Day 1-5, or the Real-Life Try. */
+export interface ProgressDay {
+  day: number | null;
+  isTry: boolean;
+  date: string;
+  finished: boolean;
+  helpLevel: HelpLevel | null;
+  score: number | null;
+  mood: number | null;
+  tryPassed: boolean | null;
 }
 
 export interface ProgressReport {
   childId: string;
   status: StatusKey;
+  /** The Play Plan the child is working on now (their latest session's plan). */
+  currentPlanId: string | null;
   headline: string;
   narrative: string;
   lastCheckIn: string | null;
+  latestSessionDate: string | null;
   totalSessions: number;
   checkInCount: number;
   activitiesCompleted: number;

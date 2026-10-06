@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { isPlatformRole } from "@/lib/roles";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, UserPlus } from "lucide-react";
 import { createChild } from "@/api/children";
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/org/enroll")({
     ],
   }),
   component: () => (
-    <Protected roles={["educator", "super_admin"]}>
+    <Protected roles={["educator", "super_admin", "ttp_employee"]} permission="children">
       <EnrolPage />
     </Protected>
   ),
@@ -43,7 +44,7 @@ const LEVELS: Level[] = ["Rookie", "Starter", "Pro"];
 function EnrolPage() {
   const { session } = useSession();
   const navigate = useNavigate();
-  const isAdmin = session.role === "super_admin";
+  const isAdmin = isPlatformRole(session.role);
   const goals = useQuery({ queryKey: ["goals"], queryFn: listGoals });
   const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
   const org = useQuery({
@@ -74,6 +75,15 @@ function EnrolPage() {
   const educatorOptions = (staff.data ?? []).filter(
     (s) => s.role === "educator" && (!adminOrgId || s.orgId === adminOrgId),
   );
+
+  // Picking an organisation fills in its Admin. With none yet, enrolling is replaced by a way to create one.
+  const needsAdmin = isAdmin && !!adminOrgId && !staff.isLoading && educatorOptions.length === 0;
+  useEffect(() => {
+    if (!isAdmin || !adminOrgId) return;
+    if (educatorOptions.length && !educatorOptions.some((s) => s.id === adminEducatorId)) {
+      setAdminEducatorId(educatorOptions[0]!.id);
+    }
+  }, [isAdmin, adminOrgId, educatorOptions, adminEducatorId]);
 
   const enrol = useMutation({
     mutationFn: async () => {
@@ -176,10 +186,13 @@ function EnrolPage() {
                   id="enrol-educator"
                   value={adminEducatorId}
                   onChange={setAdminEducatorId}
-                  options={[
-                    { value: "", label: "Not assigned" },
-                    ...educatorOptions.map((s) => ({ value: s.id, label: s.name })),
-                  ]}
+                  options={
+                    adminOrgId
+                      ? educatorOptions.length
+                        ? educatorOptions.map((s) => ({ value: s.id, label: s.name }))
+                        : [{ value: "", label: staff.isLoading ? "Loading…" : "No Admin yet" }]
+                      : [{ value: "", label: "Not assigned" }]
+                  }
                   className="mt-2 min-h-13"
                 />
               </div>
@@ -252,18 +265,33 @@ function EnrolPage() {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={enrol.isPending || enrol.isSuccess}
-            className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white disabled:opacity-60 sm:w-auto"
-          >
-            {enrol.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <UserPlus className="h-4 w-4" aria-hidden />
-            )}
-            Enrol child
-          </button>
+          {needsAdmin ? (
+            <div role="status" className="rounded-2xl border border-amber/60 bg-amber/15 p-4">
+              <p className="text-sm font-bold">This organisation has no Admin yet</p>
+              <p className="mt-1 text-xs text-navy/70">
+                Create its Admin first. Children are enrolled by an organisation&apos;s Admin.
+              </p>
+              <Link
+                to="/admin/educators"
+                className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white"
+              >
+                <UserPlus className="h-4 w-4" aria-hidden /> Create Admin
+              </Link>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={enrol.isPending || enrol.isSuccess}
+              className="flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white disabled:opacity-60 sm:w-auto"
+            >
+              {enrol.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <UserPlus className="h-4 w-4" aria-hidden />
+              )}
+              Enrol child
+            </button>
+          )}
 
           {enrol.isSuccess && (
             <p

@@ -229,3 +229,26 @@ def test_saving_and_resetting_are_audited(client, platform_admin):
 
     assert "site_content.updated" in actions
     assert "site_content.reset" in actions
+
+
+def test_admin_can_upload_a_homepage_picture(client, platform_admin):
+    png = ("hero.png", b"\x89PNG\r\n\x1a\nplayhub-hero", "image/png")
+    assert client.post(f"{URL}/image", files={"file": png}).status_code == 401
+    uploaded = client.post(f"{URL}/image", headers=platform_admin, files={"file": png})
+    assert uploaded.status_code == 200
+    url = uploaded.json()["url"]
+    assert "/uploads/media/homepage/" in url
+    assert client.get(url).status_code == 200
+    bad = client.post(f"{URL}/image", headers=platform_admin, files={"file": ("x.gif", b"GIF89a", "image/gif")})
+    assert bad.status_code == 415
+
+
+def test_super_admin_can_change_licenses_but_not_below_children_in_use(client, platform_admin):
+    org = client.post("/api/v1/organisations", headers=platform_admin, json={"name": "Licence Org", "kind": "school", "seat_limit": 5}).json()
+    for name in ("A", "B"):
+        made = client.post("/api/v1/children", headers=platform_admin, json={"name": name, "account_scope": "organisation", "organisation_id": org["id"]})
+        assert made.status_code == 201, made.text
+    up = client.patch(f"/api/v1/organisations/{org['id']}", headers=platform_admin, json={"seat_limit": 10})
+    assert up.status_code == 200 and up.json()["seat_limit"] == 10
+    assert client.patch(f"/api/v1/organisations/{org['id']}", headers=platform_admin, json={"seat_limit": 1}).status_code == 409
+    assert client.patch(f"/api/v1/organisations/{org['id']}", headers=platform_admin, json={"seat_limit": 2}).status_code == 200

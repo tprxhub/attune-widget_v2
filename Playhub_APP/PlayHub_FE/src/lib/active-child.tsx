@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { hasPermission } from "@/lib/roles";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Check, ChevronDown, Plus, Users } from "lucide-react";
@@ -10,6 +11,7 @@ import { FloatingPanel } from "@/components/FloatingPanel";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { activeChildSelected, selectActiveChildOverride } from "@/store/active-child-slice";
+import { NAVIGATION_TOUR_CHILD_MENU_EVENT } from "@/features/guide/navigation-tour-events";
 
 /** Dashboard-only choice for school admins: show every child instead of one. */
 export const ALL_CHILDREN = "all";
@@ -55,13 +57,21 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // Only school admins and platform admins may enrol children (the API enforces the same).
-  const canAddMember = session.role === "educator" || session.role === "super_admin";
+  const canAddMember = session.role === "educator" || hasPermission(session, "children");
   // School admins see every child at once on the dashboard.
   const showingAll =
     session.role === "educator" &&
     pathname === "/dashboard" &&
     (override === undefined || override === ALL_CHILDREN);
   const allowAll = session.role === "educator" && pathname === "/dashboard";
+
+  useEffect(() => {
+    const onTourMenu = (event: Event) => {
+      setOpen((event as CustomEvent<boolean>).detail);
+    };
+    window.addEventListener(NAVIGATION_TOUR_CHILD_MENU_EVENT, onTourMenu);
+    return () => window.removeEventListener(NAVIGATION_TOUR_CHILD_MENU_EVENT, onTourMenu);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +96,7 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
     <div ref={boxRef} className={cn("relative", className)}>
       <button
         ref={triggerRef}
+        data-tour-target="child-switcher"
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
@@ -183,6 +194,7 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
           {canAddMember && (
             <Link
               to="/org/enroll"
+              data-tour-target="add-child"
               onClick={() => setOpen(false)}
               className="mt-1 flex w-full items-center gap-2 rounded-xl border-t border-navy/8 px-2 py-2.5 text-left text-sm font-bold text-coral transition-colors hover:bg-coral/8"
             >

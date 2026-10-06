@@ -3,7 +3,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import loginArt from "@/assets/login-art.jpg";
 import { useSession } from "@/auth/session";
+import { GuestOnly } from "@/auth/guards";
 import { AuthLayout, authButton, authInput, authLabel } from "@/components/AuthLayout";
+import { PolicyModal } from "@/features/policies/PolicyModal";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/signup")({
@@ -24,7 +26,11 @@ export const Route = createFileRoute("/signup")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: SignupPage,
+  component: () => (
+    <GuestOnly>
+      <SignupPage />
+    </GuestOnly>
+  ),
 });
 
 function SignupPage() {
@@ -36,6 +42,7 @@ function SignupPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [policyOpen, setPolicyOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -75,7 +82,14 @@ function SignupPage() {
     if (password.length < 8) next["password"] = "Use at least 8 characters.";
     if (!agreed) next["agreed"] = "Please accept the Terms & Conditions.";
     setErrors(next);
-    if (Object.keys(next).length) return;
+    const firstInvalid = Object.keys(next)[0];
+    if (firstInvalid) {
+      // The first problem may be scrolled out of view; take the person to it.
+      const field = document.getElementById(firstInvalid);
+      field?.scrollIntoView({ behavior: "smooth", block: "center" });
+      field?.focus({ preventScroll: true });
+      return;
+    }
     await finish();
   };
 
@@ -236,23 +250,10 @@ function SignupPage() {
           )}
         </div>
 
-        <button type="submit" disabled={pending || !mounted} className={cn(authButton, "mt-2")}>
-          {pending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
-          Create Account
-        </button>
-
-        {errors["form"] && (
-          <p
-            role="alert"
-            className="rounded-2xl bg-coral/10 px-4 py-3 text-sm font-semibold text-coral"
-          >
-            {errors["form"]}
-          </p>
-        )}
-
         <div>
           <label className="flex cursor-pointer items-center gap-3 text-sm text-navy">
             <input
+              id="agreed"
               type="checkbox"
               disabled={!mounted || pending}
               checked={agreed}
@@ -270,14 +271,47 @@ function SignupPage() {
             </span>
             <span>
               I agree to the{" "}
-              <span className="font-bold underline underline-offset-4">Terms &amp; Condition</span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  // Inside the label: open the terms without ticking the box.
+                  event.preventDefault();
+                  setPolicyOpen(true);
+                }}
+                className="font-bold underline underline-offset-4 hover:text-blue"
+              >
+                Terms &amp; Condition
+              </button>
             </span>
           </label>
           {errors["agreed"] && (
             <p className="mt-1 text-xs font-semibold text-coral">{errors["agreed"]}</p>
           )}
         </div>
+
+        <button type="submit" disabled={pending || !mounted} className={cn(authButton, "mt-2")}>
+          {pending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
+          Create Account
+        </button>
+
+        {errors["form"] && (
+          <p
+            role="alert"
+            className="rounded-2xl bg-coral/10 px-4 py-3 text-sm font-semibold text-coral"
+          >
+            {errors["form"]}
+          </p>
+        )}
       </form>
+      {policyOpen && (
+        <PolicyModal
+          onClose={() => setPolicyOpen(false)}
+          onAgree={() => {
+            setAgreed(true);
+            setErrors(({ agreed: _ignored, ...rest }) => rest);
+          }}
+        />
+      )}
     </AuthLayout>
   );
 }

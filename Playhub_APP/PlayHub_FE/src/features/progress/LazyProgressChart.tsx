@@ -1,14 +1,14 @@
 import { lazy, Suspense, type ComponentProps } from "react";
 
-// recharts is ~400 kB; keep it out of the route chunks until a chart is actually shown.
-const ProgressChartImpl = lazy(() =>
-  import("./ProgressChart").then((m) => ({ default: m.ProgressChart })),
+const PlayProgressImpl = lazy(() =>
+  import("./PlayProgress").then((m) => ({ default: m.PlayProgress })),
 );
 
-export function ProgressChart(props: ComponentProps<typeof ProgressChartImpl>) {
+/** Same props as `PlayProgress`; loaded only when a chart is shown. */
+export function ProgressChart(props: ComponentProps<typeof PlayProgressImpl>) {
   return (
     <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-navy/5" aria-hidden />}>
-      <ProgressChartImpl {...props} />
+      <PlayProgressImpl {...props} />
     </Suspense>
   );
 }
