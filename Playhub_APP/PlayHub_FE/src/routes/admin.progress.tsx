@@ -17,11 +17,11 @@ import {
   type AdminProgressGroup,
   type AdminProgressRow,
 } from "@/api/admin-progress";
+import { planById } from "@/api/domain";
 import { STATUS_META } from "@/api/progress";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
-import { ChildAvatar, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
-import { MoodIcon } from "@/components/icons";
+import { ChildAvatar, TOKEN_SOFT } from "@/components/brand";
 import { CardSkeleton } from "@/components/Skeletons";
 import { fmtDate } from "@/lib/format";
 import { useOrgScope } from "@/lib/org-scope";
@@ -69,16 +69,6 @@ function slug(value: string) {
     .replace(/(^-|-$)/g, "");
 }
 
-/** Most in need of a look first. */
-const STATUS_ORDER: StatusKey[] = [
-  "needs_check_in",
-  "holding_steady",
-  "progressing",
-  "settling_in",
-  "first_dose",
-  "no_data",
-];
-
 function daysSince(date: string) {
   const then = new Date(`${date}T00:00:00`).getTime();
   const today = new Date().setHours(0, 0, 0, 0);
@@ -109,8 +99,18 @@ function groupStats(rows: AdminProgressRow[]) {
   };
 }
 
-function StatusPill({ status }: { status: StatusKey }) {
-  const meta = STATUS_META[status];
+function StatusPill({ row }: { row: AdminProgressRow }) {
+  const { report } = row;
+  const meta = STATUS_META[report.status];
+  const latest = report.points.filter((point) => point.planId === report.currentPlanId).at(-1);
+  const labels: Record<StatusKey, string> = {
+    progressing: "Needs less help",
+    holding_steady: "Support unchanged",
+    settling_in: "Adjusting to a new level",
+    first_dose: "First dose completed",
+    needs_check_in: "Consult recommended",
+    no_data: report.totalSessions ? "Practising" : "Not started yet",
+  };
   return (
     <span
       title={meta.hint}
@@ -119,7 +119,8 @@ function StatusPill({ status }: { status: StatusKey }) {
         TOKEN_SOFT[meta.token],
       )}
     >
-      {meta.label}
+      {labels[report.status]}
+      {latest && report.status === "no_data" && ` · ${latest.kitSessionsLogged}/5 days`}
     </span>
   );
 }
@@ -130,7 +131,7 @@ function AdminProgress() {
   const groups = useQuery({ queryKey: ["admin-progress"], queryFn: listPlatformProgress });
   const { scopeId: scope } = useOrgScope();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusKey | "all">("all");
+  const [status, setStatus] = useState<"all" | "followup" | "active" | "notstarted">("all");
   const [openChild, setOpenChild] = useState<string | null>(null);
 
   const all = useMemo(() => groups.data ?? [], [groups.data]);
@@ -169,24 +170,21 @@ function AdminProgress() {
       status === "all"
         ? scoped
         : scoped
-            .map((g) => ({ ...g, rows: g.rows.filter((row) => row.report.status === status) }))
+            .map((g) => ({
+              ...g,
+              rows: g.rows.filter((row) =>
+                status === "followup"
+                  ? attentionReasons(row).length > 0
+                  : status === "notstarted"
+                    ? row.report.totalSessions === 0
+                    : Boolean(row.report.lastCheckIn && daysSince(row.report.lastCheckIn) < 14),
+              ),
+            }))
             .filter((g) => g.rows.length > 0),
     [scoped, status],
   );
 
   const rows = useMemo(() => scoped.flatMap((g) => g.rows), [scoped]);
-  const counts = useMemo(() => {
-    const byStatus: Record<StatusKey, number> = {
-      needs_check_in: 0,
-      holding_steady: 0,
-      progressing: 0,
-      settling_in: 0,
-      first_dose: 0,
-      no_data: 0,
-    };
-    for (const { report } of rows) byStatus[report.status] += 1;
-    return byStatus;
-  }, [rows]);
   const attention = useMemo(
     () =>
       rows
@@ -195,17 +193,6 @@ function AdminProgress() {
     [rows],
   );
   const totals = useMemo(() => groupStats(rows), [rows]);
-
-  const focusChild = (id: string) => {
-    setStatus("all");
-    setQuery("");
-    setOpenChild(id);
-    requestAnimationFrame(() =>
-      document
-        .getElementById(`child-${id}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" }),
-    );
-  };
 
   if (groups.isLoading) {
     return (
@@ -225,7 +212,7 @@ function AdminProgress() {
       <PageHeader
         eyebrow="Super Admin"
         title="Progress"
-        description="How every child is doing across the platform."
+        description="See who is practising and who needs a follow-up. Select a child for details."
         actions={
           <button
             type="button"
@@ -237,7 +224,7 @@ function AdminProgress() {
             }
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-cream transition-transform active:scale-95"
           >
-            <Download className="h-4 w-4" aria-hidden /> Download report
+            <Download className="h-4 w-4" aria-hidden /> Download CSV
           </button>
         }
       />
@@ -254,7 +241,7 @@ function AdminProgress() {
           icon={AlertTriangle}
           label="Need attention"
           value={String(attention.length)}
-          sub={attention.length ? "see below" : "all clear"}
+          sub="Missed check-ins or extra support suggested"
           tone={attention.length ? "coral" : "blue"}
         />
       </div>
@@ -268,12 +255,27 @@ function AdminProgress() {
               active={status === "all"}
               onClick={() => setStatus("all")}
             />
-            {STATUS_ORDER.filter((key) => counts[key] > 0 || status === key).map((key) => (
+            {(
+              [
+                ["followup", "Needs follow-up", attention.length],
+                [
+                  "active",
+                  "Active in 14 days",
+                  rows.filter(
+                    (row) => row.report.lastCheckIn && daysSince(row.report.lastCheckIn) < 14,
+                  ).length,
+                ],
+                [
+                  "notstarted",
+                  "Not started",
+                  rows.filter((row) => row.report.totalSessions === 0).length,
+                ],
+              ] as const
+            ).map(([key, label, count]) => (
               <FilterChip
                 key={key}
-                label={STATUS_META[key].label}
-                count={counts[key]}
-                dot={TOKEN_BG[STATUS_META[key].token]}
+                label={label}
+                count={count}
                 active={status === key}
                 onClick={() => setStatus(status === key ? "all" : key)}
               />
@@ -293,62 +295,19 @@ function AdminProgress() {
             />
           </label>
         </div>
-        {rows.length > 0 && (
-          <div
-            className="mt-4 flex h-2 overflow-hidden rounded-full bg-navy/8"
-            role="img"
-            aria-label="Children by status"
+        {(status !== "all" || query) && (
+          <button
+            type="button"
+            onClick={() => {
+              setStatus("all");
+              setQuery("");
+            }}
+            className="mt-3 text-xs font-bold text-blue hover:underline"
           >
-            {STATUS_ORDER.filter((key) => counts[key] > 0).map((key) => (
-              <span
-                key={key}
-                title={`${STATUS_META[key].label}: ${counts[key]}`}
-                style={{ width: `${(counts[key] / rows.length) * 100}%` }}
-                className={TOKEN_BG[STATUS_META[key].token]}
-              />
-            ))}
-          </div>
+            Clear filters
+          </button>
         )}
       </section>
-
-      {attention.length > 0 && status === "all" && (
-        <section className="ph-card mt-4 border-l-4 border-coral p-5">
-          <h2 className="flex items-center gap-2 text-base font-bold">
-            <AlertTriangle className="h-4 w-4 text-coral" aria-hidden />
-            Needs attention
-          </h2>
-          <ul className="mt-2 divide-y divide-navy/8">
-            {attention.slice(0, 5).map(({ row, reasons }) => (
-              <li key={row.child.id}>
-                <button
-                  type="button"
-                  onClick={() => focusChild(row.child.id)}
-                  className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 py-3 text-left transition-colors hover:bg-navy/3"
-                >
-                  <ChildAvatar name={row.child.name} token={row.child.colorToken} size={30} />
-                  <span className="text-sm font-bold text-navy">{row.child.name}</span>
-                  <span className="text-xs text-navy/50">{row.org?.name ?? "Family account"}</span>
-                  <span className="ml-auto flex flex-wrap gap-1.5">
-                    {reasons.map((reason) => (
-                      <span
-                        key={reason}
-                        className="rounded-full bg-coral/10 px-2.5 py-1 text-[11px] font-bold text-coral"
-                      >
-                        {reason}
-                      </span>
-                    ))}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {attention.length > 5 && (
-            <p className="mt-2 text-xs font-semibold text-navy/55">
-              and {attention.length - 5} more in the lists below
-            </p>
-          )}
-        </section>
-      )}
 
       <div className="mt-5 space-y-5">
         {visible.map((group) => (
@@ -454,7 +413,7 @@ function FilterChip({
 
 /** Column layout of the table on wide screens; narrow screens stack each row instead. */
 const COLUMNS =
-  "lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_9.5rem_4.5rem_4.5rem_6.5rem_1rem] lg:items-center lg:gap-4";
+  "lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_7rem_5rem] lg:items-center lg:gap-4";
 
 function GroupCard({
   group,
@@ -512,9 +471,7 @@ function GroupCard({
       >
         <span>Child</span>
         <span>Current plan</span>
-        <span>Status</span>
-        <span>Mood</span>
-        <span className="text-right">Sessions</span>
+        <span>Progress / follow-up</span>
         <span>Last check-in</span>
         <span />
       </div>
@@ -544,7 +501,7 @@ function ChildRow({
 }) {
   const { child, report, planTitle } = row;
   const seen = lastSeen(report.lastCheckIn);
-  const moodValue = Math.round(report.averageMood);
+  const reasons = attentionReasons(row);
 
   return (
     <li id={`child-${child.id}`}>
@@ -561,27 +518,29 @@ function ChildRow({
           <ChildAvatar name={child.name} token={child.colorToken} />
           <span className="min-w-0">
             <span className="block truncate text-sm font-bold text-navy">{child.name}</span>
-            <span className="block text-xs text-navy/50">{child.age} yrs</span>
+            <span className="block text-xs text-navy/50">
+              {child.age} yrs · {report.totalSessions} sessions
+            </span>
           </span>
         </span>
 
         <span className="hidden min-w-0 truncate text-sm text-navy/75 lg:block">{planTitle}</span>
 
-        <StatusPill status={report.status} />
-
-        <span className="hidden items-center gap-1.5 text-sm lg:flex">
-          {report.totalSessions > 0 ? (
-            <>
-              <MoodIcon value={moodValue} className="h-4 w-4 text-navy/60" />
-              <span className="tabular-nums">{report.averageMood.toFixed(1)}</span>
-            </>
-          ) : (
-            <span className="text-navy/40">—</span>
+        <span className="min-w-0 space-y-1">
+          <StatusPill row={row} />
+          {reasons.length > 0 && (
+            <span className="block text-xs text-coral">
+              {reasons
+                .map((reason) =>
+                  reason === "Level below suggested"
+                    ? "Try an easier level"
+                    : reason === "No session for 3+ days"
+                      ? "Check-in overdue"
+                      : reason,
+                )
+                .join(" · ")}
+            </span>
           )}
-        </span>
-
-        <span className="hidden text-right text-sm font-semibold tabular-nums lg:block">
-          {report.totalSessions}
         </span>
 
         <span
@@ -593,10 +552,13 @@ function ChildRow({
           {seen.text}
         </span>
 
-        <ChevronDown
-          className={cn("h-4 w-4 shrink-0 text-navy/45 transition-transform", open && "rotate-180")}
-          aria-hidden
-        />
+        <span className="inline-flex items-center gap-1 text-xs font-bold text-blue">
+          {open ? "Close" : "Details"}
+          <ChevronDown
+            className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")}
+            aria-hidden
+          />
+        </span>
 
         <span className="basis-full text-xs text-navy/55 lg:hidden">
           {planTitle} · {report.totalSessions} sessions · {seen.text.toLowerCase()}
@@ -610,6 +572,8 @@ function ChildRow({
 
 function ChildDetail({ row }: { row: AdminProgressRow }) {
   const { child, report } = row;
+  const latest = report.points.filter((point) => point.planId === report.currentPlanId).at(-1);
+  const dose = latest ? planById(latest.doseId) : undefined;
   const notes: ReactNode[] = [];
   if (report.fastTrackOffered) notes.push("Ready to try the Real-Life skill early");
   for (const reason of attentionReasons(row)) notes.push(reason);
@@ -625,7 +589,18 @@ function ChildDetail({ row }: { row: AdminProgressRow }) {
       <div className="space-y-4 rounded-2xl bg-card p-4 sm:p-5">
         <div>
           <p className="eyebrow text-blue">Latest Play Dose</p>
-          <p className="mt-1 text-sm font-semibold text-navy">{STATUS_META[report.status].hint}</p>
+          <p className="mt-1 text-sm font-semibold text-navy">
+            {latest
+              ? `${dose?.title ?? "Play Dose"} · ${latest.level}`
+              : "No Play Dose sessions logged yet."}
+          </p>
+          {latest && (
+            <p className="mt-2 text-sm text-navy/65">
+              {latest.kitSessionsLogged} of 5 practice days logged · Real-Life Try{" "}
+              {latest.days.some((day) => day.isTry) ? "logged" : "not yet logged"}.{" "}
+              {latest.complete ? report.narrative : "Continue this dose to see its result."}
+            </p>
+          )}
         </div>
         {notes.length > 0 && (
           <ul className="flex flex-wrap gap-1.5">

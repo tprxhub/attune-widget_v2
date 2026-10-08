@@ -1,3 +1,4 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +24,7 @@ import {
   createPlan,
   createPlayPlan,
   updatePlayPlanCredit,
+  updatePlayPlanDetails,
   updatePlayPlanStatus,
   deletePlan,
   entryActivities,
@@ -94,6 +96,7 @@ function AdminPlans() {
 
   const [search, setSearch] = useState("");
   const [level, setLevel] = useState<Level | "all">("all");
+  const [editingGoal, setEditingGoal] = useState<string | null>(null);
   const [creditFor, setCreditFor] = useState<{ id: string; name: string } | null>(null);
   const [editing, setEditing] = useState<PlayPlan | "new" | "new-play-plan" | null>(null);
   const [newDoseGoalId, setNewDoseGoalId] = useState<string | undefined>();
@@ -290,6 +293,30 @@ function AdminPlans() {
               </div>
               {group.goalId !== "other" && (
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingGoal(group.goalId)}
+                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-navy/15 px-3 text-xs font-bold"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden /> Edit Play Plan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewDoseGoalId(group.goalId);
+                      setEditing("new");
+                    }}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden /> New Play Dose
+                  </button>
+                </div>
+              )}
+            </div>
+            {group.goalId !== "other" && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-navy/8 bg-navy/[0.02] px-3 py-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-xs font-bold text-navy/55">Visibility</span>
                   <div
                     className="inline-flex rounded-full border border-navy/12 bg-navy/[0.035] p-1"
                     aria-label={`Publishing status for ${group.name}`}
@@ -328,6 +355,9 @@ function AdminPlans() {
                       </button>
                     ))}
                   </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-navy/55">Plan order</span>
                   <MoveButtons
                     label={`Play Plan ${group.name}`}
                     disabled={reorder.isPending}
@@ -338,19 +368,9 @@ function AdminPlans() {
                     }
                     onMove={(dir) => movePlayPlan(group.goalId, dir)}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNewDoseGoalId(group.goalId);
-                      setEditing("new");
-                    }}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
-                  >
-                    <Plus className="h-4 w-4" aria-hidden /> New Play Dose
-                  </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             {group.plans.length === 0 ? (
               <p className="mt-2 text-sm text-navy/55">No plans match your filters.</p>
             ) : (
@@ -363,10 +383,7 @@ function AdminPlans() {
                     0,
                   );
                   return (
-                    <li
-                      key={plan.id}
-                      className="rounded-2xl border border-navy/10 bg-card p-4 md:flex md:items-center md:gap-4"
-                    >
+                    <li key={plan.id} className="rounded-2xl border border-navy/10 bg-card p-4">
                       <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-bold tracking-[0.12em] text-blue uppercase">
                           Play Dose · {plan.level}
@@ -389,7 +406,7 @@ function AdminPlans() {
                           </span>
                         </p>
                       </div>
-                      <div className="mt-3 flex shrink-0 items-center gap-2 md:mt-0">
+                      <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-navy/8 pt-3">
                         <MoveButtons
                           label={`Play Dose ${plan.title} (${plan.level})`}
                           disabled={reorder.isPending}
@@ -432,6 +449,16 @@ function AdminPlans() {
           onSaved={() => {
             invalidate();
             setEditing(null);
+          }}
+        />
+      )}
+      {editingGoal && (
+        <PlayPlanDetailsModal
+          goalId={editingGoal}
+          onClose={() => setEditingGoal(null)}
+          onSaved={() => {
+            invalidate();
+            setEditingGoal(null);
           }}
         />
       )}
@@ -1057,14 +1084,17 @@ function PlanModal({
                     <ArrowDown className="h-4 w-4" aria-hidden />
                   </button>
                   {canDelete && (
-                    <button
+                    <ConfirmButton
+                      confirmationTitle={`Remove ${entry.title || "this activity"}?`}
+                      confirmationMessage="This activity will be removed from the draft. Save the Play Dose to apply the change."
+                      confirmLabel="Remove activity"
                       type="button"
                       onClick={() => setEntries((l) => l.filter((e) => e.id !== entry.id))}
                       aria-label="Remove activity"
                       className="grid h-9 w-9 place-items-center rounded-full bg-coral/12 text-coral"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden />
-                    </button>
+                    </ConfirmButton>
                   )}
                 </div>
 
@@ -1131,7 +1161,10 @@ function PlanModal({
                               · uploads when you save
                             </span>
                           </span>
-                          <button
+                          <ConfirmButton
+                            confirmationTitle="Remove selected video?"
+                            confirmationMessage="The selected video will no longer upload when you save."
+                            confirmLabel="Remove video"
                             type="button"
                             onClick={() =>
                               patchActivity(entry.id, first.id, {
@@ -1142,7 +1175,7 @@ function PlanModal({
                             className="shrink-0 text-xs font-bold text-coral hover:underline"
                           >
                             Remove
-                          </button>
+                          </ConfirmButton>
                         </div>
                       ) : (
                         <>
@@ -1329,7 +1362,7 @@ function DeletePlanModal({
   });
 
   return (
-    <Shell title="Delete Play Plan" subtitle={plan.title} onClose={onClose}>
+    <Shell title="Delete Play Dose" subtitle={plan.title} onClose={onClose}>
       {blocked > 0 ? (
         <div className="space-y-4">
           <p className="flex items-start gap-3 rounded-2xl bg-coral/10 p-4 text-sm font-semibold text-coral">
@@ -1367,7 +1400,7 @@ function DeletePlanModal({
               className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
             >
               {remove.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-              Delete plan
+              Delete dose
             </button>
             <button
               type="button"
@@ -1379,6 +1412,97 @@ function DeletePlanModal({
           </div>
         </div>
       )}
+    </Shell>
+  );
+}
+
+function PlayPlanDetailsModal({
+  goalId,
+  onClose,
+  onSaved,
+}: {
+  goalId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const goal = goalById(goalId)!;
+  const [name, setName] = useState(goal.name);
+  const [short, setShort] = useState(goal.short);
+  const [blurb, setBlurb] = useState(goal.blurb);
+  const [createdBy, setCreatedBy] = useState(goal.createdBy ?? "Super Admin");
+  const save = useMutation({
+    mutationFn: () =>
+      updatePlayPlanDetails(goalId, {
+        name: name.trim(),
+        short: short.trim(),
+        blurb: blurb.trim(),
+        createdBy: createdBy.trim(),
+      }),
+    onSuccess: onSaved,
+  });
+  return (
+    <Shell
+      title="Edit Play Plan"
+      subtitle="Update the plan shared by its Rookie, Starter and Pro doses."
+      onClose={onClose}
+    >
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save.mutate();
+        }}
+      >
+        <label className="block text-sm font-bold">
+          Name
+          <input
+            required
+            minLength={2}
+            maxLength={160}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-navy/20 bg-white p-3"
+          />
+        </label>
+        <label className="block text-sm font-bold">
+          Short description
+          <input
+            maxLength={300}
+            value={short}
+            onChange={(event) => setShort(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-navy/20 bg-white p-3"
+          />
+        </label>
+        <label className="block text-sm font-bold">
+          Description
+          <textarea
+            value={blurb}
+            onChange={(event) => setBlurb(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-navy/20 bg-white p-3"
+          />
+        </label>
+        <label className="block text-sm font-bold">
+          Created by
+          <input
+            maxLength={120}
+            value={createdBy}
+            onChange={(event) => setCreatedBy(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-navy/20 bg-white p-3"
+          />
+        </label>
+        {save.isError && (
+          <p role="alert" className="text-sm text-coral">
+            {save.error instanceof Error ? save.error.message : "Could not save this plan."}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={save.isPending || name.trim().length < 2}
+          className="rounded-full bg-coral px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+        >
+          {save.isPending ? "Saving…" : "Save Play Plan"}
+        </button>
+      </form>
     </Shell>
   );
 }

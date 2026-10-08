@@ -55,3 +55,22 @@ export async function logAttempt(input: NewAttemptInput): Promise<Attempt> {
   });
   return mapAttempt(row, plans);
 }
+
+export async function correctAttempt(
+  attempt: Attempt,
+  values: import("@/features/attempts/ReflectionForm").ReflectionValues,
+): Promise<void> {
+  await apiRequest(`/children/${attempt.childId}/attempts/${attempt.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      play_dose_id: attempt.planId,
+      activity_id: attempt.entryId || null,
+      occurred_on: values.date,
+      completion_status: values.completionStatus,
+      help_level: values.helpLevel,
+      mood_score: values.mood,
+      big_win: values.bigWin || null,
+      notes: values.consultNotes || null,
+    }),
+  });
+}

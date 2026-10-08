@@ -13,6 +13,7 @@ import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { SAMPLE_PLANS, sampleProgressPoints } from "@/features/progress/sampleProgress";
 import { LEVELS } from "@/lib/types";
 import { useSession } from "@/auth/session";
+import { isPlatformRole } from "@/lib/roles";
 import heroKids from "@/assets/hero-kids-playing.jpg";
 import kidsHands from "@/assets/kids-hands-beads.jpg";
 import playTweezers from "@/assets/play-tweezers.jpg";
@@ -303,7 +304,10 @@ function Landing() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <StickyNav signedIn={signedIn} homePath={session.homePath} />
+      <StickyNav
+        signedIn={signedIn}
+        homePath={isPlatformRole(session.role) ? "/admin" : "/dashboard"}
+      />
       <main className="px-1 sm:px-5">
         {/* ── Hero ── */}
         <section className="relative isolate -mx-1 -mt-[88px] overflow-hidden pt-[78px] sm:-mx-5 sm:-mt-[88px] sm:pt-[88px] lg:-mt-[112px] lg:pt-[120px]">
@@ -772,7 +776,7 @@ function Landing() {
                 "Organisations",
                 [
                   ["Log in", "/login"],
-                  ["Enrol a child", signedIn ? "/org/enroll" : "/login"],
+                  ["Enrol a child in a Play Plan", signedIn ? "/org/enroll" : "/login"],
                 ],
               ],
             ].map(([title, links]) => (

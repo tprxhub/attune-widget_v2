@@ -1,4 +1,4 @@
-import logoUrl from "@/assets/PlayHub_Logo .svg";
+import { useApplicationLogo } from "@/api/branding";
 import { cn } from "@/lib/utils";
 import { LEVELS, type Level } from "@/lib/types";
 
@@ -34,6 +34,7 @@ export function Logo({
   className?: string;
   size?: "default" | "large";
 }) {
+  const logoUrl = useApplicationLogo();
   return (
     <span
       className={cn("inline-flex items-center", size === "large" ? "gap-3" : "gap-2.5", className)}
@@ -41,7 +42,10 @@ export function Logo({
       <img
         src={logoUrl}
         alt="Play Hub"
-        className={cn("w-auto shrink-0 -translate-y-1", size === "large" ? "h-20" : "h-14")}
+        className={cn(
+          "max-w-[120px] w-auto object-contain shrink-0 -translate-y-1",
+          size === "large" ? "h-20" : "h-14",
+        )}
       />
       <span className="hidden min-w-0 flex-col gap-0.5 leading-none sm:flex">
         <span

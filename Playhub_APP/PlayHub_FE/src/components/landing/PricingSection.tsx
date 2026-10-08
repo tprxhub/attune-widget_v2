@@ -2,6 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { Building2, Check } from "lucide-react";
 import { PLAN_FEATURES, PRICE_PLANS } from "@/api/subscriptions";
 import { fmtMoney } from "@/lib/money";
+import { useSession } from "@/auth/session";
+import { isPlatformRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 const FREE_FEATURES = [
@@ -12,6 +14,8 @@ const FREE_FEATURES = [
 
 /** Public pricing overview. Prices come from the same list the Subscription page uses. */
 export function PricingSection({ signedIn }: { signedIn: boolean }) {
+  const { session } = useSession();
+  const playHubPath = isPlatformRole(session.role) ? "/admin" : "/dashboard";
   const buyTo = signedIn ? "/subscription" : "/signup";
   return (
     <section
@@ -47,7 +51,7 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
             ))}
           </ul>
           <Link
-            to={signedIn ? "/dashboard" : "/signup"}
+            to={signedIn ? playHubPath : "/signup"}
             className="ph-pill mt-auto inline-flex min-h-11 items-center justify-center border border-navy/20 px-5 text-sm font-semibold text-navy hover:bg-navy/5"
           >
             {signedIn ? "Open Play Hub" : "Create a free account"}

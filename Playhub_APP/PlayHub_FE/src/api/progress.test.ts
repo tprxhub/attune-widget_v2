@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { ApiProgress } from "./client";
-import { buildReport, progressNextSteps, reportFromApi } from "./progress";
+import { assignedDoseNextStep, buildReport, progressNextSteps, reportFromApi } from "./progress";
 import type { Attempt, PlayPlan } from "@/lib/types";
 
 const attempt = (
@@ -141,10 +141,10 @@ describe("progress data flow", () => {
     };
 
     const report = reportFromApi(summary, [plan]);
-    expect(report.status).toBe("needs_check_in");
-    // No completed dose yet, so the badge text comes from the status, not an insight.
-    expect(report.headline).toBe("Book a Play Consult");
-    expect(report.narrative).toContain("two doses in a row");
+    expect(report.status).toBe("no_data");
+    // An incomplete dose describes current practice instead of a previous verdict.
+    expect(report.headline).toBe("Starter dose in progress");
+    expect(report.narrative).toContain("5 of 5 practice days logged at Starter");
     expect(report.supportScore).toBe(71);
     expect(report.latestSessionDate).toBe("2026-01-03");
     expect(report.checkInCount).toBe(2);
@@ -155,4 +155,11 @@ describe("progress data flow", () => {
     expect(nextSteps[0]?.body).toContain("5 of 5 practice days logged");
     expect(nextSteps.some((step) => step.body.includes("Activity #9"))).toBe(false);
   });
+});
+
+test("dashboard guidance uses the assigned Starter dose rather than a historical Pro narrative", () => {
+  const report = buildReport("child-1", []);
+  report.narrative = "Your child has just moved up to Pro";
+  expect(assignedDoseNextStep(report, plan)).toContain("Continue Starter");
+  expect(assignedDoseNextStep(report, plan)).not.toContain("Pro");
 });

@@ -1,3 +1,4 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -159,15 +160,21 @@ function TtpEmployeesPage() {
                     >
                       <Pencil className="h-4 w-4" aria-hidden /> Edit access
                     </button>
-                    <button
+                    <ConfirmButton
+                      confirmationTitle={`Disable ${employee.name}?`}
+                      confirmationMessage="This employee will no longer be able to sign in. You can enable the account again later."
+                      confirmLabel="Disable account"
+                      requireConfirmation={employee.active}
                       type="button"
-                      onClick={() => toggle.mutate(employee)}
+                      onClick={() =>
+                        employee.active ? toggle.mutateAsync(employee) : toggle.mutate(employee)
+                      }
                       disabled={toggle.isPending}
                       className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
                     >
                       <Power className="h-4 w-4" aria-hidden />
                       {employee.active ? "Disable" : "Enable"}
-                    </button>
+                    </ConfirmButton>
                   </>
                 )}
               </div>

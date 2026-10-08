@@ -2,7 +2,7 @@ import type { Attempt, ProgressReport, StatusKey } from "@/lib/types";
 import { apiRequest, type ApiProgress } from "./client";
 import { listPlans } from "./plans";
 import type { PlayPlan } from "@/lib/types";
-import { insightFor, lastCompleteIndex } from "@/features/progress/insights";
+import { insightFor } from "@/features/progress/insights";
 
 export const STATUS_META: Record<
   StatusKey,
@@ -46,10 +46,25 @@ export function currentPlanDoses(report: ProgressReport) {
   return report.points.filter((point) => point.planId === planId);
 }
 
-/** The insight for the latest completed dose of the current plan, as the Play Progress spec words it. */
+/** An insight appears only when the latest dose of the current plan is complete. */
 export function latestInsight(report: ProgressReport) {
   const doses = currentPlanDoses(report);
-  return insightFor(doses, lastCompleteIndex(doses));
+  return doses.at(-1)?.complete ? insightFor(doses, doses.length - 1) : null;
+}
+
+/** Dashboard guidance follows the assigned dose, including when history ends at another level. */
+export function assignedDoseNextStep(
+  report: ProgressReport | undefined,
+  plan: PlayPlan | undefined,
+) {
+  if (!plan) return "Choose a Play Dose to get started.";
+  const doses = report?.points.filter((point) => point.planId === plan.goalId) ?? [];
+  const latestIndex = [...doses].reverse().findIndex((point) => point.doseId === plan.id);
+  const index = latestIndex < 0 ? -1 : doses.length - 1 - latestIndex;
+  const latest = doses[index];
+  const insight = insightFor(doses, index);
+  if (insight) return insight.next;
+  return `Continue ${plan.level} with today’s activity. ${latest?.kitSessionsLogged ?? 0} of 5 practice days logged. Complete the practice days and Real-Life Try to see how this dose went.`;
 }
 
 function messaging(
@@ -58,10 +73,16 @@ function messaging(
   currentPlanId: string | null,
 ) {
   const doses = points.filter((point) => point.planId === (currentPlanId ?? points.at(-1)?.planId));
-  const insight = insightFor(doses, lastCompleteIndex(doses));
+  const latest = doses.at(-1);
+  const insight = latest?.complete ? insightFor(doses, doses.length - 1) : null;
   return insight
     ? { headline: insight.title, narrative: insight.seeing }
-    : { headline: STATUS_META[status].label, narrative: STATUS_META[status].hint };
+    : latest && !latest.complete
+      ? {
+          headline: `${latest.level} dose in progress`,
+          narrative: `${latest.kitSessionsLogged} of 5 practice days logged at ${latest.level}. Continue this dose and log the Real-Life Try to see the next step.`,
+        }
+      : { headline: STATUS_META[status].label, narrative: STATUS_META[status].hint };
 }
 
 /** "What's next?" for the current plan, then any timely nudges. Nothing here is free-form. */
@@ -158,7 +179,7 @@ export function reportFromApi(summary: ApiProgress, _plans: PlayPlan[]): Progres
   }));
   return {
     childId: summary.child_id,
-    status,
+    status: points.at(-1)?.complete === false ? "no_data" : status,
     currentPlanId,
     ...messaging(status, points, currentPlanId),
     lastCheckIn: summary.last_check_in,

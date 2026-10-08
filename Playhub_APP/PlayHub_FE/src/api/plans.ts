@@ -376,3 +376,19 @@ export function entryActivities(entry: PlanEntry): PlanActivity[] {
 }
 
 export { goalById, planById };
+
+export async function updatePlayPlanDetails(
+  planId: string,
+  values: { name: string; short: string; blurb: string; createdBy: string },
+) {
+  await apiRequest<ApiPlan>(`/play-plans/${planId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      name: values.name,
+      short_description: values.short,
+      description: values.blurb,
+      created_by_name: values.createdBy,
+    }),
+  });
+  invalidatePlanCatalog();
+}

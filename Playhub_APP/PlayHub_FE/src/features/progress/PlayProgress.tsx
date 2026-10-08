@@ -270,8 +270,8 @@ function InsightBox({
   return (
     <div
       className={cn(
-        "mt-3.5 rounded-[14px] px-4 pt-4 pb-3.5 text-navy",
-        minimal ? "border-2 border-dashed border-navy/40 bg-transparent" : "bg-cream",
+        "mt-3.5 rounded-[14px] border-2 border-dashed border-gray-300 px-4 pt-4 pb-3.5 text-navy",
+        minimal ? "bg-transparent" : "bg-cream",
       )}
     >
       {!minimal && (

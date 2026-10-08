@@ -55,7 +55,7 @@ python scripts/smoke_seeded_api.py --base-url http://127.0.0.1:8000
 - **Play Plan** is the skill goal, such as Pinch & Grip Development.
 - **Play Dose** is one level-specific programme within a Play Plan.
 - **Activity** belongs to one Play Dose and has one optional video source (upload or external link) plus written instructions.
-- Attempts are append-only records; they are never overwritten.
+- Sessions can be corrected by authorised users. Corrections preserve the original author and record the before/after values in the append-only audit log.
 - Organisation and individual accounts can be created through a time-limited
   invitation workflow. The creation response exposes the one-time activation
   token to the authenticated creator; invitation list responses never expose it.
@@ -73,7 +73,7 @@ and assignments, subscription enforcement, Check-In validation, authoritative pr
 invitations, catalog management, uploads, audit events, and storage behavior. The frontend's
 `bun run test:e2e` adds browser-level verification against an isolated seeded instance of this API.
 
-Progress is calculated from append-only Attempts. The summary Support Score is the most recent
+Progress is calculated from the current session records; session corrections retain their before/after values in the audit log. The summary Support Score is the most recent
 session's help level: independent is 0, one reminder is 33, a few reminders is 67, and hands-on
 help is 100. Weekly chart points continue to average those values across the week's kit sessions.
 `check_in_count`, distinct activities, last Check-In, and the individual chart points all come from

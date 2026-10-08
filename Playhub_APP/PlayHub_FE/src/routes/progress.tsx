@@ -27,13 +27,12 @@ import { ChartSkeleton, CardSkeleton } from "@/components/Skeletons";
 import { LockedOverlay } from "@/components/LockedOverlay";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FloatingPanel } from "@/components/FloatingPanel";
-import { MoodIcon, moodMeta } from "@/components/icons";
 import { LEVEL_TOKEN, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { SupportMoodRings } from "@/features/progress/SupportMoodRings";
 import { useActiveChild } from "@/lib/active-child";
 import { cn } from "@/lib/utils";
-import { childProgressCsv, downloadCsv, slug } from "@/lib/csv";
+import { printReport } from "@/lib/print-report";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
@@ -356,6 +355,9 @@ export function ProgressPage() {
   const { session } = useSession();
   const { activeChild, isLoading } = useActiveChild();
   const childId = activeChild?.id;
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(true);
   const [openNextStep, setOpenNextStep] = useState<number | null>(0);
   const [planFilter, setPlanFilter] = useState("all");
@@ -395,7 +397,7 @@ export function ProgressPage() {
       ),
     [allRows, planFilter, fromDate, toDate],
   );
-  const insights = useInsights(rows);
+  const insights = useInsights(allRows);
   const hasActiveFilters = planFilter !== "all" || Boolean(fromDate) || Boolean(toDate);
 
   if (isLoading) {
@@ -431,7 +433,7 @@ export function ProgressPage() {
   }
 
   const data = report.data;
-  const consultNotes = rows
+  const consultNotes = allRows
     .filter((a) => a.consultNotes)
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
   // A plain tally for the plan the child is on now; never an average across doses.
@@ -441,35 +443,43 @@ export function ProgressPage() {
   // Subscribed family parents can book a 1:1 Play Consultation at any time.
   const showConsult = !isFreeGated && (needsConsult || canManageSubscription);
   // Cards in the guidance row, so the grid never leaves an empty column.
-  const guidanceCards =
-    2 +
-    Number(showConsult) +
-    Number(Boolean(canLeaveConsultNotes)) +
-    Number(isFreeGated && canManageSubscription);
+  const guidanceCards = 1 + Number(showConsult) + 1 + Number(isFreeGated && canManageSubscription);
 
   return (
-    <>
+    <div ref={reportRef}>
       <PageHeader
         eyebrow="Tracking"
         title="Progress"
         description={`Support Score and Mood for ${activeChild.name}, day by day within a Play Dose and dose by dose across a Play Plan. Lower support means greater independence.`}
         actions={
           data ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-report-exclude>
               <StatusBadge status={data.status} />
               {!isFreeGated && (
                 <button
                   type="button"
-                  onClick={() =>
-                    downloadCsv(
-                      `play-hub-progress-${slug(activeChild.name)}.csv`,
-                      childProgressCsv(activeChild, data, rows),
-                    )
-                  }
+                  disabled={exporting}
+                  onClick={async () => {
+                    if (!reportRef.current) return;
+                    setExportError("");
+                    setExporting(true);
+                    try {
+                      await printReport(
+                        reportRef.current,
+                        `Play Hub Progress — ${activeChild.name}`,
+                      );
+                    } catch (error) {
+                      setExportError(
+                        error instanceof Error ? error.message : "Could not export this report.",
+                      );
+                    } finally {
+                      setExporting(false);
+                    }
+                  }}
                   className="inline-flex items-center gap-1.5 rounded-full bg-navy px-3.5 py-2 text-xs font-bold text-cream transition hover:bg-navy/90"
                 >
                   <Download className="h-3.5 w-3.5" aria-hidden />
-                  Export progress
+                  {exporting ? "Preparing report…" : "Export report (PDF)"}
                 </button>
               )}
             </div>
@@ -477,6 +487,11 @@ export function ProgressPage() {
         }
       />
 
+      {exportError && (
+        <p role="alert" className="mt-3 text-sm text-coral" data-report-exclude>
+          {exportError}
+        </p>
+      )}
       {report.isLoading || !data ? (
         <div className="mt-5">
           <ChartSkeleton />
@@ -550,10 +565,10 @@ export function ProgressPage() {
             </div>
           </section>
 
-          {/* Guidance under the charts: what to do next, how it felt, and support. */}
+          {/* Guidance under the charts: insights, support, and session history. */}
           <div
             className={cn(
-              "grid items-stretch gap-4 md:grid-cols-2",
+              "grid items-start gap-4 md:grid-cols-2",
               guidanceCards === 3 && "xl:grid-cols-3",
             )}
             aria-label="Progress guidance"
@@ -577,9 +592,9 @@ export function ProgressPage() {
                     <Sparkles className="h-5 w-5" aria-hidden />
                   </span>
                   <div className="min-w-0">
-                    <p className="eyebrow text-amber">What this means</p>
+                    <p className="eyebrow text-amber">Progress insights</p>
                     <h2 id="next-steps-heading" className="mt-0.5 text-xl font-bold text-white">
-                      Next steps
+                      What am I seeing?
                     </h2>
                   </div>
                 </div>
@@ -588,7 +603,9 @@ export function ProgressPage() {
                 </span>
               </div>
 
-              <ol className="mt-5 space-y-3">
+              <p className="mt-4 text-sm leading-relaxed text-cream/85">{data.narrative}</p>
+              <h3 className="mt-5 text-lg font-bold text-white">What does it mean?</h3>
+              <ol className="mt-3 space-y-3">
                 {nextSteps.map((step, index) => {
                   const expanded = openNextStep === index;
                   return (
@@ -638,50 +655,22 @@ export function ProgressPage() {
                           />
                         </span>
                       </button>
-                      {expanded && (
-                        <div id={`next-step-${index}`} className="px-3.5 pb-3.5 sm:pl-[4.75rem]">
+                      {
+                        <div
+                          hidden={!expanded}
+                          data-report-expand
+                          id={`next-step-${index}`}
+                          className="px-3.5 pb-3.5 sm:pl-[4.75rem]"
+                        >
                           <p className="rounded-xl border-l-2 border-coral bg-navy/[0.045] px-3.5 py-3 text-sm leading-relaxed text-navy/72">
                             {step.body}
                           </p>
                         </div>
-                      )}
+                      }
                     </li>
                   );
                 })}
               </ol>
-            </section>
-            <section className="ph-card h-full p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-bold">How it felt</h2>
-                  <p className="mt-1 text-xs text-navy/60">Mood across every logged Session.</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-amber/20 px-2.5 py-1 text-[11px] font-bold text-navy">
-                  {rows.length} logged
-                </span>
-              </div>
-              <ul className="mt-4 space-y-3">
-                {insights.moodCounts.map((m) => {
-                  const pct = rows.length ? Math.round((m.count / rows.length) * 100) : 0;
-                  return (
-                    <li
-                      key={m.value}
-                      className="grid grid-cols-[1.25rem_minmax(0,1fr)_6.5rem] items-center gap-2.5"
-                    >
-                      <MoodIcon value={m.value} className="h-5 w-5 text-navy/70" />
-                      <span className="h-2 overflow-hidden rounded-full bg-navy/8">
-                        <span
-                          className="block h-full rounded-full bg-amber transition-[width]"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </span>
-                      <span className="text-right text-[11px] font-bold text-navy/60">
-                        {moodMeta(m.value).label}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
             </section>
             {showConsult && (
               <section
@@ -719,152 +708,198 @@ export function ProgressPage() {
                 </Link>
               </section>
             )}
-            {canLeaveConsultNotes && (
-              <section className="ph-card flex h-full flex-col p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="eyebrow text-blue">From the team</p>
-                    <h2 className="mt-1 text-lg font-bold">Play Consult Notes</h2>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-navy/6 px-2.5 py-1 text-[11px] font-bold text-navy/65">
-                    {consultNotes.length} {consultNotes.length === 1 ? "note" : "notes"}
-                  </span>
-                </div>
-                {consultNotes.length ? (
-                  <ul className="mt-3 space-y-2">
-                    {consultNotes.slice(0, 3).map((a) => (
-                      <li key={a.id} className="rounded-2xl bg-navy/4 p-3 text-sm">
-                        <p className="leading-relaxed text-navy/80">{a.consultNotes}</p>
-                        <p className="mt-1 text-[11px] text-navy/50">
-                          {fmtDate(a.date)} · {a.loggedBy}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="mt-3 flex flex-1 items-center rounded-2xl border border-dashed border-navy/15 p-4 text-sm text-navy/60">
-                    No notes yet. Clinical notes from organisation Admins appear here.
-                  </div>
-                )}
-              </section>
-            )}
-          </div>
+            <div className="min-w-0 space-y-4 self-start">
+              {canLeaveConsultNotes && (
+                <details className="group/notes ph-card self-start p-5" data-report-details>
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-lg font-bold">
+                    Play Consult Notes{" "}
+                    <span className="text-xs text-navy/60">
+                      {consultNotes.length} {consultNotes.length === 1 ? "note" : "notes"}
+                    </span>
+                    <ChevronDown
+                      className="h-4 w-4 shrink-0 text-navy/55 transition-transform group-open/notes:rotate-180"
+                      aria-hidden
+                    />
+                  </summary>
+                  {consultNotes.length ? (
+                    <ul className="mt-4 space-y-3">
+                      {consultNotes.map((a) => (
+                        <li key={a.id} className="rounded-xl bg-navy/4 p-3 text-sm">
+                          <p className="whitespace-pre-wrap text-navy/80">{a.consultNotes}</p>
+                          <p className="mt-2 text-xs text-navy/55">
+                            {fmtDate(a.date)} · {a.loggedBy}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-sm text-navy/60">No Play Consult notes yet.</p>
+                  )}
+                </details>
+              )}
 
-          <section className="ph-card min-w-0 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setHistoryOpen((v) => !v)}
-              aria-expanded={historyOpen}
-              className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-navy/8 px-5 py-4 text-left transition hover:bg-navy/[0.02]"
-            >
-              <div className="min-w-0">
-                <h2 className="truncate text-lg font-bold">Session history</h2>
-                <p className="text-xs text-navy/60">
-                  {hasActiveFilters
-                    ? "Showing filtered check-ins"
-                    : "All Play Plans and dates · newest first, every check-in stays saved."}
-                </p>
-              </div>
-              <span className="shrink-0 rounded-full bg-navy/6 px-3 py-1 text-[11px] font-bold text-navy/65">
-                {rows.length} Session{rows.length === 1 ? "" : "s"}
-              </span>
-              <ChevronDown
-                className={cn(
-                  "h-5 w-5 shrink-0 text-navy/55 transition-transform duration-200",
-                  historyOpen && "rotate-180",
-                )}
-                aria-hidden
-              />
-            </button>
-
-            {historyOpen && (
-              <div className="grid gap-3 border-b border-navy/8 bg-navy/[0.025] px-5 py-3 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                <PlanFilterDropdown plans={usedPlans} value={planFilter} onChange={setPlanFilter} />
-                <label className="block">
-                  <span className="mb-1.5 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-                    From date
-                  </span>
-                  <input
-                    type="date"
-                    value={fromDate}
-                    max={toDate || undefined}
-                    onChange={(event) => setFromDate(event.target.value)}
-                    className="h-[3.25rem] w-full rounded-xl border border-navy/15 bg-card px-3 text-sm font-semibold text-navy outline-none transition focus:border-blue focus:ring-2 focus:ring-blue/20"
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1.5 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-                    To date
-                  </span>
-                  <input
-                    type="date"
-                    value={toDate}
-                    min={fromDate || undefined}
-                    onChange={(event) => setToDate(event.target.value)}
-                    className="h-[3.25rem] w-full rounded-xl border border-navy/15 bg-card px-3 text-sm font-semibold text-navy outline-none transition focus:border-blue focus:ring-2 focus:ring-blue/20"
-                  />
-                </label>
+              <section className="ph-card min-w-0 overflow-hidden" data-report-exclude>
                 <button
                   type="button"
-                  onClick={() => {
-                    setPlanFilter("all");
-                    setFromDate("");
-                    setToDate("");
-                  }}
-                  disabled={!hasActiveFilters}
-                  className="h-[3.25rem] rounded-xl px-3 text-xs font-bold whitespace-nowrap text-blue transition hover:bg-blue/10 disabled:cursor-not-allowed disabled:text-navy/35 sm:col-span-2 sm:justify-self-end lg:col-span-1"
+                  onClick={() => setHistoryOpen((v) => !v)}
+                  aria-expanded={historyOpen}
+                  className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-navy/8 px-5 py-4 text-left transition hover:bg-navy/[0.02]"
                 >
-                  Clear filters
+                  <div className="min-w-0">
+                    <h2 className="truncate text-lg font-bold">Session history</h2>
+                    <p className="text-xs text-navy/60">
+                      {hasActiveFilters
+                        ? "Showing filtered check-ins"
+                        : "Your check-ins, newest first."}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-navy/6 px-3 py-1 text-[11px] font-bold text-navy/65">
+                    {rows.length} Session{rows.length === 1 ? "" : "s"}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "h-5 w-5 shrink-0 text-navy/55 transition-transform duration-200",
+                      historyOpen && "rotate-180",
+                    )}
+                    aria-hidden
+                  />
                 </button>
-              </div>
-            )}
-            {historyOpen &&
-              (attempts.isLoading ? (
-                <div className="p-5">
-                  <CardSkeleton lines={4} />
-                </div>
-              ) : rows.length === 0 ? (
-                <p className="p-5 text-sm text-navy/65">No sessions logged yet.</p>
-              ) : (
-                <ul className="max-h-[30rem] divide-y divide-navy/8 overflow-y-auto">
-                  {[...rows]
-                    .sort(
-                      (a, b) =>
-                        b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
-                    )
-                    .map((a) => (
-                      <li key={a.id} className="px-5 py-3.5 transition-colors hover:bg-navy/[0.02]">
-                        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-                          <div className="min-w-0 flex-1 basis-40">
-                            <p className="truncate text-sm font-bold">{a.activity}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-navy/55">
-                              <span>{fmtDate(a.date)}</span>
-                              <span className="text-navy/25">•</span>
-                              <span
-                                className={cn(
-                                  "rounded-full px-2 py-0.5 font-bold",
-                                  TOKEN_SOFT[LEVEL_TOKEN[a.level]],
-                                )}
-                              >
-                                {a.level}
-                              </span>
-                            </div>
-                          </div>
-                          <AttemptScore
-                            completion={a.completion}
-                            mood={a.mood}
-                            completionStatus={a.completionStatus}
-                            helpLevel={a.helpLevel}
+
+                {historyOpen && (
+                  <div className="grid gap-3 border-b border-navy/8 bg-navy/[0.025] px-5 py-3 sm:grid-cols-2 sm:items-end ">
+                    <div className="flex items-end gap-3 sm:col-span-2">
+                      <div className="min-w-0 flex-1">
+                        <PlanFilterDropdown
+                          plans={usedPlans}
+                          value={planFilter}
+                          onChange={setPlanFilter}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlanFilter("all");
+                          setFromDate("");
+                          setToDate("");
+                        }}
+                        disabled={!hasActiveFilters}
+                        className="h-[3.25rem] shrink-0 rounded-xl border border-blue/15 bg-blue/5 px-3 text-xs font-bold whitespace-nowrap text-blue transition hover:bg-blue/10 disabled:cursor-not-allowed disabled:text-navy/35"
+                      >
+                        Clear filters
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+                      <span className="text-xs font-bold text-navy/60">Dates</span>
+                      {[7, 30].map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          className="rounded-full border border-navy/15 bg-card px-3 py-1.5 text-xs font-bold text-blue hover:bg-blue/10"
+                          onClick={() => {
+                            const end = new Date();
+                            const start = new Date(end);
+                            start.setDate(start.getDate() - days + 1);
+                            const localDate = (date: Date) =>
+                              `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                            setFromDate(localDate(start));
+                            setToDate(localDate(end));
+                          }}
+                        >
+                          Last {days} days
+                        </button>
+                      ))}
+                    </div>
+                    <details className="sm:col-span-2">
+                      <summary className="cursor-pointer text-xs font-bold text-blue">
+                        {fromDate || toDate
+                          ? `${fromDate ? fmtDate(fromDate) : "Any date"} – ${toDate ? fmtDate(toDate) : "Today"}`
+                          : "Choose date range"}
+                      </summary>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <label className="block">
+                          <span className="mb-1.5 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
+                            From date
+                          </span>
+                          <input
+                            type="date"
+                            value={fromDate}
+                            max={toDate || undefined}
+                            onChange={(event) => setFromDate(event.target.value)}
+                            className="h-[3.25rem] w-full rounded-xl border border-navy/15 bg-card px-3 text-sm font-semibold text-navy outline-none transition focus:border-blue focus:ring-2 focus:ring-blue/20"
                           />
-                        </div>
-                        <ParentWinNote text={a.bigWin} className="mt-2.5" />
-                      </li>
-                    ))}
-                </ul>
-              ))}
-          </section>
+                        </label>
+                        <label className="block">
+                          <span className="mb-1.5 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
+                            To date
+                          </span>
+                          <input
+                            type="date"
+                            value={toDate}
+                            min={fromDate || undefined}
+                            onChange={(event) => setToDate(event.target.value)}
+                            className="h-[3.25rem] w-full rounded-xl border border-navy/15 bg-card px-3 text-sm font-semibold text-navy outline-none transition focus:border-blue focus:ring-2 focus:ring-blue/20"
+                          />
+                        </label>
+                      </div>
+                    </details>
+                  </div>
+                )}
+                {historyOpen &&
+                  (attempts.isLoading ? (
+                    <div className="p-5">
+                      <CardSkeleton lines={4} />
+                    </div>
+                  ) : rows.length === 0 ? (
+                    <p className="p-5 text-sm text-navy/65">
+                      {hasActiveFilters
+                        ? "No sessions match these filters. Try another date or plan."
+                        : "No sessions logged yet."}
+                    </p>
+                  ) : (
+                    <ul className="max-h-[24rem] divide-y divide-navy/8 overflow-y-auto">
+                      {[...rows]
+                        .sort(
+                          (a, b) =>
+                            b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
+                        )
+                        .map((a) => (
+                          <li
+                            key={a.id}
+                            className="px-5 py-3.5 transition-colors hover:bg-navy/[0.02]"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                              <div className="min-w-0 flex-1 basis-40">
+                                <p className="truncate text-sm font-bold">{a.activity}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-navy/55">
+                                  <span>{fmtDate(a.date)}</span>
+                                  <span className="text-navy/25">•</span>
+                                  <span
+                                    className={cn(
+                                      "rounded-full px-2 py-0.5 font-bold",
+                                      TOKEN_SOFT[LEVEL_TOKEN[a.level]],
+                                    )}
+                                  >
+                                    {a.level}
+                                  </span>
+                                </div>
+                              </div>
+                              <AttemptScore
+                                completion={a.completion}
+                                mood={a.mood}
+                                completionStatus={a.completionStatus}
+                                helpLevel={a.helpLevel}
+                              />
+                            </div>
+                            <ParentWinNote text={a.bigWin} className="mt-2.5" />
+                          </li>
+                        ))}
+                    </ul>
+                  ))}
+              </section>
+            </div>
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

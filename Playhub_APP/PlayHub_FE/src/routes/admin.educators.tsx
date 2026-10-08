@@ -1,3 +1,4 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -251,7 +252,7 @@ function AdminEducators() {
                       key={m.id}
                       member={m}
                       pending={toggle.isPending && toggle.variables === m.id}
-                      onToggle={() => toggle.mutate(m.id)}
+                      onToggle={() => (m.active ? toggle.mutateAsync(m.id) : toggle.mutate(m.id))}
                       onViewActivation={() => regenerate.mutate(m.id)}
                       viewingActivation={regenerate.isPending && regenerate.variables === m.id}
                     />
@@ -294,15 +295,21 @@ function AdminEducators() {
                             View activation link
                           </button>
                         ) : (
-                          <button
+                          <ConfirmButton
+                            confirmationTitle={`Disable ${m.name}?`}
+                            confirmationMessage="This staff member will lose access. Their session history will remain saved."
+                            confirmLabel="Disable account"
+                            requireConfirmation={m.active}
                             type="button"
-                            onClick={() => toggle.mutate(m.id)}
+                            onClick={() =>
+                              m.active ? toggle.mutateAsync(m.id) : toggle.mutate(m.id)
+                            }
                             disabled={toggle.isPending}
                             className="inline-flex min-h-9 items-center gap-1 rounded-full border border-navy/15 px-3 text-[11px] font-bold disabled:opacity-50"
                           >
                             <Power className="h-3.5 w-3.5" aria-hidden />
                             {m.active ? "Disable" : "Enable"}
-                          </button>
+                          </ConfirmButton>
                         )}
                       </span>
                     </li>
@@ -468,7 +475,11 @@ function StaffCard({
           View activation link
         </button>
       ) : (
-        <button
+        <ConfirmButton
+          confirmationTitle={`Disable ${member.name}?`}
+          confirmationMessage="This staff member will lose access. Their session history will remain saved."
+          confirmLabel="Disable account"
+          requireConfirmation={member.active}
           type="button"
           onClick={onToggle}
           disabled={pending}
@@ -480,7 +491,7 @@ function StaffCard({
             <Power className="h-4 w-4" aria-hidden />
           )}
           {member.active ? "Disable account" : "Enable account"}
-        </button>
+        </ConfirmButton>
       )}
     </article>
   );

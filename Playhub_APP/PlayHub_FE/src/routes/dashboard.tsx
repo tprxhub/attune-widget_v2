@@ -12,7 +12,7 @@ import {
 import { listAttempts } from "@/api/attempts";
 import { goalById, planById } from "@/api/domain";
 import { entryStates, listPlans, nextEntry } from "@/api/plans";
-import { getProgress } from "@/api/progress";
+import { assignedDoseNextStep, getProgress } from "@/api/progress";
 import { useCapabilities, useSession } from "@/auth/session";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
@@ -113,6 +113,7 @@ function ChildDashboard() {
   const logged = (attempts.data ?? []).map((a) => a.entryId);
   const today = plan ? nextEntry(states, logged) : undefined;
   const report = progress.data;
+  const nextStepText = assignedDoseNextStep(report, plan);
   const catalogPlans = plans.data ?? [];
   const currentFocusPlans = plan
     ? catalogPlans.filter((candidate) => candidate.goalId === plan.goalId)
@@ -191,8 +192,7 @@ function ChildDashboard() {
                   Next step
                 </p>
                 <p className="mt-1 text-sm leading-relaxed text-navy/85">
-                  {report?.narrative ??
-                    "Run today's Play Dose and log the Session while it's fresh."}
+                  {nextStepText ?? "Run today's Play Dose and log the Session while it's fresh."}
                 </p>
               </div>
             </LockedOverlay>

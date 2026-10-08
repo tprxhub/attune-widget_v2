@@ -252,3 +252,22 @@ def test_super_admin_can_change_licenses_but_not_below_children_in_use(client, p
     assert up.status_code == 200 and up.json()["seat_limit"] == 10
     assert client.patch(f"/api/v1/organisations/{org['id']}", headers=platform_admin, json={"seat_limit": 1}).status_code == 409
     assert client.patch(f"/api/v1/organisations/{org['id']}", headers=platform_admin, json={"seat_limit": 2}).status_code == 200
+
+
+def test_application_logo_upload_and_reset(client, family, platform_admin):
+    url = "/api/v1/site-content/branding"
+    assert client.get(url).json()["content"] is None
+    png = ("logo.png", b"\x89PNG\r\n\x1a\nplayhub-logo", "image/png")
+    assert client.post(f"{url}/logo", files={"file": png}).status_code == 401
+    assert client.post(f"{url}/logo", headers=family, files={"file": png}).status_code == 403
+    uploaded = client.post(f"{url}/logo", headers=platform_admin, files={"file": png})
+    assert uploaded.status_code == 200
+    logo = uploaded.json()["content"]["logo_url"]
+    assert "/branding/" in logo
+    assert client.get(url).json()["content"]["logo_url"] == logo
+    assert client.get(logo).status_code == 200
+    assert client.post(f"{url}/logo", headers=platform_admin, files={"file": ("logo.txt", b"hello", "text/plain")}).status_code == 415
+    assert client.delete(f"{url}/logo", headers=family).status_code == 403
+    assert client.delete(f"{url}/logo", headers=platform_admin).status_code == 204
+    assert client.get(url).json()["content"] is None
+    assert client.get(logo).status_code == 404

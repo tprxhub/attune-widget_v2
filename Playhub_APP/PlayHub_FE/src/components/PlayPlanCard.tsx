@@ -65,7 +65,7 @@ export function PlayPlanCard({
       className={cn(
         "group relative block h-full border-2 border-navy/8 bg-white p-3 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.08)] transition-all duration-300 ph-r-3xl",
         locked
-          ? "cursor-not-allowed border-dashed border-navy/25"
+          ? "cursor-not-allowed border-dashed border-navy/25 grayscale opacity-60"
           : freeLocked
             ? "border-dashed border-navy/20 hover:-translate-y-1"
             : "hover:-translate-y-2 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.12)]",

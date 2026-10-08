@@ -8,10 +8,11 @@ import {
   Flame,
   History,
   Lock,
+  Pencil,
   Repeat2,
   Sparkles,
 } from "lucide-react";
-import { listAttempts, logAttempt } from "@/api/attempts";
+import { correctAttempt, listAttempts, logAttempt } from "@/api/attempts";
 import { listGoals, listPlans } from "@/api/plans";
 import { getProgress } from "@/api/progress";
 import { useCapabilities, useSession } from "@/auth/session";
@@ -21,6 +22,7 @@ import { CardSkeleton } from "@/components/Skeletons";
 import { AttemptScore } from "@/components/AttemptScore";
 import { ParentWinNote } from "@/components/ParentWinNote";
 import { SupportScoreInfo } from "@/components/SupportScoreInfo";
+import { ModalPortal } from "@/components/ModalPortal";
 import { Select } from "@/components/Select";
 import { ReflectionForm, type ReflectionValues } from "@/features/attempts/ReflectionForm";
 import { useActiveChild } from "@/lib/active-child";
@@ -146,7 +148,7 @@ function CheckInPage() {
       <PageHeader
         eyebrow="Session logging"
         title="Daily Check-In"
-        description="Record a Play Dose session here — today or a past date. Nothing is ever overwritten."
+        description="Record a session for today or a past date."
       />
 
       {!canLogAttempts ? (
@@ -415,6 +417,18 @@ function RecentSessions({
   childName: string | undefined;
   sessions: Attempt[];
 }) {
+  const { canLogAttempts, canLeaveConsultNotes } = useCapabilities();
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState<Attempt | null>(null);
+  const correction = useMutation({
+    mutationFn: (values: ReflectionValues) => correctAttempt(editing!, values),
+    onSuccess: () => {
+      setEditing(null);
+      void queryClient.invalidateQueries({ queryKey: ["attempts"] });
+      void queryClient.invalidateQueries({ queryKey: ["progress"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-progress"] });
+    },
+  });
   const [open, setOpen] = useState(true);
   // Until someone picks a session, the newest one stays open so a just-saved Big Win shows.
   const [picked, setPicked] = useState<string | null | undefined>(undefined);
@@ -425,6 +439,56 @@ function RecentSessions({
   const hidden = sessions.length - visible.length;
   return (
     <section className="ph-card overflow-hidden">
+      {editing && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-navy/45 p-4">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Edit session"
+              className="my-6 w-full max-w-xl rounded-3xl bg-card p-6"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold">Edit session · {editing.activity}</h2>
+                <button
+                  type="button"
+                  disabled={correction.isPending}
+                  onClick={() => setEditing(null)}
+                  className="text-sm font-bold text-blue"
+                >
+                  Cancel
+                </button>
+              </div>
+              <ReflectionForm
+                key={editing.id}
+                showDate
+                showConsultNotes={canLeaveConsultNotes}
+                initialValues={{
+                  date: editing.date,
+                  completion: editing.completion,
+                  completionStatus: editing.completionStatus,
+                  helpLevel: editing.helpLevel,
+                  mood: editing.mood,
+                  bigWin: editing.bigWin,
+                  consultNotes: editing.consultNotes ?? "",
+                }}
+                pending={correction.isPending}
+                submitLabel="Save changes"
+                onSubmit={async (values) => {
+                  await correction.mutateAsync(values);
+                }}
+              />
+              {correction.isError && (
+                <p role="alert" className="mt-3 text-sm text-coral">
+                  {correction.error instanceof Error
+                    ? correction.error.message
+                    : "Changes could not be saved."}
+                </p>
+              )}
+            </div>
+          </div>
+        </ModalPortal>
+      )}
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -497,6 +561,18 @@ function RecentSessions({
                         )}
                       </span>
                     </button>
+                    {canLogAttempts && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          correction.reset();
+                          setEditing(a);
+                        }}
+                        className="mx-3 mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-blue"
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit session
+                      </button>
+                    )}
                     {isOpen && <ParentWinNote text={a.bigWin} className="mx-3 mb-3 w-auto" />}
                   </li>
                 );

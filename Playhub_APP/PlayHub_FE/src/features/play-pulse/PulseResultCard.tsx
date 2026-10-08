@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, PartyPopper, Share2, Star } from "lucide-react";
+import { Check, PartyPopper, Share2 } from "lucide-react";
 import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { Confetti, FaceShape, Ring } from "@/features/progress/SupportMoodRings";
 import { independence } from "@/features/progress/supportMood";
@@ -23,7 +23,6 @@ export function PulseResultCard({
   tier,
   domainTiers,
   focus,
-  explainer,
 }: {
   childName: string;
   goalName: string;
@@ -32,7 +31,6 @@ export function PulseResultCard({
   tier: ScoreTier;
   domainTiers: Record<PlayPulseDomain, DomainTier>;
   focus: PlayPulseDomain | null;
-  explainer: string;
 }) {
   const [shared, setShared] = useState<"idle" | "busy" | "done">("idle");
   const cheer = pulseCheer(childName, goalName, tier, domainTiers, focus);
@@ -74,14 +72,7 @@ export function PulseResultCard({
           ) : (
             <Share2 className="h-3.5 w-3.5" aria-hidden />
           )}
-          {shared === "done" ? (
-            "Ready"
-          ) : (
-            <>
-              <span className="sm:hidden">Share</span>
-              <span className="hidden sm:inline">Share the result</span>
-            </>
-          )}
+          {shared === "done" ? "Ready" : "Share"}
         </button>
       </div>
       <div className="mt-2">
@@ -89,7 +80,7 @@ export function PulseResultCard({
         <p className="mt-0.5 text-sm text-navy/70">{cheer.message}</p>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div className="mx-auto mt-4 flex w-fit max-w-full flex-wrap items-center justify-center gap-x-6 gap-y-3">
         <div className="relative h-36 w-36 shrink-0 sm:h-40 sm:w-40">
           <svg
             viewBox="0 0 160 160"
@@ -113,13 +104,13 @@ export function PulseResultCard({
           </svg>
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <dl className="space-y-3">
             <div>
               <dt className="flex items-center gap-1.5 text-xs font-bold text-navy/60">
                 <span className="ph-pill h-2.5 w-2.5" style={{ background: SUPPORT_COLOR }} />
                 Support Score
-                <SupportScoreInfo />
+                <SupportScoreInfo description="Based on your answers to this check. A lower score means less support is needed." />
               </dt>
               <dd className="mt-1 flex items-baseline gap-2">
                 <span className="text-2xl leading-none font-bold">{supportScore}%</span>
@@ -136,22 +127,8 @@ export function PulseResultCard({
               </dd>
             </div>
           </dl>
-          <ul className="mt-3 flex flex-wrap gap-1.5">
-            {cheer.wins.map((win) => (
-              <li
-                key={win}
-                className="ph-pill inline-flex items-center gap-1 border whitespace-nowrap border-navy/10 bg-white px-2.5 py-1 text-[11px] font-bold text-navy"
-              >
-                <Star className="h-3 w-3 fill-amber text-amber" aria-hidden /> {win}
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
-
-      <p className="mt-4 border border-navy/8 bg-white px-4 py-3 text-sm leading-relaxed font-medium text-navy/65 ph-r-md">
-        {explainer}
-      </p>
     </div>
   );
 }

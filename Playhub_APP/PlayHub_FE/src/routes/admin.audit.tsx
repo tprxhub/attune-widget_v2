@@ -57,7 +57,6 @@ const CATEGORY_META: Record<
   system: { label: "System", icon: ShieldCheck, styles: "bg-navy/8 text-navy" },
 };
 
-
 const FIELD_LABELS: Record<string, string> = {
   account_scope: "account type",
   admin_id: "assigned Admin",
@@ -174,6 +173,9 @@ function describeEvent(event: AuditEvent, data: AuditLogData) {
   const fields = changedFields(event);
   const role = metadataString(event, "role");
 
+  if (event.action === "attempt.corrected") {
+    return `A session was corrected${child ? ` for ${child}` : ""}; the original values are kept in the audit record.`;
+  }
   if (event.action === "attempt.created") {
     return `A check-in was logged${child ? ` for ${child}` : ""}${plan ? ` in ${plan}` : ""}.`;
   }

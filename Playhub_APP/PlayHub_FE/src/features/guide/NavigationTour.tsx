@@ -59,6 +59,17 @@ export function NavigationTour({ items }: { items: TourItem[] }) {
   const [rect, setRect] = useState<Rect | null>(null);
   const storageKey = `playhub:navigation-tour:${session.personaId}:v1`;
   const step = items[index];
+  const goalRoute = items.some((item) => item.to === "/check-in")
+    ? "/check-in"
+    : items.some((item) => item.to === "/plans")
+      ? "/plans"
+      : items[0]?.to;
+  const goalLabel =
+    goalRoute === "/check-in"
+      ? "Log your first session"
+      : goalRoute === "/plans"
+        ? "Choose a Play Dose"
+        : "Open your workspace";
 
   const finish = useCallback(() => {
     window.localStorage.setItem(storageKey, "complete");
@@ -118,7 +129,10 @@ export function NavigationTour({ items }: { items: TourItem[] }) {
     const start = () => begin(false);
     window.addEventListener(NAVIGATION_TOUR_EVENT, start);
     const timer = window.setTimeout(() => {
-      if (window.location.pathname === session.homePath && !window.localStorage.getItem(storageKey)) {
+      if (
+        window.location.pathname === session.homePath &&
+        !window.localStorage.getItem(storageKey)
+      ) {
         begin(true);
       }
     }, 700);
@@ -197,10 +211,7 @@ export function NavigationTour({ items }: { items: TourItem[] }) {
 
   return (
     <ModalPortal>
-      <div
-        className="fixed inset-0 z-[1100] bg-navy/25 backdrop-blur-[1px]"
-        aria-hidden
-      />
+      <div className="fixed inset-0 z-[1100] bg-navy/25 backdrop-blur-[1px]" aria-hidden />
       {rect && (
         <div
           className="pointer-events-none fixed z-[1101] rounded-2xl border-2 border-amber bg-transparent shadow-[0_0_0_5px_rgba(255,184,83,0.28),0_14px_40px_rgba(7,44,97,0.3)] transition-all duration-300"
@@ -225,7 +236,7 @@ export function NavigationTour({ items }: { items: TourItem[] }) {
           <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-blue/35 blur-2xl" />
           <div className="flex items-start justify-between gap-3">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-[10px] font-bold tracking-[0.14em] uppercase">
-              <Map className="h-3.5 w-3.5 text-amber" aria-hidden /> Navigation guide
+              <Map className="h-3.5 w-3.5 text-amber" aria-hidden /> Start guide
             </span>
             <button
               type="button"
@@ -249,8 +260,11 @@ export function NavigationTour({ items }: { items: TourItem[] }) {
           </div>
         </div>
         <div className="-mt-3 rounded-t-3xl bg-card px-5 pt-5 pb-4">
+          <p className="mb-3 text-sm font-bold text-navy">Your goal: {goalLabel.toLowerCase()}.</p>
           <p className="min-h-12 text-sm leading-relaxed text-navy/70">
-            {step.description ?? COPY[step.label] ?? "Open this area to continue working in Play Hub."}
+            {step.description ??
+              COPY[step.label] ??
+              "Open this area to continue working in Play Hub."}
           </p>
           <div className="mt-4 flex gap-1.5" aria-label="Tour progress">
             {items.map((item, dot) => (
@@ -281,12 +295,17 @@ export function NavigationTour({ items }: { items: TourItem[] }) {
               )}
               <button
                 type="button"
-                onClick={advance}
+                onClick={() => {
+                  if (final) {
+                    finish();
+                    if (goalRoute) void navigate({ to: goalRoute } as never);
+                  } else advance();
+                }}
                 className="inline-flex min-h-10 items-center gap-2 rounded-full bg-coral px-4 text-xs font-bold text-white shadow-sm"
               >
                 {final ? (
                   <>
-                    <Check className="h-4 w-4" aria-hidden /> Finish
+                    <Check className="h-4 w-4" aria-hidden /> {goalLabel}
                   </>
                 ) : (
                   <>

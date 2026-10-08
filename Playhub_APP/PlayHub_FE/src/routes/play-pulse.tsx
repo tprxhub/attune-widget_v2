@@ -1,4 +1,7 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { listGoals, listPlans } from "@/api/plans";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -16,7 +19,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import logo from "@/assets/PlayHub_Logo .svg";
+import { useApplicationLogo } from "@/api/branding";
 import { useSession } from "@/auth/session";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { PulseHeartbeat } from "@/features/play-pulse/PulseHeartbeat";
@@ -114,9 +117,8 @@ const TIER_STYLE: Record<
   },
 };
 
-const TOTAL_STEPS = 6;
-
 function PlayPulsePage() {
+  const logo = useApplicationLogo();
   usePlayPulsePersistence();
   const dispatch = useAppDispatch();
   const state = useAppSelector(selectPlayPulse);
@@ -154,14 +156,6 @@ function PlayPulsePage() {
   }
 
   const screen = state.screen === "results" && isAnonymous ? "gate" : state.screen;
-  const progressStep =
-    screen === "intro"
-      ? 0
-      : screen === "goal"
-        ? 1
-        : screen === "quiz"
-          ? 2 + state.domainIndex
-          : TOTAL_STEPS;
 
   return (
     <main className="min-h-screen overflow-x-clip bg-cream text-navy">
@@ -174,7 +168,11 @@ function PlayPulsePage() {
       <header className="sticky top-0 z-30 border-b border-navy/8 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex h-[76px] w-full max-w-5xl items-center justify-between px-4 sm:h-20 sm:px-6">
           <Link to="/" aria-label="Play Hub home">
-            <img src={logo} alt="Play Hub — The Toy Pharmacy" className="h-11 w-auto sm:h-12" />
+            <img
+              src={logo}
+              alt="Play Hub — The Toy Pharmacy"
+              className="h-11 max-w-[160px] w-auto object-contain sm:h-12"
+            />
           </Link>
           <span className="inline-flex items-center gap-2 rounded-full bg-navy/5 px-3 py-2 text-xs font-bold text-navy/65">
             <ShieldCheck className="h-4 w-4 text-blue" aria-hidden />
@@ -185,7 +183,7 @@ function PlayPulsePage() {
       </header>
 
       <div className="relative mx-auto w-full max-w-2xl px-4 pt-2 pb-20 sm:px-6 sm:pt-5">
-        <PulseHeartbeat step={progressStep} total={TOTAL_STEPS} />
+        <PulseHeartbeat screenKey={`${screen}-${state.domainIndex}`} />
 
         <div key={`${screen}-${state.domainIndex}`} className="ph-rise mt-4">
           {screen === "intro" && <IntroScreen />}
@@ -487,7 +485,21 @@ function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId })
   const { childName, answers } = useAppSelector(selectPlayPulse);
   const result = useMemo(() => computePlayPulseResult(goal, band, answers), [answers, band, goal]);
   const name = childName.trim() || "Your child";
-  const copy = resultCopy(result.tier, name, goal.name);
+  const copy = resultCopy(result.tier);
+  const catalog = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
+  const goals = useQuery({ queryKey: ["goals"], queryFn: listGoals });
+  const normalise = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/colour/g, "color");
+  const matchingGoal = goals.data?.find(
+    (item) => normalise(item.name) === normalise(goal.clinical),
+  );
+  const candidates = (catalog.data ?? []).filter(
+    (plan) => normalise(plan.title) === normalise(goal.name) || plan.goalId === matchingGoal?.id,
+  );
+  const matchingPlan = candidates.find((plan) => plan.level === "Starter") ?? candidates[0];
   return (
     <section>
       <Eyebrow>Play Pulse</Eyebrow>
@@ -501,7 +513,6 @@ function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId })
         focus={
           result.weakest && result.domainTiers[result.weakest] !== "ontrack" ? result.weakest : null
         }
-        explainer={resultExplainer(result.tier, name, goal.name, bandLabel(band))}
       />
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -554,22 +565,36 @@ function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId })
           >
             Book a Play Consult <ArrowRight className="h-4 w-4" aria-hidden />
           </a>
-          <Link
-            to="/plans"
-            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-center text-sm font-bold text-white transition hover:bg-white/15"
-          >
-            <Play className="h-4 w-4" aria-hidden /> Start Your Play Dose: “{goal.name}”
-          </Link>
+          {matchingPlan ? (
+            <Link
+              to="/plans/$planId"
+              params={{ planId: matchingPlan.id }}
+              className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-center text-sm font-bold text-white transition hover:bg-white/15"
+            >
+              <Play className="h-4 w-4" aria-hidden /> Start Play Plan
+            </Link>
+          ) : (
+            <p className="rounded-xl border border-white/30 p-4 text-center text-sm text-white/80">
+              {catalog.isLoading || goals.isLoading
+                ? "Finding your Play Plan…"
+                : catalog.isError || goals.isError
+                  ? "Could not load this Play Plan. Please refresh to try again."
+                  : "This Play Plan is coming soon."}
+            </p>
+          )}
         </div>
       </div>
 
-      <button
+      <ConfirmButton
+        confirmationTitle="Start a new check?"
+        confirmationMessage="Your current Play Pulse answers and result will be cleared."
+        confirmLabel="Start new check"
         type="button"
         onClick={() => dispatch(assessmentReset())}
         className="mx-auto mt-7 flex min-h-11 items-center gap-2 px-4 text-sm font-bold text-blue hover:underline"
       >
         <RotateCcw className="h-4 w-4" aria-hidden /> Start a new check
-      </button>
+      </ConfirmButton>
     </section>
   );
 }
@@ -669,31 +694,21 @@ function personalize(text: string, childName: string) {
   return text.replace(/your child/gi, childName.trim() || "your child");
 }
 
-function resultExplainer(tier: ScoreTier, name: string, goal: string, ageBand: string) {
-  if (tier === "ontrack") {
-    return `${name}’s skills line up closely with what “${goal}” calls for at the ${ageBand} stage—${name} needs little extra support to get there. This isn’t a pass/fail score; it shows you where things stand today.`;
-  }
-  if (tier === "practice") {
-    return `${name} is showing some of what “${goal}” calls for at the ${ageBand} stage, with a few areas still catching up. Some focused practice at home should help close the gap. This isn’t a pass/fail score; it shows you where to focus next.`;
-  }
-  return `${name}’s skills are still some way from what “${goal}” calls for at the ${ageBand} stage. That’s completely normal, and it’s a good moment to bring in extra support. This isn’t a pass/fail score; it shows you where to focus next.`;
-}
-
-function resultCopy(tier: ScoreTier, name: string, goal: string) {
+function resultCopy(tier: ScoreTier) {
   if (tier === "ontrack") {
     return {
-      heading: "Keep the momentum going",
-      body: `${name}’s profile is already close to what “${goal}” needs. A Play Consult can help fine-tune the plan, or jump straight into the matching Play Dose.`,
+      heading: "Keep the play going",
+      body: "Try the Play Plan to build on these skills.",
     };
   }
   if (tier === "practice") {
     return {
-      heading: "Let’s keep building together",
-      body: `There’s a bit of a gap between where ${name} is now and what “${goal}” calls for. A Play Consult can help target it, or start practicing today with the matching Play Dose.`,
+      heading: "A little practice helps",
+      body: "Start the Play Plan, or book a consult for guidance.",
     };
   }
   return {
-    heading: "Let’s build a plan together",
-    body: `There’s a real gap between where ${name} is now and what “${goal}” calls for. That’s completely normal, and it’s exactly what a Play Consult with Dr. Esther and her team is for.`,
+    heading: "Get a helping hand",
+    body: "A Play Consult can help you choose where to start.",
   };
 }

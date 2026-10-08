@@ -171,7 +171,8 @@ export function mapAttempt(row: ApiAttempt, plans: PlayPlan[]): Attempt {
     id: row.id,
     childId: row.child_id,
     planId: row.play_dose_id,
-    entryId: row.activity_id ?? row.play_dose_id,
+    // Preserve a missing activity so corrections send null instead of a dose ID.
+    entryId: row.activity_id ?? "",
     goalId: row.play_plan_id,
     level: plan?.level ?? "Starter",
     activity: entry?.activity ?? "Logged Attempt",

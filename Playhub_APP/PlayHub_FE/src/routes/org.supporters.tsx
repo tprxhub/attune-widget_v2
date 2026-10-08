@@ -63,6 +63,7 @@ function OrgSupporters() {
   const { session } = useSession();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [disabling, setDisabling] = useState<StaffMember | null>(null);
   const [reissuedCredentials, setReissuedCredentials] = useState<StaffInvitationResult | null>(
     null,
   );
@@ -89,7 +90,10 @@ function OrgSupporters() {
 
   const toggle = useMutation({
     mutationFn: (id: string) => toggleSupporterActive(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["supporters"] }),
+    onSuccess: () => {
+      setDisabling(null);
+      return queryClient.invalidateQueries({ queryKey: ["supporters"] });
+    },
   });
 
   const regenerate = useMutation({
@@ -107,6 +111,54 @@ function OrgSupporters() {
 
   return (
     <>
+      {disabling && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 grid place-items-center bg-navy/45 p-4">
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="disable-moderator-title"
+              className="w-full max-w-md rounded-3xl bg-card p-6 shadow-xl"
+            >
+              <h2 id="disable-moderator-title" className="text-xl font-bold">
+                Disable {disabling.name}?
+              </h2>
+              <p className="mt-3 text-sm text-navy/70">
+                They will lose access to Play Hub and their assigned children. Their session history
+                will remain. You can re-enable the account later.
+              </p>
+              {toggle.isError && (
+                <p role="alert" className="mt-3 text-sm text-coral">
+                  {toggle.error instanceof Error
+                    ? toggle.error.message
+                    : "Could not disable this account."}
+                </p>
+              )}
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={toggle.isPending}
+                  onClick={() => {
+                    setDisabling(null);
+                    toggle.reset();
+                  }}
+                  className="rounded-full border border-navy/20 px-4 py-2 text-sm font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={toggle.isPending}
+                  onClick={() => toggle.mutate(disabling.id)}
+                  className="rounded-full bg-coral px-4 py-2 text-sm font-bold text-white"
+                >
+                  {toggle.isPending ? "Disabling…" : "Disable account"}
+                </button>
+              </div>
+            </section>
+          </div>
+        </ModalPortal>
+      )}
       <PageHeader
         eyebrow={org.data ? `${org.data.name} · Team` : "Your team"}
         title="Moderators"
@@ -166,7 +218,7 @@ function OrgSupporters() {
                   key={s.id}
                   member={s}
                   assigned={children.filter((c) => c.supporterId === s.id)}
-                  onToggle={() => toggle.mutate(s.id)}
+                  onToggle={() => (s.active ? setDisabling(s) : toggle.mutate(s.id))}
                   busy={toggle.isPending && toggle.variables === s.id}
                   onGenerateLink={() => regenerate.mutate(s.id)}
                   generatingLink={regenerate.isPending && regenerate.variables === s.id}
@@ -223,7 +275,7 @@ function OrgSupporters() {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => toggle.mutate(s.id)}
+                        onClick={() => (s.active ? setDisabling(s) : toggle.mutate(s.id))}
                         disabled={toggle.isPending && toggle.variables === s.id}
                         className={cn(
                           "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border-2 px-4 text-xs font-bold disabled:opacity-60",

@@ -1,3 +1,4 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -196,14 +197,18 @@ function AdminOrgs() {
                 {org.active ? "Active" : "Suspended"}
               </span>
               <LicenseEditor org={org} compact />
-              <button
+              <ConfirmButton
+                confirmationTitle={`Suspend ${org.name}?`}
+                confirmationMessage="Staff and children will lose access until this organisation is reactivated."
+                confirmLabel="Suspend organisation"
+                requireConfirmation={org.active}
                 type="button"
-                onClick={() => toggle.mutate(org.id)}
+                onClick={() => (org.active ? toggle.mutateAsync(org.id) : toggle.mutate(org.id))}
                 className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
               >
                 <Power className="h-3.5 w-3.5" aria-hidden />{" "}
                 {org.active ? "Suspend" : "Reactivate"}
-              </button>
+              </ConfirmButton>
             </li>
           ))}
         </ul>
@@ -243,13 +248,17 @@ function AdminOrgs() {
               </p>
               <LicenseEditor org={org} />
 
-              <button
+              <ConfirmButton
+                confirmationTitle={`Suspend ${org.name}?`}
+                confirmationMessage="Staff and children will lose access until this organisation is reactivated."
+                confirmLabel="Suspend organisation"
+                requireConfirmation={org.active}
                 type="button"
-                onClick={() => toggle.mutate(org.id)}
+                onClick={() => (org.active ? toggle.mutateAsync(org.id) : toggle.mutate(org.id))}
                 className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-navy/20 text-sm font-bold"
               >
                 <Power className="h-4 w-4" aria-hidden /> {org.active ? "Suspend" : "Reactivate"}
-              </button>
+              </ConfirmButton>
             </article>
           ))}
         </div>

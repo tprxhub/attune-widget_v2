@@ -216,6 +216,13 @@
 }
 
 /* Play Pulse heart and heartbeat line. */
+@keyframes ph-pulse-loop {
+  0%, 10% { stroke-dashoffset: 1; }
+  45%, 55% { stroke-dashoffset: 0; }
+  90%, 100% { stroke-dashoffset: -1; }
+}
+.ph-pulse-loop { animation: ph-pulse-loop 3s ease-in-out both; }
+
 @keyframes ph-pulse-travel {
   from { stroke-dasharray: 0.12 1.2; stroke-dashoffset: 0.12; opacity: 1; }
   85% { opacity: 1; }
@@ -265,6 +272,6 @@
 .ph-heart-wave-slow { animation: ph-heart-wave 3.2s linear infinite reverse; opacity: 0.75; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ph-pulse-travel, .ph-pulse-shimmer, .ph-heart-rest, .ph-heart-beat, .ph-heart-ring,
+  .ph-pulse-loop, .ph-pulse-travel, .ph-pulse-shimmer, .ph-heart-rest, .ph-heart-beat, .ph-heart-ring,
   .ph-heart-glow, .ph-heart-wave, .ph-heart-wave-slow { animation: none; }
 }

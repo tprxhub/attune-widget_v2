@@ -19,13 +19,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/org/enroll")({
   head: () => ({
     meta: [
-      { title: "Enrol a child — Play Hub" },
+      { title: "Enrol a child in a Play Plan — Play Hub" },
       {
         name: "description",
         content:
           "Add a child to your caseload, pick their skill area and level, and invite their parent.",
       },
-      { property: "og:title", content: "Enrol a child — Play Hub" },
+      { property: "og:title", content: "Enrol a child in a Play Plan — Play Hub" },
       {
         property: "og:description",
         content: "Add a child to your caseload and pick their Play Plan.",
@@ -120,7 +120,7 @@ function EnrolPage() {
     <>
       <PageHeader
         eyebrow={isAdmin ? "Super Admin" : org.data ? `${org.data.name} · Caseload` : "Caseload"}
-        title="Enrol a child"
+        title="Enrol a child in a Play Plan"
         description="Licenses come from your organisation's plan — no card needed here."
       />
 
@@ -305,7 +305,7 @@ function EnrolPage() {
         </section>
 
         <aside className="ph-card p-5 sm:p-6">
-          <p className="eyebrow text-blue">Play Plan preview</p>
+          <p className="eyebrow text-blue">Play Plan goal</p>
           <h2 className="mt-1 text-lg font-bold">{plan?.title ?? "Pick a skill area and level"}</h2>
           <p className="mt-2 text-sm text-navy/70">{plan?.summary}</p>
           {errors["plan"] && (

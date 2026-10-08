@@ -5,6 +5,7 @@ export const ACTION_TITLES: Record<string, string> = {
   "activity.updated": "Activity updated",
   "activity.video_uploaded": "Activity video uploaded",
   "attempt.created": "Attempt recorded",
+  "attempt.corrected": "Session corrected",
   "billing.checkout_created": "Checkout started",
   "billing.payment_completed": "Payment completed",
   "billing.refund_completed": "Refund completed",

@@ -76,7 +76,7 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   await expect(
     page.getByRole("img", { name: /Support Score for each Play Dose in this Play Plan/ }),
   ).toBeVisible();
-  const nextSteps = page.getByRole("region", { name: "Next steps" });
+  const nextSteps = page.getByRole("region", { name: "What am I seeing?" });
   // Next steps come from the dose the child is on: finish it first, no placeholder steps.
   await expect(nextSteps.locator("ol > li").first()).toContainText("Finish this Rookie Play Dose");
   await expect(page.getByRole("heading", { name: "Session history" })).toHaveCount(1);
@@ -95,7 +95,7 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   await expect(planFilter).toHaveAccessibleName(/Play Plan Learn to Button a Shirt/);
   await planFilter.click();
   await page.getByRole("option", { name: /All Play Plans.*Compare all/ }).click();
-  await expect(page.getByText("All Play Plans and dates")).toBeVisible();
+  await expect(page.getByText("Showing filtered check-ins")).toHaveCount(0);
 
   await page.reload();
   await expect(
@@ -166,6 +166,7 @@ test("Super Admin can operate platform controls and complete staff activation", 
   const moderatorCard = page.locator("article").filter({ hasText: "Priya Raman" });
   await expect(moderatorCard).toBeVisible();
   await moderatorCard.getByRole("button", { name: "Disable account" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Disable account" }).click();
   await expect(moderatorCard.getByText("Disabled", { exact: true })).toBeVisible();
   await moderatorCard.getByRole("button", { name: "Enable account" }).click();
   await expect(moderatorCard.getByText("Active", { exact: true })).toBeVisible();
@@ -615,7 +616,7 @@ test("Super Admin edits the home page wording and visitors see it", async ({ pag
 
   // Resetting brings the original wording back.
   await page.getByRole("button", { name: "Reset to original wording" }).click();
-  await page.getByRole("button", { name: "Yes, reset" }).click();
+  await page.getByRole("button", { name: "Reset homepage" }).click();
   await expect(page.getByRole("status")).toContainText("original wording");
   await page.reload();
   await expect(page.getByText("Showing the original wording.")).toBeVisible();

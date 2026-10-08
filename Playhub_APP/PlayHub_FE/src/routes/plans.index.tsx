@@ -68,7 +68,6 @@ function PlansPage() {
                 <h2 className="text-lg font-bold">{goal.name}</h2>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-navy/55">
-                <span>Best paired with the {goal.kit}</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue/8 px-3 py-1 text-xs font-bold text-navy">
                   <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden />
                   Created by <span className="text-blue">{goal.createdBy ?? "Super Admin"}</span>

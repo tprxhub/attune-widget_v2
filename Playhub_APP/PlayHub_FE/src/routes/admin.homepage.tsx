@@ -1,3 +1,4 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useId, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +17,7 @@ import {
 } from "@/api/homepage";
 import { apiAssetUrl } from "@/api/client";
 import { Protected } from "@/auth/guards";
+import { ApplicationLogoEditor } from "@/components/ApplicationLogoEditor";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
 import { cn } from "@/lib/utils";
@@ -458,7 +460,6 @@ function HomepageEditor() {
   // `edits` only exists while there is something unsaved; until then the saved copy is shown.
   const [edits, setEdits] = useState<HomepageContent | null>(null);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set(["hero"]));
-  const [confirmReset, setConfirmReset] = useState(false);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
   const draft = edits ?? saved?.content ?? null;
@@ -542,11 +543,9 @@ function HomepageEditor() {
         updatedAt: null,
       });
       setEdits(null);
-      setConfirmReset(false);
       setNotice({ kind: "ok", text: "The home page is back to its original wording." });
     },
     onError: (error: Error) => {
-      setConfirmReset(false);
       setNotice({ kind: "error", text: error.message });
     },
   });
@@ -592,6 +591,7 @@ function HomepageEditor() {
         </div>
       ) : (
         <div className="mt-5 space-y-4">
+          <ApplicationLogoEditor />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-navy/65">
               {saved?.customised
@@ -665,7 +665,10 @@ function HomepageEditor() {
                           <div className="mb-3 flex items-center justify-between gap-3">
                             <legend className="float-left text-sm font-bold">{group.title}</legend>
                             {group.remove && (
-                              <button
+                              <ConfirmButton
+                                confirmationTitle={group.remove.label + "?"}
+                                confirmationMessage="The story will be removed from your draft. Save the homepage to publish this change."
+                                confirmLabel="Remove story"
                                 type="button"
                                 onClick={group.remove.onRemove}
                                 disabled={group.remove.disabled}
@@ -674,7 +677,7 @@ function HomepageEditor() {
                               >
                                 <Trash2 className="h-3.5 w-3.5" aria-hidden />
                                 Remove
-                              </button>
+                              </ConfirmButton>
                             )}
                           </div>
                         )}
@@ -736,70 +739,46 @@ function HomepageEditor() {
               )}
             </div>
 
-            {confirmReset ? (
-              <div
-                className="flex flex-wrap items-center gap-2"
-                role="alertdialog"
-                aria-label="Confirm reset"
-              >
-                <span className="text-xs font-semibold text-navy/70">
-                  Replace your saved wording with the original?
-                </span>
-                <button
+            <div className="flex flex-wrap items-center gap-2">
+              {saved?.customised && !dirty && (
+                <ConfirmButton
+                  confirmationTitle="Reset homepage?"
+                  confirmationMessage="Your saved homepage text and images will return to the original defaults. The application logo will stay unchanged."
+                  confirmLabel="Reset homepage"
                   type="button"
-                  onClick={() => reset.mutate()}
-                  disabled={reset.isPending}
-                  className="inline-flex min-h-10 items-center rounded-full bg-coral px-4 text-xs font-bold text-white disabled:opacity-60"
+                  onClick={() => reset.mutateAsync()}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
                 >
-                  {reset.isPending ? "Resetting…" : "Yes, reset"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmReset(false)}
-                  className="inline-flex min-h-10 items-center rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                {saved?.customised && !dirty && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNotice(null);
-                      setConfirmReset(true);
-                    }}
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                    Reset to original wording
-                  </button>
-                )}
-                {dirty && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEdits(null);
-                      setNotice(null);
-                    }}
-                    className="inline-flex min-h-10 items-center rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
-                  >
-                    Discard changes
-                  </button>
-                )}
-                <button
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                  Reset to original wording
+                </ConfirmButton>
+              )}
+              {dirty && (
+                <ConfirmButton
+                  confirmationTitle="Discard changes?"
+                  confirmationMessage="Your unsaved homepage edits will be lost."
+                  confirmLabel="Discard changes"
                   type="button"
                   onClick={() => {
-                    if (draft && errors.size === 0) save.mutate(draft);
+                    setEdits(null);
+                    setNotice(null);
                   }}
-                  disabled={!dirty || errors.size > 0 || save.isPending}
-                  className="inline-flex min-h-10 items-center rounded-full bg-navy px-5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-10 items-center rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
                 >
-                  {save.isPending ? "Saving…" : "Save changes"}
-                </button>
-              </div>
-            )}
+                  Discard changes
+                </ConfirmButton>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (draft && errors.size === 0) save.mutate(draft);
+                }}
+                disabled={!dirty || errors.size > 0 || save.isPending}
+                className="inline-flex min-h-10 items-center rounded-full bg-navy px-5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {save.isPending ? "Saving…" : "Save changes"}
+              </button>
+            </div>
           </div>
         </div>
       )}

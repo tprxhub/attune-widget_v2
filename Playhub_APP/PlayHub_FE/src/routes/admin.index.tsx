@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -145,9 +145,7 @@ function AdminOverviewPage() {
       eyebrow={isTtp ? "TTP Employee" : "Super Admin"}
       title="Platform overview"
       description={
-        scopeId === "all"
-          ? `Welcome back, ${session.name}. Here is what is happening across Play Hub and what needs a look.`
-          : `Welcome back, ${session.name}. Showing ${label} only; change the account filter in the top bar to see everything.`
+        scopeId === "all" ? "Key numbers and follow-ups across Play Hub." : `Showing ${label}.`
       }
     />
   );
@@ -187,24 +185,146 @@ function AdminOverviewPage() {
     <>
       {header}
       {isTtp && <YourAccess access={data.access} />}
-      <KeyFigures data={data} />
+      <KeyFigures data={data} compact={!isTtp} />
       <NeedsAttention data={data} />
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:items-start">
-        {data.progress && <ProgressCard progress={data.progress} />}
-        {data.children && <ChildrenCard children={data.children} />}
-        {data.billing && <BillingCard billing={data.billing} />}
-        {data.organisations && <OrganisationsCard orgs={data.organisations} />}
-        {data.team && <TeamCard team={data.team} />}
-        {data.plans && <ContentCard plans={data.plans} homepage={data.homepage} />}
-        {!data.plans && data.homepage && <HomepageCard homepage={data.homepage} />}
-        {data.audit && <RecentActivity audit={data.audit} />}
-      </div>
+      {isTtp ? (
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:items-start">
+          {data.progress && <ProgressCard progress={data.progress} />}
+          {data.children && <ChildrenCard children={data.children} />}
+          {data.billing && <BillingCard billing={data.billing} />}
+          {data.organisations && <OrganisationsCard orgs={data.organisations} />}
+          {data.team && <TeamCard team={data.team} />}
+          {data.plans && <ContentCard plans={data.plans} homepage={data.homepage} />}
+          {!data.plans && data.homepage && <HomepageCard homepage={data.homepage} />}
+          {data.audit && <RecentActivity audit={data.audit} />}
+        </div>
+      ) : (
+        <ExploreTabs data={data} />
+      )}
 
       <p className="mt-6 text-center text-xs text-navy/45">
-        Updated {fmtDateTime(data.generated_at)}. Figures only include areas you have access to.
+        Updated {fmtDateTime(data.generated_at)}.
       </p>
     </>
+  );
+}
+
+function ExploreTabs({ data }: { data: AdminOverview }) {
+  const [selected, setSelected] = useState("progress");
+  const tabs: { id: string; title: string; icon: LucideIcon; content: ReactNode }[] = [];
+  if (data.progress)
+    tabs.push({
+      id: "progress",
+      title: "Progress",
+      icon: Activity,
+      content: <ProgressCard progress={data.progress} />,
+    });
+  if (data.children)
+    tabs.push({
+      id: "children",
+      title: "Children",
+      icon: Users,
+      content: <ChildrenCard children={data.children} />,
+    });
+  if (data.billing)
+    tabs.push({
+      id: "billing",
+      title: "Subscriptions",
+      icon: CreditCard,
+      content: <BillingCard billing={data.billing} />,
+    });
+  if (data.organisations)
+    tabs.push({
+      id: "organisations",
+      title: "Organisations",
+      icon: Building2,
+      content: <OrganisationsCard orgs={data.organisations} />,
+    });
+  if (data.team)
+    tabs.push({
+      id: "team",
+      title: "Team",
+      icon: HeartHandshake,
+      content: <TeamCard team={data.team} />,
+    });
+  if (data.plans || data.homepage)
+    tabs.push({
+      id: "content",
+      title: "Content",
+      icon: ClipboardList,
+      content: data.plans ? (
+        <ContentCard plans={data.plans} homepage={data.homepage} />
+      ) : (
+        data.homepage && <HomepageCard homepage={data.homepage} />
+      ),
+    });
+  if (data.audit)
+    tabs.push({
+      id: "audit",
+      title: "Recent activity",
+      icon: ShieldCheck,
+      content: <RecentActivity audit={data.audit} />,
+    });
+  const active = tabs.some((tab) => tab.id === selected) ? selected : tabs[0]?.id;
+  return (
+    <section className="mt-5" aria-labelledby="overview-details-heading">
+      <h2 id="overview-details-heading" className="mb-3 text-lg font-bold">
+        Explore details
+      </h2>
+      <div
+        role="tablist"
+        aria-label="Explore details"
+        className="flex gap-2 overflow-x-auto rounded-2xl bg-navy/5 p-2"
+      >
+        {tabs.map((tab, index) => (
+          <button
+            key={tab.id}
+            id={`overview-tab-${tab.id}`}
+            type="button"
+            role="tab"
+            aria-selected={active === tab.id}
+            aria-controls={`overview-panel-${tab.id}`}
+            tabIndex={active === tab.id ? 0 : -1}
+            onClick={() => setSelected(tab.id)}
+            onKeyDown={(event) => {
+              let next = index;
+              if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+              else if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+              else if (event.key === "Home") next = 0;
+              else if (event.key === "End") next = tabs.length - 1;
+              else return;
+              event.preventDefault();
+              const target = tabs[next]!;
+              setSelected(target.id);
+              document.getElementById(`overview-tab-${target.id}`)?.focus();
+            }}
+            className={cn(
+              "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-bold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue",
+              active === tab.id
+                ? "bg-navy text-white shadow-sm"
+                : "text-navy/65 hover:bg-white hover:text-navy",
+            )}
+          >
+            <tab.icon className="h-4 w-4" aria-hidden />
+            {tab.title}
+          </button>
+        ))}
+      </div>
+      {tabs.map((tab) => (
+        <div
+          key={tab.id}
+          id={`overview-panel-${tab.id}`}
+          role="tabpanel"
+          aria-labelledby={`overview-tab-${tab.id}`}
+          hidden={active !== tab.id}
+          tabIndex={0}
+          className="mt-3 rounded-2xl focus-visible:outline-2 focus-visible:outline-blue"
+        >
+          {tab.content}
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -347,7 +467,7 @@ function NoAccessYet() {
   );
 }
 
-function KeyFigures({ data }: { data: AdminOverview }) {
+function KeyFigures({ data, compact = false }: { data: AdminOverview; compact?: boolean }) {
   const tiles: {
     label: string;
     value: ReactNode;
@@ -392,10 +512,14 @@ function KeyFigures({ data }: { data: AdminOverview }) {
   if (data.organisations)
     tiles.push({
       label: "Organisations",
-      value: `${data.organisations.active} / ${data.organisations.total}`,
-      hint: data.organisations.seats_total
-        ? `${data.organisations.seats_used} of ${data.organisations.seats_total} licences in use`
-        : "active / total",
+      value: compact
+        ? data.organisations.active
+        : `${data.organisations.active} / ${data.organisations.total}`,
+      hint: compact
+        ? "Active schools and clinics"
+        : data.organisations.seats_total
+          ? `${data.organisations.seats_used} of ${data.organisations.seats_total} licences in use`
+          : "active / total",
       icon: Building2,
       tone: "bg-navy/8 text-navy",
     });
@@ -415,10 +539,17 @@ function KeyFigures({ data }: { data: AdminOverview }) {
       icon: ClipboardList,
       tone: "bg-navy/8 text-navy",
     });
-  if (!tiles.length) return null;
+  const visibleTiles = compact
+    ? tiles.filter((tile) =>
+        ["Children", "Sessions (30 days)", "Active subscriptions", "Organisations"].includes(
+          tile.label,
+        ),
+      )
+    : tiles;
+  if (!visibleTiles.length) return null;
   return (
     <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {tiles.slice(0, 8).map((tile) => (
+      {visibleTiles.slice(0, 8).map((tile) => (
         <div key={tile.label} className="ph-card ph-rise p-5">
           <span className={cn("inline-grid h-10 w-10 place-items-center rounded-2xl", tile.tone)}>
             <tile.icon className="h-5 w-5" aria-hidden />

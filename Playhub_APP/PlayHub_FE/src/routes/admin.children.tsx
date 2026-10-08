@@ -1,3 +1,4 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -149,7 +150,7 @@ function AdminChildren() {
             to="/org/enroll"
             className="inline-flex min-h-12 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
           >
-            <Plus className="h-4 w-4" aria-hidden /> Enrol a child
+            <Plus className="h-4 w-4" aria-hidden /> Enrol a child in a Play Plan
           </Link>
         }
       />
@@ -602,9 +603,7 @@ function SubscriptionSummary({ sub }: { sub: Subscription | undefined }) {
                 : "Free plan"}
         </span>
       </div>
-      <p className="mt-1 text-sm font-bold">
-        {lastDay ? fmtDate(lastDay) : "—"}
-      </p>
+      <p className="mt-1 text-sm font-bold">{lastDay ? fmtDate(lastDay) : "—"}</p>
       <p className="text-xs text-navy/55">
         {lastDay
           ? stage === "ended"
@@ -690,15 +689,18 @@ function SubscriptionModal({
 
       <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         {current?.status === "active" && (
-          <button
+          <ConfirmButton
+            confirmationTitle="Cancel subscription?"
+            confirmationMessage="This will cancel the child’s active subscription."
+            confirmLabel="Cancel subscription"
             type="button"
-            onClick={() => cancel.mutate()}
+            onClick={() => cancel.mutateAsync()}
             disabled={cancel.isPending}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-navy/15 px-6 text-sm font-bold hover:border-coral/50 hover:text-coral disabled:opacity-60"
           >
             {cancel.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
             Cancel subscription
-          </button>
+          </ConfirmButton>
         )}
         <button
           type="button"

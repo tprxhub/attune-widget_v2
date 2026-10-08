@@ -24,19 +24,31 @@ async function login(page: Page, email: string) {
 
 test("Super Admin sees every area of the Overview", async ({ page }) => {
   await login(page, "admin@playhub.local");
-  for (const name of [
-    "Key figures",
-    "Needs attention",
-    "Sessions and outcomes",
-    "Engagement",
-    "Families and revenue",
-    "Schools and clinics",
-    "Organisation staff",
-    "Plans library",
-    "Recent activity",
+  await expect(page.getByRole("region", { name: "Key figures" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Key figures" }).locator(":scope > div"),
+  ).toHaveCount(4);
+  await expect(page.getByRole("region", { name: "Needs attention" })).toBeVisible();
+  for (const [title, region] of [
+    ["Progress", "Sessions and outcomes"],
+    ["Children", "Engagement"],
+    ["Subscriptions", "Families and revenue"],
+    ["Organisations", "Schools and clinics"],
+    ["Team", "Organisation staff"],
+    ["Content", "Plans library"],
+    ["Recent activity", "Recent activity"],
   ]) {
-    await expect(page.getByRole("region", { name }).first()).toBeVisible();
+    const tab = page.getByRole("tab", { name: title!, exact: true });
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    const panel = page.getByRole("tabpanel", { name: title!, exact: true });
+    await expect(panel.getByRole("region", { name: region!, exact: true })).toBeVisible();
+    await expect(page.getByRole("tabpanel")).toHaveCount(1);
   }
+  await page.getByRole("tab", { name: "Progress", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Children", exact: true })).toBeFocused();
+  await expect(page.getByRole("tabpanel", { name: "Children", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Your access" })).toHaveCount(0);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/overview-admin.png`, fullPage: true });
 });

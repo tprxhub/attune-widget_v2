@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { ChevronDown, Loader2, Sparkles } from "lucide-react";
 import { MOOD_ICONS } from "@/components/icons";
 import type { CompletionStatus, HelpLevel } from "@/lib/types";
@@ -16,6 +16,7 @@ export interface ReflectionValues {
 
 interface ReflectionFormProps {
   onSubmit: (values: ReflectionValues) => Promise<void> | void;
+  initialValues?: ReflectionValues;
   showDate?: boolean;
   showConsultNotes?: boolean;
   submitLabel?: string;
@@ -27,18 +28,22 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export function ReflectionForm({
   onSubmit,
+  initialValues,
   showDate = false,
   showConsultNotes = false,
   submitLabel = "Log this Session",
   pending = false,
   disabled = false,
 }: ReflectionFormProps) {
-  const [date, setDate] = useState(today());
-  const [completionStatus, setCompletionStatus] = useState<CompletionStatus | null>(null);
-  const [helpLevel, setHelpLevel] = useState<HelpLevel | null>(null);
-  const [mood, setMood] = useState(0);
-  const [bigWin, setBigWin] = useState("");
-  const [consultNotes, setConsultNotes] = useState("");
+  const formId = useId();
+  const [date, setDate] = useState(initialValues?.date ?? today());
+  const [completionStatus, setCompletionStatus] = useState<CompletionStatus | null>(
+    initialValues?.completionStatus ?? null,
+  );
+  const [helpLevel, setHelpLevel] = useState<HelpLevel | null>(initialValues?.helpLevel ?? null);
+  const [mood, setMood] = useState(initialValues?.mood ?? 0);
+  const [bigWin, setBigWin] = useState(initialValues?.bigWin ?? "");
+  const [consultNotes, setConsultNotes] = useState(initialValues?.consultNotes ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notesOpen, setNotesOpen] = useState(false);
 
@@ -94,12 +99,12 @@ export function ReflectionForm({
     <form onSubmit={handle} noValidate className="space-y-6">
       {showDate && (
         <div>
-          <label htmlFor="attempt-date" className="text-sm font-bold">
+          <label htmlFor={`${formId}-attempt-date`} className="text-sm font-bold">
             Date of the session
           </label>
           <p className="text-xs text-navy/60">You can log a past session — no future dates.</p>
           <input
-            id="attempt-date"
+            id={`${formId}-attempt-date`}
             type="date"
             value={date}
             max={today()}
@@ -214,12 +219,12 @@ export function ReflectionForm({
       </fieldset>
 
       <div>
-        <label htmlFor="big-win" className="text-sm font-bold">
+        <label htmlFor={`${formId}-big-win`} className="text-sm font-bold">
           Big Win
         </label>
         <p className="text-xs text-navy/60">What was the big win during this activity?</p>
         <textarea
-          id="big-win"
+          id={`${formId}-big-win`}
           rows={3}
           value={bigWin}
           onChange={(e) => setBigWin(e.target.value)}
@@ -254,7 +259,7 @@ export function ReflectionForm({
           </button>
           {notesOpen && (
             <textarea
-              id="consult-notes"
+              id={`${formId}-consult-notes`}
               rows={3}
               value={consultNotes}
               onChange={(e) => setConsultNotes(e.target.value)}

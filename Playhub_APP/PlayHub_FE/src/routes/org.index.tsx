@@ -78,7 +78,7 @@ function OrgChildren() {
                 to="/org/enroll"
                 className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
               >
-                <Plus className="h-4 w-4" aria-hidden /> Enrol a child
+                <Plus className="h-4 w-4" aria-hidden /> Enrol a child in a Play Plan
               </Link>
             </div>
           ) : undefined

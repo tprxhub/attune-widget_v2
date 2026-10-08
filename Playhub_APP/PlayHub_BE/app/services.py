@@ -90,7 +90,7 @@ def _scenario(point: WeeklyProgressPoint, previous: WeeklyProgressPoint | None) 
     """First match wins, top to bottom (Logic Spec). `previous` is the plan's last completed dose."""
     if previous is None:
         return "first"
-    if previous.level != point.level:
+    if {"rookie": 0, "starter": 1, "pro": 2}[point.level] > {"rookie": 0, "starter": 1, "pro": 2}[previous.level]:
         return "settling"
     if not point.passed and not previous.passed:
         return "consult"
@@ -179,10 +179,10 @@ def _weekly_points(ordered: Sequence[Attempt]) -> list[WeeklyProgressPoint]:
 
 
 def _headline(points: Sequence[WeeklyProgressPoint], current_plan_id: str | None) -> str:
-    """The status badge reads the latest completed dose of the Play Plan the child is on now."""
+    """Describe the latest dose; an incomplete dose has no completed verdict."""
     for point in reversed(points):
-        if point.play_plan_id == current_plan_id and point.scenario:
-            return SCENARIO_STATUS[point.scenario]
+        if point.play_plan_id == current_plan_id:
+            return SCENARIO_STATUS[point.scenario] if point.scenario else "insufficient_data"
     return "insufficient_data"
 
 

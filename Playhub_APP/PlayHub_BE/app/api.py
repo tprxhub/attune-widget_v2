@@ -1476,6 +1476,40 @@ def create_attempt(child_id: str, payload: AttemptCreate, user: User = Depends(r
     return commit(db, attempt)
 
 
+@router.patch("/children/{child_id}/attempts/{attempt_id}", response_model=AttemptRead)
+def correct_attempt(child_id: str, attempt_id: str, payload: AttemptCreate,
+                    user: User = Depends(require_roles(Role.SUPER_ADMIN, Role.ADMIN, Role.MODERATOR)),
+                    db: Session = Depends(get_db)):
+    child = one_or_404(db, Child, child_id)
+    require_child_access(child, user)
+    attempt = one_or_404(db, Attempt, attempt_id)
+    if attempt.child_id != child.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if not child.is_active or (child.organisation and not child.organisation.is_active):
+        raise HTTPException(status_code=409, detail="Sessions cannot be edited for an inactive child or organisation")
+    if user.role != Role.SUPER_ADMIN and not child.has_full_access:
+        raise HTTPException(status_code=403, detail="An active subscription is required to edit sessions")
+    if payload.play_dose_id != attempt.play_dose_id or payload.activity_id != attempt.activity_id:
+        raise HTTPException(status_code=422, detail="A correction cannot change the session's activity or Play Dose")
+    fields = ("occurred_on", "completion_status", "help_level", "completion_score", "mood_score", "big_win", "notes")
+    before = {field: getattr(attempt, field) for field in fields}
+    after = payload.model_dump(include=set(fields))
+    for field, value in after.items():
+        setattr(attempt, field, value)
+    # Keep the original author and preserve every changed value in the append-only audit trail.
+    def serialise(values):
+        return {key: value.isoformat() if isinstance(value, date) else value for key, value in values.items()}
+    audit(db, user.id, "attempt.corrected", "attempt", attempt.id,
+          {"child_id": child.id, "before": serialise(before), "after": serialise(after)})
+    siblings = db.scalars(select(Attempt).where(Attempt.child_id == child.id,
+                         Attempt.play_dose_id == attempt.play_dose_id,
+                         Attempt.run_number == attempt.run_number)).all()
+    anchor = min(item.occurred_on for item in siblings)
+    for item in siblings:
+        item.week_number = (item.occurred_on - anchor).days // 7 + 1
+    return commit(db, attempt)
+
+
 @router.get("/children/{child_id}/progress", response_model=ProgressSummary)
 def get_progress(child_id: str, play_plan_id: str | None = Query(default=None), from_date: date | None = None,
                  to_date: date | None = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -1601,3 +1635,48 @@ def reset_homepage_content(actor: User = Depends(require_permission("homepage"))
         db.delete(row)
         audit(db, actor.id, "site_content.reset", "site_content", HOMEPAGE_KEY)
         db.commit()
+
+
+@router.get("/site-content/branding", response_model=SiteContentRead)
+def get_branding(db: Session = Depends(get_db)):
+    return _site_content_read(db.get(SiteContent, "branding"))
+
+
+@router.post("/site-content/branding/logo", response_model=SiteContentRead)
+def upload_application_logo(
+    file: UploadFile = File(...),
+    actor: User = Depends(require_roles(Role.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+    storage: StorageService = Depends(get_storage),
+):
+    url = store_upload(file, "branding", storage)
+    row = db.get(SiteContent, "branding") or SiteContent(key="branding", content={})
+    old_url = row.content.get("logo_url")
+    row.content = {"logo_url": url}
+    row.updated_by_id = actor.id
+    db.add(row)
+    try:
+        audit(db, actor.id, "site_content.updated", "site_content", "branding")
+        db.commit()
+        db.refresh(row)
+    except Exception:
+        db.rollback()
+        discard_stored_asset(storage, url)
+        raise
+    discard_stored_asset(storage, old_url)
+    return _site_content_read(row)
+
+
+@router.delete("/site-content/branding/logo", status_code=status.HTTP_204_NO_CONTENT)
+def reset_application_logo(
+    actor: User = Depends(require_roles(Role.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+    storage: StorageService = Depends(get_storage),
+):
+    row = db.get(SiteContent, "branding")
+    if row:
+        old_url = row.content.get("logo_url")
+        db.delete(row)
+        audit(db, actor.id, "site_content.reset", "site_content", "branding")
+        db.commit()
+        discard_stored_asset(storage, old_url)

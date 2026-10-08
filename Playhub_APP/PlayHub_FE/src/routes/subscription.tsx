@@ -1,3 +1,4 @@
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -189,15 +190,18 @@ function SubscriptionPage() {
             )}
             {active && sub.data.refundWindowEndsAt ? (
               <>
-                <button
+                <ConfirmButton
+                  confirmationTitle="Request a full refund?"
+                  confirmationMessage="This will cancel your subscription and request a full refund."
+                  confirmLabel="Request full refund"
                   type="button"
-                  onClick={() => cancel.mutate()}
+                  onClick={() => cancel.mutateAsync()}
                   disabled={cancel.isPending}
                   className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-navy/20 text-sm font-bold disabled:opacity-60"
                 >
                   {cancel.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
                   Request full refund
-                </button>
+                </ConfirmButton>
                 {sub.data.refundWindowEndsAt && (
                   <p className="mt-3 text-xs text-navy/60">
                     Request by {fmtDate(sub.data.refundWindowEndsAt)} for a full refund.

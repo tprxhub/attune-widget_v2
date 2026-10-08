@@ -92,3 +92,13 @@ def test_the_headline_reads_the_latest_completed_dose_of_the_current_plan():
     assert _headline(points, "plan-a") == "settling_in"
     assert _headline(points, "plan-b") == "first_dose"
     assert _headline(_weekly_points(dose([33], "skip")), "plan-a") == "insufficient_data"
+
+
+def test_moving_down_does_not_claim_a_move_up():
+    rows = dose([33, 0, 33, 0, 0], 0, level="pro") + dose([33, 33, 33, 33, 33], 33, level="starter", start=START + timedelta(days=7))
+    assert _weekly_points(rows)[1].scenario != "settling"
+
+
+def test_incomplete_current_dose_does_not_show_a_previous_level_verdict():
+    rows = dose([33, 0, 33, 0, 0], 0) + dose([67, 67, 33, 67, 67], 67, level="pro", start=START + timedelta(days=7)) + [session(1, 33, level="starter", when=START + timedelta(days=20))]
+    assert _headline(_weekly_points(rows), "plan-a") == "insufficient_data"

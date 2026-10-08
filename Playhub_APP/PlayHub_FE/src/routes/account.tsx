@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { ConfirmButton } from "@/components/ConfirmButton";
+import { useEffect, useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Building2,
@@ -8,11 +9,9 @@ import {
   Check,
   CheckCircle2,
   Copy,
-  CreditCard,
   Eye,
   EyeOff,
   KeyRound,
-  LayoutDashboard,
   Loader2,
   Map,
   Mail,
@@ -21,9 +20,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
-  TrendingUp,
   Trash2,
-  UserPlus,
   UserRound,
   Users,
   X,
@@ -37,9 +34,8 @@ import {
   uploadProfilePhoto,
 } from "@/api/account";
 import { Protected } from "@/auth/guards";
-import { useCapabilities, useSession } from "@/auth/session";
+import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
-import { HeroStat as SharedHeroStat } from "@/components/HeroStat";
 import { ModalPortal } from "@/components/ModalPortal";
 import { PROFILE_STICKERS, ProfileAvatar } from "@/components/ProfileAvatar";
 import { CardSkeleton } from "@/components/Skeletons";
@@ -75,10 +71,6 @@ export const Route = createFileRoute("/account")({
   ),
 });
 
-function HeroStat(props: Omit<ComponentProps<typeof SharedHeroStat>, "variant">) {
-  return <SharedHeroStat variant="text" {...props} />;
-}
-
 function Row({
   icon: Icon,
   label,
@@ -106,33 +98,6 @@ function Row({
   );
 }
 
-function QuickLink({
-  to,
-  icon: Icon,
-  title,
-  sub,
-}: {
-  to: string;
-  icon: typeof UserRound;
-  title: string;
-  sub: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="group flex items-center gap-3 rounded-2xl border border-navy/10 bg-card p-3.5 transition hover:-translate-y-0.5 hover:border-blue/40 hover:shadow-[var(--shadow-card)]"
-    >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-navy/6 text-navy transition group-hover:bg-blue/12 group-hover:text-blue">
-        <Icon className="h-5 w-5" aria-hidden />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-bold">{title}</span>
-        <span className="block truncate text-xs text-navy/60">{sub}</span>
-      </span>
-    </Link>
-  );
-}
-
 function strengthOf(value: string) {
   let score = 0;
   if (value.length >= 8) score++;
@@ -148,7 +113,6 @@ function strengthOf(value: string) {
 
 function AccountPage() {
   const { session, refreshSession } = useSession();
-  const caps = useCapabilities();
   const navigation = useNavigationPreferences(session.personaId);
   const account = useQuery({
     queryKey: ["account", session.personaId],
@@ -270,7 +234,7 @@ function AccountPage() {
       <PageHeader
         eyebrow="Account"
         title="My account"
-        description="Everything Play Hub knows about you, and where to change your password."
+        description="Your profile, account details and preferences."
       />
 
       <div className="mt-5 space-y-5">
@@ -333,52 +297,6 @@ function AccountPage() {
               </div>
             </div>
           </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <HeroStat
-              icon={Users}
-              label="Children"
-              value={data ? String(data.childCount) : "—"}
-              sub={data && data.childCount > 0 ? data.childNames.join(", ") : "None linked yet"}
-            />
-            <HeroStat
-              icon={Mail}
-              label="Email"
-              value={email || "Not set"}
-              sub={session.guardianName ? "Child's sign-in email" : "Used to sign in"}
-            />
-            <HeroStat
-              icon={session.accountType === "b2b" ? Building2 : ShieldCheck}
-              label={session.accountType === "b2b" ? "Organisation" : "Plan"}
-              value={
-                session.accountType === "b2b"
-                  ? data?.orgName || "Not assigned"
-                  : session.tier === "subscribed"
-                    ? "Subscribed"
-                    : "Free"
-              }
-              sub={
-                session.accountType === "b2b"
-                  ? data?.orgKind || "Organisation account"
-                  : "Family account"
-              }
-            />
-            {data?.memberSince ? (
-              <HeroStat
-                icon={CalendarDays}
-                label="Member since"
-                value={fmtDate(data.memberSince)}
-                sub="On Play Hub"
-              />
-            ) : (
-              <HeroStat
-                icon={ShieldCheck}
-                label="Access"
-                value={roleLabel(session.role, session.accountType)}
-                sub="What you can do here"
-              />
-            )}
-          </div>
         </section>
 
         <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
@@ -412,34 +330,20 @@ function AccountPage() {
                     ) : undefined
                   }
                 />
-                <Row
-                  icon={ShieldCheck}
-                  label="Role"
-                  value={roleLabel(session.role, session.accountType)}
-                />
-                {session.accountType === "b2b" && (
-                  <Row
-                    icon={Building2}
-                    label="Organisation"
-                    value={
-                      data.orgName
-                        ? `${data.orgName}${data.orgKind ? ` · ${data.orgKind}` : ""}`
-                        : "Not assigned"
-                    }
-                  />
-                )}
-                {session.accountType === "b2c" && (
-                  <Row
-                    icon={Sparkles}
-                    label="Plan"
-                    value={session.tier === "subscribed" ? "Subscribed" : "Free"}
-                  />
-                )}
-                <Row
-                  icon={Users}
-                  label="Children"
-                  value={data.childCount > 0 ? data.childNames.join(", ") : "None yet"}
-                />
+                <details className="py-3">
+                  <summary className="cursor-pointer text-sm font-bold">
+                    Children ({data.childCount})
+                  </summary>
+                  {data.childCount ? (
+                    <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto pl-4 text-sm text-navy/75">
+                      {data.childNames.map((name, index) => (
+                        <li key={`${name}-${index}`}>{name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-sm text-navy/60">No children linked yet.</p>
+                  )}
+                </details>
                 {data.memberSince && (
                   <Row icon={CalendarDays} label="Member since" value={fmtDate(data.memberSince)} />
                 )}
@@ -447,92 +351,14 @@ function AccountPage() {
             )}
           </section>
 
-          {/* Quick links */}
-          <section className="ph-card min-w-0 p-5 sm:p-6">
-            <h2 className="text-lg font-bold">Jump back in</h2>
-            <p className="mt-1 text-xs text-navy/60">The places you use most, one tap away.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {caps.isAdmin ? (
-                <>
-                  <QuickLink
-                    to="/admin"
-                    icon={LayoutDashboard}
-                    title="Overview"
-                    sub="Platform at a glance"
-                  />
-                  <QuickLink
-                    to="/admin/progress"
-                    icon={TrendingUp}
-                    title="Progress"
-                    sub="Every account's trend"
-                  />
-                  <QuickLink
-                    to="/admin/orgs"
-                    icon={Building2}
-                    title="Organisations"
-                    sub="Schools and clinics"
-                  />
-                </>
-              ) : caps.isOrgUser ? (
-                <>
-                  <QuickLink
-                    to="/org"
-                    icon={LayoutDashboard}
-                    title="Caseload"
-                    sub="Your children"
-                  />
-                  <QuickLink
-                    to="/progress"
-                    icon={TrendingUp}
-                    title="Progress"
-                    sub="Sessions and trends"
-                  />
-                  <QuickLink
-                    to="/plans"
-                    icon={Sparkles}
-                    title="Play Plans"
-                    sub="Browse every plan"
-                  />
-                </>
-              ) : (
-                <>
-                  <QuickLink
-                    to="/dashboard"
-                    icon={LayoutDashboard}
-                    title="Dashboard"
-                    sub="Today's Play Dose"
-                  />
-                  <QuickLink
-                    to="/progress"
-                    icon={TrendingUp}
-                    title="Progress"
-                    sub="Sessions and trends"
-                  />
-                  <QuickLink
-                    to="/plans"
-                    icon={Sparkles}
-                    title="Play Plans"
-                    sub="Browse every plan"
-                  />
-                  {caps.canManageSubscription && (
-                    <QuickLink
-                      to="/subscription"
-                      icon={CreditCard}
-                      title="Subscription"
-                      sub="Plan and billing"
-                    />
-                  )}
-                  {caps.canInviteSupporter && (
-                    <QuickLink
-                      to="/invite"
-                      icon={UserPlus}
-                      title="Invite a Moderator"
-                      sub="Share view-only access"
-                    />
-                  )}
-                </>
-              )}
-
+          <section
+            className="ph-card min-w-0 p-5 sm:p-6"
+            aria-labelledby="account-preferences-title"
+          >
+            <h2 id="account-preferences-title" className="text-lg font-bold">
+              Preferences
+            </h2>
+            <div className="mt-4 grid gap-3">
               <button
                 type="button"
                 onClick={startNavigationTour}
@@ -592,13 +418,16 @@ function AccountPage() {
                   </p>
                 </div>
               </div>
-              <button
+              <ConfirmButton
+                confirmationTitle="Reset preferences?"
+                confirmationMessage="Your navigation preferences will return to their defaults."
+                confirmLabel="Reset defaults"
                 type="button"
                 onClick={navigation.reset}
                 className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/15 bg-card px-4 text-xs font-bold text-navy transition hover:border-navy/35"
               >
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset defaults
-              </button>
+              </ConfirmButton>
             </div>
             <div className="grid gap-px bg-navy/8 sm:grid-cols-2 lg:grid-cols-3">
               {ADMIN_NAVIGATION_OPTIONS.map((option) => {
@@ -740,16 +569,19 @@ function AccountPage() {
               )}
 
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-navy/8 pt-4">
-                <button
+                <ConfirmButton
+                  confirmationTitle="Remove profile picture?"
+                  confirmationMessage="Your account will use its default avatar."
+                  confirmLabel="Remove picture"
                   type="button"
-                  onClick={() => avatarMutation.mutate({ type: "remove" })}
+                  onClick={() => avatarMutation.mutateAsync({ type: "remove" })}
                   disabled={
                     avatarMutation.isPending || (!session.avatarUrl && !session.avatarSticker)
                   }
                   className="inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-xs font-bold text-coral transition hover:bg-coral/8 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden /> Remove
-                </button>
+                </ConfirmButton>
                 <button
                   type="button"
                   disabled={avatarMutation.isPending || (!photoFile && !selectedSticker)}
