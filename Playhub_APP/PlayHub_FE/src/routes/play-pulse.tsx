@@ -13,6 +13,7 @@ import {
   PersonStanding,
   Play,
   RotateCcw,
+  Share2,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -37,6 +38,7 @@ import {
   type DomainTier,
   type ScoreTier,
 } from "@/features/play-pulse/scoring";
+import { sharePlayPulseResult } from "@/features/play-pulse/sharePlayPulse";
 import { usePlayPulsePersistence } from "@/features/play-pulse/usePlayPulsePersistence";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -488,13 +490,49 @@ function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId })
   const name = childName.trim() || "Your child";
   const tier = TIER_STYLE[result.tier];
   const copy = resultCopy(result.tier, name, goal.name);
+  const [shared, setShared] = useState<"idle" | "busy" | "done">("idle");
+
+  const share = async () => {
+    setShared("busy");
+    try {
+      await sharePlayPulseResult({
+        childName: name,
+        goalName: goal.name,
+        ageBand: bandLabel(band),
+        supportScore: result.supportScore,
+        tier: result.tier,
+        domainTiers: result.domainTiers,
+        focus:
+          result.weakest && result.domainTiers[result.weakest] !== "ontrack"
+            ? result.weakest
+            : null,
+      });
+      setShared("done");
+      window.setTimeout(() => setShared("idle"), 2000);
+    } catch {
+      setShared("idle");
+    }
+  };
 
   return (
     <section>
       <Eyebrow>Play Pulse</Eyebrow>
       <div className="mt-4 overflow-hidden rounded-[28px] border border-navy/8 bg-white shadow-[0_24px_70px_-30px_rgba(0,42,100,.45)]">
-        <div className={cn("relative px-6 py-9 text-center sm:px-10", tier.soft)}>
+        <div className={cn("relative px-6 pt-14 pb-9 text-center sm:px-10 sm:pt-9", tier.soft)}>
           <Sparkles className="absolute top-6 left-6 h-6 w-6 opacity-35" aria-hidden />
+          <button
+            type="button"
+            onClick={share}
+            disabled={shared === "busy"}
+            className="ph-pill absolute top-4 right-4 inline-flex items-center gap-1.5 bg-coral px-3.5 py-2 text-xs font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(223,59,45,0.8)] transition hover:-translate-y-0.5 disabled:opacity-60"
+          >
+            {shared === "done" ? (
+              <Check className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <Share2 className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {shared === "done" ? "Ready" : "Share"}
+          </button>
           <p className="eyebrow text-navy/50">Support Score</p>
           <p className={cn("mt-3 text-7xl leading-none font-bold tracking-tight", tier.score)}>
             {result.supportScore}%

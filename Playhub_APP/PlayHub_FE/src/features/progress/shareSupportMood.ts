@@ -253,24 +253,14 @@ export async function renderSupportMoodImage({
 }
 
 /**
- * Shares the card as an image through the device share sheet, or downloads it where sharing
- * files isn't supported (most desktop browsers).
+ * Shares an image through the device share sheet, or downloads it where sharing files isn't
+ * supported (most desktop browsers).
  */
-export async function shareSupportMoodCard(input: {
-  childName: string;
-  supportScore: number | null;
-  moods: MoodDay[];
-}) {
-  const blob = await renderSupportMoodImage(input);
-  const name = `play-hub-${input.childName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-support-mood.png`;
-  const file = new File([blob], name, { type: "image/png" });
+export async function shareOrDownload(blob: Blob, fileName: string, title: string, text: string) {
+  const file = new File([blob], fileName, { type: "image/png" });
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({
-        files: [file],
-        title: `${input.childName}’s Play Hub week`,
-        text: `${input.childName}’s Support Score and mood this week on Play Hub.`,
-      });
+      await navigator.share({ files: [file], title, text });
       return;
     } catch (error) {
       // Closing the share sheet isn't an error worth reporting.
@@ -280,7 +270,29 @@ export async function shareSupportMoodCard(input: {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = name;
+  link.download = fileName;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function slug(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** Shares the Support & Mood card as an image. */
+export async function shareSupportMoodCard(input: {
+  childName: string;
+  supportScore: number | null;
+  moods: MoodDay[];
+}) {
+  const blob = await renderSupportMoodImage(input);
+  await shareOrDownload(
+    blob,
+    `play-hub-${slug(input.childName)}-support-mood.png`,
+    `${input.childName}’s Play Hub week`,
+    `${input.childName}’s Support Score and mood this week on Play Hub.`,
+  );
 }
