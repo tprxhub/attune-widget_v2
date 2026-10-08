@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     smtp_from: str = "Play Hub <no-reply@thetoypharmacy.com>"
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
+    # Testing only: charge every plan this amount (in fils, so 200 = AED 2.00, Stripe's minimum)
+    # instead of its real price. Leave unset in normal operation.
+    billing_test_amount: int | None = None
+    # Klaviyo: when a private API key is set, emails are sent as a "Play Hub Email" event that a
+    # Klaviyo flow turns into the email (subject and body come from the event). Takes precedence
+    # over SMTP.
+    klaviyo_private_key: str | None = None
+    klaviyo_email_metric: str = "Play Hub Email"
     cors_origins: str = (
         "http://localhost:3000,http://127.0.0.1:3000,"
         "http://localhost:4173,http://127.0.0.1:4173,"
@@ -65,6 +73,8 @@ class Settings(BaseSettings):
             raise ValueError("STORAGE_KEY_PREFIX cannot contain relative path segments")
         if bool(self.stripe_secret_key) != bool(self.stripe_webhook_secret):
             raise ValueError("STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET must be configured together")
+        if self.billing_test_amount is not None and self.billing_test_amount < 200:
+            raise ValueError("BILLING_TEST_AMOUNT must be at least 200 fils (AED 2.00, Stripe's minimum)")
         frontend_url = urlparse(self.frontend_base_url)
         if frontend_url.scheme not in {"http", "https"} or not frontend_url.netloc:
             raise ValueError("FRONTEND_BASE_URL must be an absolute HTTP(S) URL")

@@ -17,6 +17,14 @@ PLAN_CATALOG = {
 }
 
 
+def plan_price(settings: Settings, plan: str | None) -> dict | None:
+    """The plan as it is charged now: its catalogue price, or the test price while one is set."""
+    selected = PLAN_CATALOG.get(plan or "")
+    if selected is None or settings.billing_test_amount is None:
+        return selected
+    return {**selected, "amount": settings.billing_test_amount, "name": f"{selected['name']} (test price)"}
+
+
 def paid_in_full(session, plan: dict, field) -> bool:
     """True when a completed Checkout Session charged exactly this plan's price.
 
@@ -45,7 +53,9 @@ class CheckoutResult:
 def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: str, plan: str) -> CheckoutResult:
     if not settings.stripe_secret_key or not settings.stripe_webhook_secret:
         raise BillingError("Stripe payments are not configured")
-    selected = PLAN_CATALOG[plan]
+    selected = plan_price(settings, plan)
+    if selected is None:
+        raise BillingError("Unknown plan")
     try:
         import stripe
 

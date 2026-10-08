@@ -15,7 +15,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_child_access, require_permission, require_roles
 from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, PlanPublicationStatus, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
 from app.config import get_settings
-from app.billing import BillingError, PLAN_CATALOG, create_checkout, create_refund, paid_in_full, parse_webhook
+from app.billing import BillingError, create_checkout, create_refund, paid_in_full, parse_webhook, plan_price
 from app.google_identity import GoogleIdentityError, verify_google_credential
 from app.overview import Overview, build_overview
 from app.oidc_identity import (
@@ -1317,7 +1317,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     metadata = stripe_field(data, "metadata", {}) or {}
     child_id = stripe_field(metadata, "child_id")
     plan = stripe_field(metadata, "plan")
-    selected = PLAN_CATALOG.get(plan)
+    selected = plan_price(get_settings(), plan)
     child = db.get(Child, child_id) if child_id else None
     if not child or not selected:
         logger.error("Stripe webhook has invalid metadata", extra={"child_id": child_id, "plan": plan})
