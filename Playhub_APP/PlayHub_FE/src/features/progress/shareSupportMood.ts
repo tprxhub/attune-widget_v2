@@ -1,9 +1,17 @@
 import { moodMeta } from "@/components/icons";
-import { averageMood, independence, moodColor, moodRange, type MoodDay } from "./supportMood";
+import {
+  averageMood,
+  celebrate,
+  independence,
+  moodColor,
+  moodRange,
+  type MoodDay,
+} from "./supportMood";
 
 const NAVY = "#11295B";
 const CREAM = "#F5F2EE";
-const TRACK = "#E9E2DA";
+const TRACK = "#FFFFFF";
+const EMPTY_FACE = "#ECEEF2";
 const SUPPORT = "#2459A0";
 const MUTED = "rgba(17,41,91,0.6)";
 
@@ -93,81 +101,151 @@ export async function renderSupportMoodImage({
     ctx.fillText(value, x, y);
   };
 
-  ctx.fillStyle = CREAM;
+  // Warm celebration background with a scatter of confetti.
+  ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(0, 0, W, H);
+  const confetti: [number, number, number, string, "dot" | "bar"][] = [
+    [90, 70, 20, "#F2B544", "bar"],
+    [210, 40, 0, "#DF3B2D", "dot"],
+    [330, 120, -35, "#2459A0", "bar"],
+    [760, 50, 40, "#6FA05A", "bar"],
+    [880, 130, 0, "#F2B544", "dot"],
+    [990, 60, -20, "#DF3B2D", "bar"],
+    [60, 420, 0, "#6FA05A", "dot"],
+    [1030, 380, 30, "#2459A0", "bar"],
+    [80, 760, -25, "#DF3B2D", "bar"],
+    [1010, 720, 0, "#F2B544", "dot"],
+    [150, 300, 0, "#2459A0", "dot"],
+    [950, 280, 60, "#6FA05A", "bar"],
+  ];
+  for (const [x, y, rotate, color, shape] of confetti) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((rotate * Math.PI) / 180);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.75;
+    ctx.beginPath();
+    if (shape === "dot") ctx.arc(0, 0, 11, 0, Math.PI * 2);
+    else ctx.roundRect(-26, -8, 52, 16, 8);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  const cheer = celebrate(childName, supportScore, moods);
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  text("PLAY HUB · SUPPORT & MOOD", W / 2, 110, 30, 700, MUTED);
-  text(`${childName}’s week`, W / 2, 190, 64);
+  // "Celebrate the win" tag.
+  ctx.font = `800 26px ${font}`;
+  const tag = "CELEBRATE THE WIN";
+  const tagWidth = ctx.measureText(tag).width + 56;
+  ctx.fillStyle = "#F2B544";
+  ctx.beginPath();
+  ctx.roundRect(W / 2 - tagWidth / 2, 62, tagWidth, 52, 26);
+  ctx.fill();
+  text(tag, W / 2, 98, 26, 800);
+  // Headline, shrunk to fit the width when the name is long.
+  let size = 70;
+  ctx.font = `800 ${size}px ${font}`;
+  while (ctx.measureText(cheer.headline).width > W - 140 && size > 40) {
+    size -= 2;
+    ctx.font = `800 ${size}px ${font}`;
+  }
+  text(cheer.headline, W / 2, 200, size, 800);
+  text(cheer.message, W / 2, 252, 32, 600, MUTED);
 
-  // Rings: Support Score outside, mood inside, today's face in the middle.
+  // Rings: Support Score outside, mood inside, the latest mood's face in the middle.
   const cx = W / 2;
-  const cy = 540;
+  const cy = 545;
   const average = averageMood(moods);
   const latest = moods.at(-1)?.mood ?? null;
-  ring(ctx, cx, cy, 270, 70, independence(supportScore), SUPPORT);
+  ring(ctx, cx, cy, 228, 60, independence(supportScore), SUPPORT);
   ring(
     ctx,
     cx,
     cy,
-    196,
-    70,
+    164,
+    60,
     average === null ? 0 : average / 5,
     average === null ? TRACK : moodColor(Math.round(average)),
   );
-  if (latest !== null) drawFace(ctx, cx, cy, 108, latest);
+  if (latest !== null) drawFace(ctx, cx, cy, 92, latest);
   else {
-    ctx.fillStyle = TRACK;
+    ctx.fillStyle = EMPTY_FACE;
     ctx.beginPath();
-    ctx.arc(cx, cy, 108, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 92, 0, Math.PI * 2);
     ctx.fill();
   }
 
   // Two figures under the rings.
   const figures = [
     {
-      x: W * 0.28,
+      x: W * 0.3,
       label: "Support Score",
       value: supportScore === null ? "—" : `${supportScore}%`,
       color: SUPPORT,
     },
     {
-      x: W * 0.72,
+      x: W * 0.7,
       label: "Mood",
       value: average === null ? "—" : moodMeta(Math.round(average)).label,
-      color: average === null ? TRACK : moodColor(Math.round(average)),
+      color: average === null ? EMPTY_FACE : moodColor(Math.round(average)),
     },
   ];
   for (const f of figures) {
     // The dot sits just before the label, with the pair centred over the value.
-    ctx.font = `700 30px ${font}`;
+    ctx.font = `700 28px ${font}`;
     const labelWidth = ctx.measureText(f.label).width;
-    const start = f.x - (labelWidth + 36) / 2;
+    const start = f.x - (labelWidth + 34) / 2;
     ctx.fillStyle = f.color;
     ctx.beginPath();
-    ctx.arc(start + 12, 892, 12, 0, Math.PI * 2);
+    ctx.arc(start + 11, 852, 11, 0, Math.PI * 2);
     ctx.fill();
-    text(f.label, start + 36 + labelWidth / 2, 902, 30, 700, MUTED);
-    text(f.value, f.x, 975, f.value.length > 8 ? 52 : 64);
+    text(f.label, start + 34 + labelWidth / 2, 862, 28, 700, MUTED);
+    text(f.value, f.x, 930, f.value.length > 8 ? 50 : 60);
+  }
+
+  // Win chips.
+  if (cheer.wins.length) {
+    ctx.font = `700 26px ${font}`;
+    const chips = cheer.wins.map((win) => ({
+      win,
+      width: ctx.measureText(`★  ${win}`).width + 44,
+    }));
+    const total = chips.reduce((sum, c) => sum + c.width, 0) + 16 * (chips.length - 1);
+    let x = W / 2 - total / 2;
+    for (const chip of chips) {
+      ctx.fillStyle = "#F4F5F8";
+      ctx.beginPath();
+      ctx.roundRect(x, 972, chip.width, 50, 25);
+      ctx.fill();
+      ctx.textAlign = "left";
+      text("★", x + 22, 1006, 26, 700, "#E3A21A");
+      text(chip.win, x + 22 + 34, 1006, 26, 700);
+      ctx.textAlign = "center";
+      x += chip.width + 16;
+    }
   }
 
   // Mood history strip.
-  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "rgba(17,41,91,0.1)";
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.roundRect(70, 1070, W - 140, 220, 40);
-  ctx.fill();
+  ctx.roundRect(70, 1050, W - 140, 200, 36);
+  ctx.stroke();
   ctx.textAlign = "left";
-  text("Mood history", 110, 1125, 32);
+  text("Mood history", 110, 1100, 30);
   ctx.textAlign = "right";
-  text(moodRange(moods), W - 110, 1125, 26, 600, MUTED);
+  text(moodRange(moods), W - 110, 1100, 24, 600, MUTED);
   ctx.textAlign = "center";
   const slot = (W - 220) / 7;
   moods.forEach((m, i) => {
     const x = 110 + slot * i + slot / 2;
-    drawFace(ctx, x, 1190, 38, m.mood);
-    text(m.weekday, x, 1265, 24, 600, MUTED);
+    drawFace(ctx, x, 1160, 34, m.mood);
+    text(m.weekday, x, 1228, 22, 600, MUTED);
   });
-  if (!moods.length) text("Moods appear as Sessions are logged", W / 2, 1200, 28, 600, MUTED);
+  if (!moods.length) text("Moods appear as Sessions are logged", W / 2, 1175, 26, 600, MUTED);
+
+  text("Shared from Play Hub · The Toy Pharmacy", W / 2, 1304, 24, 600, MUTED);
 
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("No image"))), "image/png"),

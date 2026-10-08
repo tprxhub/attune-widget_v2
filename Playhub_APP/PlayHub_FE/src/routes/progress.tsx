@@ -11,7 +11,6 @@ import {
   MessageSquareHeart,
   Sparkles,
   Stethoscope,
-  Target,
 } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { listGoals, listPlans } from "@/api/plans";
@@ -21,11 +20,9 @@ import type { Attempt, ProgressReport } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
 import { useCapabilities, useSession } from "@/auth/session";
 import { Protected } from "@/auth/guards";
-import { HeroStat } from "@/components/HeroStat";
 import { PageHeader } from "@/components/AppShell";
 import { AttemptScore } from "@/components/AttemptScore";
 import { ParentWinNote } from "@/components/ParentWinNote";
-import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { ChartSkeleton, CardSkeleton } from "@/components/Skeletons";
 import { LockedOverlay } from "@/components/LockedOverlay";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -113,6 +110,34 @@ function useInsights(rows: Attempt[]) {
 }
 
 /* ---------- small pieces ---------- */
+
+/** A compact figure for the dark summary panel: icon badge, number, label. */
+function MiniStat({
+  icon: Icon,
+  value,
+  label,
+  sub,
+}: {
+  icon: typeof Flame;
+  value: string;
+  label: string;
+  sub: string;
+}) {
+  return (
+    <div className="flex flex-col items-start gap-2.5 rounded-2xl bg-white/[0.07] p-3 ring-1 ring-white/10 sm:flex-row sm:items-center sm:gap-3">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber text-navy">
+        <Icon className="h-5 w-5" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <p className="text-2xl leading-none font-bold">{value}</p>
+        <p className="mt-1 truncate text-[11px] font-bold tracking-wide text-cream/75 uppercase">
+          {label}
+        </p>
+        <p className="truncate text-[11px] text-cream/55">{sub}</p>
+      </div>
+    </div>
+  );
+}
 
 type PlanFilterOption = {
   id: string;
@@ -460,57 +485,43 @@ export function ProgressPage() {
         <div className="mt-5 space-y-5">
           {/* Play Hub Summary hero */}
           <section className="ph-card overflow-hidden bg-navy p-5 text-cream sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
+            {/* The summary and two compact figures on the left; the shareable celebration on the right. */}
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+              <div className="flex min-w-0 flex-col">
                 <p className="eyebrow text-cream/60">Play Hub Summary</p>
                 <h2 className="mt-1 text-2xl font-bold sm:text-3xl">{data.headline}</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-cream/80">
-                  {data.narrative}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold",
-                  data.status === "needs_check_in"
-                    ? "text-coral"
-                    : data.status === "holding_steady"
-                      ? "text-amber"
-                      : "text-cream",
-                )}
-              >
-                <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                {dosesTally.total
-                  ? `${dosesTally.passed} of ${dosesTally.total} doses passed in this plan`
-                  : "First Play Dose in progress"}
-              </span>
-            </div>
+                <p className="mt-2 text-sm leading-relaxed text-cream/80">{data.narrative}</p>
+                <span
+                  className={cn(
+                    "mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold",
+                    data.status === "needs_check_in"
+                      ? "text-coral"
+                      : data.status === "holding_steady"
+                        ? "text-amber"
+                        : "text-cream",
+                  )}
+                >
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                  {dosesTally.total
+                    ? `${dosesTally.passed} of ${dosesTally.total} doses passed in this plan`
+                    : "First Play Dose in progress"}
+                </span>
 
-            {/* Figures on the left half; the shareable Support & Mood rings on the right. */}
-            <div className="mt-5 grid gap-3 lg:grid-cols-2">
-              <div className="flex flex-col gap-3">
-                <div className="grid flex-1 grid-cols-2 gap-3">
-                  <HeroStat
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <MiniStat
                     icon={ActivityIcon}
-                    label="Sessions"
                     value={String(data.totalSessions)}
-                    sub={`${data.activitiesCompleted} Activities Completed`}
+                    label="Sessions"
+                    sub={`${data.activitiesCompleted} ${data.activitiesCompleted === 1 ? "activity" : "activities"} done`}
                   />
-                  <HeroStat
-                    icon={Target}
-                    label="Support Score"
-                    info={<SupportScoreInfo />}
-                    value={data.supportScore === null ? "—" : `${data.supportScore}%`}
-                    sub="Latest Play Dose · lower is better"
-                  />
-                  <HeroStat
+                  <MiniStat
                     icon={Flame}
-                    label="Weekly streak"
                     value={data.totalSessions ? `${insights.streak}w` : "—"}
-                    sub="Weeks in a row with a Session"
-                    className="col-span-2"
+                    label="Weekly streak"
+                    sub="Weeks in a row"
                   />
                 </div>
-                <p className="inline-flex items-center gap-2 text-xs font-semibold text-cream/60">
+                <p className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cream/60 lg:mt-auto lg:pt-4">
                   <CalendarClock className="h-3.5 w-3.5" aria-hidden />
                   Last check-in: {data.lastCheckIn ? fmtDate(data.lastCheckIn) : "no Sessions yet"}
                 </p>

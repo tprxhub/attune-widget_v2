@@ -30,23 +30,75 @@ interface SampleDose {
 }
 
 const DOSES: SampleDose[] = [
-  { planId: "sample-threading", level: "Rookie", practice: [67, 33, 33, 0, 0], tryScore: 33, moods: [3, 4, 4, 5, 5, 5], scenario: "first" },
-  { planId: "sample-threading", level: "Starter", practice: [100, 67, 67, 33, 67], tryScore: 67, moods: [2, 3, 3, 4, 3, 3], scenario: "settling" },
-  { planId: "sample-threading", level: "Starter", practice: [67, 33, 33, 0, 33], tryScore: 0, moods: [3, 4, 4, 5, 4, 5], scenario: "progressing" },
-  { planId: "sample-threading", level: "Pro", practice: [67, 33, 33, 33, 0], tryScore: 33, moods: [3, 4, 4, 4, 5, 5], scenario: "settling" },
-  { planId: "sample-pincer", level: "Rookie", practice: [33, 33, 0, 0, 0], tryScore: 0, moods: [4, 4, 5, 5, 5, 5], scenario: "first" },
-  { planId: "sample-pincer", level: "Starter", practice: [100, 67, 33, 33, 0], tryScore: 33, moods: [3, 3, 4, 4, 5, 4], scenario: "settling" },
-  { planId: "sample-pincer", level: "Starter", practice: [67, 33, null], moods: [3, 4], scenario: null },
+  {
+    planId: "sample-threading",
+    level: "Rookie",
+    practice: [67, 33, 33, 0, 0],
+    tryScore: 33,
+    moods: [3, 4, 4, 5, 5, 5],
+    scenario: "first",
+  },
+  {
+    planId: "sample-threading",
+    level: "Starter",
+    practice: [100, 67, 67, 33, 67],
+    tryScore: 67,
+    moods: [2, 3, 3, 4, 3, 3],
+    scenario: "settling",
+  },
+  {
+    planId: "sample-threading",
+    level: "Starter",
+    practice: [67, 33, 33, 0, 33],
+    tryScore: 0,
+    moods: [3, 4, 4, 5, 4, 5],
+    scenario: "progressing",
+  },
+  {
+    planId: "sample-threading",
+    level: "Pro",
+    practice: [67, 33, 33, 33, 0],
+    tryScore: 33,
+    moods: [3, 4, 4, 4, 5, 5],
+    scenario: "settling",
+  },
+  {
+    planId: "sample-pincer",
+    level: "Rookie",
+    practice: [33, 33, 0, 0, 0],
+    tryScore: 0,
+    moods: [4, 4, 5, 5, 5, 5],
+    scenario: "first",
+  },
+  {
+    planId: "sample-pincer",
+    level: "Starter",
+    practice: [100, 67, 33, 33, 0],
+    tryScore: 33,
+    moods: [3, 3, 4, 4, 5, 4],
+    scenario: "settling",
+  },
+  {
+    planId: "sample-pincer",
+    level: "Starter",
+    practice: [67, 33, null],
+    moods: [3, 4],
+    scenario: null,
+  },
 ];
 
 const iso = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
-const easy = (score: number | null | undefined) => score !== null && score !== undefined && score <= 33;
+const easy = (score: number | null | undefined) =>
+  score !== null && score !== undefined && score <= 33;
 
 /** Dates count back from `today`, so the sample always looks recent. */
 export function sampleProgressPoints(today = new Date()): ProgressPoint[] {
-  const totalDays = DOSES.reduce((sum, dose) => sum + dose.practice.length + (dose.tryScore === undefined ? 0 : 1) + 1, 0);
+  const totalDays = DOSES.reduce(
+    (sum, dose) => sum + dose.practice.length + (dose.tryScore === undefined ? 0 : 1) + 1,
+    0,
+  );
   const cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate() - totalDays);
   const runs = new Map<string, number>();
 

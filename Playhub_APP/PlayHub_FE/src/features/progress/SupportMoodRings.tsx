@@ -1,10 +1,20 @@
 import { useState } from "react";
-import { Check, Share2 } from "lucide-react";
+import { Check, PartyPopper, Share2, Star } from "lucide-react";
 import { moodMeta } from "@/components/icons";
+import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import { fmtShortDate } from "@/lib/format";
 import type { Attempt } from "@/lib/types";
 import { shareSupportMoodCard } from "./shareSupportMood";
-import { averageMood, moodColor, moodRange, recentMoods, independence, TRACK } from "./supportMood";
+import {
+  averageMood,
+  celebrate,
+  moodColor,
+  moodRange,
+  recentMoods,
+  independence,
+  TRACK,
+  EMPTY_FACE,
+} from "./supportMood";
 
 const SUPPORT_COLOR = "#2459A0";
 
@@ -74,6 +84,45 @@ function MoodFace({ mood, className }: { mood: number; className?: string }) {
   );
 }
 
+/** A few soft confetti pieces in the brand colours, behind the card's content. */
+function Confetti() {
+  const pieces: [number, number, number, string, "dot" | "bar"][] = [
+    [8, 10, 20, "#F2B544", "bar"],
+    [22, 4, -30, "#DF3B2D", "dot"],
+    [38, 14, 45, "#2459A0", "bar"],
+    [55, 6, 0, "#6FA05A", "dot"],
+    [70, 12, -15, "#F2B544", "dot"],
+    [84, 5, 60, "#DF3B2D", "bar"],
+    [93, 18, 10, "#2459A0", "dot"],
+    [64, 30, 35, "#6FA05A", "bar"],
+  ];
+  return (
+    <svg
+      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-28 w-full opacity-70"
+      viewBox="0 0 100 40"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      {pieces.map(([x, y, rotate, color, shape], index) =>
+        shape === "dot" ? (
+          <circle key={index} cx={x} cy={y} r="1.1" fill={color} />
+        ) : (
+          <rect
+            key={index}
+            x={x - 1.6}
+            y={y - 0.5}
+            width="3.2"
+            height="1"
+            rx="0.5"
+            fill={color}
+            transform={`rotate(${rotate} ${x} ${y})`}
+          />
+        ),
+      )}
+    </svg>
+  );
+}
+
 function Ring({
   radius,
   stroke,
@@ -138,35 +187,46 @@ export function SupportMoodRings({
     }
   };
 
+  const cheer = celebrate(childName, supportScore, moods);
+
   return (
-    <div className="flex h-full flex-col rounded-2xl bg-cream p-4 text-navy sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-            Support &amp; Mood
-          </p>
-          <p className="mt-0.5 text-sm font-bold">{childName}’s week at a glance</p>
-        </div>
+    <div className="relative isolate flex h-full flex-col overflow-hidden bg-white p-4 text-navy ph-r-lg sm:p-5">
+      <Confetti />
+      <div className="flex items-center justify-between gap-3">
+        <p className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-amber px-2.5 py-1 text-[10px] font-extrabold tracking-[0.12em] text-navy uppercase shadow-sm">
+          <PartyPopper className="h-3.5 w-3.5" aria-hidden /> Celebrate the win
+        </p>
         <button
           type="button"
           onClick={share}
           disabled={shared === "busy"}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-navy px-3 py-1.5 text-xs font-bold text-cream transition hover:bg-navy/90 disabled:opacity-60"
+          className="ph-pill inline-flex shrink-0 items-center gap-1.5 bg-coral px-3.5 py-2 text-xs font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(223,59,45,0.8)] transition hover:-translate-y-0.5 disabled:opacity-60"
         >
           {shared === "done" ? (
             <Check className="h-3.5 w-3.5" aria-hidden />
           ) : (
             <Share2 className="h-3.5 w-3.5" aria-hidden />
           )}
-          {shared === "done" ? "Ready" : "Share"}
+          {shared === "done" ? (
+            "Ready"
+          ) : (
+            <>
+              <span className="sm:hidden">Share</span>
+              <span className="hidden sm:inline">Share the win</span>
+            </>
+          )}
         </button>
       </div>
+      <div className="mt-2">
+        <h3 className="text-xl leading-tight font-extrabold sm:text-2xl">{cheer.headline}</h3>
+        <p className="mt-0.5 text-sm text-navy/70">{cheer.message}</p>
+      </div>
 
-      <div className="mt-3 flex flex-1 flex-wrap items-center gap-x-6 gap-y-3">
-        <div className="h-36 w-36 shrink-0 sm:h-40 sm:w-40">
+      <div className="mt-4 flex flex-1 flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="relative h-36 w-36 shrink-0 sm:h-40 sm:w-40">
           <svg
             viewBox="0 0 160 160"
-            className="h-full w-full"
+            className="relative h-full w-full"
             role="img"
             aria-label={`Support Score ${supportScore ?? "not yet"}${supportScore === null ? "" : "%"}; recent mood ${
               average === null ? "not logged yet" : moodMeta(Math.round(average)).label
@@ -185,39 +245,56 @@ export function SupportMoodRings({
               color={average === null ? TRACK : moodColor(Math.round(average))}
             />
             {latest === null ? (
-              <circle cx="80" cy="80" r="28" fill={TRACK} />
+              <circle cx="80" cy="80" r="28" fill={EMPTY_FACE} />
             ) : (
               <FaceShape cx={80} cy={80} r={28} mood={latest} />
             )}
           </svg>
         </div>
 
-        <dl className="min-w-0 flex-1 space-y-4">
-          <div>
-            <dt className="flex items-center gap-1.5 text-xs font-bold text-navy/60">
-              <span className="ph-pill h-2.5 w-2.5" style={{ background: SUPPORT_COLOR }} />
-              Support Score
-            </dt>
-            <dd className="mt-1 text-2xl leading-none font-bold">
-              {supportScore === null ? "—" : `${supportScore}%`}
-            </dd>
-          </div>
-          <div>
-            <dt className="flex items-center gap-1.5 text-xs font-bold text-navy/60">
-              <span
-                className="ph-pill h-2.5 w-2.5"
-                style={{ background: average === null ? TRACK : moodColor(Math.round(average)) }}
-              />
-              Mood
-            </dt>
-            <dd className="mt-1 text-2xl leading-none font-bold">
-              {average === null ? "—" : moodMeta(Math.round(average)).label}
-            </dd>
-          </div>
-        </dl>
+        <div className="min-w-0 flex-1">
+          <dl className="space-y-3">
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs font-bold text-navy/60">
+                <span className="ph-pill h-2.5 w-2.5" style={{ background: SUPPORT_COLOR }} />
+                Support Score
+                <SupportScoreInfo />
+              </dt>
+              <dd className="mt-1 text-2xl leading-none font-bold">
+                {supportScore === null ? "—" : `${supportScore}%`}
+              </dd>
+            </div>
+            <div>
+              <dt className="flex items-center gap-1.5 text-xs font-bold text-navy/60">
+                <span
+                  className="ph-pill h-2.5 w-2.5"
+                  style={{
+                    background: average === null ? EMPTY_FACE : moodColor(Math.round(average)),
+                  }}
+                />
+                Mood
+              </dt>
+              <dd className="mt-1 text-2xl leading-none font-bold">
+                {average === null ? "—" : moodMeta(Math.round(average)).label}
+              </dd>
+            </div>
+          </dl>
+          {cheer.wins.length > 0 && (
+            <ul className="mt-3 flex flex-wrap gap-1.5">
+              {cheer.wins.map((win) => (
+                <li
+                  key={win}
+                  className="ph-pill inline-flex items-center gap-1 border border-navy/10 bg-white px-2.5 py-1 text-[11px] font-bold text-navy"
+                >
+                  <Star className="h-3 w-3 fill-amber text-amber" aria-hidden /> {win}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
-      <div className="mt-4 border-t border-navy/10 pt-3">
+      <div className="mt-4 border border-navy/8 bg-white px-3 pt-2.5 pb-2 ph-r-md">
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-xs font-bold">Mood history</p>
           <p className="text-[11px] text-navy/50">{moodRange(moods)}</p>
