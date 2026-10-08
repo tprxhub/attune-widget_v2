@@ -37,7 +37,7 @@ def test_invisible_plans_are_admin_only_and_locked_plans_stay_visible(client, pl
     assert {invisible["id"], locked["id"]} <= {plan["id"] for plan in library}
 
 
-def test_free_catalog_keeps_every_activity_instruction_and_video_unlocked(client, platform_admin):
+def test_free_family_gets_every_instruction_and_video_of_the_plan_they_chose(client, platform_admin):
     plan = client.post(
         "/api/v1/play-plans",
         headers=platform_admin,
@@ -74,6 +74,12 @@ def test_free_catalog_keeps_every_activity_instruction_and_video_unlocked(client
     ).json()
     family_headers = {"Authorization": f"Bearer {registered['access_token']}"}
     child = client.get("/api/v1/children", headers=family_headers).json()[0]
+    locked = client.get("/api/v1/play-plans", headers=family_headers).json()[0]
+    assert locked["access_locked"] is True
+    assert all(not a["instructions"] and not a["video_url"] for a in locked["play_doses"][0]["activities"])
+    assert client.put(
+        f"/api/v1/children/{child['id']}/free-play-plan", headers=family_headers, json={"play_plan_id": plan["id"]}
+    ).status_code == 200
 
     activities = client.get("/api/v1/play-plans", headers=family_headers).json()[0]["play_doses"][0][
         "activities"

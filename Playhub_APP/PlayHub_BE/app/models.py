@@ -291,6 +291,8 @@ class Child(TimestampMixin, Base):
     admin_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     moderator_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     current_play_dose_id: Mapped[Optional[str]] = mapped_column(ForeignKey("play_doses.id", ondelete="SET NULL"), index=True)
+    # A free family child opens one Play Plan of their choice; the rest need a subscription.
+    free_play_plan_id: Mapped[Optional[str]] = mapped_column(ForeignKey("play_plans.id", ondelete="SET NULL"))
     plan_started_at: Mapped[Optional[date]] = mapped_column(Date)
     notes: Mapped[Optional[str]] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -306,6 +308,18 @@ class Child(TimestampMixin, Base):
     @property
     def owner_email(self) -> str | None:
         return self.owner.email if self.owner else None
+
+    @property
+    def has_full_access(self) -> bool:
+        """Organisation children and family children with a current subscription see every Play Plan."""
+        if self.account_scope != AccountScope.INDIVIDUAL:
+            return True
+        sub = self.subscription
+        return bool(
+            sub
+            and sub.status == SubscriptionStatus.ACTIVE
+            and (sub.ends_on is None or sub.ends_on >= date.today())
+        )
 
 
 class Attempt(Base):

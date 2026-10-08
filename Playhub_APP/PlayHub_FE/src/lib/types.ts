@@ -63,6 +63,8 @@ export interface Goal {
   /** Full name of the person who created this Play Plan; absent for built-in plans. */
   createdBy?: string | undefined;
   publicationStatus?: "published" | "invisible" | "locked" | undefined;
+  /** The server left out this plan's steps and videos: it isn't the family's free choice. */
+  accessLocked?: boolean | undefined;
 }
 
 export type EntryKind = "intro" | "dose" | "redo" | "levelup";
@@ -132,6 +134,8 @@ export interface Child {
   parentEmail?: string | undefined;
   currentPlanId: string;
   planStartedAt: string;
+  /** On the free tier: the one Play Plan (goal) this child has chosen to open. */
+  freePlanGoalId?: string | undefined;
   colorToken: "coral" | "blue" | "amber";
   note?: string | undefined;
 }

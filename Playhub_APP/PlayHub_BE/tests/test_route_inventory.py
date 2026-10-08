@@ -54,6 +54,7 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/children"),
     ("POST", "/api/v1/children"),
     ("PATCH", "/api/v1/children/{child_id}"),
+    ("PUT", "/api/v1/children/{child_id}/free-play-plan"),
     ("PUT", "/api/v1/children/{child_id}/subscription"),
     ("POST", "/api/v1/billing/checkout"),
     ("POST", "/api/v1/billing/refund/{child_id}"),

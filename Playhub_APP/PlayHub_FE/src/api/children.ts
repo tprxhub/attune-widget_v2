@@ -52,6 +52,15 @@ export async function assignSupporter(childId: string, supporterId: string | und
   return mapChild(child);
 }
 
+/** A free family opens one Play Plan (goal) for this child; it can't be changed afterwards. */
+export async function chooseFreePlan(childId: string, goalId: string) {
+  const child = await apiRequest<ApiChild>(`/children/${childId}/free-play-plan`, {
+    method: "PUT",
+    body: JSON.stringify({ play_plan_id: goalId }),
+  });
+  return mapChild(child);
+}
+
 export async function setChildPlan(childId: string, planId: string) {
   const child = await apiRequest<ApiChild>(`/children/${childId}`, {
     method: "PATCH",

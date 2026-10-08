@@ -81,6 +81,7 @@ export function mapChild(child: ApiChild): Child {
     educatorId: child.admin_id ?? undefined,
     supporterId: child.moderator_id ?? undefined,
     currentPlanId: child.current_play_dose_id ?? "",
+    freePlanGoalId: child.free_play_plan_id ?? undefined,
     planStartedAt: child.plan_started_at ?? new Date().toISOString().slice(0, 10),
     colorToken: token === "coral" || token === "amber" ? token : "blue",
     note: child.notes ?? undefined,
@@ -99,6 +100,7 @@ export function mapGoal(plan: ApiPlan): Goal {
     blurb: plan.short_description ?? plan.description ?? "",
     createdBy: plan.created_by_name ?? undefined,
     publicationStatus: plan.publication_status ?? "published",
+    accessLocked: plan.access_locked ?? false,
   };
 }
 

@@ -27,7 +27,7 @@ from app.oidc_identity import (
     verify_microsoft_credential,
 )
 from app.schemas import (
-    ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, AttemptRead, AvatarStickerUpdate, ChildCreate, ChildRead, ChildUpdate,
+    ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, ChildCreate, ChildRead, ChildUpdate,
     AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
     LoginRequest, OrganisationCreate, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
     PlayDoseUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
@@ -886,15 +886,43 @@ def list_plans(include_inactive: bool = False, user: User = Depends(get_current_
     if include_inactive:
         return rows
 
-    # The Play Plan catalog is intentionally fully browsable for every signed-in
-    # account. Subscription and role checks apply when an Attempt is written,
-    # not when instructions or media are read.
+    # Every signed-in account can browse the catalog. A family whose children are all on the free
+    # tier gets the steps and videos only for the Play Plans those children chose; the rest show
+    # their names and summaries, so they can still pick one or decide to subscribe.
+    open_ids = _open_play_plan_ids(db, user)
     plans: list[PlayPlanRead] = []
     for row in rows:
         plan = PlayPlanRead.model_validate(row)
         doses = [dose for dose in plan.play_doses if dose.is_active]
+        if open_ids is not None and plan.id not in open_ids:
+            doses = [_without_content(dose) for dose in doses]
+            plan = plan.model_copy(update={"access_locked": True})
         plans.append(plan.model_copy(update={"play_doses": doses}))
     return plans
+
+
+def _open_play_plan_ids(db: Session, user: User) -> set[str] | None:
+    """The Play Plans a family may open in full, or None when every plan is open to them."""
+    if user.is_platform or user.account_scope != AccountScope.INDIVIDUAL:
+        return None
+    children = db.scalars(
+        select(Child)
+        .options(selectinload(Child.subscription))
+        .where((Child.owner_id == user.id) | (Child.admin_id == user.id) | (Child.moderator_id == user.id))
+    ).all()
+    if any(child.has_full_access for child in children):
+        return None
+    return {child.free_play_plan_id for child in children if child.free_play_plan_id}
+
+
+def _without_content(dose: PlayDoseRead) -> PlayDoseRead:
+    activities = [
+        activity.model_copy(
+            update={"instructions": [], "instructions_html": None, "video_url": None, "video_source_type": None}
+        )
+        for activity in dose.activities
+    ]
+    return dose.model_copy(update={"activities": activities})
 
 
 def _apply_order(rows: list, ids: list[str]) -> None:
@@ -1140,6 +1168,36 @@ def create_child(payload: ChildCreate, user: User = Depends(require_permission("
     )
 
 
+@router.put("/children/{child_id}/free-play-plan", response_model=ChildRead)
+def choose_free_play_plan(child_id: str, payload: FreePlayPlanChoice, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """A free family picks the one Play Plan their child can open. It can't be changed afterwards,
+    except by platform staff (who can also clear it)."""
+    child = one_or_404(db, Child, child_id); require_child_access(child, user)
+    staff = user.can("children")
+    if not staff and not (child.owner_id == user.id or child.admin_id == user.id):
+        raise HTTPException(status_code=403, detail="Only the family's account holder can choose the free Play Plan")
+    if child.account_scope != AccountScope.INDIVIDUAL:
+        raise HTTPException(status_code=409, detail="Organisation children already have every Play Plan")
+    if payload.play_plan_id is None:
+        if not staff:
+            raise HTTPException(status_code=403, detail="Only platform staff can clear the free Play Plan")
+    else:
+        if child.free_play_plan_id and child.free_play_plan_id != payload.play_plan_id and not staff:
+            raise HTTPException(status_code=409, detail="The free Play Plan has already been chosen")
+        plan = one_or_404(db, PlayPlan, payload.play_plan_id)
+        if not plan.is_active or plan.publication_status != PlanPublicationStatus.PUBLISHED:
+            raise HTTPException(status_code=409, detail="Choose a published Play Plan")
+    child.free_play_plan_id = payload.play_plan_id
+    return commit_audited(
+        db,
+        child,
+        actor_id=user.id,
+        action="child.free_play_plan_chosen",
+        resource_type="child",
+        metadata={"play_plan_id": payload.play_plan_id},
+    )
+
+
 @router.patch("/children/{child_id}", response_model=ChildRead)
 def update_child(child_id: str, payload: ChildUpdate, user: User = Depends(require_permission("children", roles=(Role.ADMIN,))), db: Session = Depends(get_db)):
     child = one_or_404(db, Child, child_id); require_child_access(child, user)
@@ -1378,15 +1436,7 @@ def create_attempt(child_id: str, payload: AttemptCreate, user: User = Depends(r
         raise HTTPException(status_code=409, detail="Attempts cannot be logged for an inactive child")
     if child.organisation and not child.organisation.is_active:
         raise HTTPException(status_code=409, detail="Attempts cannot be logged for a suspended organisation")
-    if (
-        user.role != Role.SUPER_ADMIN
-        and child.account_scope == AccountScope.INDIVIDUAL
-        and (
-            not child.subscription
-            or child.subscription.status != SubscriptionStatus.ACTIVE
-            or (child.subscription.ends_on is not None and child.subscription.ends_on < date.today())
-        )
-    ):
+    if user.role != Role.SUPER_ADMIN and not child.has_full_access:
         raise HTTPException(status_code=403, detail="An active subscription is required to log attempts")
     dose = one_or_404(db, PlayDose, payload.play_dose_id)
     if (

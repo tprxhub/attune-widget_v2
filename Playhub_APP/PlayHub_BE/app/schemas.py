@@ -373,6 +373,9 @@ class PlayPlanRead(APIModel):
     publication_status: PlanPublicationStatus = PlanPublicationStatus.PUBLISHED
     sort_order: int = 0
     created_by_name: str | None = None
+    # True when the signer-in's free plan doesn't include this Play Plan: names and summaries
+    # are sent, but steps and videos are left out until they subscribe or choose it.
+    access_locked: bool = False
     play_doses: list[PlayDoseRead] = Field(default_factory=list)
 
 
@@ -451,10 +454,15 @@ class ChildRead(APIModel):
     admin_id: str | None
     moderator_id: str | None
     current_play_dose_id: str | None
+    free_play_plan_id: str | None = None
     plan_started_at: date | None
     notes: str | None
     is_active: bool
     subscription: SubscriptionRead | None = None
+
+
+class FreePlayPlanChoice(APIModel):
+    play_plan_id: str | None
 
 
 class SubscriptionUpsert(APIModel):

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listGoals, listPlans } from "@/api/plans";
 import { LEVEL_GUIDANCE } from "@/api/domain";
@@ -8,7 +9,10 @@ import { PlayPlanCard } from "@/components/PlayPlanCard";
 import { ListSkeleton } from "@/components/Skeletons";
 import { TOKEN_BG } from "@/components/brand";
 import { cn } from "@/lib/utils";
-import { Lock, UserRound } from "lucide-react";
+import { Gift, Lock, UserRound } from "lucide-react";
+import { ChooseFreePlanDialog, FreePlanBanner } from "@/features/plans/freePlan";
+import { useFreePlan } from "@/features/plans/useFreePlan";
+import type { Goal } from "@/lib/types";
 
 export const Route = createFileRoute("/plans/")({
   head: () => ({
@@ -36,6 +40,8 @@ export const Route = createFileRoute("/plans/")({
 function PlansPage() {
   const goals = useQuery({ queryKey: ["goals"], queryFn: listGoals });
   const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
+  const free = useFreePlan();
+  const [choosing, setChoosing] = useState<Goal | null>(null);
 
   return (
     <>
@@ -44,6 +50,8 @@ function PlansPage() {
         title="Pick a Plan, pick a level, press play."
         description={`Every plan is a week-long Play Dose. ${LEVEL_GUIDANCE} All plans use the Fine Motor Play Kit.`}
       />
+
+      <FreePlanBanner goals={goals.data ?? []} />
 
       {plans.isLoading || goals.isLoading ? (
         <ListSkeleton rows={6} />
@@ -65,6 +73,11 @@ function PlansPage() {
                   <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden />
                   Created by <span className="text-blue">{goal.createdBy ?? "Super Admin"}</span>
                 </span>
+                {free.active && goal.id === free.chosenGoalId && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-amber/35 px-3 py-1 text-xs font-bold text-navy">
+                    <Gift className="h-3.5 w-3.5" aria-hidden /> Your free plan
+                  </span>
+                )}
                 {goal.publicationStatus === "locked" && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-amber/35 px-3 py-1 text-xs font-bold text-navy">
                     <Lock className="h-3.5 w-3.5" aria-hidden /> Upcoming
@@ -75,13 +88,27 @@ function PlansPage() {
               <ul className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {goalPlans.map((plan) => (
                   <li key={plan.id}>
-                    <PlayPlanCard plan={plan} goal={goal} />
+                    <PlayPlanCard
+                      plan={plan}
+                      goal={goal}
+                      access={free.accessFor(goal)}
+                      onChoose={() => setChoosing(goal)}
+                    />
                   </li>
                 ))}
               </ul>
             </section>
           );
         })
+      )}
+
+      {choosing && free.child && (
+        <ChooseFreePlanDialog
+          goal={choosing}
+          childId={free.child.id}
+          childName={free.child.name}
+          onClose={() => setChoosing(null)}
+        />
       )}
     </>
   );

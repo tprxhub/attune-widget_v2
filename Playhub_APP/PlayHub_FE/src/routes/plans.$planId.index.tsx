@@ -22,6 +22,8 @@ import { AttemptScore } from "@/components/AttemptScore";
 import { useActiveChild } from "@/lib/active-child";
 import { LEVELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { FreePlanGate } from "@/features/plans/freePlan";
+import { useFreePlan } from "@/features/plans/useFreePlan";
 
 export const Route = createFileRoute("/plans/$planId/")({
   head: ({ params }) => {
@@ -55,6 +57,7 @@ function PlanWeek() {
   const { planId } = Route.useParams();
   const { session } = useSession();
   const { activeChild } = useActiveChild();
+  const free = useFreePlan();
   const plan = useQuery({ queryKey: ["plan", planId], queryFn: () => getPlan(planId) });
   const attempts = useQuery({
     queryKey: ["attempts", activeChild?.id],
@@ -67,6 +70,19 @@ function PlanWeek() {
 
   const data = plan.data;
   const goal = goalById(data.goalId);
+  if (goal && free.accessFor(goal) !== "open") {
+    return (
+      <>
+        <Link
+          to="/plans"
+          className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/15 px-4 text-sm font-bold hover:border-navy/40"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden /> Back to Play Plans
+        </Link>
+        <FreePlanGate goal={goal} />
+      </>
+    );
+  }
   const token = goal?.color ?? "navy";
   const startedAt =
     activeChild && activeChild.currentPlanId === data.id

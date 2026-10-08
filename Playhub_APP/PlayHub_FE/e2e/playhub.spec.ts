@@ -340,7 +340,13 @@ test("organisation roles receive the correct writable and read-only experiences"
 test("free family cannot log Sessions", async ({ page }) => {
   await login(page, "free.parent@playhub.local");
 
+  // A free family opens one Play Plan of their choice; the others stay locked.
   await page.goto("/plans");
+  await expect(page.getByText(/Free plan:/)).toBeVisible();
+  await page.getByRole("link", { name: /Open this one free/ }).first().click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Open / }).click();
+  await expect(page.getByText(/free Play Plan\. Subscribe/)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Subscribe to unlock/ }).first()).toBeVisible();
   await page
     .getByRole("link", { name: /Start Play Dose/ })
     .first()
@@ -348,6 +354,10 @@ test("free family cannot log Sessions", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Play Doses" })).toBeVisible();
   await expect(page.getByText("Locked", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Upgrade to unlock" })).toHaveCount(0);
+
+  await page.goto("/plans");
+  await page.getByRole("link", { name: /Subscribe to unlock/ }).first().click();
+  await expect(page.getByText(/is locked on the free plan/)).toBeVisible();
 
   await page.goto("/check-in");
   await expect(page.getByText("Logging is locked on the free plan", { exact: true })).toBeVisible();

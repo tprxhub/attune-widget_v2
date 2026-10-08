@@ -136,6 +136,7 @@ export interface ApiChild {
   admin_id: string | null;
   moderator_id: string | null;
   current_play_dose_id: string | null;
+  free_play_plan_id?: string | null;
   plan_started_at: string | null;
   notes: string | null;
   is_active: boolean;
@@ -183,6 +184,7 @@ export interface ApiPlan {
   colour: string | null;
   is_active: boolean;
   publication_status: "published" | "invisible" | "locked";
+  access_locked?: boolean;
   sort_order?: number;
   created_by_name?: string | null;
   play_doses: ApiDose[];

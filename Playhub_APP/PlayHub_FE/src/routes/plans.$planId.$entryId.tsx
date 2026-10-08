@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
 import { MoodIcon, moodMeta } from "@/components/icons";
 import { roundSummary } from "@/features/progress/currentRound";
+import { FreePlanGate } from "@/features/plans/freePlan";
+import { useFreePlan } from "@/features/plans/useFreePlan";
 
 type VideoSource = { kind: "file" | "embed"; src: string };
 
@@ -74,6 +76,7 @@ function PlayDosePage() {
   const navigate = useNavigate();
   const [attuneOpen, setAttuneOpen] = useState(false);
   const [justLogged, setJustLogged] = useState(false);
+  const free = useFreePlan();
 
   const planQuery = useQuery({
     queryKey: ["plan", planId],
@@ -116,6 +119,14 @@ function PlayDosePage() {
     return <p className="ph-card p-8 text-center">That Play Dose doesn't exist.</p>;
 
   const goal = goalById(plan.goalId);
+  if (goal && free.accessFor(goal) !== "open") {
+    return (
+      <>
+        <BackLink planId={planId} />
+        <FreePlanGate goal={goal} />
+      </>
+    );
+  }
   // Every Activity configured inside the Play Dose is available to the learner.
   const activities = entryActivities(entry);
   const startedAt =
