@@ -1,0 +1,208 @@
+import { moodMeta } from "@/components/icons";
+import { averageMood, independence, moodColor, moodRange, type MoodDay } from "./supportMood";
+
+const NAVY = "#11295B";
+const CREAM = "#F5F2EE";
+const TRACK = "#E9E2DA";
+const SUPPORT = "#2459A0";
+const MUTED = "rgba(17,41,91,0.6)";
+
+/** A filled mood face, matching the one on the page: frown (1) through to a big open smile (5). */
+function drawFace(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, mood: number) {
+  ctx.fillStyle = moodColor(mood);
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = NAVY;
+  ctx.strokeStyle = NAVY;
+  ctx.lineWidth = r * 0.1;
+  ctx.lineCap = "round";
+  const eyeY = y - r * 0.18;
+  const eyeX = r * 0.32;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(x + side * eyeX, eyeY, r * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    if (mood === 1) {
+      ctx.beginPath();
+      ctx.moveTo(x + side * (eyeX + r * 0.14), eyeY - r * 0.26);
+      ctx.lineTo(x + side * (eyeX - r * 0.1), eyeY - r * 0.16);
+      ctx.stroke();
+    }
+  }
+  const mouthY = y + r * 0.3;
+  const half = r * 0.38;
+  ctx.beginPath();
+  if (mood === 5) {
+    ctx.moveTo(x - half, mouthY - r * 0.06);
+    ctx.quadraticCurveTo(x, mouthY + r * 0.5, x + half, mouthY - r * 0.06);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.moveTo(x - half, mouthY);
+    ctx.quadraticCurveTo(x, mouthY + (mood - 3) * r * 0.2, x + half, mouthY);
+    ctx.stroke();
+  }
+}
+
+function ring(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  width: number,
+  value: number,
+  color: string,
+) {
+  ctx.lineWidth = width;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = TRACK;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  const filled = Math.max(0, Math.min(1, value));
+  if (filled > 0) {
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * filled);
+    ctx.stroke();
+  }
+}
+
+/** Draws the Support & Mood card as a 1080×1350 PNG. */
+export async function renderSupportMoodImage({
+  childName,
+  supportScore,
+  moods,
+}: {
+  childName: string;
+  supportScore: number | null;
+  moods: MoodDay[];
+}): Promise<Blob> {
+  await document.fonts?.ready;
+  const W = 1080;
+  const H = 1350;
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+  const font = getComputedStyle(document.body).fontFamily || "sans-serif";
+  const text = (value: string, x: number, y: number, size: number, weight = 700, color = NAVY) => {
+    ctx.font = `${weight} ${size}px ${font}`;
+    ctx.fillStyle = color;
+    ctx.fillText(value, x, y);
+  };
+
+  ctx.fillStyle = CREAM;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  text("PLAY HUB · SUPPORT & MOOD", W / 2, 110, 30, 700, MUTED);
+  text(`${childName}’s week`, W / 2, 190, 64);
+
+  // Rings: Support Score outside, mood inside, today's face in the middle.
+  const cx = W / 2;
+  const cy = 540;
+  const average = averageMood(moods);
+  const latest = moods.at(-1)?.mood ?? null;
+  ring(ctx, cx, cy, 270, 70, independence(supportScore), SUPPORT);
+  ring(
+    ctx,
+    cx,
+    cy,
+    196,
+    70,
+    average === null ? 0 : average / 5,
+    average === null ? TRACK : moodColor(Math.round(average)),
+  );
+  if (latest !== null) drawFace(ctx, cx, cy, 108, latest);
+  else {
+    ctx.fillStyle = TRACK;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 108, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Two figures under the rings.
+  const figures = [
+    {
+      x: W * 0.28,
+      label: "Support Score",
+      value: supportScore === null ? "—" : `${supportScore}%`,
+      color: SUPPORT,
+    },
+    {
+      x: W * 0.72,
+      label: "Mood",
+      value: average === null ? "—" : moodMeta(Math.round(average)).label,
+      color: average === null ? TRACK : moodColor(Math.round(average)),
+    },
+  ];
+  for (const f of figures) {
+    // The dot sits just before the label, with the pair centred over the value.
+    ctx.font = `700 30px ${font}`;
+    const labelWidth = ctx.measureText(f.label).width;
+    const start = f.x - (labelWidth + 36) / 2;
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    ctx.arc(start + 12, 892, 12, 0, Math.PI * 2);
+    ctx.fill();
+    text(f.label, start + 36 + labelWidth / 2, 902, 30, 700, MUTED);
+    text(f.value, f.x, 975, f.value.length > 8 ? 52 : 64);
+  }
+
+  // Mood history strip.
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.roundRect(70, 1070, W - 140, 220, 40);
+  ctx.fill();
+  ctx.textAlign = "left";
+  text("Mood history", 110, 1125, 32);
+  ctx.textAlign = "right";
+  text(moodRange(moods), W - 110, 1125, 26, 600, MUTED);
+  ctx.textAlign = "center";
+  const slot = (W - 220) / 7;
+  moods.forEach((m, i) => {
+    const x = 110 + slot * i + slot / 2;
+    drawFace(ctx, x, 1190, 38, m.mood);
+    text(m.weekday, x, 1265, 24, 600, MUTED);
+  });
+  if (!moods.length) text("Moods appear as Sessions are logged", W / 2, 1200, 28, 600, MUTED);
+
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("No image"))), "image/png"),
+  );
+}
+
+/**
+ * Shares the card as an image through the device share sheet, or downloads it where sharing
+ * files isn't supported (most desktop browsers).
+ */
+export async function shareSupportMoodCard(input: {
+  childName: string;
+  supportScore: number | null;
+  moods: MoodDay[];
+}) {
+  const blob = await renderSupportMoodImage(input);
+  const name = `play-hub-${input.childName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-support-mood.png`;
+  const file = new File([blob], name, { type: "image/png" });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: `${input.childName}’s Play Hub week`,
+        text: `${input.childName}’s Support Score and mood this week on Play Hub.`,
+      });
+      return;
+    } catch (error) {
+      // Closing the share sheet isn't an error worth reporting.
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

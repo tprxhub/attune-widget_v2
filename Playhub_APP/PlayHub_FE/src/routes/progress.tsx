@@ -33,6 +33,7 @@ import { FloatingPanel } from "@/components/FloatingPanel";
 import { MoodIcon, moodMeta } from "@/components/icons";
 import { LEVEL_TOKEN, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
+import { SupportMoodRings } from "@/features/progress/SupportMoodRings";
 import { useActiveChild } from "@/lib/active-child";
 import { cn } from "@/lib/utils";
 import { childProgressCsv, downloadCsv, slug } from "@/lib/csv";
@@ -484,33 +485,42 @@ export function ProgressPage() {
               </span>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <HeroStat
-                icon={ActivityIcon}
-                label="Sessions"
-                value={String(data.totalSessions)}
-                sub={`${data.activitiesCompleted} Activities Completed`}
-              />
-              <HeroStat
-                icon={Target}
-                label="Support Score"
-                info={<SupportScoreInfo />}
-                value={data.supportScore === null ? "—" : `${data.supportScore}%`}
-                sub="Latest Play Dose · lower is better"
-              />
-              <HeroStat
-                icon={Flame}
-                label="Weekly streak"
-                value={data.totalSessions ? `${insights.streak}w` : "—"}
-                sub="Weeks in a row with an Session"
-                className="col-span-2 sm:col-span-1"
+            {/* Figures on the left half; the shareable Support & Mood rings on the right. */}
+            <div className="mt-5 grid gap-3 lg:grid-cols-2">
+              <div className="flex flex-col gap-3">
+                <div className="grid flex-1 grid-cols-2 gap-3">
+                  <HeroStat
+                    icon={ActivityIcon}
+                    label="Sessions"
+                    value={String(data.totalSessions)}
+                    sub={`${data.activitiesCompleted} Activities Completed`}
+                  />
+                  <HeroStat
+                    icon={Target}
+                    label="Support Score"
+                    info={<SupportScoreInfo />}
+                    value={data.supportScore === null ? "—" : `${data.supportScore}%`}
+                    sub="Latest Play Dose · lower is better"
+                  />
+                  <HeroStat
+                    icon={Flame}
+                    label="Weekly streak"
+                    value={data.totalSessions ? `${insights.streak}w` : "—"}
+                    sub="Weeks in a row with a Session"
+                    className="col-span-2"
+                  />
+                </div>
+                <p className="inline-flex items-center gap-2 text-xs font-semibold text-cream/60">
+                  <CalendarClock className="h-3.5 w-3.5" aria-hidden />
+                  Last check-in: {data.lastCheckIn ? fmtDate(data.lastCheckIn) : "no Sessions yet"}
+                </p>
+              </div>
+              <SupportMoodRings
+                childName={activeChild.name}
+                supportScore={data.supportScore}
+                rows={allRows}
               />
             </div>
-
-            <p className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cream/60">
-              <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-              Last check-in: {data.lastCheckIn ? fmtDate(data.lastCheckIn) : "no Sessions yet"}
-            </p>
           </section>
 
           <section className="ph-card p-5">
