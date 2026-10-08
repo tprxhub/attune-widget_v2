@@ -13,7 +13,6 @@ import {
   PersonStanding,
   Play,
   RotateCcw,
-  Share2,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
@@ -38,7 +37,7 @@ import {
   type DomainTier,
   type ScoreTier,
 } from "@/features/play-pulse/scoring";
-import { sharePlayPulseResult } from "@/features/play-pulse/sharePlayPulse";
+import { PulseResultCard } from "@/features/play-pulse/PulseResultCard";
 import { usePlayPulsePersistence } from "@/features/play-pulse/usePlayPulsePersistence";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -488,76 +487,22 @@ function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId })
   const { childName, answers } = useAppSelector(selectPlayPulse);
   const result = useMemo(() => computePlayPulseResult(goal, band, answers), [answers, band, goal]);
   const name = childName.trim() || "Your child";
-  const tier = TIER_STYLE[result.tier];
   const copy = resultCopy(result.tier, name, goal.name);
-  const [shared, setShared] = useState<"idle" | "busy" | "done">("idle");
-
-  const share = async () => {
-    setShared("busy");
-    try {
-      await sharePlayPulseResult({
-        childName: name,
-        goalName: goal.name,
-        ageBand: bandLabel(band),
-        supportScore: result.supportScore,
-        tier: result.tier,
-        domainTiers: result.domainTiers,
-        focus:
-          result.weakest && result.domainTiers[result.weakest] !== "ontrack"
-            ? result.weakest
-            : null,
-      });
-      setShared("done");
-      window.setTimeout(() => setShared("idle"), 2000);
-    } catch {
-      setShared("idle");
-    }
-  };
-
   return (
     <section>
       <Eyebrow>Play Pulse</Eyebrow>
-      <div className="mt-4 overflow-hidden rounded-[28px] border border-navy/8 bg-white shadow-[0_24px_70px_-30px_rgba(0,42,100,.45)]">
-        <div className={cn("relative px-6 pt-14 pb-9 text-center sm:px-10 sm:pt-9", tier.soft)}>
-          <Sparkles className="absolute top-6 left-6 h-6 w-6 opacity-35" aria-hidden />
-          <button
-            type="button"
-            onClick={share}
-            disabled={shared === "busy"}
-            className="ph-pill absolute top-4 right-4 inline-flex items-center gap-1.5 bg-coral px-3.5 py-2 text-xs font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(223,59,45,0.8)] transition hover:-translate-y-0.5 disabled:opacity-60"
-          >
-            {shared === "done" ? (
-              <Check className="h-3.5 w-3.5" aria-hidden />
-            ) : (
-              <Share2 className="h-3.5 w-3.5" aria-hidden />
-            )}
-            {shared === "done" ? "Ready" : "Share"}
-          </button>
-          <p className="eyebrow text-navy/50">Support Score</p>
-          <p className={cn("mt-3 text-7xl leading-none font-bold tracking-tight", tier.score)}>
-            {result.supportScore}%
-          </p>
-          <p className={cn("mt-2 text-2xl font-bold", tier.score)}>
-            {TIER_COPY[result.tier].label}
-          </p>
-          {result.weakest && result.domainTiers[result.weakest] !== "ontrack" && (
-            <p
-              className={cn(
-                "mx-auto mt-5 max-w-lg rounded-full px-4 py-2 text-sm font-bold",
-                TIER_STYLE[result.domainTiers[result.weakest]].soft,
-                TIER_STYLE[result.domainTiers[result.weakest]].text,
-              )}
-            >
-              To {goal.name}, {name} needs the most support with {result.weakest} skills.
-            </p>
-          )}
-        </div>
-        <div className="px-6 py-6 sm:px-8">
-          <p className="text-sm leading-relaxed font-medium text-navy/65">
-            {resultExplainer(result.tier, name, goal.name, bandLabel(band))}
-          </p>
-        </div>
-      </div>
+      <PulseResultCard
+        childName={name}
+        goalName={goal.name}
+        ageBand={bandLabel(band)}
+        supportScore={result.supportScore}
+        tier={result.tier}
+        domainTiers={result.domainTiers}
+        focus={
+          result.weakest && result.domainTiers[result.weakest] !== "ontrack" ? result.weakest : null
+        }
+        explainer={resultExplainer(result.tier, name, goal.name, bandLabel(band))}
+      />
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         {DOMAINS.map((domain) => {

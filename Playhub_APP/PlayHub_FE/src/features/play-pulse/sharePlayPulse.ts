@@ -1,9 +1,12 @@
-import { shareOrDownload, slug } from "@/features/progress/shareSupportMood";
+import { drawFace, ring, shareOrDownload, slug } from "@/features/progress/shareSupportMood";
+import { independence } from "@/features/progress/supportMood";
+import { ON_TRACK_COLOR, PULSE_FACE, pulseCheer } from "./pulseCheer";
 import type { PlayPulseDomain } from "./data";
 import { TIER_COPY, type DomainTier, type ScoreTier } from "./scoring";
 
 const NAVY = "#11295B";
 const MUTED = "rgba(17,41,91,0.6)";
+const SUPPORT = "#2459A0";
 
 /** Canvas colours matching the result page's tier styles. */
 const TIER_COLORS: Record<DomainTier, { soft: string; text: string; border: string }> = {
@@ -85,10 +88,17 @@ export async function renderPlayPulseImage(input: PlayPulseShare): Promise<Blob>
     ctx.restore();
   }
 
+  const cheer = pulseCheer(
+    input.childName,
+    input.goalName,
+    input.tier,
+    input.domainTiers,
+    input.focus,
+  );
   ctx.textAlign = "center";
-  // "Play Pulse" tag.
+  // "Play Pulse result" tag.
   ctx.font = `800 26px ${font}`;
-  const tag = "PLAY PULSE";
+  const tag = "PLAY PULSE RESULT";
   const tagWidth = ctx.measureText(tag).width + 56;
   ctx.fillStyle = "#F2B544";
   ctx.beginPath();
@@ -96,36 +106,54 @@ export async function renderPlayPulseImage(input: PlayPulseShare): Promise<Blob>
   ctx.fill();
   text(tag, W / 2, 98, 26, 800);
 
-  let size = 64;
-  const headline = `${input.childName}’s Play Pulse`;
+  let size = 66;
   ctx.font = `800 ${size}px ${font}`;
-  while (ctx.measureText(headline).width > W - 140 && size > 40) {
+  while (ctx.measureText(cheer.headline).width > W - 140 && size > 40) {
     size -= 2;
     ctx.font = `800 ${size}px ${font}`;
   }
-  text(headline, W / 2, 200, size, 800);
-  text(`“${input.goalName}” · ${input.ageBand}`, W / 2, 250, 30, 600, MUTED);
+  text(cheer.headline, W / 2, 196, size, 800);
+  ctx.font = `600 30px ${font}`;
+  wrap(ctx, cheer.message, W - 180).forEach((line, i) =>
+    text(line, W / 2, 246 + i * 38, 30, 600, MUTED),
+  );
 
-  // Score panel in the tier colour.
-  ctx.fillStyle = tier.soft;
-  ctx.beginPath();
-  ctx.roundRect(70, 300, W - 140, 440, 44);
-  ctx.fill();
-  text("SUPPORT SCORE", W / 2, 375, 28, 700, MUTED);
-  text(`${input.supportScore}%`, W / 2, 545, 180, 800, tier.text);
-  text(TIER_COPY[input.tier].label, W / 2, 625, 54, 800, tier.text);
-  if (input.focus) {
-    ctx.font = `600 28px ${font}`;
-    const lines = wrap(ctx, `Next focus: ${input.focus} skills`, W - 260);
-    lines.forEach((line, i) => text(line, W / 2, 690 + i * 36, 28, 600, NAVY));
+  // Rings: Support Score outside, areas on track inside, a smiling face in the middle.
+  const cx = W / 2;
+  const cy = 500;
+  ring(ctx, cx, cy, 190, 52, independence(input.supportScore), SUPPORT);
+  ring(ctx, cx, cy, 134, 52, cheer.assessed ? cheer.onTrack / cheer.assessed : 0, ON_TRACK_COLOR);
+  drawFace(ctx, cx, cy, 78, PULSE_FACE[input.tier]);
+
+  // Two figures under the rings.
+  const figures = [
+    { x: W * 0.3, label: "Support Score", value: `${input.supportScore}%`, color: SUPPORT },
+    {
+      x: W * 0.7,
+      label: "Areas on track",
+      value: `${cheer.onTrack} of ${cheer.assessed || 4}`,
+      color: ON_TRACK_COLOR,
+    },
+  ];
+  for (const f of figures) {
+    ctx.font = `700 28px ${font}`;
+    const labelWidth = ctx.measureText(f.label).width;
+    const start = f.x - (labelWidth + 34) / 2;
+    ctx.fillStyle = f.color;
+    ctx.beginPath();
+    ctx.arc(start + 11, 742, 11, 0, Math.PI * 2);
+    ctx.fill();
+    text(f.label, start + 34 + labelWidth / 2, 752, 28, 700, MUTED);
+    text(f.value, f.x, 815, 58);
   }
+  text(TIER_COPY[input.tier].label, W * 0.3, 852, 26, 700, tier.text);
 
   // Four domains, two by two.
   const cardW = (W - 140 - 24) / 2;
-  const cardH = 150;
+  const cardH = 124;
   (Object.keys(input.domainTiers) as PlayPulseDomain[]).forEach((domain, i) => {
     const x = 70 + (i % 2) * (cardW + 24);
-    const y = 780 + Math.floor(i / 2) * (cardH + 24);
+    const y = 880 + Math.floor(i / 2) * (cardH + 16);
     const status = TIER_COLORS[input.domainTiers[domain]];
     ctx.strokeStyle = "rgba(17,41,91,0.1)";
     ctx.lineWidth = 3;
@@ -134,10 +162,10 @@ export async function renderPlayPulseImage(input: PlayPulseShare): Promise<Blob>
     ctx.stroke();
     ctx.fillStyle = DOMAIN_COLORS[domain];
     ctx.beginPath();
-    ctx.arc(x + 46, y + 52, 14, 0, Math.PI * 2);
+    ctx.arc(x + 46, y + 44, 14, 0, Math.PI * 2);
     ctx.fill();
     ctx.textAlign = "left";
-    text(domain, x + 76, y + 64, 34, 800);
+    text(domain, x + 76, y + 56, 32, 800);
     const badge =
       input.domainTiers[domain] === "unknown"
         ? "NOT YET"
@@ -145,7 +173,7 @@ export async function renderPlayPulseImage(input: PlayPulseShare): Promise<Blob>
     ctx.font = `800 20px ${font}`;
     const badgeW = ctx.measureText(badge).width + 32;
     const bx = x + 76;
-    const by = y + 86;
+    const by = y + 70;
     ctx.fillStyle = status.soft;
     ctx.beginPath();
     ctx.roundRect(bx, by, badgeW, 44, 22);
@@ -154,10 +182,7 @@ export async function renderPlayPulseImage(input: PlayPulseShare): Promise<Blob>
     text(badge, bx + badgeW / 2, by + 30, 20, 800, status.text);
   });
 
-  ctx.font = `600 26px ${font}`;
-  wrap(ctx, "Not a pass/fail score — it shows where to focus next.", W - 200).forEach((line, i) =>
-    text(line, W / 2, 1170 + i * 34, 26, 600, MUTED),
-  );
+  text("Not a pass/fail score — it shows where to focus next.", W / 2, 1222, 24, 600, MUTED);
   text("Check yours with Play Pulse on Play Hub · The Toy Pharmacy", W / 2, 1290, 24, 600, MUTED);
 
   return new Promise((resolve, reject) =>

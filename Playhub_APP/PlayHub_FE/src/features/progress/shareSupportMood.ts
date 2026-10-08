@@ -16,7 +16,13 @@ const SUPPORT = "#2459A0";
 const MUTED = "rgba(17,41,91,0.6)";
 
 /** A filled mood face, matching the one on the page: frown (1) through to a big open smile (5). */
-function drawFace(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, mood: number) {
+export function drawFace(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  r: number,
+  mood: number,
+) {
   ctx.fillStyle = moodColor(mood);
   ctx.beginPath();
   ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -53,7 +59,7 @@ function drawFace(ctx: CanvasRenderingContext2D, x: number, y: number, r: number
   }
 }
 
-function ring(
+export function ring(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,

@@ -85,7 +85,7 @@ function MoodFace({ mood, className }: { mood: number; className?: string }) {
 }
 
 /** A few soft confetti pieces in the brand colours, behind the card's content. */
-function Confetti() {
+export function Confetti() {
   const pieces: [number, number, number, string, "dot" | "bar"][] = [
     [8, 10, 20, "#F2B544", "bar"],
     [22, 4, -30, "#DF3B2D", "dot"],
@@ -123,7 +123,7 @@ function Confetti() {
   );
 }
 
-function Ring({
+export function Ring({
   radius,
   stroke,
   value,
