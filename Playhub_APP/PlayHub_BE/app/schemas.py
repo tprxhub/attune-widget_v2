@@ -328,6 +328,10 @@ class PlayDoseRead(APIModel):
     sort_order: int
     is_active: bool
     created_by_name: str | None = None
+    # Free tier: True when this dose's steps and videos were left out for the signed-in family.
+    access_locked: bool = False
+    # The dose a free family gets when this is their chosen plan: the first level (Rookie).
+    is_free_dose: bool = False
     activities: list[ActivityRead] = Field(default_factory=list)
 
 

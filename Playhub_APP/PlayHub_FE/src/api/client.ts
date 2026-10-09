@@ -171,6 +171,8 @@ export interface ApiDose {
   sort_order: number;
   is_active: boolean;
   created_by_name?: string | null;
+  access_locked?: boolean;
+  is_free_dose?: boolean;
   activities: ApiActivity[];
 }
 

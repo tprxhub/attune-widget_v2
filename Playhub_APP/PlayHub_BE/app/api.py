@@ -887,18 +887,36 @@ def list_plans(include_inactive: bool = False, user: User = Depends(get_current_
         return rows
 
     # Every signed-in account can browse the catalog. A family whose children are all on the free
-    # tier gets the steps and videos only for the Play Plans those children chose; the rest show
-    # their names and summaries, so they can still pick one or decide to subscribe.
+    # tier gets the steps and videos only for the first Play Dose (Rookie) of the Play Plan they
+    # chose; every other dose and plan shows its name and summary, so they can still pick one or
+    # decide to subscribe.
     open_ids = _open_play_plan_ids(db, user)
     plans: list[PlayPlanRead] = []
     for row in rows:
         plan = PlayPlanRead.model_validate(row)
         doses = [dose for dose in plan.play_doses if dose.is_active]
-        if open_ids is not None and plan.id not in open_ids:
-            doses = [_without_content(dose) for dose in doses]
-            plan = plan.model_copy(update={"access_locked": True})
+        free_id = _free_dose_id(doses)
+        doses = [dose.model_copy(update={"is_free_dose": dose.id == free_id}) for dose in doses]
+        if open_ids is not None:
+            plan_open = plan.id in open_ids
+            doses = [
+                dose if plan_open and dose.id == free_id else _without_content(dose)
+                for dose in doses
+            ]
+            if not plan_open:
+                plan = plan.model_copy(update={"access_locked": True})
         plans.append(plan.model_copy(update={"play_doses": doses}))
     return plans
+
+
+LEVEL_ORDER = {PlanLevel.ROOKIE: 0, PlanLevel.STARTER: 1, PlanLevel.PRO: 2}
+
+
+def _free_dose_id(doses) -> str | None:
+    """The Play Dose the free tier opens in a family's chosen plan: its first level."""
+    if not doses:
+        return None
+    return min(doses, key=lambda dose: (LEVEL_ORDER.get(dose.level, 9), dose.sort_order)).id
 
 
 def _open_play_plan_ids(db: Session, user: User) -> set[str] | None:
@@ -922,7 +940,7 @@ def _without_content(dose: PlayDoseRead) -> PlayDoseRead:
         )
         for activity in dose.activities
     ]
-    return dose.model_copy(update={"activities": activities})
+    return dose.model_copy(update={"activities": activities, "access_locked": True})
 
 
 def _apply_order(rows: list, ids: list[str]) -> None:

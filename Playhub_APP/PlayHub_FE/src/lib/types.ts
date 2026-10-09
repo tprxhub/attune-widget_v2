@@ -119,6 +119,10 @@ export interface PlayPlan {
   /** Full name of the person who created this Play Dose; absent for built-in content. */
   createdBy?: string | undefined;
   publicationStatus?: "published" | "invisible" | "locked" | undefined;
+  /** Free tier: the server left out this dose's steps and videos. */
+  accessLocked?: boolean | undefined;
+  /** The dose the free tier opens when this is the family's chosen plan (its first level). */
+  isFreeDose?: boolean | undefined;
   entries: PlanEntry[];
 }
 

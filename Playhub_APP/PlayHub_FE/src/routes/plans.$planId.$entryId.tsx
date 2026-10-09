@@ -119,11 +119,11 @@ function PlayDosePage() {
     return <p className="ph-card p-8 text-center">That Play Dose doesn't exist.</p>;
 
   const goal = goalById(plan.goalId);
-  if (goal && free.accessFor(goal) !== "open") {
+  if (goal && free.accessFor(goal, plan) !== "open") {
     return (
       <>
         <BackLink planId={planId} />
-        <FreePlanGate goal={goal} />
+        <FreePlanGate goal={goal} dose={plan} />
       </>
     );
   }

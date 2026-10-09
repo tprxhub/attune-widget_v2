@@ -3,8 +3,9 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Gift, Lock, Sparkles, X } from "lucide-react";
 import { chooseFreePlan } from "@/api/children";
+import { invalidatePlanCatalog } from "@/api/plans";
 import { ModalPortal } from "@/components/ModalPortal";
-import type { Goal } from "@/lib/types";
+import type { Goal, PlayPlan } from "@/lib/types";
 import { useFreePlan } from "./useFreePlan";
 
 /** Asks once, then opens `goal` as the child's free Play Plan. */
@@ -24,6 +25,8 @@ export function ChooseFreePlanDialog({
   const choose = useMutation({
     mutationFn: () => chooseFreePlan(childId, goal.id),
     onSuccess: async () => {
+      // The catalog is cached outside React Query; drop it so the chosen dose's steps load.
+      invalidatePlanCatalog();
       await Promise.all(
         [["children"], ["plans"], ["goals"], ["plan"]].map((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
@@ -69,8 +72,8 @@ export function ChooseFreePlanDialog({
             Open {goal.name} for free?
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-navy/70">
-            On the free plan, {childName} can open <b>one</b> Play Plan, with all its levels. You
-            can’t swap it later; subscribing unlocks every Play Plan.
+            On the free plan, {childName} can open the <b>Rookie Play Dose</b> of <b>one</b> Play
+            Plan. You can’t swap it later; subscribing unlocks every Play Dose and Play Plan.
           </p>
           {choose.isError && (
             <p className="mt-3 rounded-xl bg-coral/10 px-3 py-2 text-sm font-semibold text-coral">
@@ -115,13 +118,13 @@ export function FreePlanBanner({ goals }: { goals: Goal[] }) {
         <span>
           {chosen ? (
             <>
-              <b>{chosen.name}</b> is {child.name}’s free Play Plan. Subscribe to open every other
-              plan.
+              <b>{chosen.name}</b> is {child.name}’s free Play Plan, with its Rookie Play Dose open.
+              Subscribe to open every Play Dose and Play Plan.
             </>
           ) : canChoose ? (
             <>
-              <b>Free plan:</b> choose one Play Plan to open for {child.name}, with all its levels.
-              The others unlock when you subscribe.
+              <b>Free plan:</b> choose one Play Plan and {child.name} gets its Rookie Play Dose.
+              Everything else unlocks when you subscribe.
             </>
           ) : (
             <>The family account holder chooses which one Play Plan is free.</>
@@ -142,20 +145,23 @@ export function FreePlanBanner({ goals }: { goals: Goal[] }) {
 }
 
 /** Stands in for a plan's page when the family can't open it on the free tier. */
-export function FreePlanGate({ goal }: { goal: Goal }) {
-  const { child, accessFor, canManageSubscription } = useFreePlan();
+export function FreePlanGate({ goal, dose }: { goal: Goal; dose?: PlayPlan }) {
+  const { child, chosenGoalId, accessFor, canManageSubscription } = useFreePlan();
   const [choosing, setChoosing] = useState(false);
-  const access = accessFor(goal);
+  const access = accessFor(goal, dose);
+  const title = dose ? `${goal.name} · ${dose.level}` : goal.name;
   return (
     <section className="ph-card mt-4 p-8 text-center">
       <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy text-white">
         <Lock className="h-5 w-5" aria-hidden />
       </span>
-      <h2 className="mt-3 text-xl font-bold">{goal.name} is locked on the free plan</h2>
+      <h2 className="mt-3 text-xl font-bold">{title} is locked on the free plan</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-navy/70">
         {access === "choose"
-          ? "You can open one Play Plan for free. Choose this one, or subscribe to open them all."
-          : "Your free Play Plan is already chosen. Subscribe to open every Play Plan."}
+          ? "You can open the Rookie Play Dose of one Play Plan for free. Choose this one, or subscribe to open them all."
+          : goal.id === chosenGoalId
+            ? "The free plan opens only the Rookie Play Dose. Subscribe to open every level."
+            : "Your free Play Plan is already chosen. Subscribe to open every Play Dose and Play Plan."}
       </p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         {access === "choose" && child && (

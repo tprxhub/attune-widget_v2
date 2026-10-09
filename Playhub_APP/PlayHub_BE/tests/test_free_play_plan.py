@@ -127,3 +127,34 @@ def test_only_the_account_holder_chooses_and_only_published_plans(client, platfo
     url = f"/api/v1/children/{child['id']}/free-play-plan"
     assert client.put(url, headers=other, json={"play_plan_id": plan}).status_code == 403
     assert client.put(url, headers=family, json={"play_plan_id": plan}).status_code == 409
+
+
+def test_only_the_first_play_dose_of_the_free_plan_opens(client, platform_admin):
+    plan = client.post(
+        "/api/v1/play-plans", headers=platform_admin, json={"name": "Levels Plan", "slug": "levels-plan"}
+    ).json()
+    for level in ("pro", "rookie", "starter"):
+        dose = client.post(
+            f"/api/v1/play-plans/{plan['id']}/play-doses", headers=platform_admin, json={"level": level, "title": level}
+        ).json()
+        assert client.post(
+            f"/api/v1/play-doses/{dose['id']}/activities",
+            headers=platform_admin,
+            json={"sequence": 0, "title": "Tap", "instructions": [f"{level} step"]},
+        ).status_code == 201
+    family = register_family(client, "levels@example.com")
+    child = client.get("/api/v1/children", headers=family).json()[0]
+    assert client.put(
+        f"/api/v1/children/{child['id']}/free-play-plan", headers=family, json={"play_plan_id": plan["id"]}
+    ).status_code == 200
+
+    doses = {dose["level"]: dose for dose in next(p for p in catalog(client, family) if p["id"] == plan["id"])["play_doses"]}
+    assert not doses["rookie"]["access_locked"] and doses["rookie"]["is_free_dose"]
+    assert doses["rookie"]["activities"][0]["instructions"] == ["rookie step"]
+    for level in ("starter", "pro"):
+        assert doses[level]["access_locked"] and not doses[level]["is_free_dose"]
+        assert doses[level]["activities"][0]["instructions"] == []
+
+    # Staff and subscribers still see every dose in full.
+    staff_doses = next(p for p in catalog(client, platform_admin) if p["id"] == plan["id"])["play_doses"]
+    assert all(not dose["access_locked"] and dose["activities"][0]["instructions"] for dose in staff_doses)

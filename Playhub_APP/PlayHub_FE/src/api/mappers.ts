@@ -158,6 +158,8 @@ export function flattenPlans(plans: ApiPlan[]): PlayPlan[] {
         safetyNote: dose.safety_note ?? undefined,
         createdBy: dose.created_by_name ?? undefined,
         publicationStatus: parent.publication_status ?? "published",
+        accessLocked: dose.access_locked ?? false,
+        isFreeDose: dose.is_free_dose ?? false,
         entries,
       };
     }),

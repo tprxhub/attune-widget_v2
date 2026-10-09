@@ -70,7 +70,7 @@ function PlanWeek() {
 
   const data = plan.data;
   const goal = goalById(data.goalId);
-  if (goal && free.accessFor(goal) !== "open") {
+  if (goal && free.accessFor(goal, data) !== "open") {
     return (
       <>
         <Link
@@ -79,7 +79,7 @@ function PlanWeek() {
         >
           <ArrowLeft className="h-4 w-4" aria-hidden /> Back to Play Plans
         </Link>
-        <FreePlanGate goal={goal} />
+        <FreePlanGate goal={goal} dose={data} />
       </>
     );
   }

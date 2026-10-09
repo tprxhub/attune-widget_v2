@@ -90,7 +90,7 @@ function PlansPage() {
                     <PlayPlanCard
                       plan={plan}
                       goal={goal}
-                      access={free.accessFor(goal)}
+                      access={free.accessFor(goal, plan)}
                       onChoose={() => setChoosing(goal)}
                     />
                   </li>
