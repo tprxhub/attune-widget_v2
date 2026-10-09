@@ -87,3 +87,74 @@ def test_disabling_and_enabling_an_account_emails_its_owner(client, platform_adm
         "Your Play Hub account has been disabled",
         "Your Play Hub account is active again",
     ]
+
+
+def test_changing_or_resetting_a_password_sends_a_security_notice(client):
+    family = register_family(client, "secure@example.com")
+    SENT.clear()
+    assert client.post("/api/v1/auth/change-password", headers=family, json={
+        "current_password": "secure-password", "new_password": "another-secure-password",
+    }).status_code == 200
+    assert [m.subject for m in sent_to("secure@example.com")] == ["Your Play Hub password was changed"]
+
+    client.post("/api/v1/auth/password/forgot", json={"email": "secure@example.com"})
+    link = next(line for line in SENT[-1].text.splitlines() if "reset-password?token=" in line)
+    token = link.split("token=", 1)[1].strip()
+    assert client.post("/api/v1/auth/password/reset", json={"token": token, "new_password": "third-secure-password"}).status_code == 200
+    assert SENT[-1].subject == "Your Play Hub password was changed"
+
+
+def test_renewal_reminder_and_ended_notice_go_out_once_per_period(client):
+    from datetime import date, timedelta
+
+    from conftest import TestingSession
+
+    from app.models import Subscription, SubscriptionStatus
+    from app.reminders import send_subscription_notices
+
+    family = register_family(client, "renew@example.com")
+    child_id = client.get("/api/v1/children", headers=family).json()[0]["id"]
+    today = date(2026, 10, 9)
+    with TestingSession() as db:
+        sub = db.query(Subscription).filter_by(child_id=child_id).one()
+        sub.status = SubscriptionStatus.ACTIVE
+        sub.started_on = today - timedelta(days=80)
+        sub.ends_on = today + timedelta(days=20)
+        db.commit()
+        SENT.clear()
+
+        assert send_subscription_notices(db, today) == 0  # not yet in the renewal window
+        assert send_subscription_notices(db, today + timedelta(days=6)) == 1
+        assert sent_to("renew@example.com")[-1].subject == "Ayla’s Play Hub subscription ends in 14 days"
+        assert send_subscription_notices(db, today + timedelta(days=7)) == 0  # once per period
+
+        assert send_subscription_notices(db, today + timedelta(days=21)) == 1
+        assert sent_to("renew@example.com")[-1].subject == "Ayla’s Play Hub subscription has ended"
+        assert send_subscription_notices(db, today + timedelta(days=22)) == 0
+
+        # A renewal gives a new end date, so the next period gets its own reminder.
+        sub.ends_on = today + timedelta(days=200)
+        db.commit()
+        assert send_subscription_notices(db, today + timedelta(days=190)) == 1
+
+
+def test_free_and_cancelled_subscriptions_get_no_reminders(client):
+    from datetime import date
+
+    from conftest import TestingSession
+
+    from app.reminders import send_subscription_notices
+
+    register_family(client, "free-reminder@example.com")
+    SENT.clear()
+    with TestingSession() as db:
+        assert send_subscription_notices(db, date(2026, 10, 9)) == 0
+    assert SENT == []
+
+
+def test_demo_addresses_on_the_local_domain_are_never_emailed():
+    from app.mailer import OutgoingEmail, send_email
+
+    SENT.clear()
+    send_email(OutgoingEmail("parent@playhub.local", "Subject", "Text"))
+    assert SENT == []

@@ -120,6 +120,45 @@ def refund_failed(owner: User | None, child_name: str) -> None:
     )
 
 
+def password_changed(user: User) -> None:
+    _send(
+        user.email,
+        "Your Play Hub password was changed",
+        f"Hi {user.display_name},",
+        "The password for your Play Hub account was just changed.",
+        f"If this wasn’t you, reset your password straight away: {_link('/forgot-password')} "
+        "and reply to this email so we can help.",
+    )
+
+
+def renewal_reminder(owner: User | None, child_name: str, ends_on: date, days_left: int) -> None:
+    if not owner:
+        return
+    when = "today" if days_left == 0 else "tomorrow" if days_left == 1 else f"in {days_left} days"
+    _send(
+        owner.email,
+        f"{child_name}’s Play Hub subscription ends {when}",
+        f"Hi {owner.display_name},",
+        f"{child_name}’s Play Hub subscription ends on {_day(ends_on)}.",
+        "Renew now to keep every Play Plan and Play Dose open. The new period starts the day after the "
+        "current one ends, so no paid days are lost.",
+        f"Renew: {_link('/subscription')}",
+    )
+
+
+def subscription_ended(owner: User | None, child_name: str, ended_on: date) -> None:
+    if not owner:
+        return
+    _send(
+        owner.email,
+        f"{child_name}’s Play Hub subscription has ended",
+        f"Hi {owner.display_name},",
+        f"{child_name}’s subscription ended on {_day(ended_on)}, so the account is back on the free plan. "
+        "Every Session you logged stays saved.",
+        f"Subscribe again any time to unlock every Play Plan: {_link('/subscription')}",
+    )
+
+
 def account_status(user: User, active: bool) -> None:
     if active:
         _send(

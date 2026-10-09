@@ -380,6 +380,10 @@ class Subscription(TimestampMixin, Base):
     stripe_payment_intent_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
     stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255), index=True)
     stripe_refund_id: Mapped[Optional[str]] = mapped_column(String(255))
+    # The end date each email was last sent for, so a renewal (new end date) gets fresh reminders
+    # and a restart never sends the same one twice.
+    renewal_reminder_for: Mapped[Optional[date]] = mapped_column(Date)
+    ended_notice_for: Mapped[Optional[date]] = mapped_column(Date)
 
     child: Mapped[Child] = relationship(back_populates="subscription")
 

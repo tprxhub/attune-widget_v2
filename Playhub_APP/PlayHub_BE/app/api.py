@@ -449,6 +449,7 @@ def change_password(payload: PasswordChange, user: User = Depends(get_current_us
     user.password_hash = hash_password(payload.new_password)
     audit(db, user.id, "user.password_changed", "user", user.id)
     db.commit()
+    notifications.password_changed(user)
     return {"detail": "Password updated"}
 
 
@@ -515,6 +516,7 @@ def reset_password(payload: PasswordReset, db: Session = Depends(get_db)):
     row.used_at = now
     audit(db, user.id, "user.password_reset", "user", user.id)
     db.commit()
+    notifications.password_changed(user)
     return {"detail": "Password updated. You can log in with your new password."}
 
 

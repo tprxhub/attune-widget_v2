@@ -67,6 +67,11 @@ def _send_with_klaviyo(message: OutgoingEmail, key: str, metric: str) -> None:
 
 def send_email(message: OutgoingEmail) -> None:
     settings = get_settings()
+    if message.to.lower().endswith(".local"):
+        # Seeded demo accounts use the reserved .local domain, which can never receive mail;
+        # sending would only create bounces that hurt the sender's reputation.
+        logger.info("Skipping email to undeliverable demo address %s: %s", message.to, message.subject)
+        return
     if settings.environment == "test":
         SENT.append(message)
         return

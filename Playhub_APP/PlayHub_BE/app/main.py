@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from app import models  # noqa: F401 - registers declarative metadata
 from app.api import router
 from app.config import get_settings
+from app.reminders import notice_loop
 from app.database import Base, engine, get_db
 from app.storage import CACHE_CONTROL, StorageUnavailable, get_storage
 
@@ -28,7 +30,11 @@ async def lifespan(_: FastAPI):
     # Development convenience only; production must be upgraded with Alembic.
     if settings.environment == "development":
         Base.metadata.create_all(bind=engine)
+    # Renewal reminders and "subscription ended" emails, checked hourly (not during tests).
+    task = asyncio.create_task(notice_loop()) if settings.environment != "test" else None
     yield
+    if task:
+        task.cancel()
 
 
 app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
