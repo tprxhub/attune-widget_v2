@@ -510,7 +510,7 @@ function LinkModal({ result, onClose }: { result: TtpInvitationResult; onClose: 
   return (
     <Shell
       title="Activation link ready"
-      subtitle="Share it securely. They choose their own password."
+      subtitle="We’ve emailed it to them. You can also share it securely; they choose their own password."
       onClose={onClose}
     >
       <div className="space-y-3">

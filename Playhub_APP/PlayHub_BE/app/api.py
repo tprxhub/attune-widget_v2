@@ -35,6 +35,7 @@ from app.schemas import (
 )
 from app.security import create_access_token, hash_password, verify_password
 from app.services import audit, progress_summary
+from app import notifications
 from app.mailer import OutgoingEmail, send_email
 from app.storage import StorageService, StorageUnavailable, UploadRejected, get_storage
 
@@ -299,6 +300,7 @@ def google_register_family(payload: GoogleFamilyRegistration, db: Session = Depe
     db.add(Subscription(child_id=child.id, status=SubscriptionStatus.FREE))
     audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id, "via": "google"})
     db.commit()
+    notifications.welcome(user, child.name)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -382,6 +384,7 @@ def social_register_family(provider: Provider, payload: SocialFamilyRegistration
     db.add(Subscription(child_id=child.id, status=SubscriptionStatus.FREE))
     audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id, "via": provider})
     db.commit()
+    notifications.welcome(user, child.name)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -435,6 +438,7 @@ def register_family(payload: FamilyRegistration, db: Session = Depends(get_db)):
     db.add(Subscription(child_id=child.id, status=SubscriptionStatus.FREE))
     audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id})
     db.commit()
+    notifications.welcome(user, child.name)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -624,9 +628,13 @@ def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require
         organisation_id=target.organisation_id,
         require_active_organisation=False,
     )
+    was_active = target.is_active
     for key, value in payload.model_dump(exclude_unset=True).items(): setattr(target, key, value)
     audit(db, actor.id, "user.updated", "user", target.id)
-    return commit(db, target)
+    target = commit(db, target)
+    if target.is_active != was_active:
+        notifications.account_status(target, target.is_active)
+    return target
 
 
 @router.post("/invitations", response_model=InvitationCreated, status_code=201)
@@ -667,12 +675,19 @@ def create_invitation(payload: InvitationCreate, actor: User = Depends(require_p
     db.flush()
     audit(db, actor.id, "invitation.created", "invitation", invitation.id, {"role": invitation.role.value})
     invitation = commit(db, invitation)
+    _email_invitation(db, invitation, actor)
     # This is the only response that exposes the one-time token. Authenticated
     # account creators can copy the activation link, while list endpoints never
     # expose it again.
     return InvitationCreated.model_validate(invitation).model_copy(
         update={"acceptance_token": invitation.token}
     )
+
+
+def _email_invitation(db: Session, invitation: Invitation, actor: User) -> None:
+    """Email the activation link; the admin can still copy it from the screen as before."""
+    organisation = db.get(Organisation, invitation.organisation_id) if invitation.organisation_id else None
+    notifications.invitation(invitation, invitation.token, actor, organisation.name if organisation else None)
 
 
 @router.get("/invitations", response_model=list[InvitationRead])
@@ -718,6 +733,7 @@ def regenerate_invitation_activation(
         resource_type="invitation",
         metadata={"role": invitation.role.value},
     )
+    _email_invitation(db, invitation, actor)
     return InvitationCreated.model_validate(invitation).model_copy(
         update={"acceptance_token": invitation.token}
     )
@@ -1339,11 +1355,15 @@ def refund_billing_payment(
         subscription.stripe_payment_intent_id = None
         subscription.stripe_refund_id = None
         audit(db, user.id, "billing.renewal_refunded", "subscription", subscription.id, {"refund_id": refund_id})
-        return commit(db, subscription)
+        subscription = commit(db, subscription)
+        notifications.refund_started(child.owner, child.name, subscription.ends_on)
+        return subscription
     subscription.status = SubscriptionStatus.CANCELLED
     subscription.ends_on = date.today()
     audit(db, user.id, "billing.refunded", "subscription", subscription.id)
-    return commit(db, subscription)
+    subscription = commit(db, subscription)
+    notifications.refund_started(child.owner, child.name, None)
+    return subscription
 
 
 def stripe_field(value, key: str, default=None):
@@ -1375,15 +1395,20 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
             select(Subscription).where(Subscription.stripe_refund_id == refund_id)
         )
         if subscription:
+            outcome = None
             if event_type == "refund.failed" or refund_status in {"failed", "canceled"}:
                 subscription.status = SubscriptionStatus.ACTIVE
                 audit(db, None, "billing.refund_failed", "subscription", subscription.id)
+                outcome = notifications.refund_failed
             elif refund_status == "succeeded":
                 subscription.status = SubscriptionStatus.CANCELLED
                 subscription.ends_on = date.today()
                 audit(db, None, "billing.refund_completed", "subscription", subscription.id)
+                outcome = notifications.refund_completed
             db.add(StripeEvent(id=event_id, event_type=event_type))
             db.commit()
+            if outcome and subscription.child:
+                outcome(subscription.child.owner, subscription.child.name)
         return {"received": True}
     if event_type not in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
         return {"received": True}
@@ -1431,6 +1456,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     audit(db, None, "billing.payment_completed", "subscription", subscription.id, {"plan": plan})
     db.add(StripeEvent(id=event_id, event_type=event_type))
     db.commit()
+    notifications.payment_confirmed(
+        child.owner, child.name, selected["name"], selected["amount"], subscription.ends_on, renewing_from is not None
+    )
     return {"received": True}
 
 

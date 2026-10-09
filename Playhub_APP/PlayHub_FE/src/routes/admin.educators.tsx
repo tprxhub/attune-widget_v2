@@ -571,7 +571,7 @@ function AddEducatorModal({
                 </h2>
                 <p className="text-xs text-navy/55">
                   {created
-                    ? `${created.member.name} can now activate their account.`
+                    ? `${created.member.name} can now activate their account. We’ve also emailed them the link.`
                     : role === "supporter"
                       ? "Moderators record check-ins for the members assigned to them."
                       : "Admins enrol members, invite members and log attempts."}

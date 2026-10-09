@@ -507,7 +507,7 @@ function AddSupporterModal({
               </h2>
               <p className="mt-1 text-sm text-navy/65">
                 {created
-                  ? `${created.member.name} can activate their account with the link below.`
+                  ? `We’ve emailed ${created.member.name} the link below. You can also share it yourself.`
                   : "They can log sessions for the members you assign them."}
               </p>
             </div>
