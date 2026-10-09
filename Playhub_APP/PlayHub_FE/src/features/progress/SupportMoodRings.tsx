@@ -128,19 +128,24 @@ export function Ring({
   stroke,
   value,
   color,
+  track = TRACK,
+  opacity = 1,
 }: {
   radius: number;
   stroke: number;
   value: number;
   color: string;
+  track?: string;
+  opacity?: number;
 }) {
   const circumference = 2 * Math.PI * radius;
   const filled = Math.max(0, Math.min(1, value));
   return (
     <>
-      <circle cx="80" cy="80" r={radius} fill="none" stroke={TRACK} strokeWidth={stroke} />
+      <circle cx="80" cy="80" r={radius} fill="none" stroke={track} strokeWidth={stroke} />
       {filled > 0 && (
         <circle
+          opacity={opacity}
           cx="80"
           cy="80"
           r={radius}
@@ -188,6 +193,8 @@ export function SupportMoodRings({
   };
 
   const cheer = celebrate(childName, supportScore, moods);
+  // Nothing logged yet: show faint sample rings so the card explains itself.
+  const preview = supportScore === null && !moods.length;
 
   return (
     <div className="relative isolate flex h-full flex-col overflow-hidden bg-white p-4 text-navy ph-r-lg sm:p-5">
@@ -224,6 +231,11 @@ export function SupportMoodRings({
 
       <div className="mt-4 flex flex-1 flex-wrap items-center gap-x-6 gap-y-3">
         <div className="relative h-36 w-36 shrink-0 sm:h-40 sm:w-40">
+          {preview && (
+            <span className="ph-pill absolute -top-1 left-1/2 z-10 -translate-x-1/2 border border-navy/10 bg-white px-2 py-0.5 text-[10px] font-extrabold tracking-[0.12em] text-navy/55 uppercase shadow-sm">
+              Preview
+            </span>
+          )}
           <svg
             viewBox="0 0 160 160"
             className="relative h-full w-full"
@@ -232,19 +244,45 @@ export function SupportMoodRings({
               average === null ? "not logged yet" : moodMeta(Math.round(average)).label
             }`}
           >
-            <Ring
-              radius={70}
-              stroke={16}
-              value={independence(supportScore)}
-              color={SUPPORT_COLOR}
-            />
-            <Ring
-              radius={52}
-              stroke={16}
-              value={average === null ? 0 : average / 5}
-              color={average === null ? TRACK : moodColor(Math.round(average))}
-            />
-            {latest === null ? (
+            {preview ? (
+              <>
+                <Ring
+                  radius={70}
+                  stroke={16}
+                  value={0.7}
+                  color={SUPPORT_COLOR}
+                  track={EMPTY_FACE}
+                  opacity={0.25}
+                />
+                <Ring
+                  radius={52}
+                  stroke={16}
+                  value={0.8}
+                  color={moodColor(5)}
+                  track={EMPTY_FACE}
+                  opacity={0.3}
+                />
+                <g opacity={0.45}>
+                  <FaceShape cx={80} cy={80} r={28} mood={4} />
+                </g>
+              </>
+            ) : (
+              <>
+                <Ring
+                  radius={70}
+                  stroke={16}
+                  value={independence(supportScore)}
+                  color={SUPPORT_COLOR}
+                />
+                <Ring
+                  radius={52}
+                  stroke={16}
+                  value={average === null ? 0 : average / 5}
+                  color={average === null ? TRACK : moodColor(Math.round(average))}
+                />
+              </>
+            )}
+            {preview ? null : latest === null ? (
               <circle cx="80" cy="80" r="28" fill={EMPTY_FACE} />
             ) : (
               <FaceShape cx={80} cy={80} r={28} mood={latest} />
@@ -261,7 +299,13 @@ export function SupportMoodRings({
                 <SupportScoreInfo />
               </dt>
               <dd className="mt-1 text-2xl leading-none font-bold">
-                {supportScore === null ? "—" : `${supportScore}%`}
+                {supportScore === null ? (
+                  <span className="text-sm font-semibold text-navy/50">
+                    Shows after the first Session
+                  </span>
+                ) : (
+                  `${supportScore}%`
+                )}
               </dd>
             </div>
             <div>
@@ -275,7 +319,13 @@ export function SupportMoodRings({
                 Mood
               </dt>
               <dd className="mt-1 text-2xl leading-none font-bold">
-                {average === null ? "—" : moodMeta(Math.round(average)).label}
+                {average === null ? (
+                  <span className="text-sm font-semibold text-navy/50">
+                    Log how the Session felt
+                  </span>
+                ) : (
+                  moodMeta(Math.round(average)).label
+                )}
               </dd>
             </div>
           </dl>
@@ -311,9 +361,19 @@ export function SupportMoodRings({
             ))}
           </ol>
         ) : (
-          <p className="mt-2 text-[11px] text-navy/55 italic">
-            Moods appear here as Sessions are logged.
-          </p>
+          <>
+            <ol className="mt-2 grid grid-cols-7 gap-1" aria-label="No moods logged yet">
+              {["M", "T", "W", "T", "F", "S", "S"].map((letter, index) => (
+                <li key={index} className="flex flex-col items-center gap-1">
+                  <span className="ph-pill h-8 w-8 border-2 border-dashed border-navy/15" />
+                  <span className="text-[10px] font-semibold text-navy/35">{letter}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-1.5 text-[11px] text-navy/55 italic">
+              Moods appear here as Sessions are logged.
+            </p>
+          </>
         )}
       </div>
     </div>
