@@ -529,15 +529,33 @@ function RecentSessions({
                       style={{ borderRadius: "9999px" }}
                       aria-hidden
                     />
-                    <button
-                      type="button"
-                      onClick={() => setPicked(isOpen ? null : a.id)}
-                      disabled={!hasWin}
-                      aria-expanded={hasWin ? isOpen : undefined}
-                      className="flex w-full flex-wrap items-start justify-between gap-x-3 gap-y-2 p-3 text-left enabled:cursor-pointer"
+                    {/* The whole row opens the Big Win; the pencil beside the name edits the session. */}
+                    <div
+                      onClick={() => hasWin && setPicked(isOpen ? null : a.id)}
+                      className={cn(
+                        "flex w-full flex-wrap items-start justify-between gap-x-3 gap-y-2 p-3 text-left",
+                        hasWin && "cursor-pointer",
+                      )}
                     >
                       <span className="min-w-0 flex-1 basis-40">
-                        <span className="block truncate text-sm font-bold">{a.activity}</span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate text-sm font-bold">{a.activity}</span>
+                          {canLogAttempts && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                correction.reset();
+                                setEditing(a);
+                              }}
+                              aria-label={`Edit session: ${a.activity}, ${fmtDate(a.date)}`}
+                              title="Edit session"
+                              className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-blue transition hover:bg-blue/10 focus-visible:ring-2 focus-visible:ring-blue/40 focus-visible:outline-none"
+                            >
+                              <Pencil className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                          )}
+                        </span>
                         <span className="block truncate text-[11px] text-navy/55">
                           {fmtDate(a.date)} ·{" "}
                           {a.source === "daily_check_in" ? "Daily Check-In" : "In activity"}
@@ -551,28 +569,24 @@ function RecentSessions({
                           helpLevel={a.helpLevel}
                         />
                         {hasWin && (
-                          <ChevronDown
-                            className={cn(
-                              "h-4 w-4 shrink-0 text-navy/45 transition-transform",
-                              isOpen && "rotate-180",
-                            )}
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setPicked(isOpen ? null : a.id);
+                            }}
+                            aria-expanded={isOpen}
                             aria-label={isOpen ? "Hide Big Win" : "Show Big Win"}
-                          />
+                            className="grid h-7 w-7 place-items-center rounded-full text-navy/45 hover:bg-navy/8"
+                          >
+                            <ChevronDown
+                              className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")}
+                              aria-hidden
+                            />
+                          </button>
                         )}
                       </span>
-                    </button>
-                    {canLogAttempts && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          correction.reset();
-                          setEditing(a);
-                        }}
-                        className="mx-3 mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-blue"
-                      >
-                        <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit session
-                      </button>
-                    )}
+                    </div>
                     {isOpen && <ParentWinNote text={a.bigWin} className="mx-3 mb-3 w-auto" />}
                   </li>
                 );

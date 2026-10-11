@@ -211,8 +211,16 @@ function AdminOverviewPage() {
 }
 
 function ExploreTabs({ data }: { data: AdminOverview }) {
-  const [selected, setSelected] = useState("progress");
+  // Subscriptions first; the first tab is the one shown when the page opens.
+  const [selected, setSelected] = useState("billing");
   const tabs: { id: string; title: string; icon: LucideIcon; content: ReactNode }[] = [];
+  if (data.billing)
+    tabs.push({
+      id: "billing",
+      title: "Subscriptions",
+      icon: CreditCard,
+      content: <BillingCard billing={data.billing} />,
+    });
   if (data.progress)
     tabs.push({
       id: "progress",
@@ -226,13 +234,6 @@ function ExploreTabs({ data }: { data: AdminOverview }) {
       title: "Children",
       icon: Users,
       content: <ChildrenCard children={data.children} />,
-    });
-  if (data.billing)
-    tabs.push({
-      id: "billing",
-      title: "Subscriptions",
-      icon: CreditCard,
-      content: <BillingCard billing={data.billing} />,
     });
   if (data.organisations)
     tabs.push({

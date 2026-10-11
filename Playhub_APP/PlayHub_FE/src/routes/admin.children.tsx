@@ -19,7 +19,7 @@ import { assignSupporter, listChildrenForSession, updateChild } from "@/api/chil
 import { listOrgs, listStaff } from "@/api/admin";
 import { getProgressForChildren } from "@/api/progress";
 import { inviteParent } from "@/api/org";
-import { listPlans } from "@/api/plans";
+import { listAllGoals, listGoals, listPlans } from "@/api/plans";
 import {
   PRICE_PLANS,
   adminActivateSubscription,
@@ -81,6 +81,24 @@ function AdminChildren() {
     queryFn: () => listChildrenForSession(session),
   });
   const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
+  // A child can be on a dose of a hidden or retired plan, so staff who can see the library look
+  // names up there; everyone else uses the published catalogue.
+  const canSeeLibrary = hasPermission(session, "plans");
+  const library = useQuery({
+    queryKey: ["children-plan-names", canSeeLibrary],
+    queryFn: async () => {
+      const [doses, goals] = await Promise.all(
+        canSeeLibrary ? [listPlans(undefined, true), listAllGoals()] : [listPlans(), listGoals()],
+      );
+      return { doses, goals };
+    },
+  });
+  const currentPlan = (doseId: string) => {
+    const dose = library.data?.doses.find((d) => d.id === doseId);
+    if (!dose) return null;
+    const goal = library.data?.goals.find((g) => g.id === dose.goalId);
+    return { plan: goal?.name ?? dose.title, level: dose.level, dose: dose.title };
+  };
   const orgs = useQuery({ queryKey: ["orgs"], queryFn: listOrgs });
   const staff = useQuery({ queryKey: ["staff"], queryFn: listStaff });
   const { matchesChild, scopeId, label: scopeLabel } = useOrgScope();
@@ -246,10 +264,26 @@ function AdminChildren() {
                 <p className="text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
                   Current Play Plan
                 </p>
-                <p className="mt-1 line-clamp-2 text-sm font-bold">
-                  {plans.data?.find((p) => p.id === child.currentPlanId)?.title ?? "—"}
-                </p>
-                <p className="mt-1 text-xs text-navy/55">Started {fmtDate(child.planStartedAt)}</p>
+                {(() => {
+                  const current = child.currentPlanId ? currentPlan(child.currentPlanId) : null;
+                  if (!current)
+                    return (
+                      <p className="mt-1 text-sm font-semibold text-navy/55">
+                        {library.isLoading ? "Loading…" : "No Play Plan yet"}
+                      </p>
+                    );
+                  return (
+                    <>
+                      <p className="mt-1 line-clamp-2 text-sm font-bold">{current.plan}</p>
+                      <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-navy/70">
+                        {current.level} · {current.dose}
+                      </p>
+                      <p className="mt-1 text-xs text-navy/55">
+                        Started {fmtDate(child.planStartedAt)}
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
 
               {child.accountType === "b2c" && <SubscriptionSummary sub={subFor(child.id)} />}
@@ -318,7 +352,10 @@ function AdminChildren() {
           child={editing}
           orgs={orgs.data ?? []}
           staff={staff.data ?? []}
-          plans={(plans.data ?? []).map((p) => ({ id: p.id, title: p.title }))}
+          plans={(plans.data ?? []).map((p) => ({
+            id: p.id,
+            title: `${library.data?.goals.find((g) => g.id === p.goalId)?.name ?? p.title} · ${p.level} — ${p.title}`,
+          }))}
           onClose={() => setEditing(null)}
           onSaved={() => {
             invalidate();

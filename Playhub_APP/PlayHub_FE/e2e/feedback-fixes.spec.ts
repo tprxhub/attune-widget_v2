@@ -21,7 +21,7 @@ async function login(page: Page, email: string, organisation = false) {
 test("session edits persist without adding another session", async ({ page }) => {
   await login(page, "parent@playhub.local");
   await page.goto("/check-in");
-  await page.getByRole("button", { name: "Edit session", exact: true }).first().click();
+  await page.getByRole("button", { name: /^Edit session/ }).first().click();
   const dialog = page.getByRole("dialog", { name: "Edit session", exact: true });
   await dialog
     .getByLabel("Big Win", { exact: true })

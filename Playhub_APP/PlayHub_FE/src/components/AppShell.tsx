@@ -306,7 +306,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             </div>
             <div className="flex min-w-0 shrink items-center justify-end gap-2">
-              {isPlatformRole(session.role) && !pathname.startsWith("/check-in") ? (
+              {/* The child and organisation pickers change nothing on the Account page. */}
+              {pathname.startsWith("/account") ? null : isPlatformRole(session.role) &&
+                !pathname.startsWith("/check-in") ? (
                 <OrgScopeDropdown className="[&>button]:border-white/25 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
               ) : (
                 <ChildSwitcherDropdown className="[&>button]:border-white/25 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
