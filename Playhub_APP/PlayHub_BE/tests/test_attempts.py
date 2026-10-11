@@ -41,11 +41,15 @@ def test_session_correction_preserves_count_and_audits_original_values(client, p
     child = client.post("/api/v1/children", headers=platform_admin, json={"name": "Amira", "account_scope": "individual", "current_play_dose_id": dose["id"]}).json()
     payload = {"play_dose_id": dose["id"], "occurred_on": str(date.today()), "completion_score": 2, "mood_score": 2, "big_win": "Original win"}
     row = client.post(f"/api/v1/children/{child['id']}/attempts", headers=platform_admin, json=payload).json()
+    assert row["edited_at"] is None and row["edited_by_name"] is None
     url = f"/api/v1/children/{child['id']}/attempts/{row['id']}"
     corrected = client.patch(url, headers=platform_admin, json={**payload, "completion_score": 5, "mood_score": 5, "big_win": "Corrected win"})
     assert corrected.status_code == 200
     assert corrected.json()["help_level"] == "independent"
     assert corrected.json()["logged_by_name"] == row["logged_by_name"]
+    assert corrected.json()["edited_at"] and corrected.json()["edited_by_name"] == row["logged_by_name"]
+    listed = client.get(f"/api/v1/children/{child['id']}/attempts", headers=platform_admin).json()[0]
+    assert listed["edited_at"] == corrected.json()["edited_at"]
     summary = client.get(f"/api/v1/children/{child['id']}/progress", headers=platform_admin).json()
     assert summary["total_attempts"] == 1
     assert summary["average_mood_score"] == 5

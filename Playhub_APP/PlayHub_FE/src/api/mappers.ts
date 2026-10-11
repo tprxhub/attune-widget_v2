@@ -196,6 +196,8 @@ export function mapAttempt(row: ApiAttempt, plans: PlayPlan[]): Attempt {
     consultNotes: row.notes ?? undefined,
     source: row.source,
     loggedBy: row.logged_by_name,
+    editedAt: row.edited_at ?? undefined,
+    editedBy: row.edited_by_name ?? undefined,
   };
 }
 

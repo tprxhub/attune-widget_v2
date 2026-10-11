@@ -168,6 +168,9 @@ export interface Attempt {
   consultNotes?: string | undefined;
   source: "play_dose" | "daily_check_in";
   loggedBy: string;
+  /** When the Session was last corrected, and by whom; absent if never edited. */
+  editedAt?: string | undefined;
+  editedBy?: string | undefined;
 }
 
 export type PlanDuration = "3m" | "6m" | "12m";

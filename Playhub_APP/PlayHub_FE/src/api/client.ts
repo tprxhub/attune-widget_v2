@@ -212,6 +212,8 @@ export interface ApiAttempt {
   logged_by_id: string;
   logged_by_name: string;
   created_at: string;
+  edited_at?: string | null;
+  edited_by_name?: string | null;
 }
 
 export interface ApiOrganisation {

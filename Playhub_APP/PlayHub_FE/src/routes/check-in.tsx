@@ -559,6 +559,14 @@ function RecentSessions({
                         <span className="block truncate text-[11px] text-navy/55">
                           {fmtDate(a.date)} ·{" "}
                           {a.source === "daily_check_in" ? "Daily Check-In" : "In activity"}
+                          {a.editedAt && (
+                            <span
+                              title={`Edited ${fmtDate(a.editedAt)}${a.editedBy ? ` by ${a.editedBy}` : ""}`}
+                            >
+                              {" "}
+                              · <span className="italic">Edited {fmtDate(a.editedAt)}</span>
+                            </span>
+                          )}
                         </span>
                       </span>
                       <span className="flex items-center gap-1.5">

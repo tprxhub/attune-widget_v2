@@ -22,6 +22,9 @@ import parentPencil from "@/assets/parent-child-pencil.jpg";
 const HERO_IMAGE =
   "https://images.unsplash.com/photo-1537655780520-1e392ead81f2?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.1.0";
 
+/** The link-preview card shown by WhatsApp, Slack, LinkedIn etc.; crawlers need an absolute URL. */
+const SHARE_IMAGE = "https://playhub.thetoypharmacy.com/og-image.png";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -39,8 +42,14 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:image", content: HERO_IMAGE },
-      { name: "twitter:image", content: HERO_IMAGE },
+      { property: "og:image", content: SHARE_IMAGE },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        property: "og:image:alt",
+        content: "Play Hub by The Toy Pharmacy — Small doses of play, real skill change!",
+      },
+      { name: "twitter:image", content: SHARE_IMAGE },
     ],
   }),
   component: Landing,

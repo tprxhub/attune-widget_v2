@@ -565,6 +565,8 @@ class AttemptRead(APIModel):
     logged_by_id: str
     logged_by_name: str
     created_at: datetime
+    edited_at: datetime | None = None
+    edited_by_name: str | None = None
 
 
 class ProgressPoint(APIModel):

@@ -1470,7 +1470,7 @@ def list_attempts(child_id: str, play_plan_id: str | None = None, from_date: dat
     child = one_or_404(db, Child, child_id); require_child_access(child, user)
     if from_date and to_date and from_date > to_date:
         raise HTTPException(status_code=422, detail="from_date must be on or before to_date")
-    query = select(Attempt).options(selectinload(Attempt.logged_by)).where(Attempt.child_id == child_id)
+    query = select(Attempt).options(selectinload(Attempt.logged_by), selectinload(Attempt.edited_by)).where(Attempt.child_id == child_id)
     if play_plan_id: query = query.where(Attempt.play_plan_id == play_plan_id)
     if from_date: query = query.where(Attempt.occurred_on >= from_date)
     if to_date: query = query.where(Attempt.occurred_on <= to_date)
@@ -1544,6 +1544,9 @@ def correct_attempt(child_id: str, attempt_id: str, payload: AttemptCreate,
     after = payload.model_dump(include=set(fields))
     for field, value in after.items():
         setattr(attempt, field, value)
+    if before != after:
+        attempt.edited_at = datetime.now(timezone.utc)
+        attempt.edited_by_id = user.id
     # Keep the original author and preserve every changed value in the append-only audit trail.
     def serialise(values):
         return {key: value.isoformat() if isinstance(value, date) else value for key, value in values.items()}

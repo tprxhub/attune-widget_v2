@@ -177,7 +177,7 @@ class User(TimestampMixin, Base):
     owned_children: Mapped[list[Child]] = relationship(foreign_keys="Child.owner_id", back_populates="owner")
     administered_children: Mapped[list[Child]] = relationship(foreign_keys="Child.admin_id", back_populates="admin")
     moderated_children: Mapped[list[Child]] = relationship(foreign_keys="Child.moderator_id", back_populates="moderator")
-    logged_attempts: Mapped[list[Attempt]] = relationship(back_populates="logged_by")
+    logged_attempts: Mapped[list[Attempt]] = relationship(back_populates="logged_by", foreign_keys="Attempt.logged_by_id")
 
 
 class PlayPlan(TimestampMixin, Base):
@@ -350,16 +350,24 @@ class Attempt(Base):
     source: Mapped[AttemptSource] = mapped_column(Enum(AttemptSource), default=AttemptSource.DAILY_CHECK_IN, nullable=False)
     logged_by_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Set when a Session is corrected after logging; the original author stays in logged_by.
+    edited_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    edited_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
 
     child: Mapped[Child] = relationship(back_populates="attempts")
     play_plan: Mapped[PlayPlan] = relationship(back_populates="attempts")
     play_dose: Mapped[PlayDose] = relationship(back_populates="attempts")
     activity: Mapped[Optional[Activity]] = relationship(back_populates="attempts")
-    logged_by: Mapped[User] = relationship(back_populates="logged_attempts")
+    logged_by: Mapped[User] = relationship(back_populates="logged_attempts", foreign_keys=[logged_by_id])
+    edited_by: Mapped[Optional[User]] = relationship(foreign_keys=[edited_by_id])
 
     @property
     def logged_by_name(self) -> str:
         return self.logged_by.display_name
+
+    @property
+    def edited_by_name(self) -> str | None:
+        return self.edited_by.display_name if self.edited_by else None
 
 
 RENEWAL_WINDOW_DAYS = 14
