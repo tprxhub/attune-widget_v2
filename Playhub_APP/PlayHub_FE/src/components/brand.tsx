@@ -89,43 +89,6 @@ export function LevelDots({ level, showLabel = true }: { level: Level; showLabel
   );
 }
 
-export function ChildAvatar({
-  name,
-  token = "blue",
-  size = 36,
-  shape = "circle",
-  className,
-}: {
-  name: string;
-  token?: "coral" | "blue" | "amber";
-  size?: number;
-  shape?: "circle" | "rounded" | "square";
-  className?: string;
-}) {
-  const initials = name
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-  const shapeClass =
-    shape === "circle" ? "rounded-full" : shape === "rounded" ? "rounded-[35%]" : "rounded-lg";
-  return (
-    <span
-      className={cn(
-        "grid shrink-0 place-items-center font-bold text-white",
-        shapeClass,
-        TOKEN_BG[token],
-        className,
-      )}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
-      aria-hidden
-    >
-      {initials}
-    </span>
-  );
-}
-
 export const COMPLETION_LABELS = [
   "Didn't manage it",
   "Needed a lot of help",

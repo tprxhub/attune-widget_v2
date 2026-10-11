@@ -31,7 +31,7 @@ import {
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
-import { ChildAvatar } from "@/components/brand";
+import { ChildProgressIcon } from "@/components/ChildProgressIcon";
 import { ModalPortal } from "@/components/ModalPortal";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
@@ -156,7 +156,7 @@ function AdminChildren() {
   return (
     <>
       <PageHeader
-        eyebrow="Super Admin"
+        eyebrow="Platform"
         title="Children"
         description={
           scopeId === "all"
@@ -243,7 +243,7 @@ function AdminChildren() {
               style={{ animationDelay: `${i * 45}ms` }}
             >
               <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-                <ChildAvatar name={child.name} token={child.colorToken ?? "blue"} size={48} />
+                <ChildProgressIcon childId={child.id} size={48} />
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-2">
                     <h2 className="truncate text-lg leading-tight font-bold">{child.name}</h2>
@@ -407,7 +407,7 @@ function Shell({
         aria-label={title}
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
-        <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-card p-5 shadow-xl sm:rounded-3xl sm:p-6">
+        <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-card p-5 shadow-xl sm:rounded-3xl sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-lg font-bold">{title}</h2>

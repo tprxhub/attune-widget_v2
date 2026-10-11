@@ -159,7 +159,7 @@ function AdminOverviewPage() {
             The overview could not load. Refresh the page to try again.
           </p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {[0, 1, 2, 3].map((i) => (
               <CardSkeleton key={i} lines={2} />
             ))}
@@ -348,7 +348,7 @@ function Card({
 }) {
   return (
     <section className={cn("ph-card ph-rise flex flex-col p-5", className)} aria-label={title}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="eyebrow text-blue">{eyebrow}</p>
           <h2 className="mt-1 text-lg font-bold">{title}</h2>
@@ -370,7 +370,9 @@ function Card({
 function Figure({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
     <div className="rounded-2xl bg-navy/[0.035] p-3">
-      <p className="text-[11px] font-bold tracking-wide text-navy/50 uppercase">{label}</p>
+      <p className="min-h-8 text-[11px] leading-4 font-bold tracking-wide text-navy/50 uppercase">
+        {label}
+      </p>
       <p className="mt-1 text-2xl leading-none font-bold">{value}</p>
       {hint && <p className="mt-1.5 text-xs text-navy/55">{hint}</p>}
     </div>
@@ -549,13 +551,13 @@ function KeyFigures({ data, compact = false }: { data: AdminOverview; compact?: 
     : tiles;
   if (!visibleTiles.length) return null;
   return (
-    <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <section aria-label="Key figures" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
       {visibleTiles.slice(0, 8).map((tile) => (
-        <div key={tile.label} className="ph-card ph-rise p-5">
+        <div key={tile.label} className="ph-card ph-rise min-w-0 p-4 sm:p-5">
           <span className={cn("inline-grid h-10 w-10 place-items-center rounded-2xl", tile.tone)}>
             <tile.icon className="h-5 w-5" aria-hidden />
           </span>
-          <p className="mt-3 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
+          <p className="mt-3 min-h-8 text-[11px] leading-4 font-bold tracking-wide text-navy/55 uppercase">
             {tile.label}
           </p>
           <p className="mt-1 text-3xl font-bold">{tile.value}</p>

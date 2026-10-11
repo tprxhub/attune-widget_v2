@@ -78,7 +78,7 @@ function ChildDashboard() {
     enabled: !!activeChild,
   });
 
-  if (isLoading) {
+  if (isLoading || progress.isLoading || attempts.isLoading || plans.isLoading) {
     return (
       <div className="space-y-5">
         <CardSkeleton />
@@ -146,11 +146,11 @@ function ChildDashboard() {
         {/* Play Hub Summary */}
         <section className="ph-card relative z-0 h-full p-5 hover:z-20 focus-within:z-20">
           <p className="eyebrow text-blue">Play Hub Summary</p>
-          <div className="mt-3 flex flex-wrap items-center gap-4">
+          <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3">
             <StatusIcon status={report?.status ?? "no_data"} size="lg" />
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-lg font-bold">{activeChild.name}</p>
+              <div className="flex min-w-0 flex-col items-start gap-2">
+                <p className="break-words text-lg font-bold">{activeChild.name}</p>
                 <StatusBadge status={report?.status ?? "no_data"} size="sm" />
               </div>
               <p className="mt-2 text-sm text-navy/60">

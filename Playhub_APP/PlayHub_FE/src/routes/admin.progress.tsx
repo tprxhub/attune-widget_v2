@@ -21,7 +21,8 @@ import { planById } from "@/api/domain";
 import { STATUS_META } from "@/api/progress";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
-import { ChildAvatar, TOKEN_SOFT } from "@/components/brand";
+import { TOKEN_SOFT } from "@/components/brand";
+import { ChildProgressIcon } from "@/components/ChildProgressIcon";
 import { CardSkeleton } from "@/components/Skeletons";
 import { fmtDate } from "@/lib/format";
 import { useOrgScope } from "@/lib/org-scope";
@@ -197,7 +198,7 @@ function AdminProgress() {
   if (groups.isLoading) {
     return (
       <>
-        <PageHeader eyebrow="Super Admin" title="Progress" />
+        <PageHeader eyebrow="Platform" title="Progress" />
         <div className="mt-5 space-y-4">
           {[0, 1].map((i) => (
             <CardSkeleton key={i} lines={4} />
@@ -210,7 +211,7 @@ function AdminProgress() {
   return (
     <>
       <PageHeader
-        eyebrow="Super Admin"
+        eyebrow="Platform"
         title="Progress"
         description="See who is practising and who needs a follow-up. Select a child for details."
         actions={
@@ -515,7 +516,7 @@ function ChildRow({
         )}
       >
         <span className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
-          <ChildAvatar name={child.name} token={child.colorToken} />
+          <ChildProgressIcon childId={child.id} />
           <span className="min-w-0">
             <span className="block truncate text-sm font-bold text-navy">{child.name}</span>
             <span className="block text-xs text-navy/50">

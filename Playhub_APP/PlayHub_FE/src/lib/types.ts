@@ -211,6 +211,7 @@ export interface StaffMember {
   invitationPending?: boolean | undefined;
   createdAt: string;
   childCount: number;
+  childIds?: string[];
 }
 
 export interface ProgressPoint {

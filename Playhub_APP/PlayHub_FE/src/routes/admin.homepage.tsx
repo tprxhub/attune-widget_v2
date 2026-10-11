@@ -563,7 +563,7 @@ function HomepageEditor() {
   return (
     <>
       <PageHeader
-        eyebrow="Super Admin"
+        eyebrow="Platform"
         title="Home page"
         description="Edit the words on the public home page. Nothing changes for visitors until you save."
         actions={

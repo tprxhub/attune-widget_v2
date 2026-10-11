@@ -21,7 +21,10 @@ async function login(page: Page, email: string, organisation = false) {
 test("session edits persist without adding another session", async ({ page }) => {
   await login(page, "parent@playhub.local");
   await page.goto("/check-in");
-  await page.getByRole("button", { name: /^Edit session/ }).first().click();
+  await page
+    .getByRole("button", { name: /^Edit session/ })
+    .first()
+    .click();
   const dialog = page.getByRole("dialog", { name: "Edit session", exact: true });
   await dialog
     .getByLabel("Big Win", { exact: true })
@@ -39,6 +42,7 @@ test("Play Plan details can be edited and survive a reload", async ({ page }) =>
   await page.goto("/admin/plans");
   await page.getByRole("button", { name: "Edit Play Plan", exact: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "Edit Play Plan", exact: true });
+  const originalName = await dialog.getByLabel("Name", { exact: true }).inputValue();
   await dialog.getByLabel("Name", { exact: true }).fill("Updated plan from feedback");
   await dialog.getByRole("button", { name: "Save Play Plan", exact: true }).click();
   await expect(dialog).not.toBeVisible();
@@ -46,6 +50,13 @@ test("Play Plan details can be edited and survive a reload", async ({ page }) =>
   await expect(
     page.getByRole("heading", { name: "Updated plan from feedback", exact: true }),
   ).toBeVisible();
+  const updated = page.locator("section").filter({
+    has: page.getByRole("heading", { name: "Updated plan from feedback", exact: true }),
+  });
+  await updated.getByRole("button", { name: "Edit Play Plan", exact: true }).click();
+  await dialog.getByLabel("Name", { exact: true }).fill(originalName);
+  await dialog.getByRole("button", { name: "Save Play Plan", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
 });
 
 test("Start guide ends with a clear session logging goal", async ({ page }) => {
@@ -136,6 +147,10 @@ test("Disabling a moderator requires confirmation and Cancel makes no changes", 
   await expect(confirm).not.toBeVisible();
   expect(writes).toBe(1);
   await expect(page.getByRole("button", { name: "Re-enable account", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Re-enable account", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Disable account", exact: true }).first(),
+  ).toBeVisible();
 });
 
 test("Play Pulse recommendation opens its matching Play Plan", async ({ page }) => {

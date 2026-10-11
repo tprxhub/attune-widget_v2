@@ -26,7 +26,15 @@ test("suspending an organisation waits for confirmation and supports error retry
     if (reject) return route.fulfill({ status: 503, json: { detail: "Please try again" } });
     return route.continue();
   });
-  const suspend = page.getByRole("button", { name: "Suspend", exact: true }).first();
+  const organisationName = await page
+    .locator("article")
+    .filter({ has: page.getByRole("button", { name: "Suspend", exact: true }) })
+    .first()
+    .locator("span.block.truncate")
+    .first()
+    .innerText();
+  const organisation = page.locator("article").filter({ hasText: organisationName });
+  const suspend = organisation.getByRole("button", { name: "Suspend", exact: true }).first();
   await suspend.click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
@@ -42,7 +50,9 @@ test("suspending an organisation waits for confirmation and supports error retry
   await dialog.getByRole("button", { name: "Suspend organisation" }).click();
   await expect(dialog).toHaveCount(0);
   expect(writes).toBe(2);
-  await expect(page.getByRole("button", { name: "Reactivate", exact: true }).first()).toBeVisible();
+  await expect(organisation.getByRole("button", { name: "Reactivate", exact: true })).toBeVisible();
+  await organisation.getByRole("button", { name: "Reactivate", exact: true }).click();
+  await expect(organisation.getByRole("button", { name: "Suspend", exact: true })).toBeVisible();
 });
 
 test("removing a draft activity confirms without closing the Play Dose editor", async ({

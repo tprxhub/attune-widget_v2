@@ -56,6 +56,7 @@ export function FloatingPanel({
       setStyle({
         position: "fixed",
         ...horizontal,
+        maxWidth: window.innerWidth - MARGIN * 2,
         maxHeight: Math.max(96, Math.min(MAX_HEIGHT, openUp ? above : below)),
         overflowY: "auto",
         ...(openUp ? { bottom: window.innerHeight - rect.top + GAP } : { top: rect.bottom + GAP }),

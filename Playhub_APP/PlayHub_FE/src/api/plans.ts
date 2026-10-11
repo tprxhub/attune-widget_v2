@@ -20,7 +20,10 @@ export async function getApiPlanCatalog(includeInactive = false) {
   if (includeInactive) {
     return apiRequest<ApiPlan[]>("/play-plans?include_inactive=true");
   }
-  catalogPromise ??= apiRequest<ApiPlan[]>("/play-plans");
+  catalogPromise ??= apiRequest<ApiPlan[]>("/play-plans").catch((error) => {
+    catalogPromise = undefined;
+    throw error;
+  });
   return catalogPromise;
 }
 

@@ -9,13 +9,7 @@ import { useSession } from "@/auth/session";
 import { LEVELS } from "@/lib/types";
 import { startNavigationTour } from "./navigation-tour-events";
 
-export function GuideButton({
-  label,
-  tour = false,
-}: {
-  label?: string;
-  tour?: boolean;
-}) {
+export function GuideButton({ label, tour = false }: { label?: string; tour?: boolean }) {
   const [open, setOpen] = useState(false);
   const resolvedLabel = label ?? (tour ? "Start guide" : "How Play Hub works");
   const Icon = tour ? Map : HelpCircle;
@@ -58,7 +52,7 @@ function GuideSheet({ onClose }: { onClose: () => void }) {
       >
         <div
           onClick={(e) => e.stopPropagation()}
-          className="ph-rise max-h-[88vh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 sm:max-w-2xl sm:rounded-3xl sm:p-7"
+          className="ph-rise max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl bg-card p-5 sm:max-w-2xl sm:rounded-3xl sm:p-7"
         >
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
             <div className="min-w-0">

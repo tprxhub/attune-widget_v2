@@ -67,7 +67,7 @@ export function ApplicationLogoEditor() {
             className="max-h-full max-w-full object-contain"
           />
         </div>
-        <div className="space-y-3">
+        <div className="min-w-0 max-w-full space-y-3">
           <label className="block text-xs font-bold text-navy/65">
             PNG, JPG, or WebP · up to 5 MB
             <input
@@ -75,7 +75,7 @@ export function ApplicationLogoEditor() {
               type="file"
               accept="image/png,image/jpeg,image/webp"
               disabled={busy}
-              className="mt-2 block max-w-full text-sm"
+              className="mt-2 block w-full min-w-0 max-w-full text-sm"
               onChange={(event) => {
                 const selected = event.target.files?.[0];
                 clear();

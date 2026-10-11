@@ -75,7 +75,7 @@ function AdminOrgs() {
   return (
     <>
       <PageHeader
-        eyebrow="Super Admin"
+        eyebrow="Platform"
         title="Organisations"
         description={
           isIndividualScope

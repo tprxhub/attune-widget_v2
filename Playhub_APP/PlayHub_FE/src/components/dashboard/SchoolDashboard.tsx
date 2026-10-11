@@ -17,11 +17,10 @@ import { listGoals } from "@/api/plans";
 import { getProgress, STATUS_META } from "@/api/progress";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
-import { ChildAvatar } from "@/components/brand";
 import { CardSkeleton } from "@/components/Skeletons";
 import { ConsultationCard, ComingSoonTiles } from "@/components/dashboard/DashboardExtras";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge, StatusIcon } from "@/components/StatusBadge";
 import { ALL_CHILDREN, useActiveChild } from "@/lib/active-child";
 import { fmtDate } from "@/lib/format";
 import type { Child, ProgressReport, StaffMember, StatusKey } from "@/lib/types";
@@ -85,7 +84,12 @@ export function SchoolDashboard() {
       : undefined;
   const firstName = session.name.split(" ")[0];
 
-  if (isLoading) {
+  if (
+    isLoading ||
+    supporters.isLoading ||
+    goals.isLoading ||
+    reports.some((report) => report.isLoading)
+  ) {
     return (
       <div className="space-y-5">
         <CardSkeleton />
@@ -168,7 +172,10 @@ export function SchoolDashboard() {
         actions={actions}
       />
 
-      <section aria-label="Overview" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section
+        aria-label="Overview"
+        className="grid grid-cols-2 items-stretch gap-3 xl:grid-cols-4"
+      >
         <Stat icon={Users} tone="blue" label="Children enrolled" value={rows.length} />
         <Stat
           icon={HeartHandshake}
@@ -189,7 +196,7 @@ export function SchoolDashboard() {
       </section>
 
       <section aria-label="Children" className="mt-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="eyebrow text-blue">Children</p>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
             <Chip active={filter === "all"} onClick={() => setFilter("all")}>
@@ -278,12 +285,12 @@ function Stat({
     <button
       type="button"
       onClick={onClick}
-      className="ph-card p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
+      className="ph-card min-w-0 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
     >
       {body}
     </button>
   ) : (
-    <div className="ph-card p-5">{body}</div>
+    <div className="ph-card min-w-0 p-4">{body}</div>
   );
 }
 
@@ -346,24 +353,24 @@ function ChildTile({
       className={cn("ph-card ph-rise flex flex-col p-5 sm:p-6", open && "2xl:col-span-2")}
       style={{ animationDelay: `${index * 40}ms` }}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3.5">
-          <ChildAvatar name={child.name} token={child.colorToken ?? "blue"} size={56} />
-          <div className="min-w-0">
-            <h3 className="truncate text-xl leading-tight font-bold">{child.name}</h3>
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-navy/55">Age {child.age}</span>
-              <StatusBadge status={report?.status ?? "no_data"} size="sm" />
-            </div>
-          </div>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3">
+        <span className="[&>span]:h-12 [&>span]:w-12 [&_svg]:h-6 [&_svg]:w-6 sm:[&>span]:h-16 sm:[&>span]:w-16 sm:[&_svg]:h-8 sm:[&_svg]:w-8">
+          <StatusIcon status={report?.status ?? "no_data"} size="lg" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="break-words text-xl leading-tight font-bold">{child.name}</h3>
+          <p className="mt-1 text-xs text-navy/55">Age {child.age}</p>
         </div>
         <button
           type="button"
           onClick={onOpen}
-          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-navy px-4 text-xs font-bold text-white transition hover:bg-navy/90"
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-navy px-3 text-xs font-bold text-white transition hover:bg-navy/90 sm:px-4"
         >
           View <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
         </button>
+        <div className="col-span-3 flex min-w-0 sm:col-span-2 sm:col-start-2">
+          <StatusBadge status={report?.status ?? "no_data"} size="sm" />
+        </div>
       </div>
 
       {/* Same three columns on every card, so the figures line up across the grid. */}
@@ -378,7 +385,7 @@ function ChildTile({
           <dt className="text-[11px] font-bold tracking-[0.12em] whitespace-nowrap text-navy/45 uppercase">
             Last check-in
           </dt>
-          <dd className="mt-1.5 text-sm leading-5 font-semibold whitespace-nowrap text-navy/75">
+          <dd className="mt-1.5 text-sm leading-5 font-semibold text-navy/75">
             {report?.lastCheckIn ? fmtDate(report.lastCheckIn) : "None yet"}
           </dd>
         </div>
@@ -445,11 +452,11 @@ function ModeratorPanel({
           No moderators yet. Add one so check-ins can be logged for their children.
         </p>
       ) : (
-        <ul className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {supporters.map((member) => (
             <li
               key={member.id}
-              className="flex items-center justify-between gap-3 rounded-2xl bg-navy/[0.035] p-3"
+              className="flex min-w-0 items-center justify-between gap-3 rounded-2xl bg-navy/[0.035] p-3"
             >
               <span className="flex min-w-0 items-center gap-2.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy text-sm font-bold text-cream">

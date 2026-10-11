@@ -64,10 +64,11 @@ export function Select({
       const wanted = Math.min(288, Math.max(listRef.current?.scrollHeight ?? 0, 96));
       const openUp = below < wanted && above > below;
       const maxHeight = Math.max(96, Math.min(288, openUp ? above : below));
+      const width = Math.min(Math.max(rect.width, 224), window.innerWidth - margin * 2);
       setListStyle({
         position: "fixed",
-        left: rect.left,
-        minWidth: Math.max(rect.width, 224),
+        left: Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin)),
+        width,
         maxHeight,
         ...(openUp ? { bottom: window.innerHeight - rect.top + gap } : { top: rect.bottom + gap }),
       });
@@ -113,7 +114,7 @@ export function Select({
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative min-w-0">
       <button
         id={id}
         ref={triggerRef}
@@ -132,14 +133,14 @@ export function Select({
           }
         }}
         className={cn(
-          "flex min-h-12 w-full items-center justify-between gap-2 rounded-2xl border bg-card px-4 text-left text-sm font-semibold outline-none transition disabled:cursor-not-allowed disabled:opacity-60",
+          "flex min-h-12 w-full max-w-full items-center justify-between gap-2 rounded-2xl border bg-card px-4 text-left text-sm font-semibold outline-none transition disabled:cursor-not-allowed disabled:opacity-60",
           open
             ? "border-blue ring-2 ring-blue/25"
             : "border-navy/15 hover:border-blue/40 focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-blue/25",
           className,
         )}
       >
-        <span className={cn("truncate", !selected && "font-normal text-navy/45")}>
+        <span className={cn("min-w-0 truncate", !selected && "font-normal text-navy/45")}>
           {selected ? selected.label : placeholder}
         </span>
         <ChevronDown
@@ -206,9 +207,9 @@ export function Select({
                     )}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate">{option.label}</span>
+                      <span className="block break-words">{option.label}</span>
                       {option.description && (
-                        <span className="mt-0.5 block truncate text-[11px] font-normal text-navy/50">
+                        <span className="mt-0.5 block break-words text-[11px] font-normal text-navy/50">
                           {option.description}
                         </span>
                       )}

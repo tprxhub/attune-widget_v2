@@ -1,6 +1,5 @@
 import type { Attempt, ProgressReport, StatusKey } from "@/lib/types";
 import { apiRequest, type ApiProgress } from "./client";
-import { listPlans } from "./plans";
 import type { PlayPlan } from "@/lib/types";
 import { insightFor } from "@/features/progress/insights";
 
@@ -147,7 +146,7 @@ export function buildReport(childId: string, rows: Attempt[]): ProgressReport {
   };
 }
 
-export function reportFromApi(summary: ApiProgress, _plans: PlayPlan[]): ProgressReport {
+export function reportFromApi(summary: ApiProgress, _plans: PlayPlan[] = []): ProgressReport {
   const status: StatusKey =
     summary.headline_status === "insufficient_data" ? "no_data" : summary.headline_status;
   const currentPlanId = summary.current_play_plan_id ?? summary.points.at(-1)?.play_plan_id ?? null;
@@ -199,11 +198,8 @@ export function reportFromApi(summary: ApiProgress, _plans: PlayPlan[]): Progres
 }
 
 export async function getProgress(childId: string): Promise<ProgressReport> {
-  const [summary, plans] = await Promise.all([
-    apiRequest<ApiProgress>(`/children/${childId}/progress`),
-    listPlans(),
-  ]);
-  return reportFromApi(summary, plans);
+  const summary = await apiRequest<ApiProgress>(`/children/${childId}/progress`);
+  return reportFromApi(summary);
 }
 
 export async function getProgressForChildren(childIds: string[]): Promise<ProgressReport[]> {

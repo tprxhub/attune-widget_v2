@@ -182,17 +182,15 @@ function CardHead({
   stat: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+      <div className="min-w-0">
         <h3 className="flex flex-wrap items-baseline gap-x-1 text-[15px] font-bold text-navy">
           {title}
-          <span className="ml-1 text-xs font-normal whitespace-nowrap text-[#8B93A0]">
-            {timeframe}
-          </span>
+          <span className="text-xs font-normal text-[#8B93A0]">{timeframe}</span>
         </h3>
-        {control}
       </div>
       {stat}
+      <div className="col-span-2 flex min-w-0 flex-col gap-1.5">{control}</div>
     </div>
   );
 }
@@ -363,7 +361,7 @@ function DoseCard({
               value={String(index)}
               onChange={(value) => onIndex(Number(value))}
               options={doses.map(doseOption)}
-              className="w-full min-w-56 sm:w-72"
+              className="w-full min-w-0 sm:w-72"
             />
           </>
         }
@@ -569,7 +567,7 @@ function PlanCard({
               value={planId}
               onChange={onPlan}
               options={planOptions}
-              className="w-full min-w-56 sm:w-80"
+              className="w-full min-w-0 sm:w-80"
             />
           </>
         }

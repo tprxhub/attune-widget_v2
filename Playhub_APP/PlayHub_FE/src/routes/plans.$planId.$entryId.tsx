@@ -1,3 +1,4 @@
+import { SessionEditStamp } from "@/components/SessionEditStamp";
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -360,6 +361,7 @@ function PlayDosePage() {
                       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
                         <span className="min-w-0 flex-1 basis-40 text-[11px] text-navy/55">
                           {fmtDate(a.date)} · {a.loggedBy}
+                          <SessionEditStamp session={a} />
                         </span>
                         <AttemptScore
                           completion={a.completion}

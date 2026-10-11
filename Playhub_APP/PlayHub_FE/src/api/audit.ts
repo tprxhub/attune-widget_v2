@@ -6,6 +6,8 @@ import {
   type ApiPlan,
   type ApiUser,
 } from "./client";
+import type { Session } from "@/lib/types";
+import { hasPermission } from "@/lib/roles";
 
 export interface AuditEvent {
   id: string;
@@ -34,14 +36,18 @@ export interface AuditLogData {
  * Loads the append-only events first, plus best-effort reference data used to
  * replace opaque UUIDs with human-readable names in the admin UI.
  */
-export async function getAuditLog(limit = 200): Promise<AuditLogData> {
+export async function getAuditLog(limit = 200, session?: Session): Promise<AuditLogData> {
   const events = await listAuditEvents(limit);
   const safe = async <T>(request: Promise<T[]>): Promise<T[]> => request.catch(() => []);
+  const allowed = (...keys: Parameters<typeof hasPermission>[1][]) =>
+    !session || keys.some((key) => hasPermission(session, key));
   const [users, children, organisations, plans] = await Promise.all([
-    safe(apiRequest<ApiUser[]>("/users")),
-    safe(getApiChildren()),
-    safe(apiRequest<ApiOrganisation[]>("/organisations")),
-    safe(apiRequest<ApiPlan[]>("/play-plans?include_inactive=true")),
+    allowed("team", "children", "organisations") ? safe(apiRequest<ApiUser[]>("/users")) : [],
+    allowed("children", "progress") ? safe(getApiChildren()) : [],
+    allowed("organisations", "team", "children")
+      ? safe(apiRequest<ApiOrganisation[]>("/organisations"))
+      : [],
+    allowed("plans") ? safe(apiRequest<ApiPlan[]>("/play-plans?include_inactive=true")) : [],
   ]);
   return { events, users, children, organisations, plans };
 }

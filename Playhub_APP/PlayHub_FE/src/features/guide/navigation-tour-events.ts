@@ -6,5 +6,7 @@ export function startNavigationTour() {
 }
 
 export function setNavigationTourChildMenu(open: boolean) {
-  window.dispatchEvent(new CustomEvent<boolean>(NAVIGATION_TOUR_CHILD_MENU_EVENT, { detail: open }));
+  window.dispatchEvent(
+    new CustomEvent<boolean>(NAVIGATION_TOUR_CHILD_MENU_EVENT, { detail: open }),
+  );
 }

@@ -46,6 +46,7 @@ function pendingStaff(invite: ApiInvitation): StaffMember | null {
     invitationPending: true,
     createdAt: invite.created_at.slice(0, 10),
     childCount: invite.child_id ? 1 : 0,
+    childIds: invite.child_id ? [invite.child_id] : [],
   };
 }
 
@@ -95,11 +96,11 @@ export async function toggleOrgActive(orgId: string) {
   return mapOrganisation(org, current.licensesUsed);
 }
 
-async function staffData() {
+async function staffData(includePending = true) {
   const [users, children, invitations] = await Promise.all([
     apiRequest<ApiUser[]>("/users"),
     getApiChildren(),
-    apiRequest<ApiInvitation[]>("/invitations"),
+    includePending ? apiRequest<ApiInvitation[]>("/invitations") : Promise.resolve([]),
   ]);
   return [
     ...users.map((user) => mapStaff(user, children)).filter((user): user is StaffMember => !!user),
@@ -164,6 +165,10 @@ export async function createEducator(input: {
 
 export async function listStaff(): Promise<StaffMember[]> {
   return staffData();
+}
+
+export async function listActiveStaff(): Promise<StaffMember[]> {
+  return staffData(false);
 }
 
 export async function listStaffByOrg(): Promise<{ org: Org | null; members: StaffMember[] }[]> {

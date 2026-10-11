@@ -185,7 +185,7 @@ function AdminPlans() {
   if (plans.isLoading || !plans.data) {
     return (
       <>
-        <PageHeader eyebrow="Super Admin" title="Play Plans library" />
+        <PageHeader eyebrow="Platform" title="Play Plans library" />
         <div className="mt-5 grid gap-4">
           {[0, 1, 2].map((i) => (
             <CardSkeleton key={i} lines={3} />
@@ -198,7 +198,7 @@ function AdminPlans() {
   return (
     <>
       <PageHeader
-        eyebrow="Super Admin"
+        eyebrow="Platform"
         title="Play Plans library"
         description="Play Plan → Play Dose → Activity. Each activity carries one optional video and written instructions."
       />
@@ -545,7 +545,7 @@ function Shell({
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          className="my-6 w-full max-w-3xl rounded-3xl bg-cream p-5 shadow-2xl sm:p-6"
+          className="min-w-0 max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto rounded-3xl bg-cream p-5 shadow-2xl sm:p-6"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -916,7 +916,7 @@ function PlanModal({
               placeholder="Defaults to your name"
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {!createNewPlayPlan && (
               <div>
                 <label htmlFor="pl-goal" className="text-sm font-bold">

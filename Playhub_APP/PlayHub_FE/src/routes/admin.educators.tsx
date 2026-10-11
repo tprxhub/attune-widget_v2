@@ -112,7 +112,7 @@ function AdminEducators() {
   const totals = {
     educators: all.filter((m) => m.role === "educator").length,
     supporters: all.filter((m) => m.role === "supporter").length,
-    children: all.reduce((sum, m) => sum + m.childCount, 0),
+    children: new Set(all.flatMap((member) => member.childIds ?? [])).size,
     orgs: (groups.data ?? []).filter((g) => g.org).length,
   };
 
@@ -131,7 +131,7 @@ function AdminEducators() {
   return (
     <>
       <PageHeader
-        eyebrow="Super Admin"
+        eyebrow="Platform"
         title="Admins & Moderators"
         description="Every staff account grouped by the organisation it belongs to."
         actions={
@@ -553,7 +553,7 @@ function AddEducatorModal({
         onClick={onClose}
       >
         <div
-          className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-card p-5 shadow-xl sm:rounded-3xl"
+          className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-card p-5 shadow-xl sm:rounded-3xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-3">

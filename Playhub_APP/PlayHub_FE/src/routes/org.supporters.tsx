@@ -118,7 +118,7 @@ function OrgSupporters() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="disable-moderator-title"
-              className="w-full max-w-md rounded-3xl bg-card p-6 shadow-xl"
+              className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-card p-6 shadow-xl"
             >
               <h2 id="disable-moderator-title" className="text-xl font-bold">
                 Disable {disabling.name}?
@@ -494,7 +494,7 @@ function AddSupporterModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="add-supporter-title"
-          className="ph-card max-h-[92vh] w-full overflow-y-auto p-5 sm:max-w-lg sm:p-6"
+          className="ph-card max-h-[92dvh] w-full overflow-y-auto p-5 sm:max-w-lg sm:p-6"
         >
           <div className="flex items-start justify-between gap-4">
             <div>

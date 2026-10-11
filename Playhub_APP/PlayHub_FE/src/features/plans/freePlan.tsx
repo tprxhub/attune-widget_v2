@@ -53,7 +53,7 @@ export function ChooseFreePlanDialog({
           role="dialog"
           aria-modal="true"
           aria-labelledby="free-plan-title"
-          className="w-full max-w-md rounded-3xl bg-cream p-6 text-navy shadow-lift"
+          className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-cream p-6 text-navy shadow-lift"
         >
           <div className="flex items-start justify-between gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-amber text-navy">
@@ -155,7 +155,7 @@ export function FreePlanGate({ goal, dose }: { goal: Goal; dose?: PlayPlan }) {
       <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy text-white">
         <Lock className="h-5 w-5" aria-hidden />
       </span>
-      <h2 className="mt-3 text-xl font-bold">{title} is locked on the free plan</h2>
+      <h1 className="mt-3 text-xl font-bold">{title} is locked on the free plan</h1>
       <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-navy/70">
         {access === "choose"
           ? "You can open the Rookie Play Dose of one Play Plan for free. Choose this one, or subscribe to open them all."

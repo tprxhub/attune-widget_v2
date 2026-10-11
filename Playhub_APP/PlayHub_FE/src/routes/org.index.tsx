@@ -8,7 +8,7 @@ import { listPlans } from "@/api/plans";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
-import { ChildAvatar, TOKEN_BG } from "@/components/brand";
+import { ChildProgressIcon } from "@/components/ChildProgressIcon";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
@@ -86,7 +86,7 @@ function OrgChildren() {
       />
 
       {/* Caseload summary strip */}
-      {list.length > 0 && (
+      {list.length > 0 && !plans.isLoading && (
         <div className="ph-card relative overflow-hidden bg-navy p-5 text-cream">
           <span
             className="pointer-events-none absolute -top-16 -right-10 h-48 w-48 bg-cream/8"
@@ -98,13 +98,22 @@ function OrgChildren() {
             <SummaryStat label="With a Moderator" value={`${assigned} / ${list.length}`} />
             <SummaryStat
               label="Skill areas in play"
-              value={new Set(list.map((c) => c.currentPlanId.split("-")[0])).size}
+              value={
+                new Set(
+                  list
+                    .map(
+                      (child) =>
+                        plans.data?.find((plan) => plan.id === child.currentPlanId)?.goalId,
+                    )
+                    .filter(Boolean),
+                ).size
+              }
             />
           </div>
         </div>
       )}
 
-      {kids.isLoading ? (
+      {kids.isLoading || plans.isLoading || supporters.isLoading ? (
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <CardSkeleton lines={3} />
           <CardSkeleton lines={3} />
@@ -132,7 +141,11 @@ function OrgChildren() {
                 key={child.id}
                 child={child}
                 planTitle={plans.data?.find((p) => p.id === child.currentPlanId)?.title ?? "—"}
-                supporterName={supporters.data?.find((s) => s.id === child.supporterId)?.name}
+                supporterName={
+                  child.supporterId === session.userId
+                    ? session.name
+                    : supporters.data?.find((s) => s.id === child.supporterId)?.name
+                }
               />
             ))}
           </ul>
@@ -178,7 +191,7 @@ function ChildRow({
   });
   return (
     <li className="flex flex-wrap items-center gap-3 p-4 sm:flex-nowrap">
-      <ChildAvatar name={child.name} token={child.colorToken ?? "blue"} size={40} />
+      <ChildProgressIcon childId={child.id} size={40} />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-bold text-navy">{child.name}</span>
         <span className="block text-xs text-navy/55">Age {child.age}</span>
@@ -187,7 +200,7 @@ function ChildRow({
         {planTitle}
       </span>
       <span className="shrink-0 rounded-full bg-navy/6 px-2.5 py-1 text-[11px] font-bold text-navy/70">
-        {supporterName ?? "No Moderator"}
+        {supporterName ?? (child.supporterId ? "Moderator assigned" : "No Moderator")}
       </span>
       {report.data && <StatusBadge status={report.data.status} size="sm" />}
       <Link
@@ -232,7 +245,6 @@ function ChildCard({
     mutationFn: (supporterId: string) => assignSupporter(child.id, supporterId || undefined),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["children"] }),
   });
-  const token = child.colorToken ?? "blue";
 
   return (
     <article
@@ -241,7 +253,7 @@ function ChildCard({
     >
       <div className="flex flex-1 flex-col p-5">
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-          <ChildAvatar name={child.name} token={token} size={48} />
+          <ChildProgressIcon childId={child.id} size={48} />
           <div className="min-w-0">
             <h2 className="truncate text-lg leading-tight font-bold">{child.name}</h2>
             <p className="truncate text-xs text-navy/55">Age {child.age}</p>

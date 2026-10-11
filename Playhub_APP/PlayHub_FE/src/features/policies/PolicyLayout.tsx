@@ -51,8 +51,8 @@ export function PolicyBody({
   return (
     <>
       <div className="mt-8 space-y-4 text-[15px] leading-relaxed text-navy/80">
-        {intro?.map((p) => (
-          <p key={p}>{p}</p>
+        {intro?.map((p, index) => (
+          <p key={`${index}:${p}`}>{p}</p>
         ))}
       </div>
       {sections.map((section, i) => (
@@ -63,18 +63,18 @@ export function PolicyBody({
             </h2>
           )}
           <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-navy/80">
-            {section.paragraphs?.map((p) => (
-              <p key={p}>{p}</p>
+            {section.paragraphs?.map((p, index) => (
+              <p key={`${index}:${p}`}>{p}</p>
             ))}
             {section.items && (
               <ul className="list-disc space-y-1.5 pl-5">
-                {section.items.map((item) => (
-                  <li key={item}>{item}</li>
+                {section.items.map((item, index) => (
+                  <li key={`${index}:${item}`}>{item}</li>
                 ))}
               </ul>
             )}
-            {section.after?.map((p) => (
-              <p key={p}>{p}</p>
+            {section.after?.map((p, index) => (
+              <p key={`${index}:${p}`}>{p}</p>
             ))}
           </div>
         </section>

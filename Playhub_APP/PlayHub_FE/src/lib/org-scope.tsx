@@ -6,6 +6,7 @@ import { listOrgs } from "@/api/admin";
 import { listChildrenForSession } from "@/api/children";
 import { useSession } from "@/auth/session";
 import type { Child } from "@/lib/types";
+import { FloatingPanel } from "@/components/FloatingPanel";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { orgScopeSelected, selectOrgScope } from "@/store/org-scope-slice";
@@ -98,11 +99,14 @@ export function OrgScopeDropdown({ className }: { className?: string }) {
   } = useOrgScope();
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (!boxRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDown);
@@ -126,6 +130,7 @@ export function OrgScopeDropdown({ className }: { className?: string }) {
   return (
     <div ref={boxRef} className={cn("relative", className)}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="dialog"
@@ -148,93 +153,96 @@ export function OrgScopeDropdown({ className }: { className?: string }) {
       </button>
 
       {open && (
-        <section
-          role="dialog"
-          aria-label="Account filter options"
-          className="absolute top-full right-0 z-50 mt-2 w-80 rounded-2xl border border-navy/10 bg-card p-4 text-navy shadow-[0_18px_44px_-14px_rgba(15,42,74,0.35)]"
+        <FloatingPanel
+          anchorRef={triggerRef}
+          panelRef={panelRef}
+          align="right"
+          className="w-80 rounded-2xl border border-navy/10 bg-card p-4 text-navy shadow-[0_18px_44px_-14px_rgba(15,42,74,0.35)]"
         >
-          <p className="text-[11px] font-bold tracking-[0.14em] text-blue uppercase">
-            Account filter
-          </p>
-          <fieldset className="mt-3">
-            <legend className="text-xs font-bold text-navy/70">Show</legend>
-            <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-navy/5 p-1">
-              {[
-                ["all", "All"],
-                ["b2b", "Organisations"],
-                ["individual", "Subscribers"],
-              ].map(([value, label]) => (
-                <button
-                  key={value!}
-                  type="button"
-                  onClick={() => setScope(value!)}
-                  className={cn(
-                    "min-h-10 rounded-lg px-2 text-xs font-bold transition-colors",
-                    accountType === value
-                      ? "bg-navy text-white shadow-sm"
-                      : "text-navy/65 hover:bg-card hover:text-navy",
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
+          <section role="dialog" aria-label="Account filter options">
+            <p className="text-[11px] font-bold tracking-[0.14em] text-blue uppercase">
+              Account filter
+            </p>
+            <fieldset className="mt-3">
+              <legend className="text-xs font-bold text-navy/70">Show</legend>
+              <div className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-navy/5 p-1">
+                {[
+                  ["all", "All"],
+                  ["b2b", "Organisations"],
+                  ["individual", "Subscribers"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value!}
+                    type="button"
+                    onClick={() => setScope(value!)}
+                    className={cn(
+                      "min-h-10 rounded-lg px-2 text-xs font-bold transition-colors",
+                      accountType === value
+                        ? "bg-navy text-white shadow-sm"
+                        : "text-navy/65 hover:bg-card hover:text-navy",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
-          {isOrganisationScope && (
-            <div className="mt-4">
-              <p className="text-xs font-bold text-navy/70">Organisation</p>
-              <div className="mt-1.5 space-y-1 rounded-xl border border-navy/10 bg-cream p-1.5">
-                <ScopeOption
-                  active={scopeId === "b2b"}
-                  label="All organisations"
-                  onClick={() => setScope("b2b")}
-                />
-                <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-                  {orgs.map((item) => (
-                    <ScopeOption
-                      key={item.id}
-                      active={scopeId === item.id}
-                      label={item.name}
-                      onClick={() => {
-                        setScope(item.id);
-                        setOpen(false);
-                      }}
-                    />
-                  ))}
+            {isOrganisationScope && (
+              <div className="mt-4">
+                <p className="text-xs font-bold text-navy/70">Organisation</p>
+                <div className="mt-1.5 space-y-1 rounded-xl border border-navy/10 bg-cream p-1.5">
+                  <ScopeOption
+                    active={scopeId === "b2b"}
+                    label="All organisations"
+                    onClick={() => setScope("b2b")}
+                  />
+                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                    {orgs.map((item) => (
+                      <ScopeOption
+                        key={item.id}
+                        active={scopeId === item.id}
+                        label={item.name}
+                        onClick={() => {
+                          setScope(item.id);
+                          setOpen(false);
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {isIndividualScope && (
-            <div className="mt-4">
-              <p className="text-xs font-bold text-navy/70">Individual subscriber</p>
-              <div className="mt-1.5 space-y-1 rounded-xl border border-navy/10 bg-cream p-1.5">
-                <ScopeOption
-                  active={scopeId === "individual"}
-                  label="All individual subscribers"
-                  onClick={() => setScope("individual")}
-                />
-                <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-                  {subscribers.map((child) => (
-                    <ScopeOption
-                      key={child.id}
-                      active={scopeId === `subscriber:${child.id}`}
-                      label={
-                        child.parentEmail ? `${child.name} · ${child.parentEmail}` : child.name
-                      }
-                      onClick={() => {
-                        setScope(`subscriber:${child.id}`);
-                        setOpen(false);
-                      }}
-                    />
-                  ))}
+            {isIndividualScope && (
+              <div className="mt-4">
+                <p className="text-xs font-bold text-navy/70">Individual subscriber</p>
+                <div className="mt-1.5 space-y-1 rounded-xl border border-navy/10 bg-cream p-1.5">
+                  <ScopeOption
+                    active={scopeId === "individual"}
+                    label="All individual subscribers"
+                    onClick={() => setScope("individual")}
+                  />
+                  <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                    {subscribers.map((child) => (
+                      <ScopeOption
+                        key={child.id}
+                        active={scopeId === `subscriber:${child.id}`}
+                        label={
+                          child.parentEmail ? `${child.name} · ${child.parentEmail}` : child.name
+                        }
+                        onClick={() => {
+                          setScope(`subscriber:${child.id}`);
+                          setOpen(false);
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </section>
+            )}
+          </section>
+        </FloatingPanel>
       )}
     </div>
   );

@@ -6,7 +6,7 @@ import { Check, ChevronDown, Plus, Users } from "lucide-react";
 import { listChildrenForSession } from "@/api/children";
 import { useSession } from "@/auth/session";
 import type { Child } from "@/lib/types";
-import { ChildAvatar } from "@/components/brand";
+import { ChildProgressIcon } from "@/components/ChildProgressIcon";
 import { FloatingPanel } from "@/components/FloatingPanel";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -111,12 +111,7 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
             <Users className="h-4 w-4" aria-hidden />
           </span>
         ) : (
-          <ChildAvatar
-            name={activeChild.name}
-            token={activeChild.colorToken ?? "blue"}
-            size={28}
-            shape="rounded"
-          />
+          <ChildProgressIcon childId={activeChild.id} size={28} />
         )}
         <span className="truncate">{showingAll ? "All children" : activeChild.name}</span>
         <ChevronDown
@@ -178,12 +173,7 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
                       active ? "bg-navy text-white" : "text-navy hover:bg-navy/6",
                     )}
                   >
-                    <ChildAvatar
-                      name={child.name}
-                      token={child.colorToken ?? "blue"}
-                      size={28}
-                      shape="rounded"
-                    />
+                    <ChildProgressIcon childId={child.id} size={28} />
                     <span className="min-w-0 flex-1 truncate">{child.name}</span>
                     {active && <Check className="h-4 w-4 shrink-0" aria-hidden />}
                   </button>

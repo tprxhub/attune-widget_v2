@@ -1,4 +1,6 @@
 import { Info } from "lucide-react";
+import { useId, useRef, useState } from "react";
+import { FloatingPanel } from "./FloatingPanel";
 import { cn } from "@/lib/utils";
 
 export const SUPPORT_SCORE_DEFINITION =
@@ -12,21 +14,38 @@ export function SupportScoreInfo({
   className?: string;
   description?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const tooltipId = useId();
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   return (
     <span className={cn("group/info relative inline-flex align-middle normal-case", className)}>
       <button
+        ref={anchorRef}
         type="button"
         aria-label="How Support Score is calculated"
+        aria-describedby={open ? tooltipId : undefined}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen(true)}
+        onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
         className="inline-flex cursor-help rounded-full focus-visible:ring-2 focus-visible:ring-blue focus-visible:outline-none"
       >
         <Info className="h-3.5 w-3.5" aria-hidden />
       </button>
-      <span
-        role="tooltip"
-        className="pointer-events-none absolute top-full left-1/2 z-50 mt-2 w-56 -translate-x-1/2 rounded-xl bg-navy px-3 py-2 text-left text-xs font-medium tracking-normal text-cream opacity-0 shadow-lg transition-opacity group-focus-within/info:opacity-100 group-hover/info:opacity-100"
-      >
-        {description}
-      </span>
+      {open && (
+        <FloatingPanel
+          anchorRef={anchorRef}
+          panelRef={panelRef}
+          className="pointer-events-none w-56 rounded-xl bg-navy px-3 py-2 text-left text-xs font-medium tracking-normal text-cream shadow-lg"
+        >
+          <span id={tooltipId} role="tooltip">
+            {description}
+          </span>
+        </FloatingPanel>
+      )}
     </span>
   );
 }

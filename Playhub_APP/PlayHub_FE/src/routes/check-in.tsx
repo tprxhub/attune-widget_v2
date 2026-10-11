@@ -1,3 +1,4 @@
+import { SessionEditStamp } from "@/components/SessionEditStamp";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -188,7 +189,7 @@ function CheckInPage() {
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {/* Who are we logging for */}
             <section className="ph-card p-5">
               <p className="flex items-center gap-2 text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
@@ -198,8 +199,8 @@ function CheckInPage() {
                 Logging an Session for{" "}
                 <span className="font-bold text-navy">{activeChild.name}</span>
               </p>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <div>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="min-w-0">
                   <label htmlFor="checkin-play-plan" className="text-sm font-bold text-navy">
                     Play Plan
                   </label>
@@ -220,7 +221,7 @@ function CheckInPage() {
                     className="mt-2"
                   />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label htmlFor="checkin-play-dose" className="text-sm font-bold text-navy">
                     Play Dose
                   </label>
@@ -372,7 +373,7 @@ function CheckInPage() {
           </div>
 
           {/* Right rail */}
-          <div className="space-y-4 lg:sticky lg:top-4">
+          <div className="min-w-0 space-y-4 lg:sticky lg:top-4">
             <section className="grid grid-cols-2 gap-3">
               <div className="ph-card p-4">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
@@ -446,9 +447,9 @@ function RecentSessions({
               role="dialog"
               aria-modal="true"
               aria-label="Edit session"
-              className="my-6 w-full max-w-xl rounded-3xl bg-card p-6"
+              className="min-w-0 max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-3xl bg-card p-6"
             >
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-bold">Edit session · {editing.activity}</h2>
                 <button
                   type="button"
@@ -559,15 +560,8 @@ function RecentSessions({
                         <span className="block truncate text-[11px] text-navy/55">
                           {fmtDate(a.date)} ·{" "}
                           {a.source === "daily_check_in" ? "Daily Check-In" : "In activity"}
-                          {a.editedAt && (
-                            <span
-                              title={`Edited ${fmtDate(a.editedAt)}${a.editedBy ? ` by ${a.editedBy}` : ""}`}
-                            >
-                              {" "}
-                              · <span className="italic">Edited {fmtDate(a.editedAt)}</span>
-                            </span>
-                          )}
                         </span>
+                        <SessionEditStamp session={a} />
                       </span>
                       <span className="flex items-center gap-1.5">
                         <AttemptScore

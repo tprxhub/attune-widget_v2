@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
+import { FloatingPanel } from "./FloatingPanel";
 import { TrendingUp, Minus, TrendingDown, HelpCircle, Sparkles } from "lucide-react";
 import { STATUS_META } from "@/api/progress";
 import type { StatusKey } from "@/lib/types";
@@ -25,9 +26,11 @@ const STATUS_STYLES: Record<StatusKey, string> = {
 export function StatusIcon({
   status,
   size = "md",
+  pixelSize,
 }: {
   status: StatusKey;
   size?: "sm" | "md" | "lg";
+  pixelSize?: number;
 }) {
   const Icon = ICONS[status];
   const dimensions = size === "lg" ? "h-8 w-8" : size === "md" ? "h-6 w-6" : "h-4 w-4";
@@ -38,26 +41,40 @@ export function StatusIcon({
         STATUS_STYLES[status],
         size === "lg" ? "h-16 w-16" : size === "md" ? "h-11 w-11" : "h-8 w-8",
       )}
+      style={pixelSize ? { width: pixelSize, height: pixelSize } : undefined}
       aria-hidden
     >
-      <Icon className={dimensions} />
+      <Icon
+        className={pixelSize ? undefined : dimensions}
+        style={
+          pixelSize
+            ? { width: Math.round(pixelSize / 2), height: Math.round(pixelSize / 2) }
+            : undefined
+        }
+      />
     </span>
   );
 }
 
 export function StatusBadge({ status, size = "md" }: { status: StatusKey; size?: "sm" | "md" }) {
   const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const tooltipId = useId();
   const meta = STATUS_META[status];
   const Icon = ICONS[status];
   return (
     <span className="relative inline-flex">
       <button
+        ref={anchorRef}
         type="button"
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(true)}
+        onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
+        aria-describedby={open ? tooltipId : undefined}
         aria-label={`${meta.label} — ${meta.hint}`}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-full font-bold transition-transform active:scale-95",
@@ -69,12 +86,15 @@ export function StatusBadge({ status, size = "md" }: { status: StatusKey; size?:
         {meta.label}
       </button>
       {open && (
-        <span
-          role="tooltip"
-          className="absolute top-full left-0 z-30 mt-2 w-56 rounded-xl bg-navy px-3 py-2 text-xs leading-snug font-medium text-white shadow-[var(--shadow-lift)]"
+        <FloatingPanel
+          anchorRef={anchorRef}
+          panelRef={panelRef}
+          className="pointer-events-none w-56 rounded-xl bg-navy px-3 py-2 text-xs leading-snug font-medium text-white shadow-[var(--shadow-lift)]"
         >
-          {meta.hint}
-        </span>
+          <span id={tooltipId} role="tooltip">
+            {meta.hint}
+          </span>
+        </FloatingPanel>
       )}
     </span>
   );

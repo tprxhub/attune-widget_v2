@@ -220,9 +220,9 @@ export function mapOrganisation(org: ApiOrganisation, licensesUsed = 0): Org {
 export function mapStaff(user: ApiUser, children: ApiChild[]): StaffMember | null {
   if (user.role !== "admin" && user.role !== "moderator") return null;
   const role = user.role === "admin" ? "educator" : "supporter";
-  const childCount = children.filter((child) =>
+  const assignedChildren = children.filter((child) =>
     role === "educator" ? child.admin_id === user.id : child.moderator_id === user.id,
-  ).length;
+  );
   return {
     id: user.id,
     name: user.display_name,
@@ -231,7 +231,8 @@ export function mapStaff(user: ApiUser, children: ApiChild[]): StaffMember | nul
     orgId: user.organisation_id ?? undefined,
     active: user.is_active,
     createdAt: user.created_at.slice(0, 10),
-    childCount,
+    childCount: assignedChildren.length,
+    childIds: assignedChildren.map((child) => child.id),
   };
 }
 

@@ -93,7 +93,7 @@ export function ConfirmButton({
               aria-modal="true"
               aria-labelledby={`${id}-title`}
               aria-describedby={confirmationMessage ? `${id}-message` : undefined}
-              className="w-full max-w-md rounded-2xl bg-card p-6 text-navy shadow-xl"
+              className="max-h-[85dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-card p-6 text-navy shadow-xl"
             >
               <h2 id={`${id}-title`} className="text-xl font-bold">
                 {confirmationTitle}

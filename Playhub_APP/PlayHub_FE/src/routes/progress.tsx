@@ -1,3 +1,4 @@
+import { SessionEditStamp } from "@/components/SessionEditStamp";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -410,7 +411,7 @@ export function ProgressPage() {
   }
 
   if (!activeChild) {
-    const canEnrol = session.role === "educator" || session.role === "supporter";
+    const canEnrol = session.role === "educator";
     return (
       <>
         <PageHeader eyebrow="Tracking" title="Progress" />
@@ -729,6 +730,7 @@ export function ProgressPage() {
                           <p className="mt-2 text-xs text-navy/55">
                             {fmtDate(a.date)} · {a.loggedBy}
                           </p>
+                          <SessionEditStamp session={a} />
                         </li>
                       ))}
                     </ul>
@@ -882,6 +884,7 @@ export function ProgressPage() {
                                     {a.level}
                                   </span>
                                 </div>
+                                <SessionEditStamp session={a} />
                               </div>
                               <AttemptScore
                                 completion={a.completion}

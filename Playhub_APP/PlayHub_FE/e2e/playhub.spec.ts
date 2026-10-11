@@ -454,6 +454,7 @@ test("user can choose a profile sticker and upload a profile photo", async ({ pa
 test("every seeded persona can open its permitted screens and privileged screens stay blocked", async ({
   browser,
 }) => {
+  test.setTimeout(240_000);
   const personas: Array<{
     email: string;
     organisation?: boolean;

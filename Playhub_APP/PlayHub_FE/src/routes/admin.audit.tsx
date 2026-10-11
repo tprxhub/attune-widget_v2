@@ -273,12 +273,15 @@ function timeLabel(value: string) {
 }
 
 function AuditPage() {
-  const audit = useQuery({ queryKey: ["audit-events"], queryFn: () => getAuditLog(200) });
+  const { session } = useSession();
+  const audit = useQuery({
+    queryKey: ["audit-events", session.personaId, session.permissions],
+    queryFn: () => getAuditLog(200, session),
+  });
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<AuditCategory | "all">("all");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [visibleLimit, setVisibleLimit] = useState(30);
-  const { session } = useSession();
   const allowedCategories = allowedAuditCategories(session).map((category) =>
     category === "organisations" ? "organisation" : category,
   );
@@ -332,7 +335,7 @@ function AuditPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Super Admin"
+        eyebrow="Platform"
         title="Audit log"
         description="A readable, append-only history of account, content, billing and check-in changes across Play Hub."
         actions={

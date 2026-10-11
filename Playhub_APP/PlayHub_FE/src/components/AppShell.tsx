@@ -17,8 +17,10 @@ import {
   UserRound,
   Users,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getOrg } from "@/api/org";
 import { useCapabilities, useSession } from "@/auth/session";
@@ -30,6 +32,8 @@ import { OrgScopeDropdown } from "@/lib/org-scope";
 import { Logo } from "./brand";
 import { RenewalNotice } from "./RenewalNotice";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { ModalPortal } from "./ModalPortal";
+import { QueryStatusBoundary } from "./QueryStatusBoundary";
 import { useNavigationPreferences } from "@/lib/navigation-preferences";
 import { NavigationTour } from "@/features/guide/NavigationTour";
 
@@ -215,11 +219,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     .filter((to) => pathname === to || pathname.startsWith(`${to}/`))
     .sort((a, b) => b.length - a.length)[0];
   const isActive = (to: string) => bestMatch === to;
+  const mobileItems = canInviteSupporter
+    ? [...items, { to: "/invite", label: "Invite a moderator", short: "Invite", icon: UserPlus }]
+    : items;
 
   return (
     <div className="min-h-screen bg-background lg:flex">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-navy/10 bg-navy px-4 py-6 text-white lg:flex">
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col overflow-y-auto border-r border-navy/10 bg-navy px-4 py-6 text-white lg:flex">
         <Link to="/" className="text-white">
           <Logo size="large" />
         </Link>
@@ -298,23 +305,29 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Mobile / tablet top bar */}
-        <header className="z-10 border-b border-navy/10 bg-navy text-white lg:border-transparent lg:bg-cream/80 lg:text-navy lg:backdrop-blur">
-          <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 lg:py-4">
+        <header className="sticky top-0 z-30 border-b border-navy/10 bg-navy text-white lg:border-transparent lg:bg-cream/80 lg:text-navy lg:backdrop-blur">
+          <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3 sm:px-6 lg:py-4">
             <div className="flex min-w-0 items-center gap-3">
-              <Link to="/" className="lg:hidden">
+              <Link
+                to="/"
+                className="shrink-0 lg:hidden [&_img]:h-11 [&_img]:w-auto sm:[&_img]:h-14"
+              >
                 <Logo />
               </Link>
             </div>
-            <div className="flex min-w-0 shrink items-center justify-end gap-2">
+            <span className="col-start-3 row-start-1 sm:hidden [&_button]:h-11 [&_button]:w-11 [&_button]:justify-center [&_button]:rounded-xl [&_button]:border-white/15 [&_button]:bg-white/5 [&_button]:px-0 [&_button]:text-white [&_button>span]:hidden">
+              <GuideButton tour />
+            </span>
+            <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 sm:flex-wrap">
               {/* The child and organisation pickers change nothing on the Account page. */}
               {pathname.startsWith("/account") ? null : isPlatformRole(session.role) &&
                 !pathname.startsWith("/check-in") ? (
-                <OrgScopeDropdown className="[&>button]:border-white/25 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
+                <OrgScopeDropdown className="min-w-0 max-w-full [&>button]:max-w-full [&>button]:rounded-xl [&>button]:border-white/15 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
               ) : (
-                <ChildSwitcherDropdown className="[&>button]:border-white/25 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
+                <ChildSwitcherDropdown className="min-w-0 max-w-full [&>button]:max-w-full [&>button]:rounded-xl [&>button]:border-white/15 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
               )}
               {org.data && (
-                <span className="hidden min-w-0 items-center gap-2 rounded-full border border-navy/10 bg-card/80 py-1.5 pr-4 pl-2 text-sm font-bold text-navy shadow-[0_1px_0_rgba(16,42,74,0.04)] lg:inline-flex">
+                <span className="hidden max-w-[14rem] min-w-0 items-center gap-2 rounded-full border border-navy/10 bg-card/80 py-1.5 pr-4 pl-2 text-sm font-bold text-navy shadow-[0_1px_0_rgba(16,42,74,0.04)] lg:inline-flex">
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue/12 text-blue">
                     <Building2 className="h-4 w-4" aria-hidden />
                   </span>
@@ -330,7 +343,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <GuideButton tour />
                 </span>
               </span>
-              <span className="lg:hidden">
+              <span className="hidden sm:inline lg:hidden">
                 <span className="[&_button]:border-white/25 [&_button]:text-white">
                   <GuideButton tour />
                 </span>
@@ -344,7 +357,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="hidden overflow-x-auto border-t border-white/10 px-4 sm:block lg:hidden"
           >
             <ul className="mx-auto flex max-w-6xl gap-1 py-2">
-              {items.map((item) => (
+              {mobileItems.map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
@@ -365,41 +378,154 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-28 sm:px-6 sm:pb-10 lg:px-8 lg:pt-8">
+        <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:px-8 lg:pt-8">
           <RenewalNotice />
-          {children}
+          <QueryStatusBoundary>{children}</QueryStatusBoundary>
         </main>
 
         {/* Mobile bottom tabs */}
-        <nav
-          aria-label="Main"
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-navy/10 bg-card/95 backdrop-blur sm:hidden"
-        >
-          <ul className="flex">
-            {(items.length > 5 ? [...items.slice(0, 4), items[items.length - 1]!] : items).map(
-              (item) => (
-                <li key={item.to} className="min-w-0 flex-1">
-                  <Link
-                    to={item.to}
-                    activeOptions={{ exact: true }}
-                    aria-current={isActive(item.to) ? "page" : undefined}
-                    data-tour-path={item.to}
-                    className={cn(
-                      "flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-bold",
-                      isActive(item.to) ? "text-coral" : "text-navy/55",
-                    )}
-                  >
-                    <item.icon className="h-5 w-5 shrink-0" aria-hidden />
-                    <span className="w-full truncate text-center">{item.short}</span>
-                  </Link>
-                </li>
-              ),
-            )}
-          </ul>
-        </nav>
+        <MobileNavigation items={mobileItems} activePath={bestMatch} pathname={pathname} />
         <NavigationTour items={tourItems} />
       </div>
     </div>
+  );
+}
+
+function MobileNavigation({
+  items,
+  activePath,
+  pathname,
+}: {
+  items: NavItem[];
+  activePath: string | undefined;
+  pathname: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const visible = items.length > 5 ? items.slice(0, 4) : items;
+  const hasMore = items.length > 5;
+
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current;
+    dialogRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    return () => trigger?.focus();
+  }, [open]);
+
+  return (
+    <>
+      <nav
+        aria-label="Main"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-navy/10 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
+      >
+        <ul className="flex">
+          {visible.map((item) => (
+            <li key={item.to} className="min-w-0 flex-1">
+              <Link
+                to={item.to}
+                activeOptions={{ exact: true }}
+                aria-current={activePath === item.to ? "page" : undefined}
+                data-tour-path={item.to}
+                className={cn(
+                  "flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-bold",
+                  activePath === item.to ? "text-coral" : "text-navy/55",
+                )}
+              >
+                <item.icon className="h-5 w-5 shrink-0" aria-hidden />
+                <span className="w-full truncate text-center">{item.short}</span>
+              </Link>
+            </li>
+          ))}
+          {hasMore && (
+            <li className="min-w-0 flex-1">
+              <button
+                ref={triggerRef}
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                onClick={() => setOpen(true)}
+                className={cn(
+                  "flex min-h-16 w-full flex-col items-center justify-center gap-1 text-[11px] font-bold",
+                  items.slice(4).some((item) => item.to === activePath)
+                    ? "text-coral"
+                    : "text-navy/55",
+                )}
+              >
+                <Menu className="h-5 w-5" aria-hidden />
+                More
+              </button>
+            </li>
+          )}
+        </ul>
+      </nav>
+      {open && (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-[1050] flex items-end bg-navy/45"
+            onClick={(event) => event.target === event.currentTarget && setOpen(false)}
+          >
+            <div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mobile-navigation-title"
+              className="max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl bg-card p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setOpen(false);
+                if (event.key !== "Tab") return;
+                const controls =
+                  dialogRef.current?.querySelectorAll<HTMLElement>("button, a[href]");
+                const first = controls?.[0];
+                const last = controls?.[controls.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                  event.preventDefault();
+                  last?.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                  event.preventDefault();
+                  first?.focus();
+                }
+              }}
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 id="mobile-navigation-title" className="text-xl font-bold">
+                  Your workspace
+                </h2>
+                <button
+                  autoFocus
+                  type="button"
+                  aria-label="Close navigation"
+                  onClick={() => setOpen(false)}
+                  className="grid h-11 w-11 place-items-center rounded-xl bg-navy/5"
+                >
+                  <X className="h-5 w-5" aria-hidden />
+                </button>
+              </div>
+              <nav aria-label="All sections" className="grid gap-1">
+                {items.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setOpen(false)}
+                    aria-current={item.to === activePath ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-bold",
+                      item.to === activePath
+                        ? "bg-amber text-navy"
+                        : "text-navy/75 hover:bg-navy/5",
+                    )}
+                  >
+                    <item.icon className="h-5 w-5 shrink-0" aria-hidden />
+                    {item.label}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+    </>
   );
 }
 

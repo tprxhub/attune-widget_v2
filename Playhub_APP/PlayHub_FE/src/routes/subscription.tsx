@@ -16,7 +16,7 @@ import { useSession } from "@/auth/session";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
-import { ChildAvatar } from "@/components/brand";
+import { ChildProgressIcon } from "@/components/ChildProgressIcon";
 import { useActiveChild } from "@/lib/active-child";
 import type { PlanDuration } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -140,9 +140,7 @@ function SubscriptionPage() {
           <section className="ph-card p-5">
             <p className="eyebrow text-blue">Current status</p>
             <h2 className="mt-2 flex items-center gap-2 text-lg font-bold">
-              {activeChild && (
-                <ChildAvatar name={activeChild.name} token={activeChild.colorToken} size={30} />
-              )}
+              {activeChild && <ChildProgressIcon childId={activeChild.id} size={30} />}
               <span className="truncate">{activeChild?.name}</span>
             </h2>
             <p

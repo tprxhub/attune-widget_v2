@@ -54,7 +54,7 @@ export function PolicyModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="policy-modal-title"
-          className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-cream text-navy shadow-lift"
+          className="flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-cream text-navy shadow-lift"
         >
           <header className="flex items-start justify-between gap-4 border-b border-navy/10 px-5 pt-5 pb-4 sm:px-8">
             <div className="min-w-0">

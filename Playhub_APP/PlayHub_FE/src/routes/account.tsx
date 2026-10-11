@@ -358,18 +358,18 @@ function AccountPage() {
             <h2 id="account-preferences-title" className="text-lg font-bold">
               Preferences
             </h2>
-            <div className="mt-4 grid gap-3">
+            <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
               <button
                 type="button"
                 onClick={startNavigationTour}
-                className="group flex items-center gap-3 rounded-2xl bg-navy p-3.5 text-left text-white transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] sm:col-span-2"
+                className="group flex min-w-0 flex-wrap items-center gap-3 rounded-2xl bg-navy p-3.5 text-left text-white transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
               >
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber text-navy">
                   <Map className="h-5 w-5" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold">Navigation guide</span>
-                  <span className="block truncate text-xs text-white/65">
+                  <span className="block text-xs text-white/65">
                     Take a quick tour of every tool available to you
                   </span>
                 </span>
@@ -381,7 +381,7 @@ function AccountPage() {
               <button
                 type="button"
                 onClick={() => setPwOpen(true)}
-                className="group flex items-center gap-3 rounded-2xl border border-coral/25 bg-coral/8 p-3.5 text-left transition hover:-translate-y-0.5 hover:border-coral/50 hover:shadow-[var(--shadow-card)] sm:col-span-2"
+                className="group flex min-w-0 items-center gap-3 rounded-2xl border border-coral/25 bg-coral/8 p-3.5 text-left transition hover:-translate-y-0.5 hover:border-coral/50 hover:shadow-[var(--shadow-card)]"
               >
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral/15 text-coral">
                   <KeyRound className="h-5 w-5" aria-hidden />
@@ -478,7 +478,7 @@ function AccountPage() {
             aria-labelledby="avatar-modal-title"
             onClick={(event) => event.target === event.currentTarget && setAvatarOpen(false)}
           >
-            <div className="my-auto w-full max-w-xl rounded-3xl bg-card p-5 shadow-[0_28px_70px_-20px_rgba(15,42,74,0.5)] sm:p-6">
+            <div className="my-auto min-w-0 max-h-[calc(100dvh-2rem)] w-full max-w-xl overflow-y-auto rounded-3xl bg-card p-5 shadow-[0_28px_70px_-20px_rgba(15,42,74,0.5)] sm:p-6">
               <div className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue/12 text-blue">
                   <Camera className="h-5 w-5" aria-hidden />
@@ -616,7 +616,7 @@ function AccountPage() {
             onClick={(e) => e.target === e.currentTarget && setPwOpen(false)}
           >
             <form
-              className="my-auto w-full max-w-md space-y-4 rounded-3xl bg-card p-5 shadow-[0_28px_70px_-20px_rgba(15,42,74,0.5)] sm:p-6"
+              className="my-auto min-w-0 max-h-[calc(100dvh-2rem)] w-full max-w-md space-y-4 overflow-y-auto rounded-3xl bg-card p-5 shadow-[0_28px_70px_-20px_rgba(15,42,74,0.5)] sm:p-6"
               onSubmit={(e) => {
                 e.preventDefault();
                 const errs: Record<string, string> = {};
