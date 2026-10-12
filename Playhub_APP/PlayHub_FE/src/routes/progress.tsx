@@ -12,7 +12,6 @@ import {
   MessageSquareHeart,
   Sparkles,
   Stethoscope,
-  TrendingUp,
 } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { listGoals, listPlans } from "@/api/plans";
@@ -27,7 +26,7 @@ import { AttemptScore } from "@/components/AttemptScore";
 import { ParentWinNote } from "@/components/ParentWinNote";
 import { ChartSkeleton, CardSkeleton } from "@/components/Skeletons";
 import { LockedOverlay } from "@/components/LockedOverlay";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge, StatusIcon } from "@/components/StatusBadge";
 import { FloatingPanel } from "@/components/FloatingPanel";
 import { LEVEL_TOKEN, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
@@ -518,15 +517,19 @@ export function ProgressPage() {
             {/* The summary and two compact figures on the left; the shareable celebration on the right. */}
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
               <div className="flex min-w-0 flex-col">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber text-navy">
-                    <TrendingUp className="h-6 w-6" aria-hidden />
+                <p className="eyebrow text-cream/60">Play Hub Summary</p>
+                <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3">
+                  <span className="rounded-xl bg-white">
+                    <StatusIcon status={data.status} size="lg" />
                   </span>
                   <div className="min-w-0">
-                    <p className="eyebrow text-cream/60">Play Hub Summary</p>
                     <h2 className="break-words text-2xl font-bold sm:text-3xl">
-                      {activeChild.name}’s progress
+                      {activeChild.name}
                     </h2>
+
+                    <span className="mt-3 inline-flex rounded-xl bg-cream">
+                      <StatusBadge status={data.status} size="sm" />
+                    </span>
                   </div>
                 </div>
                 <div className="mt-5 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
