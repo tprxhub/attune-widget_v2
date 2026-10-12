@@ -59,6 +59,9 @@ class Settings(BaseSettings):
         "http://localhost:8081,http://127.0.0.1:8081"
     )
     enable_test_personas: bool = True
+    # Demo organisations, families and logins (admin@playhub.local …). Turn off in production: deploys
+    # then only keep the Play Plans content up to date and never re-create or re-activate demo users.
+    seed_demo_data: bool = True
     upload_max_megabytes: int = 100
     storage_backend: Literal["local", "s3"] = "local"
     storage_local_root: str = "uploads"

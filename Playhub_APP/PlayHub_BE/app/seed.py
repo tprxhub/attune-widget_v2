@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app import models  # noqa: F401
+from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.models import (
     AccountScope,
@@ -315,6 +316,12 @@ def journey(db, *, member: Child, catalog, plan_slug: str, logger: User, doses: 
 
 def seed() -> None:
     Base.metadata.create_all(engine)
+    if not get_settings().seed_demo_data:
+        with SessionLocal() as db:
+            seed_plans(db)
+            db.commit()
+        print("Play Plans content seeded; demo data is switched off (SEED_DEMO_DATA=false).")
+        return
     with SessionLocal() as db:
         sunrise = organisation(db, name="Sunrise Montessori", kind="school", licenses=40, cycle="annual")
         bright = organisation(db, name="Bright Steps Therapy Clinic", kind="clinic", licenses=24, cycle="monthly")
