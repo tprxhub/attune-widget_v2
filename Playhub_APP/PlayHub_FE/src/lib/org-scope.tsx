@@ -3,11 +3,12 @@ import { hasPermission, isPlatformRole } from "@/lib/roles";
 import { useQuery } from "@tanstack/react-query";
 import { Building2, ChevronDown, Users } from "lucide-react";
 import { listOrgs } from "@/api/admin";
+import { getAdminReferences } from "@/api/references";
 import { listChildrenForSession } from "@/api/children";
 import { useSession } from "@/auth/session";
 import type { Child } from "@/lib/types";
-import { FloatingPanel } from "@/components/FloatingPanel";
 import { cn } from "@/lib/utils";
+import { FloatingPanel } from "@/components/FloatingPanel";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { orgScopeSelected, selectOrgScope } from "@/store/org-scope-slice";
 
@@ -19,11 +20,17 @@ export function useOrgScope() {
   const dispatch = useAppDispatch();
   const scopeId = useAppSelector(selectOrgScope);
   const { session } = useSession();
-  const enabled =
+  const canListOrgs =
     hasPermission(session, "organisations") ||
     hasPermission(session, "team") ||
     hasPermission(session, "children");
-  const { data } = useQuery({ queryKey: ["orgs"], queryFn: listOrgs, enabled });
+  const enabled = canListOrgs || hasPermission(session, "progress");
+  const organisations = useQuery({ queryKey: ["orgs"], queryFn: listOrgs, enabled: canListOrgs });
+  const references = useQuery({
+    queryKey: ["admin-references"],
+    queryFn: getAdminReferences,
+    enabled: enabled && !canListOrgs,
+  });
   const children = useQuery({
     queryKey: ["children", session.personaId],
     queryFn: () => listChildrenForSession(session),
@@ -31,7 +38,7 @@ export function useOrgScope() {
   });
 
   return useMemo(() => {
-    const orgs = data ?? [];
+    const orgs = organisations.data ?? references.data?.organisations ?? [];
     const subscribers = (children.data ?? []).filter((child) => child.accountType === "b2c");
     const scope = enabled ? scopeId : "all";
     const org = orgs.find((o) => o.id === scope);
@@ -81,7 +88,7 @@ export function useOrgScope() {
         return child.orgId === scope;
       },
     };
-  }, [data, children.data, scopeId, enabled, dispatch]);
+  }, [organisations.data, references.data, children.data, scopeId, enabled, dispatch]);
 }
 
 export function OrgScopeDropdown({ className }: { className?: string }) {

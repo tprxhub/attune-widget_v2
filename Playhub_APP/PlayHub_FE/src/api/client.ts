@@ -84,6 +84,42 @@ export async function apiRequest<T>(
   return payload as T;
 }
 
+/** A POST whose response body is read as it arrives (e.g. Attune's streamed answers). */
+export async function apiStream(
+  path: string,
+  init: RequestInit = {},
+): Promise<ReadableStream<Uint8Array>> {
+  const token = getAccessToken();
+  if (!token) throw new ApiError("Please sign in to continue.", 401);
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", "application/json");
+  headers.set("Authorization", `Bearer ${token}`);
+  let response: Response;
+  try {
+    response = await fetch(`${API_ROOT}${path}`, { method: "POST", ...init, headers });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    throw new ApiError("Could not reach Play Hub.", 0);
+  }
+  if (!response.ok || !response.body) {
+    const payload: unknown = (response.headers.get("content-type") ?? "").includes(
+      "application/json",
+    )
+      ? await response.json()
+      : await response.text();
+    if (response.status === 401) {
+      setAccessToken(null);
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("playhub:unauthorized"));
+    }
+    throw new ApiError(
+      errorMessage(payload, `Request failed (${response.status})`),
+      response.status,
+      payload,
+    );
+  }
+  return response.body;
+}
+
 export function apiAssetUrl(path?: string | null) {
   if (!path || /^(https?:|blob:|data:)/i.test(path)) return path ?? undefined;
   const assetPath = path.startsWith("/") ? path : `/${path}`;
@@ -308,12 +344,15 @@ export async function loginWithProvider(
   provider: SocialProvider,
   credential: string,
   name?: string,
+  password?: string,
 ) {
   const token = await apiRequest<ApiToken>(`/auth/${provider}`, {
     method: "POST",
     authenticated: false,
     body: JSON.stringify(
-      provider === "google" ? { credential } : { credential, name: name ?? null },
+      provider === "google"
+        ? { credential }
+        : { credential, name: name ?? null, password: password ?? null },
     ),
   });
   setAccessToken(token.access_token);

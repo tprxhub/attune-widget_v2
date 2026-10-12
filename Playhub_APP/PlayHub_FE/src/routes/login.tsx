@@ -48,6 +48,7 @@ function LoginPage() {
   const [mounted, setMounted] = useState(false);
   const { signIn, signInWithProvider, registerWithProvider, hydrated } = useSession();
   // A first-time Google, Apple or Microsoft sign-in waiting for the child's details.
+  const [linkSocial, setLinkSocial] = useState<SocialCredential | null>(null);
   const [newSocial, setNewSocial] = useState<SocialCredential | null>(null);
   const [childName, setChildName] = useState("");
   const [childAge, setChildAge] = useState("");
@@ -59,11 +60,18 @@ function LoginPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!email.trim()) return setError("Enter your email address.");
+    if (!linkSocial && !email.trim()) return setError("Enter your email address.");
     if (password.length < 8) return setError("Enter your password (at least 8 characters).");
     setPending(true);
     try {
-      const session = await signIn(email.trim(), password);
+      const session = linkSocial
+        ? await signInWithProvider(
+            linkSocial.provider,
+            linkSocial.credential,
+            linkSocial.name,
+            password,
+          )
+        : await signIn(email.trim(), password);
       await navigate({ to: session.homePath });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to sign in.");
@@ -75,6 +83,8 @@ function LoginPage() {
   const submitSocial = async (social: SocialCredential) => {
     setPending(true);
     setError(null);
+    setLinkSocial(null);
+    setNewSocial(null);
     try {
       const session = await signInWithProvider(social.provider, social.credential, social.name);
       await navigate({ to: session.homePath });
@@ -82,6 +92,13 @@ function LoginPage() {
       if (reason instanceof ApiError && reason.status === 404) {
         // First time with this account: ask for the child's details, then create the family account.
         setNewSocial(social);
+      } else if (
+        reason instanceof ApiError &&
+        reason.status === 409 &&
+        reason.message.includes("cannot be linked automatically")
+      ) {
+        setLinkSocial(social);
+        setPassword("");
       } else {
         setError(reason instanceof Error ? reason.message : "Unable to sign in.");
       }
@@ -157,21 +174,30 @@ function LoginPage() {
       </div>
 
       <form onSubmit={submit} noValidate className="mt-6 space-y-5">
-        <div>
-          <label htmlFor="email" className={authLabel}>
-            Email Address
-          </label>
-          <input
-            id="email"
-            type="email"
-            disabled={!isReady || pending}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="username"
-            placeholder={tab === "b2c" ? "you@example.com" : "you@school.org"}
-            className={authInput}
-          />
-        </div>
+        {linkSocial && (
+          <p role="status" className="rounded-2xl bg-blue/10 p-4 text-sm text-navy">
+            Enter your existing Play Hub password once to link this{" "}
+            {linkSocial.provider === "microsoft" ? "Microsoft" : "Apple"} account. After linking,
+            you can sign in with it directly.
+          </p>
+        )}
+        {!linkSocial && (
+          <div>
+            <label htmlFor="email" className={authLabel}>
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              disabled={!isReady || pending}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              placeholder={tab === "b2c" ? "you@example.com" : "you@school.org"}
+              className={authInput}
+            />
+          </div>
+        )}
         <div>
           <div className="flex items-baseline justify-between gap-3">
             <label htmlFor="password" className={authLabel}>
@@ -222,11 +248,25 @@ function LoginPage() {
 
         <button type="submit" disabled={pending || !isReady} className={cn(authButton, "mt-2")}>
           {pending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
-          Log in
+          {linkSocial ? "Link account and sign in" : "Log in"}
         </button>
       </form>
 
-      {socialSignInEnabled && (
+      {linkSocial && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            setLinkSocial(null);
+            setPassword("");
+            setError(null);
+          }}
+          className="mt-3 text-sm font-bold text-blue"
+        >
+          Cancel account linking
+        </button>
+      )}
+      {socialSignInEnabled && !linkSocial && (
         <>
           <div className="my-6 flex items-center gap-3" aria-hidden>
             <span className="h-px flex-1 bg-navy/10" />

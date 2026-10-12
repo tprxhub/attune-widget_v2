@@ -18,6 +18,7 @@ import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
 import { SchoolDashboard } from "@/components/dashboard/SchoolDashboard";
 import { ComingSoonTiles, ConsultationCard } from "@/components/dashboard/DashboardExtras";
+import { AskAttuneBar } from "@/features/attune/AskAttuneBar";
 import { LockedOverlay } from "@/components/LockedOverlay";
 import { PlayPlanCard } from "@/components/PlayPlanCard";
 import { StatusBadge, StatusIcon } from "@/components/StatusBadge";
@@ -141,6 +142,7 @@ function ChildDashboard() {
           ) : null
         }
       />
+      <AskAttuneBar childName={activeChild?.name} className="mb-5" />
 
       <div className="isolate mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         {/* Play Hub Summary */}

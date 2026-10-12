@@ -475,3 +475,36 @@ class PasswordResetToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AttuneConversation(TimestampMixin, Base):
+    """One chat with Attune, the AI play assistant, optionally about a child."""
+
+    __tablename__ = "attune_conversations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    child_id: Mapped[Optional[str]] = mapped_column(ForeignKey("children.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+
+    messages: Mapped[list[AttuneMessage]] = relationship(
+        back_populates="conversation", cascade="all, delete-orphan", order_by="AttuneMessage.created_at"
+    )
+
+
+class AttuneMessage(Base):
+    __tablename__ = "attune_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    conversation_id: Mapped[str] = mapped_column(
+        ForeignKey("attune_conversations.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)  # "user" or "assistant"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    # The Activity the question was asked from, so Attune can see its steps.
+    activity_id: Mapped[Optional[str]] = mapped_column(ForeignKey("activities.id", ondelete="SET NULL"))
+    # The asker's rating of an answer: "up", "down" or not rated.
+    feedback: Mapped[Optional[str]] = mapped_column(String(8))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    conversation: Mapped[AttuneConversation] = relationship(back_populates="messages")

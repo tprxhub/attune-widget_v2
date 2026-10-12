@@ -115,6 +115,7 @@ interface SessionContextValue {
     provider: SocialProvider,
     credential: string,
     name?: string,
+    password?: string,
   ) => Promise<ReturnType<typeof selectSession>>;
   registerWithProvider: (input: {
     provider: SocialProvider;
@@ -180,8 +181,8 @@ export function useSession(): SessionContextValue {
   );
 
   const signInWithProvider = useCallback(
-    async (provider: SocialProvider, credential: string, name?: string) => {
-      await loginWithProvider(provider, credential, name);
+    async (provider: SocialProvider, credential: string, name?: string, password?: string) => {
+      await loginWithProvider(provider, credential, name, password);
       invalidatePlanCatalog();
       const next = await loadSession();
       queryClient.clear();

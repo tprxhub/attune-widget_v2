@@ -1,17 +1,9 @@
+import defaultLogo from "@/assets/PlayHub_Logo .svg";
 import { moodMeta } from "@/components/icons";
-import {
-  averageMood,
-  celebrate,
-  independence,
-  moodColor,
-  moodRange,
-  type MoodDay,
-} from "./supportMood";
+import { averageMood, celebrate, independence, moodColor, type MoodDay } from "./supportMood";
 
 const NAVY = "#11295B";
-const CREAM = "#F5F2EE";
 const TRACK = "#FFFFFF";
-const EMPTY_FACE = "#ECEEF2";
 const SUPPORT = "#2459A0";
 const MUTED = "rgba(17,41,91,0.6)";
 
@@ -88,10 +80,14 @@ export async function renderSupportMoodImage({
   childName,
   supportScore,
   moods,
+  logoUrl = defaultLogo,
+  winNote,
 }: {
   childName: string;
   supportScore: number | null;
   moods: MoodDay[];
+  logoUrl?: string;
+  winNote?: string | undefined;
 }): Promise<Blob> {
   await document.fonts?.ready;
   const W = 1080;
@@ -149,107 +145,63 @@ export async function renderSupportMoodImage({
   ctx.roundRect(W / 2 - tagWidth / 2, 62, tagWidth, 52, 26);
   ctx.fill();
   text(tag, W / 2, 98, 26, 800);
-  // Headline, shrunk to fit the width when the name is long.
-  let size = 70;
-  ctx.font = `800 ${size}px ${font}`;
-  while (ctx.measureText(cheer.headline).width > W - 140 && size > 40) {
-    size -= 2;
-    ctx.font = `800 ${size}px ${font}`;
-  }
-  text(cheer.headline, W / 2, 200, size, 800);
   text(cheer.message, W / 2, 252, 32, 600, MUTED);
 
   // Rings: Support Score outside, mood inside, the latest mood's face in the middle.
   const cx = W / 2;
-  const cy = 545;
+  const cy = 600;
   const average = averageMood(moods);
-  const latest = moods.at(-1)?.mood ?? null;
   ring(ctx, cx, cy, 228, 60, independence(supportScore), SUPPORT);
   ring(
     ctx,
     cx,
     cy,
-    164,
+    168,
     60,
     average === null ? 0 : average / 5,
     average === null ? TRACK : moodColor(Math.round(average)),
   );
-  if (latest !== null) drawFace(ctx, cx, cy, 92, latest);
-  else {
-    ctx.fillStyle = EMPTY_FACE;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 92, 0, Math.PI * 2);
-    ctx.fill();
+  text("Let’s", cx, cy - 58, 30);
+  const logo = await loadShareLogo(logoUrl);
+  if (logo) {
+    const width = 160;
+    const height = (width * logo.naturalHeight) / logo.naturalWidth;
+    ctx.drawImage(logo, cx - width / 2, cy - height / 2, width, height);
   }
 
-  // Two figures under the rings.
-  const figures = [
+  text("again soon!", cx, cy + 88, 25);
+
+  // Compact colour legend centred beneath the graph; no text is drawn on the rings.
+  const legend = [
     {
       x: W * 0.3,
-      label: "Support Score",
-      value: supportScore === null ? "—" : `${supportScore}%`,
+      label: `Independence Score: ${supportScore === null ? "Not recorded" : `${Math.round(100 - supportScore)}%`}`,
       color: SUPPORT,
     },
     {
       x: W * 0.7,
-      label: "Mood",
-      value: average === null ? "—" : moodMeta(Math.round(average)).label,
-      color: average === null ? EMPTY_FACE : moodColor(Math.round(average)),
+      label: `Mood: ${average === null ? "Not recorded" : moodMeta(Math.round(average)).label}`,
+      color: average === null ? "#ECEEF2" : moodColor(Math.round(average)),
     },
   ];
-  for (const f of figures) {
-    // The dot sits just before the label, with the pair centred over the value.
-    ctx.font = `700 28px ${font}`;
-    const labelWidth = ctx.measureText(f.label).width;
-    const start = f.x - (labelWidth + 34) / 2;
-    ctx.fillStyle = f.color;
+  for (const item of legend) {
+    ctx.font = `600 26px ${font}`;
+    const start = item.x - (ctx.measureText(item.label).width + 30) / 2;
+    ctx.fillStyle = item.color;
     ctx.beginPath();
-    ctx.arc(start + 11, 852, 11, 0, Math.PI * 2);
+    ctx.arc(start + 8, 920, 8, 0, Math.PI * 2);
     ctx.fill();
-    text(f.label, start + 34 + labelWidth / 2, 862, 28, 700, MUTED);
-    text(f.value, f.x, 930, f.value.length > 8 ? 50 : 60);
+    ctx.textAlign = "left";
+    text(item.label, start + 30, 930, 26, 600, MUTED);
+    ctx.textAlign = "center";
   }
 
-  // Win chips.
-  if (cheer.wins.length) {
-    ctx.font = `700 26px ${font}`;
-    const chips = cheer.wins.map((win) => ({
-      win,
-      width: ctx.measureText(`★  ${win}`).width + 44,
-    }));
-    const total = chips.reduce((sum, c) => sum + c.width, 0) + 16 * (chips.length - 1);
-    let x = W / 2 - total / 2;
-    for (const chip of chips) {
-      ctx.fillStyle = "#F4F5F8";
-      ctx.beginPath();
-      ctx.roundRect(x, 972, chip.width, 50, 25);
-      ctx.fill();
-      ctx.textAlign = "left";
-      text("★", x + 22, 1006, 26, 700, "#E3A21A");
-      text(chip.win, x + 22 + 34, 1006, 26, 700);
-      ctx.textAlign = "center";
-      x += chip.width + 16;
-    }
-  }
-
-  // Mood history strip.
-  ctx.strokeStyle = "rgba(17,41,91,0.1)";
-  ctx.lineWidth = 3;
+  // The latest recorded win, or a truthful encouragement when none has been written.
+  ctx.fillStyle = "#F4F5F8";
   ctx.beginPath();
-  ctx.roundRect(70, 1050, W - 140, 200, 36);
-  ctx.stroke();
-  ctx.textAlign = "left";
-  text("Mood history", 110, 1100, 30);
-  ctx.textAlign = "right";
-  text(moodRange(moods), W - 110, 1100, 24, 600, MUTED);
-  ctx.textAlign = "center";
-  const slot = (W - 220) / 7;
-  moods.forEach((m, i) => {
-    const x = 110 + slot * i + slot / 2;
-    drawFace(ctx, x, 1160, 34, m.mood);
-    text(m.weekday, x, 1228, 22, 600, MUTED);
-  });
-  if (!moods.length) text("Moods appear as Sessions are logged", W / 2, 1175, 26, 600, MUTED);
+  ctx.roundRect(70, 1050, W - 140, 180, 36);
+  ctx.fill();
+  drawWinNote(ctx, winNote ? `“${winNote}”` : cheer.message, font);
 
   text("Shared from Play Hub · The Toy Pharmacy", W / 2, 1304, 24, 600, MUTED);
 
@@ -293,6 +245,8 @@ export async function shareSupportMoodCard(input: {
   childName: string;
   supportScore: number | null;
   moods: MoodDay[];
+  logoUrl?: string;
+  winNote?: string | undefined;
 }) {
   const blob = await renderSupportMoodImage(input);
   await shareOrDownload(
@@ -301,4 +255,41 @@ export async function shareSupportMoodCard(input: {
     `${input.childName}’s Play Hub week`,
     `${input.childName}’s Support Score and mood this week on Play Hub.`,
   );
+}
+
+async function loadShareLogo(url: string): Promise<HTMLImageElement | null> {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.src = url;
+  try {
+    await image.decode();
+    return image;
+  } catch {
+    if (url !== defaultLogo) return loadShareLogo(defaultLogo);
+    return null;
+  }
+}
+
+function drawWinNote(ctx: CanvasRenderingContext2D, note: string, font: string) {
+  const x = 540;
+  const y = 1105;
+  const width = 860;
+  ctx.font = `600 32px ${font}`;
+  ctx.fillStyle = NAVY;
+  ctx.textAlign = "center";
+  const lines: string[] = [];
+  let line = "";
+  for (const word of note.split(/\s+/)) {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width > width && line) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  lines.push(line);
+  lines
+    .slice(0, 3)
+    .forEach((value, index) =>
+      ctx.fillText(value + (index === 2 && lines.length > 3 ? "…" : ""), x, y + index * 42, width),
+    );
 }

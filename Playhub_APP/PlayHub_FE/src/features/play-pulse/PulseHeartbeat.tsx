@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /** The tilted Play Pulse heart from the design file, drawn in its own 282 × 269 box. */
@@ -30,8 +30,8 @@ function useReducedMotion() {
   return reduced;
 }
 
-/** One fill-and-empty animation whenever a new question screen appears. */
-export function PulseHeartbeat({ screenKey }: { screenKey: string }) {
+/** The heart retains answer progress; the line fills and clears on each new screen. */
+export function PulseHeartbeat({ screenKey, progress }: { screenKey: string; progress: number }) {
   const reduced = useReducedMotion();
   const lineBox = useRef<SVGSVGElement>(null);
   const [lineWidth, setLineWidth] = useState(560);
@@ -80,17 +80,43 @@ export function PulseHeartbeat({ screenKey }: { screenKey: string }) {
         </svg>
 
         <span className="absolute top-1/2 right-0 grid h-14 w-14 -translate-y-1/2 place-items-center">
-          <svg
-            viewBox={`0 0 ${HEART_BOX.width} ${HEART_BOX.height}`}
-            className={cn(
-              "h-12 w-[50px] overflow-visible drop-shadow-[0_0_5px_rgba(228,35,28,0.45)]",
-              !reduced && "ph-heart-rest",
-            )}
-          >
-            <path transform={HEART_TRANSFORM} d={HEART} fill="#E4231C" />
-          </svg>
+          <PulseHeart reduced={reduced} progress={progress} />
         </span>
       </div>
     </div>
+  );
+}
+
+function PulseHeart({ reduced, progress }: { reduced: boolean; progress: number }) {
+  const heartClipId = useId();
+  return (
+    <svg
+      viewBox={`0 0 ${HEART_BOX.width} ${HEART_BOX.height}`}
+      className={cn(
+        "h-12 w-[50px] overflow-visible drop-shadow-[0_0_5px_rgba(228,35,28,0.45)]",
+        !reduced && "ph-heart-rest",
+      )}
+    >
+      <defs>
+        <clipPath id={heartClipId}>
+          <path transform={HEART_TRANSFORM} d={HEART} />
+        </clipPath>
+      </defs>
+      <path transform={HEART_TRANSFORM} d={HEART} fill="rgba(228,35,28,.14)" />
+      <g clipPath={`url(#${heartClipId})`}>
+        <rect
+          x="0"
+          y="0"
+          width={HEART_BOX.width}
+          height={HEART_BOX.height}
+          fill="#E4231C"
+          className="ph-heart-progress"
+          style={{
+            transform: `translateY(${(1 - Math.max(0, Math.min(1, progress))) * 100}%)`,
+            transition: reduced ? "none" : undefined,
+          }}
+        />
+      </g>
+    </svg>
   );
 }

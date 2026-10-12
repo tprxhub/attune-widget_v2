@@ -16,10 +16,10 @@ import {
   X,
 } from "lucide-react";
 import { assignSupporter, listChildrenForSession, updateChild } from "@/api/children";
-import { listOrgs, listStaff } from "@/api/admin";
+import { listOrgs, listStaff, listActiveStaff } from "@/api/admin";
 import { getProgressForChildren } from "@/api/progress";
 import { inviteParent } from "@/api/org";
-import { listAllGoals, listGoals, listPlans } from "@/api/plans";
+import { getAdminReferences, referenceDoses } from "@/api/references";
 import {
   PRICE_PLANS,
   adminActivateSubscription,
@@ -74,33 +74,31 @@ function AdminChildren() {
   const { session } = useSession();
   // Granting or cancelling a subscription is billing work, ticked separately for TTP employees.
   const canBill = hasPermission(session, "billing");
+  const canInvite = hasPermission(session, "team");
   const queryClient = useQueryClient();
   const { setActiveChildId } = useActiveChild();
   const kids = useQuery({
     queryKey: ["children", session.personaId],
     queryFn: () => listChildrenForSession(session),
   });
-  const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
   // A child can be on a dose of a hidden or retired plan, so staff who can see the library look
   // names up there; everyone else uses the published catalogue.
-  const canSeeLibrary = hasPermission(session, "plans");
   const library = useQuery({
-    queryKey: ["children-plan-names", canSeeLibrary],
-    queryFn: async () => {
-      const [doses, goals] = await Promise.all(
-        canSeeLibrary ? [listPlans(undefined, true), listAllGoals()] : [listPlans(), listGoals()],
-      );
-      return { doses, goals };
-    },
+    queryKey: ["admin-references"],
+    queryFn: getAdminReferences,
   });
+  const doses = referenceDoses(library.data?.plans ?? []);
   const currentPlan = (doseId: string) => {
-    const dose = library.data?.doses.find((d) => d.id === doseId);
+    const dose = doses.find((d) => d.id === doseId);
     if (!dose) return null;
-    const goal = library.data?.goals.find((g) => g.id === dose.goalId);
+    const goal = library.data?.plans.find((g) => g.id === dose.goalId);
     return { plan: goal?.name ?? dose.title, level: dose.level, dose: dose.title };
   };
   const orgs = useQuery({ queryKey: ["orgs"], queryFn: listOrgs });
-  const staff = useQuery({ queryKey: ["staff"], queryFn: listStaff });
+  const staff = useQuery({
+    queryKey: ["staff", canInvite],
+    queryFn: canInvite ? listStaff : listActiveStaff,
+  });
   const { matchesChild, scopeId, label: scopeLabel } = useOrgScope();
   const list = useMemo(() => (kids.data ?? []).filter(matchesChild), [kids.data, matchesChild]);
   const subs = useQuery({
@@ -177,7 +175,7 @@ function AdminChildren() {
         <Stat label="Children" value={list.length} />
         <Stat label="Family accounts" value={list.filter((c) => c.accountType === "b2c").length} />
         <Stat label="Organisation" value={list.filter((c) => c.accountType === "b2b").length} />
-        <Stat label="Active subscriptions" value={activeSubs} />
+        <Stat label="Active subscriptions" value={subs.isLoading ? "—" : activeSubs} />
       </section>
 
       <div className="ph-card mt-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -222,7 +220,11 @@ function AdminChildren() {
         </div>
       </div>
 
-      {kids.isLoading ? (
+      {kids.isLoading ||
+      library.isLoading ||
+      staff.isLoading ||
+      subs.isLoading ||
+      progress.isLoading ? (
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <CardSkeleton lines={3} />
           <CardSkeleton lines={3} />
@@ -324,13 +326,15 @@ function AdminChildren() {
                     <CreditCard className="h-3.5 w-3.5" aria-hidden /> Subscription
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setInviting(child)}
-                  className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-navy/15 text-xs font-bold hover:border-navy/40"
-                >
-                  <Mail className="h-3.5 w-3.5" aria-hidden /> Invite Member
-                </button>
+                {canInvite && (
+                  <button
+                    type="button"
+                    onClick={() => setInviting(child)}
+                    className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-navy/15 text-xs font-bold hover:border-navy/40"
+                  >
+                    <Mail className="h-3.5 w-3.5" aria-hidden /> Invite Member
+                  </button>
+                )}
                 <Link
                   to="/check-in"
                   onClick={() => setActiveChildId(child.id)}
@@ -352,9 +356,9 @@ function AdminChildren() {
           child={editing}
           orgs={orgs.data ?? []}
           staff={staff.data ?? []}
-          plans={(plans.data ?? []).map((p) => ({
+          plans={referenceDoses(library.data?.plans ?? [], true).map((p) => ({
             id: p.id,
-            title: `${library.data?.goals.find((g) => g.id === p.goalId)?.name ?? p.title} · ${p.level} — ${p.title}`,
+            title: `${library.data?.plans.find((g) => g.id === p.goalId)?.name ?? p.title} · ${p.level} — ${p.title}`,
           }))}
           onClose={() => setEditing(null)}
           onSaved={() => {
@@ -378,7 +382,7 @@ function AdminChildren() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="min-w-0">
       <p className="text-[10px] font-bold tracking-[0.14em] text-amber uppercase">{label}</p>

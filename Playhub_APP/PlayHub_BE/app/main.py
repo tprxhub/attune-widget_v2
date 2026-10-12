@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app import models  # noqa: F401 - registers declarative metadata
 from app.api import router
+from app.attune import router as attune_router
 from app.config import get_settings
 from app.reminders import notice_loop
 from app.database import Base, engine, get_db
@@ -52,6 +53,7 @@ if settings.storage_backend == "local" or settings.environment.lower() == "devel
         name="uploads",
     )
 app.include_router(router)
+app.include_router(attune_router)
 
 
 @app.get("/health")

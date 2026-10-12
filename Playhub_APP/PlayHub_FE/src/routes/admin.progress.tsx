@@ -17,7 +17,6 @@ import {
   type AdminProgressGroup,
   type AdminProgressRow,
 } from "@/api/admin-progress";
-import { planById } from "@/api/domain";
 import { STATUS_META } from "@/api/progress";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
@@ -574,7 +573,6 @@ function ChildRow({
 function ChildDetail({ row }: { row: AdminProgressRow }) {
   const { child, report } = row;
   const latest = report.points.filter((point) => point.planId === report.currentPlanId).at(-1);
-  const dose = latest ? planById(latest.doseId) : undefined;
   const notes: ReactNode[] = [];
   if (report.fastTrackOffered) notes.push("Ready to try the Real-Life skill early");
   for (const reason of attentionReasons(row)) notes.push(reason);
@@ -592,7 +590,7 @@ function ChildDetail({ row }: { row: AdminProgressRow }) {
           <p className="eyebrow text-blue">Latest Play Dose</p>
           <p className="mt-1 text-sm font-semibold text-navy">
             {latest
-              ? `${dose?.title ?? "Play Dose"} · ${latest.level}`
+              ? `${row.doseTitles[latest.doseId] ?? "Play Dose"} · ${latest.level}`
               : "No Play Dose sessions logged yet."}
           </p>
           {latest && (

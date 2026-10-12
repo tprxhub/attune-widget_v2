@@ -51,14 +51,14 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   expect((await savedResponse).status()).toBe(201);
   await expect(page.getByRole("status")).toContainText("Session saved");
   await expect(
-    page.getByText("Completed the activity with less help in the browser test."),
+    page.getByText("Completed the activity with less help in the browser test.", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/^\d+%$/).first()).toBeVisible();
   // Recent Sessions folds away, and each session folds its Big Win.
   const recent = page.getByRole("button", { name: /Recent Sessions/ });
   await page.getByRole("button", { name: "Hide Big Win" }).first().click();
   await expect(
-    page.getByText("Completed the activity with less help in the browser test."),
+    page.getByText("Completed the activity with less help in the browser test.", { exact: true }),
   ).toHaveCount(0);
   await recent.click();
   await expect(recent).toHaveAttribute("aria-expanded", "false");
@@ -81,7 +81,7 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   await expect(nextSteps.locator("ol > li").first()).toContainText("Finish this Rookie Play Dose");
   await expect(page.getByRole("heading", { name: "Session history" })).toHaveCount(1);
   await expect(
-    page.getByText("Completed the activity with less help in the browser test."),
+    page.getByText("Completed the activity with less help in the browser test.", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/\d+%$/).first()).toBeVisible();
 

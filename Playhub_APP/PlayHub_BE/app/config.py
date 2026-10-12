@@ -38,6 +38,20 @@ class Settings(BaseSettings):
     # over SMTP.
     klaviyo_private_key: str | None = None
     klaviyo_email_metric: str = "Play Hub Email"
+    # Attune, the AI play assistant. ATTUNE_PROVIDER picks who answers: "openai" (Responses API) or
+    # "deepinfra" (OpenAI-compatible chat completions). Without that provider's key, Attune is off.
+    attune_provider: Literal["openai", "deepinfra"] = "openai"
+    deepinfra_api_key: str | None = None
+    deepinfra_model: str = "google/gemini-3.1-flash-lite"
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-5-mini"
+    # Sent as `reasoning.effort` for reasoning models (gpt-5*, o*); leave empty for other models.
+    openai_reasoning_effort: str | None = "low"
+    # Optional OpenAI vector store with The Toy Pharmacy's own guidance, searched with file_search.
+    openai_vector_store_id: str | None = None
+    openai_timeout_seconds: float = 60
+    # Questions one person can ask Attune per day (UTC).
+    attune_daily_limit: int = 30
     cors_origins: str = (
         "http://localhost:3000,http://127.0.0.1:3000,"
         "http://localhost:4173,http://127.0.0.1:4173,"

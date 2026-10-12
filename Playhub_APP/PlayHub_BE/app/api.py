@@ -27,6 +27,7 @@ from app.oidc_identity import (
     verify_microsoft_credential,
 )
 from app.schemas import (
+    AdminReferencesRead,
     ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, ChildCreate, ChildRead, ChildUpdate,
     AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
     LoginRequest, OrganisationCreate, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
@@ -316,9 +317,28 @@ def _verify_social(provider: Provider, payload: SocialLoginRequest) -> OidcIdent
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
+def _confirm_social_link(user: User, identity: OidcIdentity, payload: SocialLoginRequest) -> None:
+    """Require ownership of the existing account before linking an external mailbox."""
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="Account is unavailable")
+    if user.organisation_id and (not user.organisation or not user.organisation.is_active):
+        raise HTTPException(status_code=403, detail="Organisation is suspended")
+    if identity.authoritative_email:
+        return
+    if not payload.password:
+        label = PROVIDER_LABEL[identity.provider]
+        raise HTTPException(
+            status_code=409,
+            detail=f"Sign in with your password first; this {label} address cannot be linked automatically.",
+        )
+    if not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect Play Hub password. Try again or reset your password.")
+
+
 def social_login(provider: Provider, payload: SocialLoginRequest, db: Session) -> Token:
     """Sign in with Apple or Microsoft. Same linking rules as Google: an existing account is only
-    linked automatically when the provider owns the mailbox (e.g. iCloud or Outlook.com)."""
+    linked automatically when the provider owns the mailbox (e.g. iCloud or Outlook.com).
+    Other addresses require the existing account password once to confirm linking."""
     identity = _verify_social(provider, payload)
     label = PROVIDER_LABEL[provider]
     column = SOCIAL_COLUMN[provider]
@@ -333,11 +353,7 @@ def social_login(provider: Provider, payload: SocialLoginRequest, db: Session) -
             )
         if getattr(user, attr) and getattr(user, attr) != identity.subject:
             raise HTTPException(status_code=409, detail=f"This account is linked to another {label} identity")
-        if not identity.authoritative_email:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Sign in with your password first; this {label} address cannot be linked automatically.",
-            )
+        _confirm_social_link(user, identity, payload)
         setattr(user, attr, identity.subject)
         audit(db, user.id, f"user.{provider}_linked", "user", user.id)
         db.commit()
@@ -833,6 +849,16 @@ def get_platform_progress(_: User = Depends(require_permission("progress")), db:
     for attempt in db.scalars(select(Attempt).order_by(Attempt.occurred_on, Attempt.created_at)).all():
         attempts_by_child.setdefault(attempt.child_id, []).append(attempt)
     return [progress_summary(child.id, attempts_by_child[child.id]) for child in children]
+
+
+@router.get("/admin/references", response_model=AdminReferencesRead)
+def admin_references(_: User = Depends(require_permission("children", "progress")), db: Session = Depends(get_db)):
+    """Names for child assignments and reports, without granting access to content or billing."""
+    plans = db.scalars(
+        select(PlayPlan).options(selectinload(PlayPlan.play_doses)).order_by(PlayPlan.sort_order, PlayPlan.name)
+    ).all()
+    organisations = db.scalars(select(Organisation).order_by(Organisation.name)).all()
+    return {"plans": plans, "organisations": organisations}
 
 
 @router.get("/organisations", response_model=list[OrganisationRead])

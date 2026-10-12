@@ -1,3 +1,4 @@
+import { MoodHistory } from "@/features/progress/MoodHistory";
 import { SessionEditStamp } from "@/components/SessionEditStamp";
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -18,8 +19,7 @@ import { ReflectionForm, type ReflectionValues } from "@/features/attempts/Refle
 import { useActiveChild } from "@/lib/active-child";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
-import { MoodIcon, moodMeta } from "@/components/icons";
-import { roundSummary } from "@/features/progress/currentRound";
+import { currentRound } from "@/features/progress/currentRound";
 import { FreePlanGate } from "@/features/plans/freePlan";
 import { useFreePlan } from "@/features/plans/useFreePlan";
 
@@ -75,7 +75,6 @@ function PlayDosePage() {
   const { activeChild } = useActiveChild();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [attuneOpen, setAttuneOpen] = useState(false);
   const [justLogged, setJustLogged] = useState(false);
   const free = useFreePlan();
 
@@ -130,6 +129,8 @@ function PlayDosePage() {
   }
   // Every Activity configured inside the Play Dose is available to the learner.
   const activities = entryActivities(entry);
+  // Attune sees the steps of the Activity being asked about (not the placeholder for older doses).
+  const attuneActivity = activities.find((a) => !a.id.endsWith("-activity"));
   const startedAt =
     activeChild && activeChild.currentPlanId === plan.id
       ? activeChild.planStartedAt
@@ -139,7 +140,6 @@ function PlayDosePage() {
   const entitled = state?.entitled ?? true;
   const entryAttempts = (attempts.data ?? []).filter((a) => a.entryId === entryId).reverse();
   // This round of the dose only: earlier rounds and redos ended at a finished Real-Life Try.
-  const weekSummary = roundSummary((attempts.data ?? []).filter((a) => a.planId === plan.id));
   const loggedEntryIds = [
     ...new Set((attempts.data ?? []).filter((a) => a.planId === plan.id).map((a) => a.entryId)),
   ];
@@ -192,27 +192,9 @@ function PlayDosePage() {
             <section className="ph-card border-blue/20 bg-blue/5 p-5">
               <p className="eyebrow text-blue">Before the Real-Life Try</p>
               <h2 className="mt-1 text-lg font-bold">This week so far</h2>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl bg-card p-3">
-                  <p className="text-xl font-bold">{weekSummary.activities}/5</p>
-                  <p className="text-[11px] text-navy/55">Activities</p>
-                </div>
-                <div className="rounded-xl bg-card p-3">
-                  <p className="text-xl font-bold">{weekSummary.finished}</p>
-                  <p className="text-[11px] text-navy/55">Finished in 15 min</p>
-                </div>
-                <div className="rounded-xl bg-card p-3">
-                  {weekSummary.recentMood ? (
-                    <p className="flex items-center justify-center gap-1.5 text-sm font-bold">
-                      <MoodIcon value={weekSummary.recentMood} className="h-5 w-5 shrink-0" />
-                      {moodMeta(weekSummary.recentMood).label}
-                    </p>
-                  ) : (
-                    <p className="text-xl font-bold">—</p>
-                  )}
-                  <p className="text-[11px] text-navy/55">Recent mood</p>
-                </div>
-              </div>
+              <MoodHistory
+                rows={currentRound((attempts.data ?? []).filter((row) => row.planId === plan.id))}
+              />
               {plan.safetyNote && (
                 <p className="mt-3 rounded-xl bg-coral/10 px-3 py-2 text-xs font-bold text-coral">
                   Safety: {plan.safetyNote}
@@ -311,21 +293,21 @@ function PlayDosePage() {
                     Your AI play coach — adapts the activity in the moment.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setAttuneOpen((v) => !v)}
-                  aria-expanded={attuneOpen}
-                  className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-blue/40 px-4 text-sm font-bold text-blue"
+                <Link
+                  to="/attune"
+                  search={
+                    attuneActivity
+                      ? {
+                          activity: attuneActivity.id,
+                          about: attuneActivity.name || entry.activity,
+                        }
+                      : {}
+                  }
+                  className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-blue/40 px-4 text-sm font-bold text-blue transition hover:bg-blue/10"
                 >
                   <Sparkles className="h-4 w-4" aria-hidden /> Ask Attune™
-                </button>
+                </Link>
               </div>
-              {attuneOpen && (
-                <p className="mt-3 rounded-xl bg-card px-3 py-2 text-sm font-semibold text-navy/70">
-                  Attune™ is coming soon. Until then, your Play Consult Notes go straight to your
-                  organisation Admin.
-                </p>
-              )}
             </div>
           </section>
         </div>

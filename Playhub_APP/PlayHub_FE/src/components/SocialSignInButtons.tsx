@@ -116,8 +116,8 @@ async function signInWithMicrosoft(): Promise<SocialCredential> {
 
 // ── Buttons ──────────────────────────────────────────────────────────────────────────────────
 
-const pill =
-  "flex min-h-11 w-full max-w-[400px] items-center justify-center gap-2.5 rounded-full px-5 text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-50";
+const socialButton =
+  "flex min-h-10 w-full max-w-[400px] items-center justify-center gap-2.5 rounded-full px-5 text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-50";
 
 function AppleLogo() {
   return (
@@ -172,15 +172,17 @@ export function SocialSignInButtons({
       {GOOGLE_CLIENT_ID && (
         <GoogleSignInButton
           onCredential={(credential) => onCredential({ provider: "google", credential })}
-          disabled={disabled}
+          disabled={disabled || busy !== null}
         />
       )}
       {APPLE_CLIENT_ID && (
         <button
           type="button"
+          aria-label="Sign in with Apple"
+          title="Sign in with Apple"
           onClick={() => run("apple", signInWithApple)}
           disabled={disabled || busy !== null}
-          className={`${pill} bg-black text-white hover:bg-black/85`}
+          className={`${socialButton} bg-black text-white hover:bg-black/85`}
         >
           {busy === "apple" ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -193,15 +195,27 @@ export function SocialSignInButtons({
       {MICROSOFT_CLIENT_ID && (
         <button
           type="button"
+          aria-label="Sign in with Microsoft"
+          title="Sign in with Microsoft"
           onClick={() => run("microsoft", signInWithMicrosoft)}
           disabled={disabled || busy !== null}
-          className={`${pill} border border-[#8C8C8C] bg-white text-[#5E5E5E] hover:bg-[#F3F3F3]`}
+          className="ph-pill relative flex h-10 w-full max-w-[400px] items-center justify-center border border-[#dadce0] bg-white px-10 text-sm text-[#3c4043] transition hover:bg-[#f8faff] disabled:pointer-events-none disabled:opacity-50"
+          style={{
+            fontFamily: '"Google Sans", Arial, sans-serif',
+            fontWeight: 500,
+            letterSpacing: "0.25px",
+          }}
         >
-          {busy === "microsoft" ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <MicrosoftLogo />
-          )}
+          <span
+            className="absolute left-3 flex h-[18px] w-[18px] items-center justify-center"
+            aria-hidden
+          >
+            {busy === "microsoft" ? (
+              <Loader2 className="h-[18px] w-[18px] animate-spin" />
+            ) : (
+              <MicrosoftLogo />
+            )}
+          </span>
           Sign in with Microsoft
         </button>
       )}

@@ -47,7 +47,11 @@ export function QueryStatusBoundary({ children }: { children: ReactNode }) {
           </button>
         </section>
       )}
-      <div hidden={unavailable}>{children}</div>
+      {/* `contents` keeps this wrapper out of the layout, so full-height pages (Ask Attune) can fill
+          the screen; Tailwind's preflight still hides it when `hidden` is set. */}
+      <div hidden={unavailable} className="contents">
+        {children}
+      </div>
     </>
   );
 }

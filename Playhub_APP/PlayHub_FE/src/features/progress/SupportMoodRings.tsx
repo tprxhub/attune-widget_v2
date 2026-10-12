@@ -1,20 +1,11 @@
 import { useState } from "react";
-import { Check, PartyPopper, Share2, Star } from "lucide-react";
+import { Check, Loader2, PartyPopper, Share2 } from "lucide-react";
 import { moodMeta } from "@/components/icons";
-import { SupportScoreInfo } from "@/components/SupportScoreInfo";
-import { fmtShortDate } from "@/lib/format";
+import { InteractiveProgressRings } from "./InteractiveProgressRings";
+import { useApplicationLogo } from "@/api/branding";
 import type { Attempt } from "@/lib/types";
 import { shareSupportMoodCard } from "./shareSupportMood";
-import {
-  averageMood,
-  celebrate,
-  moodColor,
-  moodRange,
-  recentMoods,
-  independence,
-  TRACK,
-  EMPTY_FACE,
-} from "./supportMood";
+import { averageMood, celebrate, moodColor, recentMoods, independence, TRACK } from "./supportMood";
 
 const SUPPORT_COLOR = "#2459A0";
 
@@ -71,19 +62,6 @@ export function FaceShape({
   );
 }
 
-function MoodFace({ mood, className }: { mood: number; className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 40 40"
-      className={className}
-      role="img"
-      aria-label={`Mood: ${moodMeta(mood).label}`}
-    >
-      <FaceShape cx={20} cy={20} r={20} mood={mood} />
-    </svg>
-  );
-}
-
 /** A few soft confetti pieces in the brand colours, behind the card's content. */
 export function Confetti() {
   const pieces: [number, number, number, string, "dot" | "bar"][] = [
@@ -123,50 +101,9 @@ export function Confetti() {
   );
 }
 
-export function Ring({
-  radius,
-  stroke,
-  value,
-  color,
-  track = TRACK,
-  opacity = 1,
-}: {
-  radius: number;
-  stroke: number;
-  value: number;
-  color: string;
-  track?: string;
-  opacity?: number;
-}) {
-  const circumference = 2 * Math.PI * radius;
-  const filled = Math.max(0, Math.min(1, value));
-  return (
-    <>
-      <circle cx="80" cy="80" r={radius} fill="none" stroke={track} strokeWidth={stroke} />
-      {filled > 0 && (
-        <circle
-          opacity={opacity}
-          cx="80"
-          cy="80"
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={`${circumference * filled} ${circumference}`}
-          transform="rotate(-90 80 80)"
-          className="transition-[stroke-dasharray] duration-700 ease-out"
-        />
-      )}
-    </>
-  );
-}
+export { Ring } from "./ProgressRing";
 
-/**
- * Support Score and Mood at a glance: the outer ring is the latest Play Dose's Support Score,
- * the inner ring and face are the child's recent mood, with a week of moods underneath.
- * "Share" turns it into an image the family can send to someone else.
- */
+/** Shareable Support Score and Mood rings with the Play Hub message at their centre. */
 export function SupportMoodRings({
   childName,
   supportScore,
@@ -176,206 +113,91 @@ export function SupportMoodRings({
   supportScore: number | null;
   rows: Attempt[];
 }) {
+  const logo = useApplicationLogo();
   const moods = recentMoods(rows);
   const average = averageMood(moods);
-  const latest = moods.at(-1)?.mood ?? null;
+  const cheer = celebrate(childName, supportScore, moods);
+  const latestWin = [...rows]
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    .find((row) => row.bigWin.trim())?.bigWin;
   const [shared, setShared] = useState<"idle" | "busy" | "done">("idle");
-
+  const [shareError, setShareError] = useState(false);
   const share = async () => {
     setShared("busy");
+    setShareError(false);
     try {
-      await shareSupportMoodCard({ childName, supportScore, moods });
+      await shareSupportMoodCard({
+        childName,
+        supportScore,
+        moods,
+        logoUrl: logo,
+        winNote: latestWin,
+      });
       setShared("done");
       window.setTimeout(() => setShared("idle"), 2000);
     } catch {
       setShared("idle");
+      setShareError(true);
     }
   };
-
-  const cheer = celebrate(childName, supportScore, moods);
-  // Nothing logged yet: show faint sample rings so the card explains itself.
-  const preview = supportScore === null && !moods.length;
-
   return (
-    <div className="relative isolate flex h-full flex-col overflow-hidden bg-white p-4 text-navy ph-r-lg sm:p-5">
+    <div className="ph-r-lg relative isolate flex min-w-0 flex-col overflow-hidden bg-white p-4 text-navy sm:p-6">
       <Confetti />
-      <div className="flex items-center justify-between gap-3">
-        <p className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-amber px-2.5 py-1 text-[10px] font-extrabold tracking-[0.12em] text-navy uppercase shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-amber px-3 py-1.5 text-[10px] font-extrabold tracking-[0.12em] uppercase">
           <PartyPopper className="h-3.5 w-3.5" aria-hidden /> Celebrate the win
         </p>
         <button
           type="button"
           onClick={share}
+          aria-label={shared === "busy" ? "Preparing share image" : "Share progress"}
+          title="Share progress"
           disabled={shared === "busy"}
-          className="ph-pill inline-flex shrink-0 items-center gap-1.5 bg-coral px-3.5 py-2 text-xs font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(223,59,45,0.8)] transition hover:-translate-y-0.5 disabled:opacity-60"
+          className="ph-pill inline-flex h-11 w-11 items-center justify-center bg-coral text-xs font-bold text-white shadow-sm transition hover:bg-coral/90 disabled:opacity-60"
         >
-          {shared === "done" ? (
-            <Check className="h-3.5 w-3.5" aria-hidden />
+          {shared === "busy" ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : shared === "done" ? (
+            <Check className="h-4 w-4" aria-hidden />
           ) : (
-            <Share2 className="h-3.5 w-3.5" aria-hidden />
-          )}
-          {shared === "done" ? (
-            "Ready"
-          ) : (
-            <>
-              <span className="sm:hidden">Share</span>
-              <span className="hidden sm:inline">Share the win</span>
-            </>
+            <Share2 className="h-4 w-4" aria-hidden />
           )}
         </button>
       </div>
-      <div className="mt-2">
-        <h3 className="text-xl leading-tight font-extrabold sm:text-2xl">{cheer.headline}</h3>
-        <p className="mt-0.5 text-sm text-navy/70">{cheer.message}</p>
-      </div>
 
-      <div className="mt-4 flex flex-1 flex-wrap items-center gap-x-6 gap-y-3">
-        <div className="relative h-36 w-36 shrink-0 sm:h-40 sm:w-40">
-          {preview && (
-            <span className="ph-pill absolute -top-1 left-1/2 z-10 -translate-x-1/2 border border-navy/10 bg-white px-2 py-0.5 text-[10px] font-extrabold tracking-[0.12em] text-navy/55 uppercase shadow-sm">
-              Preview
-            </span>
-          )}
-          <svg
-            viewBox="0 0 160 160"
-            className="relative h-full w-full"
-            role="img"
-            aria-label={`Support Score ${supportScore ?? "not yet"}${supportScore === null ? "" : "%"}; recent mood ${
-              average === null ? "not logged yet" : moodMeta(Math.round(average)).label
-            }`}
-          >
-            {preview ? (
-              <>
-                <Ring
-                  radius={70}
-                  stroke={16}
-                  value={0.7}
-                  color={SUPPORT_COLOR}
-                  track={EMPTY_FACE}
-                  opacity={0.25}
-                />
-                <Ring
-                  radius={52}
-                  stroke={16}
-                  value={0.8}
-                  color={moodColor(5)}
-                  track={EMPTY_FACE}
-                  opacity={0.3}
-                />
-                <g opacity={0.45}>
-                  <FaceShape cx={80} cy={80} r={28} mood={4} />
-                </g>
-              </>
-            ) : (
-              <>
-                <Ring
-                  radius={70}
-                  stroke={16}
-                  value={independence(supportScore)}
-                  color={SUPPORT_COLOR}
-                />
-                <Ring
-                  radius={52}
-                  stroke={16}
-                  value={average === null ? 0 : average / 5}
-                  color={average === null ? TRACK : moodColor(Math.round(average))}
-                />
-              </>
-            )}
-            {preview ? null : latest === null ? (
-              <circle cx="80" cy="80" r="28" fill={EMPTY_FACE} />
-            ) : (
-              <FaceShape cx={80} cy={80} r={28} mood={latest} />
-            )}
-          </svg>
-        </div>
+      <InteractiveProgressRings supportScore={supportScore} moods={moods} logo={logo} />
 
-        <div className="min-w-0 flex-1">
-          <dl className="space-y-3">
-            <div>
-              <dt className="flex items-center gap-1.5 text-xs font-bold text-navy/60">
-                <span className="ph-pill h-2.5 w-2.5" style={{ background: SUPPORT_COLOR }} />
-                Support Score
-                <SupportScoreInfo />
-              </dt>
-              <dd className="mt-1 text-2xl leading-none font-bold">
-                {supportScore === null ? (
-                  <span className="text-sm font-semibold text-navy/50">
-                    Shows after the first Session
-                  </span>
-                ) : (
-                  `${supportScore}%`
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="flex items-center gap-1.5 text-xs font-bold text-navy/60">
-                <span
-                  className="ph-pill h-2.5 w-2.5"
-                  style={{
-                    background: average === null ? EMPTY_FACE : moodColor(Math.round(average)),
-                  }}
-                />
-                Mood
-              </dt>
-              <dd className="mt-1 text-2xl leading-none font-bold">
-                {average === null ? (
-                  <span className="text-sm font-semibold text-navy/50">
-                    Log how the Session felt
-                  </span>
-                ) : (
-                  moodMeta(Math.round(average)).label
-                )}
-              </dd>
-            </div>
-          </dl>
-          {cheer.wins.length > 0 && (
-            <ul className="mt-3 flex flex-wrap gap-1.5">
-              {cheer.wins.map((win) => (
-                <li
-                  key={win}
-                  className="ph-pill inline-flex items-center gap-1 border border-navy/10 bg-white px-2.5 py-1 text-[11px] font-bold text-navy"
-                >
-                  <Star className="h-3 w-3 fill-amber text-amber" aria-hidden /> {win}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+      <ul
+        aria-label="Chart legend"
+        className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-semibold text-navy/70"
+      >
+        <li className="flex items-center gap-2">
+          <span
+            className="ph-pill h-2.5 w-2.5 shrink-0"
+            style={{ background: SUPPORT_COLOR }}
+            aria-hidden
+          />
+          Independence Score:{" "}
+          {supportScore === null ? "Not recorded" : `${Math.round(100 - supportScore)}%`}
+        </li>
+        <li className="flex items-center gap-2">
+          <span
+            className="ph-pill h-2.5 w-2.5 shrink-0"
+            style={{ background: average === null ? TRACK : moodColor(Math.round(average)) }}
+            aria-hidden
+          />
+          Mood: {average === null ? "Not recorded" : moodMeta(Math.round(average)).label}
+        </li>
+      </ul>
+      <p className="mt-2 break-words rounded-xl bg-navy/5 px-4 py-3 text-center text-base font-semibold text-navy/75 sm:text-lg">
+        {latestWin ? `“${latestWin}”` : cheer.message}
+      </p>
 
-      <div className="mt-4 border border-navy/8 bg-white px-3 pt-2.5 pb-2 ph-r-md">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-xs font-bold">Mood history</p>
-          <p className="text-[11px] text-navy/50">{moodRange(moods)}</p>
-        </div>
-        {moods.length ? (
-          <ol className="mt-2 grid grid-cols-7 gap-1">
-            {moods.map((m, index) => (
-              <li key={`${m.date}-${index}`} className="flex flex-col items-center gap-1">
-                <span title={`${fmtShortDate(m.date)}: ${moodMeta(m.mood).label}`}>
-                  <MoodFace mood={m.mood} className="h-8 w-8" />
-                </span>
-                <span className="text-[10px] font-semibold text-navy/60">{m.weekday}</span>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <>
-            <ol className="mt-2 grid grid-cols-7 gap-1" aria-label="No moods logged yet">
-              {["M", "T", "W", "T", "F", "S", "S"].map((letter, index) => (
-                <li key={index} className="flex flex-col items-center gap-1">
-                  <span className="ph-pill h-8 w-8 border-2 border-dashed border-navy/15" />
-                  <span className="text-[10px] font-semibold text-navy/35">{letter}</span>
-                </li>
-              ))}
-            </ol>
-            <p className="mt-1.5 text-[11px] text-navy/55 italic">
-              Moods appear here as Sessions are logged.
-            </p>
-          </>
-        )}
-      </div>
+      {shareError && (
+        <p role="alert" className="mt-3 text-sm text-coral">
+          The image could not be prepared. Please try sharing again.
+        </p>
+      )}
     </div>
   );
 }

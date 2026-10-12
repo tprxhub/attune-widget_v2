@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { AttuneInsightsCard } from "@/features/attune/AttuneInsightsCard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -18,6 +19,7 @@ import {
   ShieldCheck,
   Users,
   type LucideIcon,
+  Sparkles,
 } from "lucide-react";
 import { getAdminOverview, type AdminOverview, type OverviewArea } from "@/api/admin";
 import { STATUS_META } from "@/api/progress";
@@ -266,6 +268,14 @@ function ExploreTabs({ data }: { data: AdminOverview }) {
       title: "Recent activity",
       icon: ShieldCheck,
       content: <RecentActivity audit={data.audit} />,
+    });
+  // Attune usage (counts only); same permission as Progress.
+  if (data.progress)
+    tabs.push({
+      id: "attune",
+      title: "Attune",
+      icon: Sparkles,
+      content: <AttuneInsightsCard />,
     });
   const active = tabs.some((tab) => tab.id === selected) ? selected : tabs[0]?.id;
   return (

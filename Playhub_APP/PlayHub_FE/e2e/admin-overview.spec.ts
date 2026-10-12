@@ -37,6 +37,7 @@ test("Super Admin sees every area of the Overview", async ({ page }) => {
     ["Team", "Organisation staff"],
     ["Content", "Plans library"],
     ["Recent activity", "Recent activity"],
+    ["Attune", "Attune™ insights"],
   ]) {
     const tab = page.getByRole("tab", { name: title!, exact: true });
     await tab.click();

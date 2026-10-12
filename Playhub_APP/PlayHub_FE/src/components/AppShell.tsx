@@ -12,6 +12,7 @@ import {
   Home,
   LayoutGrid,
   LayoutPanelTop,
+  Sparkles,
   ShieldCheck,
   UserPlus,
   UserRound,
@@ -63,6 +64,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     short: "Log",
     icon: CalendarCheck,
   };
+  const attune: NavItem = { to: "/attune", label: "Ask Attune", short: "Attune", icon: Sparkles };
 
   if (role === "super_admin" || role === "ttp_employee") {
     // A TTP employee sees only the pages that were ticked for them.
@@ -76,6 +78,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
         icon: Users,
       },
       role === "super_admin" && checkIn,
+      allowed("children") && attune,
       allowed("progress") && {
         to: "/admin/progress",
         label: "Progress",
@@ -131,6 +134,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
       plans,
       checkIn,
       progress,
+      attune,
       { to: "/org", label: "Members", short: "Members", icon: Users },
       ...(role === "educator"
         ? [
@@ -152,6 +156,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
       { to: "/dashboard", label: "Dashboard", short: "Home", icon: Home },
       plans,
       progress,
+      attune,
       account,
     ];
   }
@@ -162,6 +167,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     plans,
     checkIn,
     progress,
+    attune,
   ];
   if (role === "parent") {
     items.push({ to: "/subscription", label: "Subscription", short: "Billing", icon: CreditCard });
@@ -219,6 +225,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     .filter((to) => pathname === to || pathname.startsWith(`${to}/`))
     .sort((a, b) => b.length - a.length)[0];
   const isActive = (to: string) => bestMatch === to;
+  // Ask Attune is a full-screen chat: it fills the whole content area and carries the top-bar
+  // controls in its own header on large screens.
+  const fullBleed = pathname.startsWith("/attune");
   const mobileItems = canInviteSupporter
     ? [...items, { to: "/invite", label: "Invite a moderator", short: "Invite", icon: UserPlus }]
     : items;
@@ -303,9 +312,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={cn("flex min-w-0 flex-1 flex-col", fullBleed && "h-dvh overflow-hidden")}>
         {/* Mobile / tablet top bar */}
-        <header className="sticky top-0 z-30 border-b border-navy/10 bg-navy text-white lg:border-transparent lg:bg-cream/80 lg:text-navy lg:backdrop-blur">
+        <header
+          className={cn(
+            "sticky top-0 z-30 border-b border-navy/10 bg-navy text-white lg:border-transparent lg:bg-cream/80 lg:text-navy lg:backdrop-blur",
+            fullBleed && "lg:hidden",
+          )}
+        >
           <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3 sm:px-6 lg:py-4">
             <div className="flex min-w-0 items-center gap-3">
               <Link
@@ -321,7 +335,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 sm:flex-wrap">
               {/* The child and organisation pickers change nothing on the Account page. */}
               {pathname.startsWith("/account") ? null : isPlatformRole(session.role) &&
-                !pathname.startsWith("/check-in") ? (
+                !pathname.startsWith("/check-in") &&
+                !pathname.startsWith("/attune") ? (
                 <OrgScopeDropdown className="min-w-0 max-w-full [&>button]:max-w-full [&>button]:rounded-xl [&>button]:border-white/15 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
               ) : (
                 <ChildSwitcherDropdown className="min-w-0 max-w-full [&>button]:max-w-full [&>button]:rounded-xl [&>button]:border-white/15 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
@@ -378,7 +393,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
         </header>
 
-        <main className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:px-8 lg:pt-8">
+        <main
+          className={cn(
+            fullBleed
+              ? "flex min-h-0 w-full min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-0"
+              : "mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:px-8 lg:pt-8",
+          )}
+        >
           <RenewalNotice />
           <QueryStatusBoundary>{children}</QueryStatusBoundary>
         </main>
@@ -387,6 +408,35 @@ export function AppShell({ children }: { children: ReactNode }) {
         <MobileNavigation items={mobileItems} activePath={bestMatch} pathname={pathname} />
         <NavigationTour items={tourItems} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * The top bar's controls (child picker, organisation, Start guide) for pages that hide the top
+ * bar and show them in their own header, like Ask Attune.
+ */
+export function AppHeaderControls({ className }: { className?: string }) {
+  const { session } = useSession();
+  const org = useQuery({
+    queryKey: ["org", session.orgId],
+    queryFn: () => getOrg(session.orgId!),
+    enabled: !!session.orgId,
+  });
+  return (
+    <div className={cn("flex min-w-0 items-center justify-end gap-2", className)}>
+      <ChildSwitcherDropdown className="min-w-0 max-w-full [&>button]:max-w-full [&>button]:rounded-xl [&>button]:border-navy/10 [&>button]:bg-card [&>button]:text-navy" />
+      {org.data && (
+        <span className="hidden max-w-[14rem] min-w-0 items-center gap-2 rounded-full border border-navy/10 bg-card py-1.5 pr-4 pl-2 text-sm font-bold text-navy xl:inline-flex">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue/12 text-blue">
+            <Building2 className="h-4 w-4" aria-hidden />
+          </span>
+          <span className="truncate">{org.data.name}</span>
+        </span>
+      )}
+      <span className="[&_button]:min-h-10 [&_button]:border-navy/10 [&_button]:bg-card [&_button]:text-navy [&_button:hover]:border-coral/40 [&_button:hover]:text-coral">
+        <GuideButton tour />
+      </span>
     </div>
   );
 }

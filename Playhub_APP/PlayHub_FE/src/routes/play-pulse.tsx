@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useApplicationLogo } from "@/api/branding";
 import { useSession } from "@/auth/session";
-import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { SocialSignInButtons, type SocialCredential } from "@/components/SocialSignInButtons";
 import { PulseHeartbeat } from "@/features/play-pulse/PulseHeartbeat";
 import {
   AGE_BANDS,
@@ -56,6 +56,7 @@ import {
   quizAdvanced,
   resultsRevealed,
   selectPlayPulse,
+  type PlayPulseState,
 } from "@/store/play-pulse-slice";
 
 export const Route = createFileRoute("/play-pulse")({
@@ -117,6 +118,17 @@ const TIER_STYLE: Record<
   },
 };
 
+function questionProgress(state: PlayPulseState) {
+  const basics = Number(Boolean(state.childName.trim())) + Number(Boolean(state.band));
+  const goal = Number(Boolean(state.goalId) && state.screen !== "intro");
+  const answered =
+    state.screen === "intro" || state.screen === "goal"
+      ? 0
+      : DOMAINS.flatMap((domain) => state.answers[domain]).filter((answer) => answer !== null)
+          .length;
+  return (basics + goal + answered) / (3 + DOMAINS.length * 2);
+}
+
 function PlayPulsePage() {
   const logo = useApplicationLogo();
   usePlayPulsePersistence();
@@ -132,14 +144,14 @@ function PlayPulsePage() {
     if (state.screen === "gate" && sessionHydrated && !isAnonymous) dispatch(resultsRevealed());
   }, [dispatch, isAnonymous, sessionHydrated, state.screen]);
 
-  const signInWithGoogleAndReveal = async (credential: string) => {
+  const signInAndReveal = async (social: SocialCredential) => {
     setAuthPending(true);
     setAuthError(null);
     try {
-      await signInWithProvider("google", credential);
+      await signInWithProvider(social.provider, social.credential, social.name);
       dispatch(resultsRevealed());
     } catch (reason) {
-      setAuthError(reason instanceof Error ? reason.message : "Google sign-in was unsuccessful.");
+      setAuthError(reason instanceof Error ? reason.message : "Sign-in was unsuccessful.");
     } finally {
       setAuthPending(false);
     }
@@ -183,7 +195,10 @@ function PlayPulsePage() {
       </header>
 
       <div className="relative mx-auto w-full max-w-2xl px-4 pt-2 pb-20 sm:px-6 sm:pt-5">
-        <PulseHeartbeat screenKey={`${screen}-${state.domainIndex}`} />
+        <PulseHeartbeat
+          screenKey={`${screen}-${state.domainIndex}`}
+          progress={questionProgress(state)}
+        />
 
         <div key={`${screen}-${state.domainIndex}`} className="ph-rise mt-4">
           {screen === "intro" && <IntroScreen />}
@@ -193,7 +208,8 @@ function PlayPulsePage() {
             <ResultGate
               pending={authPending}
               error={authError}
-              onCredential={signInWithGoogleAndReveal}
+              onCredential={signInAndReveal}
+              onError={setAuthError}
             />
           )}
           {screen === "results" && goal && state.band && (
@@ -406,10 +422,12 @@ function ResultGate({
   pending,
   error,
   onCredential,
+  onError,
 }: {
   pending: boolean;
   error: string | null;
-  onCredential: (credential: string) => void;
+  onCredential: (credential: SocialCredential) => void;
+  onError: (message: string) => void;
 }) {
   return (
     <section>
@@ -418,10 +436,10 @@ function ResultGate({
         One last step to reveal the score
       </h1>
       <p className="mt-4 text-base leading-relaxed font-medium text-blue">
-        Sign in with Google to see the Support Score and the four-domain breakdown.
+        Sign in to see the Support Score and the four-domain breakdown.
       </p>
 
-      <div className="relative mt-8 overflow-hidden rounded-[28px] border border-navy/8 bg-white p-6 shadow-[0_24px_70px_-30px_rgba(0,42,100,.45)] sm:p-8">
+      <div className="relative mt-8 min-h-[390px] overflow-hidden rounded-[28px] border border-navy/8 bg-white p-6 shadow-[0_24px_70px_-30px_rgba(0,42,100,.45)] sm:p-8">
         <div className="pointer-events-none select-none blur-[7px]" aria-hidden>
           <p className="eyebrow text-navy/40">Support Score</p>
           <p className="mt-4 text-7xl font-bold text-coral">54%</p>
@@ -447,7 +465,9 @@ function ResultGate({
                   <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> Signing in…
                 </span>
               ) : (
-                <GoogleSignInButton onCredential={onCredential} />
+                <div className="w-full">
+                  <SocialSignInButtons onCredential={onCredential} onError={onError} />
+                </div>
               )}
             </div>
             {error && (

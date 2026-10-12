@@ -17,6 +17,9 @@ export ENVIRONMENT="test"
 export JWT_SECRET="e2e-secret-that-is-long-enough-for-hs256"
 export ENABLE_TEST_PERSONAS="true"
 export CORS_ORIGINS="http://127.0.0.1:4174"
+# Browser tests never call a real (paid) AI provider, whatever a developer's .env holds.
+export OPENAI_API_KEY=""
+export DEEPINFRA_API_KEY=""
 
 .venv/bin/python -m app.seed
 .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8765

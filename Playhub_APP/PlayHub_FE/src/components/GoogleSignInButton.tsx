@@ -81,7 +81,10 @@ export function GoogleSignInButton({
   return (
     <div
       ref={container}
-      className={cn("flex w-full justify-center", disabled && "pointer-events-none opacity-50")}
+      className={cn(
+        "flex w-full max-w-[400px] justify-center",
+        disabled && "pointer-events-none opacity-50",
+      )}
     />
   );
 }

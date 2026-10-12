@@ -1,20 +1,20 @@
 import type { Child, Org, ProgressReport } from "@/lib/types";
 import { apiRequest, getApiChildren, type ApiProgress } from "./client";
 import { mapChild } from "./mappers";
-import { listOrgs } from "./admin";
-import { listPlans } from "./plans";
+import { getAdminReferences, referenceDoses } from "./references";
 import { reportFromApi } from "./progress";
 
 export interface AdminProgressRow {
   child: Child;
-  org: Org | null;
+  org: Pick<Org, "id" | "name" | "kind"> | null;
   planTitle: string;
+  doseTitles: Record<string, string>;
   report: ProgressReport;
 }
 
 export interface AdminProgressGroup {
   /** An organisation, or null for individual (family) accounts. */
-  org: Org | null;
+  org: Pick<Org, "id" | "name" | "kind"> | null;
   label: string;
   kind: "Organisation" | "Individual";
   rows: AdminProgressRow[];
@@ -33,7 +33,7 @@ export function latestSupportScore(rows: AdminProgressRow[]): number | null {
   return latest?.report.supportScore ?? null;
 }
 
-function summarise(org: Org | null, rows: AdminProgressRow[]): AdminProgressGroup {
+function summarise(org: AdminProgressGroup["org"], rows: AdminProgressRow[]): AdminProgressGroup {
   const totalSessions = rows.reduce((sum, r) => sum + r.report.totalSessions, 0);
   const scored = rows.filter((r) => r.report.totalSessions > 0);
   const averageCompletion = totalSessions
@@ -59,18 +59,23 @@ function summarise(org: Org | null, rows: AdminProgressRow[]): AdminProgressGrou
 
 /** Every child on the platform, grouped by organisation, with individuals last. */
 export async function listPlatformProgress(): Promise<AdminProgressGroup[]> {
-  const [rawChildren, orgs, plans, summaries] = await Promise.all([
+  const [rawChildren, references, summaries] = await Promise.all([
     getApiChildren(),
-    listOrgs(),
-    listPlans(),
+    getAdminReferences(),
     apiRequest<ApiProgress[]>("/admin/progress"),
   ]);
+  const plans = referenceDoses(references.plans);
+  const orgs = references.organisations.map((org) => ({
+    ...org,
+    kind: (org.kind === "clinic" ? "Clinic" : "School") as Org["kind"],
+  }));
   const children = rawChildren.map(mapChild);
   const rows = await Promise.all(
     children.map(async (child): Promise<AdminProgressRow> => ({
       child,
       org: child.orgId ? (orgs.find((org) => org.id === child.orgId) ?? null) : null,
       planTitle: plans.find((plan) => plan.id === child.currentPlanId)?.title ?? "No Play Plan",
+      doseTitles: Object.fromEntries(plans.map((plan) => [plan.id, plan.title])),
       report: reportFromApi(
         summaries.find((summary) => summary.child_id === child.id) ?? {
           child_id: child.id,
@@ -89,7 +94,6 @@ export async function listPlatformProgress(): Promise<AdminProgressGroup[]> {
           weekly_points: [],
           points: [],
         },
-        plans,
       ),
     })),
   );

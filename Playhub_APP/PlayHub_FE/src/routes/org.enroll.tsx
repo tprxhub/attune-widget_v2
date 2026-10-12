@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { isPlatformRole } from "@/lib/roles";
+import { hasPermission, isPlatformRole } from "@/lib/roles";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2, UserPlus } from "lucide-react";
@@ -7,7 +7,8 @@ import { createChild } from "@/api/children";
 import { inviteParent } from "@/api/org";
 import { listGoals, listPlans } from "@/api/plans";
 import { getOrg } from "@/api/org";
-import { listOrgs, listStaff } from "@/api/admin";
+import { listOrgs, listStaff, listActiveStaff } from "@/api/admin";
+import { getAdminReferences, referenceDoses } from "@/api/references";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
@@ -45,15 +46,39 @@ function EnrolPage() {
   const { session } = useSession();
   const navigate = useNavigate();
   const isAdmin = isPlatformRole(session.role);
-  const goals = useQuery({ queryKey: ["goals"], queryFn: listGoals });
-  const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
+  const catalogGoals = useQuery({ queryKey: ["goals"], queryFn: listGoals, enabled: !isAdmin });
+  const catalogPlans = useQuery({
+    queryKey: ["plans"],
+    queryFn: () => listPlans(),
+    enabled: !isAdmin,
+  });
+  const references = useQuery({
+    queryKey: ["admin-references"],
+    queryFn: getAdminReferences,
+    enabled: isAdmin,
+  });
+  const goals = {
+    data: isAdmin
+      ? references.data?.plans
+          .filter((p) => p.is_active && p.publication_status !== "invisible")
+          .map((p) => ({ ...p, short: p.name }))
+      : catalogGoals.data,
+  };
+  const plans = {
+    data: isAdmin ? referenceDoses(references.data?.plans ?? [], true) : catalogPlans.data,
+  };
   const org = useQuery({
     queryKey: ["org", session.orgId],
     queryFn: () => getOrg(session.orgId!),
     enabled: !!session.orgId,
   });
   const orgs = useQuery({ queryKey: ["orgs"], queryFn: listOrgs, enabled: isAdmin });
-  const staff = useQuery({ queryKey: ["staff"], queryFn: listStaff, enabled: isAdmin });
+  const canInvite = hasPermission(session, "team");
+  const staff = useQuery({
+    queryKey: ["staff", canInvite],
+    queryFn: canInvite ? listStaff : listActiveStaff,
+    enabled: isAdmin,
+  });
 
   const [name, setName] = useState("");
   const [age, setAge] = useState("5");
@@ -72,6 +97,7 @@ function EnrolPage() {
   }, [goals.data, goalId]);
 
   const plan = plans.data?.find((p) => p.goalId === goalId && p.level === level);
+  const contentPlan = catalogPlans.data?.find((p) => p.id === plan?.id);
   const educatorOptions = (staff.data ?? []).filter(
     (s) => s.role === "educator" && (!adminOrgId || s.orgId === adminOrgId),
   );
@@ -97,7 +123,8 @@ function EnrolPage() {
         educatorId: isAdmin ? adminEducatorId || undefined : session.userId,
         parentEmail: parentEmail.trim() || undefined,
       });
-      if (parentEmail.trim()) await inviteParent(child.id, parentEmail.trim());
+      if (parentEmail.trim() && (!isAdmin || canInvite))
+        await inviteParent(child.id, parentEmail.trim());
       return child;
     },
     onSuccess: () => setTimeout(() => navigate({ to: isAdmin ? "/admin/children" : "/org" }), 900),
@@ -244,26 +271,28 @@ function EnrolPage() {
             <p className="mt-2 text-xs text-navy/60">{LEVEL_GUIDANCE}</p>
           </fieldset>
 
-          <div>
-            <label htmlFor="parent-email" className="text-sm font-bold">
-              Child's account email <span className="font-normal text-navy/50">(optional)</span>
-            </label>
-            <p className="text-xs text-navy/60">
-              The account belongs to the member — their Member account manages it on their behalf,
-              with read-only access to the Play Plan and Progress.
-            </p>
-            <input
-              id="parent-email"
-              type="email"
-              value={parentEmail}
-              onChange={(e) => setParentEmail(e.target.value)}
-              placeholder="parent@example.com"
-              className="mt-2 min-h-13 w-full rounded-2xl border border-navy/15 bg-card px-4 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/25"
-            />
-            {errors["parentEmail"] && (
-              <p className="mt-1.5 text-xs font-semibold text-coral">{errors["parentEmail"]}</p>
-            )}
-          </div>
+          {(!isAdmin || canInvite) && (
+            <div>
+              <label htmlFor="parent-email" className="text-sm font-bold">
+                Child's account email <span className="font-normal text-navy/50">(optional)</span>
+              </label>
+              <p className="text-xs text-navy/60">
+                The account belongs to the member — their Member account manages it on their behalf,
+                with read-only access to the Play Plan and Progress.
+              </p>
+              <input
+                id="parent-email"
+                type="email"
+                value={parentEmail}
+                onChange={(e) => setParentEmail(e.target.value)}
+                placeholder="parent@example.com"
+                className="mt-2 min-h-13 w-full rounded-2xl border border-navy/15 bg-card px-4 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/25"
+              />
+              {errors["parentEmail"] && (
+                <p className="mt-1.5 text-xs font-semibold text-coral">{errors["parentEmail"]}</p>
+              )}
+            </div>
+          )}
 
           {needsAdmin ? (
             <div role="status" className="rounded-2xl border border-amber/60 bg-amber/15 p-4">
@@ -307,12 +336,12 @@ function EnrolPage() {
         <aside className="ph-card p-5 sm:p-6">
           <p className="eyebrow text-blue">Play Plan goal</p>
           <h2 className="mt-1 text-lg font-bold">{plan?.title ?? "Pick a skill area and level"}</h2>
-          <p className="mt-2 text-sm text-navy/70">{plan?.summary}</p>
+          {contentPlan && <p className="mt-2 text-sm text-navy/70">{contentPlan.summary}</p>}
           {errors["plan"] && (
             <p className="mt-2 text-xs font-semibold text-coral">{errors["plan"]}</p>
           )}
           <ol className="mt-4 space-y-1.5">
-            {(plan?.entries ?? []).map((entry) => (
+            {(contentPlan?.entries ?? []).map((entry) => (
               <li
                 key={entry.id}
                 className="flex items-center justify-between gap-3 rounded-xl bg-navy/4 px-3 py-2 text-xs"

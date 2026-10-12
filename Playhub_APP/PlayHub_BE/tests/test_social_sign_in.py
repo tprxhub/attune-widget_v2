@@ -87,3 +87,27 @@ def test_existing_accounts_link_only_when_the_provider_owns_the_mailbox(client):
     other = client.post("/api/v1/auth/apple", json={"credential": apple("owner@custom.example", sub="apple-2")})
     assert other.status_code == 409
     assert client.post("/api/v1/auth/apple", json={"credential": apple("nobody@icloud.com", sub="apple-3")}).status_code == 404
+
+
+def test_microsoft_external_email_links_after_password_confirmation(client):
+    email = "owner@gmail.com"
+    created = client.post("/api/v1/auth/register-family", json={
+        "email": email, "display_name": "Owner", "guardian_name": "Owner",
+        "child_name": "Kid", "password": "secure-password",
+    })
+    assert created.status_code == 201
+    credential = microsoft(email, oid="external-owner")
+    assert client.post("/api/v1/auth/microsoft", json={"credential": credential}).status_code == 409
+    wrong = client.post("/api/v1/auth/microsoft", json={"credential": credential, "password": "wrong-password"})
+    assert wrong.status_code == 401
+    # A rejected password must not persist a link.
+    assert client.post("/api/v1/auth/microsoft", json={"credential": credential}).status_code == 409
+    linked = client.post("/api/v1/auth/microsoft", json={"credential": credential, "password": "secure-password"})
+    assert linked.status_code == 200
+    headers = {"Authorization": f"Bearer {linked.json()['access_token']}"}
+    assert client.get("/api/v1/auth/me", headers=headers).json()["email"] == email
+    assert client.post("/api/v1/auth/microsoft", json={"credential": credential}).status_code == 200
+    # Even a correct password cannot replace a different linked identity.
+    assert client.post("/api/v1/auth/microsoft", json={
+        "credential": microsoft(email, oid="another-person"), "password": "secure-password",
+    }).status_code == 409

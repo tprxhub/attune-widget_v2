@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as AccountRouteImport } from './routes/account'
+import { Route as AttuneRouteImport } from './routes/attune'
 import { Route as CheckInRouteImport } from './routes/check-in'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -54,6 +55,11 @@ const AcceptInviteRoute = AcceptInviteRouteImport.update({
 const AccountRoute = AccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AttuneRoute = AttuneRouteImport.update({
+  id: '/attune',
+  path: '/attune',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckInRoute = CheckInRouteImport.update({
@@ -201,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/account': typeof AccountRoute
+  '/attune': typeof AttuneRoute
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/account': typeof AccountRoute
+  '/attune': typeof AttuneRoute
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/accept-invite': typeof AcceptInviteRoute
   '/account': typeof AccountRoute
+  '/attune': typeof AttuneRoute
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -303,6 +312,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/account'
+    | '/attune'
     | '/check-in'
     | '/dashboard'
     | '/forgot-password'
@@ -336,6 +346,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/account'
+    | '/attune'
     | '/check-in'
     | '/dashboard'
     | '/forgot-password'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/'
     | '/accept-invite'
     | '/account'
+    | '/attune'
     | '/check-in'
     | '/dashboard'
     | '/forgot-password'
@@ -403,6 +415,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcceptInviteRoute: typeof AcceptInviteRoute
   AccountRoute: typeof AccountRoute
+  AttuneRoute: typeof AttuneRoute
   CheckInRoute: typeof CheckInRoute
   DashboardRoute: typeof DashboardRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -454,6 +467,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/attune': {
+      id: '/attune'
+      path: '/attune'
+      fullPath: '/attune'
+      preLoaderRoute: typeof AttuneRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/check-in': {
@@ -659,6 +679,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcceptInviteRoute: AcceptInviteRoute,
   AccountRoute: AccountRoute,
+  AttuneRoute: AttuneRoute,
   CheckInRoute: CheckInRoute,
   DashboardRoute: DashboardRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,

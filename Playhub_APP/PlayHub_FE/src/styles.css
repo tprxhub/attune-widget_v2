@@ -236,6 +236,15 @@
 }
 .ph-pulse-shimmer { animation: ph-pulse-shimmer 2.6s ease-in-out infinite; }
 
+/* Keep the heart filled to the proportion of answered Play Pulse questions. */
+.ph-heart-progress {
+  transform-box: fill-box;
+  transition: transform 650ms cubic-bezier(.22,1,.36,1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ph-heart-progress { transition: none; }
+}
+
 /* "Lub-dub": a strong beat followed by a softer one, then rest. */
 @keyframes ph-heart-rest {
   0%, 100% { transform: scale(1); }
@@ -274,4 +283,24 @@
 @media (prefers-reduced-motion: reduce) {
   .ph-pulse-loop, .ph-pulse-travel, .ph-pulse-shimmer, .ph-heart-rest, .ph-heart-beat, .ph-heart-ring,
   .ph-heart-glow, .ph-heart-wave, .ph-heart-wave-slow { animation: none; }
+}
+
+/* Attune: the mascot floats on welcome screens and bobs while it thinks. */
+@utility attune-float {
+  animation: attune-float 4s ease-in-out infinite;
+}
+@utility attune-bob {
+  animation: attune-bob 0.9s ease-in-out infinite;
+}
+@keyframes attune-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes attune-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(-4deg); }
+  75% { transform: translateY(-2px) rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .attune-float, .attune-bob { animation: none; }
 }

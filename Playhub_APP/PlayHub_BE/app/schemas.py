@@ -45,6 +45,7 @@ class SocialLoginRequest(APIModel):
     """An Apple or Microsoft ID token, plus the name Apple hands the browser on first sign-in."""
     credential: str = Field(min_length=100, max_length=10000)
     name: str | None = Field(default=None, max_length=120)
+    password: str | None = Field(default=None, min_length=8, max_length=256)
 
 
 class SocialFamilyRegistration(SocialLoginRequest):
@@ -381,6 +382,32 @@ class PlayPlanRead(APIModel):
     # are sent, but steps and videos are left out until they subscribe or choose it.
     access_locked: bool = False
     play_doses: list[PlayDoseRead] = Field(default_factory=list)
+
+
+class DoseReferenceRead(APIModel):
+    id: str
+    title: str
+    level: PlanLevel
+    is_active: bool
+
+
+class PlanReferenceRead(APIModel):
+    id: str
+    name: str
+    is_active: bool
+    publication_status: PlanPublicationStatus
+    play_doses: list[DoseReferenceRead]
+
+
+class OrganisationReferenceRead(APIModel):
+    id: str
+    name: str
+    kind: str
+
+
+class AdminReferencesRead(APIModel):
+    plans: list[PlanReferenceRead]
+    organisations: list[OrganisationReferenceRead]
 
 
 class ChildCreate(APIModel):

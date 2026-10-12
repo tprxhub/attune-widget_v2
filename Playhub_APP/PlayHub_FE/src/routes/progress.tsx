@@ -12,6 +12,7 @@ import {
   MessageSquareHeart,
   Sparkles,
   Stethoscope,
+  TrendingUp,
 } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { listGoals, listPlans } from "@/api/plans";
@@ -440,6 +441,10 @@ export function ProgressPage() {
   // A plain tally for the plan the child is on now; never an average across doses.
   const dosesTally = data ? dosesPassed(currentPlanDoses(data)) : { passed: 0, total: 0 };
   const nextSteps = data ? progressNextSteps(data) : [];
+  const summaryPlan = chartPlans.find((plan) => plan.id === data?.currentPlanId);
+  const summarySession = [...allRows]
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    .find((row) => row.goalId === data?.currentPlanId);
   const needsConsult = data?.status === "holding_steady" || data?.status === "needs_check_in";
   // Subscribed family parents can book a 1:1 Play Consultation at any time.
   const showConsult = !isFreeGated && (needsConsult || canManageSubscription);
@@ -454,8 +459,17 @@ export function ProgressPage() {
         description={`Support Score and Mood for ${activeChild.name}, day by day within a Play Dose and dose by dose across a Play Plan. Lower support means greater independence.`}
         actions={
           data ? (
-            <div className="flex items-center gap-2" data-report-exclude>
+            <div className="flex flex-wrap items-center gap-2" data-report-exclude>
               <StatusBadge status={data.status} />
+              <Link
+                to="/attune"
+                search={{
+                  q: `Explain ${activeChild.name}'s progress so far and what we should focus on next.`,
+                }}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-blue/30 px-4 text-sm font-bold text-blue transition hover:bg-blue/10"
+              >
+                <Sparkles className="h-4 w-4" aria-hidden /> Ask Attune
+              </Link>
               {!isFreeGated && (
                 <button
                   type="button"
@@ -502,10 +516,30 @@ export function ProgressPage() {
           {/* Play Hub Summary hero */}
           <section className="ph-card overflow-hidden bg-navy p-5 text-cream sm:p-6">
             {/* The summary and two compact figures on the left; the shareable celebration on the right. */}
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
               <div className="flex min-w-0 flex-col">
-                <p className="eyebrow text-cream/60">Play Hub Summary</p>
-                <h2 className="mt-1 text-2xl font-bold sm:text-3xl">{data.headline}</h2>
+                <div className="flex items-center gap-3">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-amber text-navy">
+                    <TrendingUp className="h-6 w-6" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="eyebrow text-cream/60">Play Hub Summary</p>
+                    <h2 className="break-words text-2xl font-bold sm:text-3xl">
+                      {activeChild.name}’s progress
+                    </h2>
+                  </div>
+                </div>
+                <div className="mt-5 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
+                  <p className="text-xs font-bold tracking-wide text-cream/60 uppercase">
+                    Current Play Plan
+                  </p>
+                  <p className="mt-2 break-words text-xl font-bold">
+                    {summaryPlan?.title ?? "No active Play Plan"}
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-amber">
+                    {summarySession?.level ?? data.headline}
+                  </p>
+                </div>
                 <p className="mt-2 text-sm leading-relaxed text-cream/80">{data.narrative}</p>
                 <span
                   className={cn(
@@ -523,7 +557,7 @@ export function ProgressPage() {
                     : "First Play Dose in progress"}
                 </span>
 
-                <div className="mt-6 grid grid-cols-2 gap-3">
+                <div className="mt-5 grid gap-3">
                   <MiniStat
                     icon={ActivityIcon}
                     value={String(data.totalSessions)}
