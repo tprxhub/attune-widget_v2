@@ -111,9 +111,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       // ?v= makes browsers fetch the new icon instead of the cached old one.
-      { rel: "icon", href: "/favicon.svg?v=2", type: "image/svg+xml" },
-      { rel: "icon", href: "/favicon.png?v=2", type: "image/png", sizes: "512x512" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2" },
+      { rel: "icon", href: "/favicon.svg?v=3", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon.png?v=3", type: "image/png", sizes: "512x512" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=3" },
     ],
   }),
   shellComponent: RootShell,
