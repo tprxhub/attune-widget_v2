@@ -1,4 +1,4 @@
-import defaultLogo from "@/assets/PlayHub_Logo .svg";
+import defaultLogo from "@/assets/playhub-logo.png";
 import { moodMeta } from "@/components/icons";
 import { averageMood, celebrate, independence, moodColor, type MoodDay } from "./supportMood";
 

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import defaultLogo from "@/assets/PlayHub_Logo .svg";
+import defaultLogo from "@/assets/playhub-logo.png";
 import { apiAssetUrl, apiRequest } from "./client";
 
 export const BRANDING_QUERY_KEY = ["site-branding"] as const;
