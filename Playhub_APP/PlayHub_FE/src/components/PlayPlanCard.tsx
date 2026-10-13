@@ -123,7 +123,7 @@ export function PlayPlanCard({
         )}
 
         <span className="relative grid h-9 w-9 place-items-center self-end bg-white shadow-lg ph-r-md transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-          <GoalIcon goalId={goal.id} className="h-5 w-5 text-navy" />
+          <GoalIcon goalId={goal.id} goalName={goal.name} className="h-5 w-5 text-navy" />
         </span>
       </span>
 

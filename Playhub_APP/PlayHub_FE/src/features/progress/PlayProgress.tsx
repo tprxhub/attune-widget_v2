@@ -2,15 +2,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Sparkles } from "lucide-react";
 import type { HelpLevel, Level, ProgressPoint } from "@/lib/types";
 import { Select, type SelectOption } from "@/components/Select";
+import { LockedOverlay } from "@/components/LockedOverlay";
 import { cn } from "@/lib/utils";
-import {
-  dosesPassed,
-  doseVerdict,
-  insightFor,
-  lastCompleteIndex,
-  practiceDays,
-  tryDay,
-} from "./insights";
+import { dosesPassed, doseVerdict, practiceDays, tryDay } from "./insights";
 import { fmtDate, fmtDateRange, fmtShortDate } from "@/lib/format";
 
 /*
@@ -247,58 +241,6 @@ function MoodSwatch() {
   );
 }
 
-function InsightBox({
-  context,
-  dose,
-  doses,
-  index,
-  emptyTitle,
-  emptyText,
-  minimal = false,
-}: {
-  context: string;
-  dose: ProgressPoint | undefined;
-  doses: ProgressPoint[];
-  index: number;
-  emptyTitle: string;
-  emptyText: string;
-  minimal?: boolean;
-}) {
-  const insight = dose ? insightFor(doses, index) : null;
-  return (
-    <div
-      className={cn(
-        "mt-3.5 rounded-[14px] border-2 border-dashed border-gray-300 px-4 pt-4 pb-3.5 text-navy",
-        minimal ? "bg-transparent" : "bg-cream",
-      )}
-    >
-      {!minimal && (
-        <p className="mb-2 text-[11.5px] font-semibold tracking-[0.03em] text-[#5B6472] uppercase">
-          {context}
-        </p>
-      )}
-      {insight ? (
-        <>
-          {!minimal && (
-            <h4 className="mb-2 text-sm font-bold tracking-[0.02em]">{insight.title}</h4>
-          )}
-          <p className="mb-1.5 text-sm leading-relaxed">
-            <b>What am I seeing?</b> {insight.seeing}
-          </p>
-          <p className="text-sm leading-relaxed font-semibold">
-            <b>What’s next?</b> {insight.next}
-          </p>
-        </>
-      ) : (
-        <>
-          <h4 className="mb-2 text-sm font-bold tracking-[0.02em]">{emptyTitle}</h4>
-          <p className="text-[13px] text-[#5B6472] italic">{emptyText}</p>
-        </>
-      )}
-    </div>
-  );
-}
-
 const VERDICT_LABEL = { passed: "Passed", redo: "Redo", "in-progress": "In progress" } as const;
 
 /** "Dose 2 · Starter" with "18 Sept – 23 Sept · Passed" underneath. */
@@ -317,15 +259,18 @@ function DoseCard({
   planName,
   index,
   onIndex,
-  minimalInsight = false,
+  sharedMood,
+  pageLayout = false,
 }: {
   doses: ProgressPoint[];
   planName: string;
   index: number;
   onIndex: (index: number) => void;
-  minimalInsight?: boolean;
+  sharedMood?: boolean | undefined;
+  pageLayout?: boolean;
 }) {
-  const [showMood, setShowMood] = useState(true);
+  const [localMood, setLocalMood] = useState(true);
+  const showMood = sharedMood ?? localMood;
   const [measure, available] = useWidth();
   const { wrapRef, bind, node: tooltip } = useTooltip();
   const dose = doses[index]!;
@@ -353,17 +298,19 @@ function DoseCard({
         title="Within a Play Dose"
         timeframe="progress across a week"
         control={
-          <>
-            <span className="text-[11px] font-semibold text-[#5B6472]">{planName}</span>
-            <Select
-              id="progress-dose-select"
-              aria-label="Play Dose"
-              value={String(index)}
-              onChange={(value) => onIndex(Number(value))}
-              options={doses.map(doseOption)}
-              className="w-full min-w-0 sm:w-72"
-            />
-          </>
+          pageLayout ? null : (
+            <>
+              <span className="text-[11px] font-semibold text-[#5B6472]">{planName}</span>
+              <Select
+                id="progress-dose-select"
+                aria-label="Play Dose"
+                value={String(index)}
+                onChange={(value) => onIndex(Number(value))}
+                options={doses.map(doseOption)}
+                className="w-full min-w-0 sm:w-72"
+              />
+            </>
+          )
         }
         stat={
           <Stat
@@ -380,7 +327,7 @@ function DoseCard({
       <p className="mt-0.5 mb-2.5 text-[12.5px] text-[#5B6472]">
         Every finished day in one dose, plotted on its own — no averaging.
       </p>
-      <MoodToggle checked={showMood} onChange={setShowMood} />
+      {!pageLayout && <MoodToggle checked={showMood} onChange={setLocalMood} />}
       <div ref={measure} className="w-full">
         <div ref={wrapRef} className="relative">
           <div className="overflow-x-auto overflow-y-hidden rounded-lg">
@@ -495,15 +442,6 @@ function DoseCard({
         <span>Dotted = not logged yet</span>
         {showMood && <MoodSwatch />}
       </div>
-      <InsightBox
-        context={`This dose · ${dose.level} · ${fmtDateRange(startOf(dose), endOf(dose))}`}
-        dose={dose}
-        doses={doses}
-        index={index}
-        emptyTitle="Dose in progress"
-        emptyText="The Real-Life Try hasn’t happened yet, so there’s no verdict for this dose yet."
-        minimal={minimalInsight}
-      />
     </Card>
   );
 }
@@ -518,7 +456,8 @@ function PlanCard({
   onPlan,
   selectedIndex,
   onOpenDose,
-  minimalInsight = false,
+  sharedMood,
+  pageLayout = false,
 }: {
   doses: ProgressPoint[];
   planName: string;
@@ -527,13 +466,14 @@ function PlanCard({
   onPlan: (id: string) => void;
   selectedIndex: number;
   onOpenDose: (index: number) => void;
-  minimalInsight?: boolean;
+  sharedMood?: boolean | undefined;
+  pageLayout?: boolean;
 }) {
-  const [showMood, setShowMood] = useState(true);
+  const [localMood, setLocalMood] = useState(true);
+  const showMood = sharedMood ?? localMood;
   const [measure, available] = useWidth();
   const { wrapRef, bind, node: tooltip } = useTooltip();
   const tally = dosesPassed(doses);
-  const last = lastCompleteIndex(doses);
 
   const height = 240;
   const top = 34;
@@ -560,16 +500,18 @@ function PlanCard({
         title="Within a Play Plan"
         timeframe="progress across a few weeks"
         control={
-          <>
-            <Select
-              id="progress-plan-select"
-              aria-label="Play Plan"
-              value={planId}
-              onChange={onPlan}
-              options={planOptions}
-              className="w-full min-w-0 sm:w-80"
-            />
-          </>
+          pageLayout ? null : (
+            <>
+              <Select
+                id="progress-plan-select"
+                aria-label="Play Plan"
+                value={planId}
+                onChange={onPlan}
+                options={planOptions}
+                className="w-full min-w-0 sm:w-80"
+              />
+            </>
+          )
         }
         stat={
           <Stat
@@ -583,7 +525,7 @@ function PlanCard({
         Each dose’s own Support Score, in the order it happened — Rookie, Starter, Pro, and any
         redo.
       </p>
-      <MoodToggle checked={showMood} onChange={setShowMood} />
+      {!pageLayout && <MoodToggle checked={showMood} onChange={setLocalMood} />}
       <div ref={measure} className="w-full">
         <div ref={wrapRef} className="relative">
           <div className="overflow-x-auto overflow-y-hidden rounded-lg">
@@ -711,19 +653,6 @@ function PlanCard({
         {showMood && <MoodSwatch />}
         <span>Click a dose to open it in “Within a Play Dose”</span>
       </div>
-      <InsightBox
-        context={
-          last >= 0
-            ? `Most recent completed dose in this plan · ${doses[last]!.level} · ${planName} · ${fmtDateRange(startOf(doses[last]!), endOf(doses[last]!))}`
-            : "Most recent completed dose in this plan"
-        }
-        dose={last >= 0 ? doses[last] : undefined}
-        doses={doses}
-        index={last}
-        emptyTitle="No completed doses yet"
-        emptyText="Nothing to show an insight for in this plan yet."
-        minimal={minimalInsight}
-      />
     </Card>
   );
 }
@@ -737,15 +666,18 @@ export function PlayProgress({
   plans,
   currentPlanId,
   compact = false,
-  landingPreview = false,
+  sidebar,
+  locked = false,
 }: {
   points: ProgressPoint[];
   plans?: ReadonlyArray<{ id: string; title: string }> | undefined;
   /** The plan of the child's latest session, so both charts open on what the hero describes. */
   currentPlanId?: string | null | undefined;
   compact?: boolean;
-  /** Uses a lighter, dashed insight treatment on the public homepage sample. */
+  /** Retained for compatibility with public homepage callers. */
   landingPreview?: boolean;
+  sidebar?: ReactNode;
+  locked?: boolean;
 }) {
   const titles = useMemo(
     () => new Map((plans ?? []).map((plan) => [plan.id, plan.title])),
@@ -767,21 +699,24 @@ export function PlayProgress({
   const [chosenPlan, setChosenPlan] = useState<string | null>(null);
   const [chosenDose, setChosenDose] = useState<number | null>(null);
   const doseCardRef = useRef<HTMLDivElement>(null);
+  const [sharedMood, setShowMood] = useState<boolean | undefined>();
 
   if (!points.length) {
     return (
-      <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-navy/20 bg-navy/[0.02] px-6 text-center">
-        <div>
-          <span className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-blue/10 text-blue">
-            <Sparkles className="h-5 w-5" aria-hidden />
-          </span>
-          <p className="mt-3 text-sm font-bold text-navy">Your progress graph starts here</p>
-          <p className="mt-1 max-w-sm text-xs leading-relaxed text-navy/55">
-            Log Day 1 of a Play Dose to see its first point. Five practice days and the Real-Life
-            Try complete a dose.
-          </p>
+      <ProgressLayout sidebar={sidebar}>
+        <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-navy/20 bg-navy/[0.02] px-6 text-center">
+          <div>
+            <span className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-blue/10 text-blue">
+              <Sparkles className="h-5 w-5" aria-hidden />
+            </span>
+            <p className="mt-3 text-sm font-bold text-navy">Your progress graph starts here</p>
+            <p className="mt-1 max-w-sm text-xs leading-relaxed text-navy/55">
+              Log Day 1 of a Play Dose to see its first point. Five practice days and the Real-Life
+              Try complete a dose.
+            </p>
+          </div>
         </div>
-      </div>
+      </ProgressLayout>
     );
   }
 
@@ -817,12 +752,23 @@ export function PlayProgress({
             Now: {planTitle(currentPlan)}
           </span>
         )}
-        <span className="text-xs text-[#5B6472]">
-          Support Score over time. The line goes up as the child needs less help.
-        </span>
       </div>
       {/* Plan first, then the dose it opens; side by side on wide screens. */}
-      <div className="grid items-start gap-3.5 xl:grid-cols-2">
+      <ProgressToolbar
+        visible={Boolean(sidebar)}
+        showMood={sharedMood}
+        onMood={setShowMood}
+        planId={planId}
+        onPlan={(id) => {
+          setChosenPlan(id);
+          setChosenDose(null);
+        }}
+        planOptions={planOptions}
+        doseIndex={doseIndex}
+        onDose={setChosenDose}
+        doseOptions={doses.map(doseOption)}
+      />
+      <ProgressLayout sidebar={sidebar} locked={locked}>
         <PlanCard
           doses={doses}
           planName={planTitle(planId)}
@@ -837,7 +783,8 @@ export function PlayProgress({
             setChosenDose(index);
             doseCardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
           }}
-          minimalInsight={landingPreview}
+          pageLayout={Boolean(sidebar)}
+          sharedMood={sharedMood}
         />
         <div ref={doseCardRef} className="min-w-0 scroll-mt-24">
           <DoseCard
@@ -845,7 +792,92 @@ export function PlayProgress({
             planName={planTitle(planId)}
             index={doseIndex}
             onIndex={setChosenDose}
-            minimalInsight={landingPreview}
+            pageLayout={Boolean(sidebar)}
+            sharedMood={sharedMood}
+          />
+        </div>
+      </ProgressLayout>
+    </div>
+  );
+}
+
+function ProgressLayout({
+  sidebar,
+  locked = false,
+  children,
+}: {
+  sidebar?: ReactNode;
+  locked?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("grid items-start gap-4", sidebar ? "lg:grid-cols-2" : "grid-cols-1")}>
+      <LockedOverlay locked={locked}>
+        <div className={cn("grid min-w-0 items-start gap-3.5", !sidebar && "xl:grid-cols-2")}>
+          {children}
+        </div>
+      </LockedOverlay>
+      {sidebar}
+    </div>
+  );
+}
+
+function ProgressToolbar({
+  visible,
+  showMood,
+  onMood,
+  planId,
+  onPlan,
+  planOptions,
+  doseIndex,
+  onDose,
+  doseOptions,
+}: {
+  visible: boolean;
+  showMood: boolean | undefined;
+  onMood: (show: boolean) => void;
+  planId: string;
+  onPlan: (id: string) => void;
+  planOptions: SelectOption[];
+  doseIndex: number;
+  onDose: (index: number) => void;
+  doseOptions: SelectOption[];
+}) {
+  if (!visible) return null;
+  return (
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <MoodToggle checked={showMood ?? true} onChange={onMood} />
+      <div className="grid min-w-0 flex-1 gap-3 sm:max-w-xl sm:grid-cols-2">
+        <div className="min-w-0">
+          <label
+            htmlFor="progress-plan-select"
+            className="mb-1 block text-xs font-bold text-navy/60"
+          >
+            Play Plan
+          </label>
+          <Select
+            id="progress-plan-select"
+            aria-label="Play Plan"
+            value={planId}
+            onChange={onPlan}
+            options={planOptions}
+            className="w-full min-w-0"
+          />
+        </div>
+        <div className="min-w-0">
+          <label
+            htmlFor="progress-dose-select"
+            className="mb-1 block text-xs font-bold text-navy/60"
+          >
+            Play Dose
+          </label>
+          <Select
+            id="progress-dose-select"
+            aria-label="Play Dose"
+            value={String(doseIndex)}
+            onChange={(value) => onDose(Number(value))}
+            options={doseOptions}
+            className="w-full min-w-0"
           />
         </div>
       </div>

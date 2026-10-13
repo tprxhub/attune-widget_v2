@@ -144,8 +144,8 @@ export function SupportMoodRings({
     <div className="ph-r-lg relative isolate flex min-w-0 flex-col overflow-hidden bg-white p-4 text-navy sm:p-6">
       <Confetti />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="inline-flex items-center gap-1.5 rounded-full bg-amber px-3 py-1.5 text-[10px] font-extrabold tracking-[0.12em] uppercase">
-          <PartyPopper className="h-3.5 w-3.5" aria-hidden /> Celebrate the win
+        <p className="inline-flex w-fit min-w-0 max-w-[calc(100%-3.5rem)] flex-none items-center gap-1.5 break-words rounded-full bg-amber px-3 py-1.5 text-[10px] font-extrabold tracking-[0.12em] uppercase">
+          <PartyPopper className="h-3.5 w-3.5 shrink-0" aria-hidden /> Celebrating {childName}!
         </p>
         <button
           type="button"

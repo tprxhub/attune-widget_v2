@@ -76,10 +76,11 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
   await expect(
     page.getByRole("img", { name: /Support Score for each Play Dose in this Play Plan/ }),
   ).toBeVisible();
-  const nextSteps = page.getByRole("region", { name: "What am I seeing?" });
+  const nextSteps = page.getByRole("region", { name: "Progress insights" });
   // Next steps come from the dose the child is on: finish it first, no placeholder steps.
   await expect(nextSteps.locator("ol > li").first()).toContainText("Finish this Rookie Play Dose");
   await expect(page.getByRole("heading", { name: "Session history" })).toHaveCount(1);
+  await page.getByRole("button", { name: /Session history/ }).click();
   await expect(
     page.getByText("Completed the activity with less help in the browser test.", { exact: true }),
   ).toBeVisible();

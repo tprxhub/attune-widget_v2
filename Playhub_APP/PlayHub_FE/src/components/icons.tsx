@@ -10,7 +10,7 @@ import {
   Scissors,
   Search,
   Smile,
-  Sparkles,
+  Target,
   Type,
   type LucideIcon,
 } from "lucide-react";
@@ -44,7 +44,28 @@ const GOAL_ICONS: Record<string, LucideIcon> = {
   letters: Type,
 };
 
-export function GoalIcon({ goalId, className }: { goalId: string; className?: string }) {
-  const Icon = GOAL_ICONS[goalId] ?? Sparkles;
+const GOAL_NAME_ICONS: [RegExp, LucideIcon][] = [
+  [/bilateral|midline/i, Grip],
+  [/scanning|tracking|matching/i, Search],
+  [/visual.motor|eye.hand/i, Crosshair],
+  [/tool use|functional grasp/i, Scissors],
+  [/letter|pre.writing shapes/i, Type],
+  [/handwriting|line mastery/i, PenLine],
+  [/pinch|grip|dexterity/i, Hand],
+];
+
+export function GoalIcon({
+  goalId,
+  goalName = "",
+  className,
+}: {
+  goalId: string;
+  goalName?: string | undefined;
+  className?: string;
+}) {
+  const Icon =
+    GOAL_ICONS[goalId] ??
+    GOAL_NAME_ICONS.find(([pattern]) => pattern.test(goalName))?.[1] ??
+    Target;
   return <Icon className={cn("h-5 w-5", className)} aria-hidden />;
 }

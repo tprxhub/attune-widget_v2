@@ -1,4 +1,4 @@
-import defaultLogo from "@/assets/playhub-logo.png";
+import defaultLogo from "@/assets/playhub-logo.svg";
 import { moodMeta } from "@/components/icons";
 import { averageMood, celebrate, independence, moodColor, type MoodDay } from "./supportMood";
 
@@ -138,13 +138,14 @@ export async function renderSupportMoodImage({
   ctx.textBaseline = "alphabetic";
   // "Celebrate the win" tag.
   ctx.font = `800 26px ${font}`;
-  const tag = "CELEBRATE THE WIN";
-  const tagWidth = ctx.measureText(tag).width + 56;
+  const tag = `CELEBRATING ${childName.toUpperCase()}!`;
+  const tagWidth = Math.min(W - 140, ctx.measureText(tag).width + 56);
   ctx.fillStyle = "#F2B544";
   ctx.beginPath();
   ctx.roundRect(W / 2 - tagWidth / 2, 62, tagWidth, 52, 26);
   ctx.fill();
-  text(tag, W / 2, 98, 26, 800);
+  ctx.fillStyle = NAVY;
+  ctx.fillText(tag, W / 2, 98, W - 200);
   text(cheer.message, W / 2, 252, 32, 600, MUTED);
 
   // Rings: Support Score outside, mood inside, the latest mood's face in the middle.

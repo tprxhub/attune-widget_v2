@@ -1,3 +1,4 @@
+import { sessionDayStreak } from "@/features/progress/sessionStreak";
 import { SessionEditStamp } from "@/components/SessionEditStamp";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +13,7 @@ import {
   MessageSquareHeart,
   Sparkles,
   Stethoscope,
+  ChartColumn,
 } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { listGoals, listPlans } from "@/api/plans";
@@ -25,7 +27,6 @@ import { PageHeader } from "@/components/AppShell";
 import { AttemptScore } from "@/components/AttemptScore";
 import { ParentWinNote } from "@/components/ParentWinNote";
 import { ChartSkeleton, CardSkeleton } from "@/components/Skeletons";
-import { LockedOverlay } from "@/components/LockedOverlay";
 import { StatusBadge, StatusIcon } from "@/components/StatusBadge";
 import { FloatingPanel } from "@/components/FloatingPanel";
 import { LEVEL_TOKEN, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
@@ -62,53 +63,6 @@ export const Route = createFileRoute("/progress")({
 
 /* ---------- derived, presentation-only insights ---------- */
 
-function weekKey(date: string) {
-  const d = new Date(`${date}T00:00:00`);
-  const day = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - day);
-  return d.toISOString().slice(0, 10);
-}
-
-function useInsights(rows: Attempt[]) {
-  return useMemo(() => {
-    const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
-    const best = sorted.reduce<Attempt | null>(
-      (acc, a) => (!acc || a.completion >= acc.completion ? a : acc),
-      null,
-    );
-
-    // Current streak of consecutive weeks with at least one Session.
-    const weeks = Array.from(new Set(sorted.map((a) => weekKey(a.date)))).sort();
-    let streak = 0;
-    const currentWeek = new Date(
-      `${weekKey(new Date().toISOString().slice(0, 10))}T00:00:00`,
-    ).getTime();
-    const latestWeek = weeks.length ? new Date(`${weeks[weeks.length - 1]}T00:00:00`).getTime() : 0;
-    if (weeks.length && currentWeek - latestWeek <= 7 * 86400000) {
-      streak = 1;
-      for (let i = weeks.length - 1; i > 0; i--) {
-        const cur = new Date(`${weeks[i]}T00:00:00`).getTime();
-        const prev = new Date(`${weeks[i - 1]}T00:00:00`).getTime();
-        if (cur - prev === 7 * 86400000) streak += 1;
-        else break;
-      }
-    }
-
-    const moodCounts = [1, 2, 3, 4, 5].map((v) => ({
-      value: v,
-      count: sorted.filter((a) => a.mood === v).length,
-    }));
-    const topMood = moodCounts.reduce((a, b) => (b.count > a.count ? b : a), moodCounts[0]!);
-
-    return {
-      best,
-      streak,
-      moodCounts,
-      topMood,
-    };
-  }, [rows]);
-}
-
 /* ---------- small pieces ---------- */
 
 /** A compact figure for the dark summary panel: icon badge, number, label. */
@@ -129,10 +83,10 @@ function MiniStat({
         <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="text-2xl leading-none font-bold">{value}</p>
-        <p className="mt-1 truncate text-[11px] font-bold tracking-wide text-cream/75 uppercase">
-          {label}
-        </p>
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <p className="text-2xl leading-none font-bold">{value}</p>
+          <p className="text-sm font-bold text-cream/85">{label}</p>
+        </div>
         <p className="truncate text-[11px] text-cream/55">{sub}</p>
       </div>
     </div>
@@ -359,7 +313,7 @@ export function ProgressPage() {
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [openNextStep, setOpenNextStep] = useState<number | null>(0);
   const [planFilter, setPlanFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
@@ -398,7 +352,6 @@ export function ProgressPage() {
       ),
     [allRows, planFilter, fromDate, toDate],
   );
-  const insights = useInsights(allRows);
   const hasActiveFilters = planFilter !== "all" || Boolean(fromDate) || Boolean(toDate);
 
   if (isLoading) {
@@ -448,7 +401,121 @@ export function ProgressPage() {
   // Subscribed family parents can book a 1:1 Play Consultation at any time.
   const showConsult = !isFreeGated && (needsConsult || canManageSubscription);
   // Cards in the guidance row, so the grid never leaves an empty column.
-  const guidanceCards = 1 + Number(showConsult) + 1 + Number(isFreeGated && canManageSubscription);
+
+  const progressInsights = data ? (
+    <section
+      aria-labelledby="next-steps-heading"
+      className="relative isolate h-full overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-navy via-navy to-blue p-5 text-cream shadow-[0_18px_40px_-24px_rgba(3,33,72,0.85)] sm:p-6"
+    >
+      <span
+        className="pointer-events-none absolute -top-16 -right-12 -z-10 h-40 w-40 rounded-full border-[28px] border-white/[0.06]"
+        aria-hidden
+      />
+      <span
+        className="pointer-events-none absolute -bottom-20 -left-16 -z-10 h-44 w-44 rounded-full bg-amber/10 blur-2xl"
+        aria-hidden
+      />
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber text-navy shadow-[0_10px_24px_-12px_rgba(255,183,77,0.9)]">
+            <ChartColumn className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <p className="eyebrow text-amber">Your next steps</p>
+            <h2 id="next-steps-heading" className="mt-0.5 text-xl font-bold text-white">
+              Progress insights
+            </h2>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-cream/75 uppercase backdrop-blur-sm">
+          {nextSteps.length} {nextSteps.length === 1 ? "action" : "actions"}
+        </span>
+      </div>
+
+      <div className="mt-5 rounded-xl bg-white p-4 text-navy">
+        <h3 className="text-lg font-bold">What am I seeing?</h3>
+        <p className="mt-2 text-sm leading-relaxed text-navy/75">{data.narrative}</p>
+      </div>
+      <div className="mt-4 rounded-xl bg-white p-4 text-navy">
+        <h3 className="text-lg font-bold">What does it mean?</h3>
+        <ol className="mt-3 space-y-3">
+          {nextSteps.map((step, index) => {
+            const expanded = openNextStep === index;
+            return (
+              <li
+                key={step.title}
+                className={cn(
+                  "relative overflow-hidden rounded-2xl border transition-all duration-200",
+                  expanded
+                    ? "border-amber/45 bg-cream text-navy shadow-[0_14px_30px_-20px_rgba(0,0,0,0.75)]"
+                    : "border-navy/10 bg-navy/[0.025] text-navy hover:border-blue/25 hover:bg-blue/5",
+                )}
+              >
+                {expanded && (
+                  <span
+                    className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-coral"
+                    aria-hidden
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setOpenNextStep(expanded ? null : index)}
+                  aria-expanded={expanded}
+                  aria-controls={`next-step-${index}`}
+                  className="grid min-h-16 w-full grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center gap-3 p-3.5 text-left"
+                >
+                  <span
+                    className={cn(
+                      "grid h-9 w-9 place-items-center rounded-xl text-xs font-extrabold transition-colors",
+                      expanded ? "bg-amber text-navy" : "bg-blue/10 text-blue",
+                    )}
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="min-w-0 text-sm leading-snug font-bold">{step.title}</span>
+                  <span
+                    className={cn(
+                      "grid h-8 w-8 place-items-center rounded-full transition-colors",
+                      expanded ? "bg-navy/6 text-navy" : "bg-navy/6 text-navy/70",
+                    )}
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 shrink-0 transition-transform duration-200",
+                        expanded && "rotate-180",
+                      )}
+                      aria-hidden
+                    />
+                  </span>
+                </button>
+                {
+                  <div
+                    hidden={!expanded}
+                    data-report-expand
+                    id={`next-step-${index}`}
+                    className="px-3.5 pb-3.5 sm:pl-[4.75rem]"
+                  >
+                    <p className="rounded-xl border-l-2 border-coral bg-navy/[0.045] px-3.5 py-3 text-sm leading-relaxed text-navy/72">
+                      {step.body}
+                    </p>
+                  </div>
+                }
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      <Link
+        to="/attune"
+        search={{ q: `Explain ${activeChild.name}’s recent progress and what we should try next.` }}
+        className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-coral px-4 text-sm font-bold text-white hover:bg-coral/90"
+      >
+        <Sparkles className="h-4 w-4" aria-hidden />
+        Ask Attune
+      </Link>
+    </section>
+  ) : null;
 
   return (
     <div ref={reportRef}>
@@ -540,25 +607,25 @@ export function ProgressPage() {
                     {summaryPlan?.title ?? "No active Play Plan"}
                   </p>
                   <p className="mt-1 text-sm font-bold text-amber">
-                    {summarySession?.level ?? data.headline}
+                    {currentPlanDoses(data).at(-1)?.level ?? summarySession?.level ?? data.headline}
                   </p>
+                  <span
+                    className={cn(
+                      "mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold",
+                      data.status === "needs_check_in"
+                        ? "text-coral"
+                        : data.status === "holding_steady"
+                          ? "text-amber"
+                          : "text-cream",
+                    )}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                    {dosesTally.total
+                      ? `${dosesTally.passed} of ${dosesTally.total} doses passed in this plan`
+                      : "First Play Dose in progress"}
+                  </span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-cream/80">{data.narrative}</p>
-                <span
-                  className={cn(
-                    "mt-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold",
-                    data.status === "needs_check_in"
-                      ? "text-coral"
-                      : data.status === "holding_steady"
-                        ? "text-amber"
-                        : "text-cream",
-                  )}
-                >
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                  {dosesTally.total
-                    ? `${dosesTally.passed} of ${dosesTally.total} doses passed in this plan`
-                    : "First Play Dose in progress"}
-                </span>
 
                 <div className="mt-5 grid gap-3">
                   <MiniStat
@@ -569,9 +636,9 @@ export function ProgressPage() {
                   />
                   <MiniStat
                     icon={Flame}
-                    value={data.totalSessions ? `${insights.streak}w` : "—"}
-                    label="Weekly streak"
-                    sub="Weeks in a row"
+                    value={String(sessionDayStreak(allRows))}
+                    label="Day streak"
+                    sub="Consecutive days of play"
                   />
                 </div>
                 <p className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cream/60 lg:mt-auto lg:pt-4">
@@ -589,134 +656,21 @@ export function ProgressPage() {
 
           <section className="ph-card p-5">
             <h2 className="text-lg font-bold">Play Progress</h2>
-            <p className="mt-0.5 text-xs text-navy/55">
-              Day by day within a Play Dose, and dose by dose across a Play Plan.
-            </p>
             <div className="mt-4">
-              <LockedOverlay locked={isFreeGated}>
-                <ProgressChart
-                  points={data.points}
-                  plans={chartPlans}
-                  currentPlanId={data.currentPlanId}
-                />
-              </LockedOverlay>
+              <ProgressChart
+                points={data.points}
+                plans={chartPlans}
+                currentPlanId={data.currentPlanId}
+                sidebar={progressInsights}
+                locked={isFreeGated}
+              />
             </div>
           </section>
 
           {/* Guidance under the charts: insights, support, and session history. */}
-          <div
-            className={cn(
-              "grid items-start gap-4 md:grid-cols-2",
-              guidanceCards === 3 && "xl:grid-cols-3",
-            )}
-            aria-label="Progress guidance"
-          >
-            <section
-              aria-labelledby="next-steps-heading"
-              className="relative isolate h-full overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-navy via-navy to-blue p-5 text-cream shadow-[0_18px_40px_-24px_rgba(3,33,72,0.85)] sm:p-6"
-            >
-              <span
-                className="pointer-events-none absolute -top-16 -right-12 -z-10 h-40 w-40 rounded-full border-[28px] border-white/[0.06]"
-                aria-hidden
-              />
-              <span
-                className="pointer-events-none absolute -bottom-20 -left-16 -z-10 h-44 w-44 rounded-full bg-amber/10 blur-2xl"
-                aria-hidden
-              />
-
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber text-navy shadow-[0_10px_24px_-12px_rgba(255,183,77,0.9)]">
-                    <Sparkles className="h-5 w-5" aria-hidden />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="eyebrow text-amber">Progress insights</p>
-                    <h2 id="next-steps-heading" className="mt-0.5 text-xl font-bold text-white">
-                      What am I seeing?
-                    </h2>
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-cream/75 uppercase backdrop-blur-sm">
-                  {nextSteps.length} {nextSteps.length === 1 ? "action" : "actions"}
-                </span>
-              </div>
-
-              <p className="mt-4 text-sm leading-relaxed text-cream/85">{data.narrative}</p>
-              <h3 className="mt-5 text-lg font-bold text-white">What does it mean?</h3>
-              <ol className="mt-3 space-y-3">
-                {nextSteps.map((step, index) => {
-                  const expanded = openNextStep === index;
-                  return (
-                    <li
-                      key={step.title}
-                      className={cn(
-                        "relative overflow-hidden rounded-2xl border transition-all duration-200",
-                        expanded
-                          ? "border-amber/45 bg-cream text-navy shadow-[0_14px_30px_-20px_rgba(0,0,0,0.75)]"
-                          : "border-white/10 bg-white/[0.07] text-cream hover:border-white/25 hover:bg-white/[0.11]",
-                      )}
-                    >
-                      {expanded && (
-                        <span
-                          className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-coral"
-                          aria-hidden
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setOpenNextStep(expanded ? null : index)}
-                        aria-expanded={expanded}
-                        aria-controls={`next-step-${index}`}
-                        className="grid min-h-16 w-full grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center gap-3 p-3.5 text-left"
-                      >
-                        <span
-                          className={cn(
-                            "grid h-9 w-9 place-items-center rounded-xl text-xs font-extrabold transition-colors",
-                            expanded ? "bg-amber text-navy" : "bg-white/10 text-amber",
-                          )}
-                        >
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                        <span className="min-w-0 text-sm leading-snug font-bold">{step.title}</span>
-                        <span
-                          className={cn(
-                            "grid h-8 w-8 place-items-center rounded-full transition-colors",
-                            expanded ? "bg-navy/6 text-navy" : "bg-white/10 text-cream/70",
-                          )}
-                        >
-                          <ChevronDown
-                            className={cn(
-                              "h-4 w-4 shrink-0 transition-transform duration-200",
-                              expanded && "rotate-180",
-                            )}
-                            aria-hidden
-                          />
-                        </span>
-                      </button>
-                      {
-                        <div
-                          hidden={!expanded}
-                          data-report-expand
-                          id={`next-step-${index}`}
-                          className="px-3.5 pb-3.5 sm:pl-[4.75rem]"
-                        >
-                          <p className="rounded-xl border-l-2 border-coral bg-navy/[0.045] px-3.5 py-3 text-sm leading-relaxed text-navy/72">
-                            {step.body}
-                          </p>
-                        </div>
-                      }
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
+          <div className="space-y-4" aria-label="Progress guidance">
             {showConsult && (
-              <section
-                className={cn(
-                  "ph-card h-full border-2 border-coral/30 p-5",
-                  guidanceCards === 3 && "md:col-span-2 xl:col-span-1",
-                )}
-              >
+              <section className="ph-card border-2 border-coral/30 p-5">
                 <Stethoscope className="h-6 w-6 text-coral" aria-hidden />
                 <h2 className="mt-2 text-lg font-bold">Book a 1:1 Play Consultation</h2>
                 <p className="mt-2 text-sm text-navy/70">
@@ -746,38 +700,14 @@ export function ProgressPage() {
                 </Link>
               </section>
             )}
-            <div className="min-w-0 space-y-4 self-start">
-              {canLeaveConsultNotes && (
-                <details className="group/notes ph-card self-start p-5" data-report-details>
-                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-lg font-bold">
-                    Play Consult Notes{" "}
-                    <span className="text-xs text-navy/60">
-                      {consultNotes.length} {consultNotes.length === 1 ? "note" : "notes"}
-                    </span>
-                    <ChevronDown
-                      className="h-4 w-4 shrink-0 text-navy/55 transition-transform group-open/notes:rotate-180"
-                      aria-hidden
-                    />
-                  </summary>
-                  {consultNotes.length ? (
-                    <ul className="mt-4 space-y-3">
-                      {consultNotes.map((a) => (
-                        <li key={a.id} className="rounded-xl bg-navy/4 p-3 text-sm">
-                          <p className="whitespace-pre-wrap text-navy/80">{a.consultNotes}</p>
-                          <p className="mt-2 text-xs text-navy/55">
-                            {fmtDate(a.date)} · {a.loggedBy}
-                          </p>
-                          <SessionEditStamp session={a} />
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-3 text-sm text-navy/60">No Play Consult notes yet.</p>
-                  )}
-                </details>
-              )}
-
-              <section className="ph-card min-w-0 overflow-hidden" data-report-exclude>
+            <div className="grid min-w-0 items-start gap-4 md:grid-cols-2">
+              <section
+                className={cn(
+                  "ph-card min-w-0 overflow-hidden",
+                  !canLeaveConsultNotes && "md:col-span-2",
+                )}
+                data-report-exclude
+              >
                 <button
                   type="button"
                   onClick={() => setHistoryOpen((v) => !v)}
@@ -936,6 +866,35 @@ export function ProgressPage() {
                     </ul>
                   ))}
               </section>
+              {canLeaveConsultNotes && (
+                <details className="group/notes ph-card self-start p-5" data-report-details>
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-lg font-bold">
+                    Play Consult Notes{" "}
+                    <span className="text-xs text-navy/60">
+                      {consultNotes.length} {consultNotes.length === 1 ? "note" : "notes"}
+                    </span>
+                    <ChevronDown
+                      className="h-4 w-4 shrink-0 text-navy/55 transition-transform group-open/notes:rotate-180"
+                      aria-hidden
+                    />
+                  </summary>
+                  {consultNotes.length ? (
+                    <ul className="mt-4 space-y-3">
+                      {consultNotes.map((a) => (
+                        <li key={a.id} className="rounded-xl bg-navy/4 p-3 text-sm">
+                          <p className="whitespace-pre-wrap text-navy/80">{a.consultNotes}</p>
+                          <p className="mt-2 text-xs text-navy/55">
+                            {fmtDate(a.date)} · {a.loggedBy}
+                          </p>
+                          <SessionEditStamp session={a} />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-sm text-navy/60">No Play Consult notes yet.</p>
+                  )}
+                </details>
+              )}
             </div>
           </div>
         </div>

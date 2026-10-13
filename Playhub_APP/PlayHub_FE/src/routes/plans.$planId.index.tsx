@@ -9,6 +9,7 @@ import {
   Lock,
   Repeat,
   Rocket,
+  PlayCircle,
 } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { goalById, planByGoalAndLevel, planById } from "@/api/domain";
@@ -128,7 +129,8 @@ function PlanWeek() {
           />
           <div className="relative">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-navy">
-              <GoalIcon goalId={data.goalId} className="h-3.5 w-3.5" /> {goal?.name}
+              <GoalIcon goalId={data.goalId} goalName={goal?.name} className="h-3.5 w-3.5" />{" "}
+              {goal?.name}
             </span>
             <h1 className="mt-2.5 text-2xl font-bold text-white sm:text-3xl">
               {data.title} <span className="text-lg font-medium opacity-80">— {data.level}</span>
@@ -236,7 +238,7 @@ function PlanWeek() {
                   {Icon ? (
                     <Icon className="h-3.5 w-3.5" aria-hidden />
                   ) : (
-                    <GoalIcon goalId={data.goalId} className="h-3.5 w-3.5" />
+                    <PlayCircle className="h-3.5 w-3.5" aria-hidden />
                   )}
                 </span>
                 <span className="min-w-0 flex-1">

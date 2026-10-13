@@ -36,6 +36,8 @@ test("edited sessions show the correction date and updated text after reload and
     await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
   ).toBeLessThanOrEqual(1);
   await page.goto("/progress");
+  // Session history starts collapsed on Progress.
+  await page.getByRole("button", { name: /Session history/ }).click();
   await expect(page.getByText(/^Edited ·/).first()).toBeVisible();
   await expect(
     page.getByText("Updated session note for edit-date verification", { exact: true }),

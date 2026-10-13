@@ -22,6 +22,7 @@ export function InteractiveProgressRings({
   const panel = useRef<HTMLDivElement>(null);
   const detailsId = useId();
   const average = averageMood(moods);
+  const MoodSymbol = moodMeta(Math.round(average ?? 3)).icon;
   const score = supportScore === null ? null : Math.round(100 - supportScore);
   const clear = () => {
     setShown(null);
@@ -77,6 +78,19 @@ export function InteractiveProgressRings({
             color="#2459A0"
             track="#E8EEF6"
           />
+          <RingMarker radius={70} value={independence(supportScore)}>
+            <text
+              x={0}
+              y={0}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={8}
+              fontFamily="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif"
+              aria-hidden
+            >
+              🫀
+            </text>
+          </RingMarker>
         </RingTarget>
         <RingTarget
           label={`Mood: ${average === null ? "Not recorded" : moodMeta(Math.round(average)).label}`}
@@ -94,6 +108,17 @@ export function InteractiveProgressRings({
             color={average === null ? TRACK : moodColor(Math.round(average))}
             track="#EDF2E9"
           />
+          <RingMarker radius={58} value={average === null ? 0 : average / 5}>
+            <MoodSymbol
+              x={-3}
+              y={-3}
+              width={6}
+              height={6}
+              fill="#FFB54D"
+              color="#11295B"
+              aria-hidden
+            />
+          </RingMarker>
         </RingTarget>
       </svg>
       <div className="pointer-events-none absolute inset-[25%] flex flex-col items-center justify-center text-center">
@@ -187,4 +212,20 @@ function RingTarget({
       {children}
     </g>
   );
+}
+
+/** Keep the marker upright at the advancing end of the clockwise ring. */
+function RingMarker({
+  radius,
+  value,
+  children,
+}: {
+  radius: number;
+  value: number;
+  children: ReactNode;
+}) {
+  const angle = Math.max(0, Math.min(1, value)) * 2 * Math.PI - Math.PI / 2;
+  const x = 80 + radius * Math.cos(angle);
+  const y = 80 + radius * Math.sin(angle);
+  return <g transform={`translate(${x} ${y})`}>{children}</g>;
 }
