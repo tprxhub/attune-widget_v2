@@ -142,9 +142,9 @@ function ChildDashboard() {
           ) : null
         }
       />
-      <AskAttuneBar childName={activeChild?.name} className="mb-5" />
+      <AskAttuneBar childName={activeChild?.name} />
 
-      <div className="isolate mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+      <div className="isolate mt-5 grid items-stretch gap-4 lg:grid-cols-2">
         {/* Play Hub Summary */}
         <section className="ph-card relative z-0 h-full p-5 hover:z-20 focus-within:z-20">
           <p className="eyebrow text-blue">Play Hub Summary</p>

@@ -18,6 +18,7 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/auth/register-family"),
     ("POST", "/api/v1/auth/change-password"),
     ("GET", "/api/v1/auth/me"),
+    ("PATCH", "/api/v1/auth/me"),
     ("POST", "/api/v1/auth/password/forgot"),
     ("POST", "/api/v1/auth/password/reset"),
     ("POST", "/api/v1/auth/me/avatar"),

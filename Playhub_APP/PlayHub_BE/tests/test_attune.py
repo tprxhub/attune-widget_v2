@@ -3,6 +3,10 @@ import pytest
 
 from app import attune
 from app.config import get_settings
+from datetime import date, timedelta
+
+from app.models import Subscription, SubscriptionStatus
+from conftest import TestingSession
 from test_free_play_plan import make_plan_with_steps, register_family
 
 
@@ -13,6 +17,7 @@ def openai(monkeypatch):
     monkeypatch.setattr(settings, "attune_provider", "openai")
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
     monkeypatch.setattr(settings, "attune_daily_limit", 30)
+    monkeypatch.setattr(settings, "attune_free_daily_limit", 30)
     calls = []
 
     def fake(instructions, conversation):
@@ -25,6 +30,17 @@ def openai(monkeypatch):
 
 def ask(client, headers, **body):
     return client.post("/api/v1/attune/ask", headers=headers, json=body)
+
+
+def subscribe(client, headers):
+    """Give the family's child a current paid subscription."""
+    child_id = client.get("/api/v1/children", headers=headers).json()[0]["id"]
+    with TestingSession() as db:
+        sub = db.query(Subscription).filter_by(child_id=child_id).one()
+        sub.status = SubscriptionStatus.ACTIVE
+        sub.started_on = date.today()
+        sub.ends_on = date.today() + timedelta(days=90)
+        db.commit()
 
 
 def test_attune_is_off_without_an_api_key(client, monkeypatch):
@@ -68,7 +84,7 @@ def test_a_conversation_keeps_its_history_and_child_context(client, openai):
     listed = client.get(f"/api/v1/attune/conversations?child_id={child['id']}", headers=family).json()
     assert [c["id"] for c in listed] == [conversation_id]
     status = client.get("/api/v1/attune/status", headers=family).json()
-    assert status == {"enabled": True, "daily_limit": 30, "used_today": 2, "remaining_today": 28}
+    assert status == {"enabled": True, "daily_limit": 30, "used_today": 2, "remaining_today": 28, "free_plan": True}
 
 
 def test_sessions_and_the_current_play_dose_reach_the_context(client, platform_admin, openai):
@@ -134,6 +150,7 @@ def test_people_only_see_their_own_conversations_and_children(client, platform_a
 def test_the_daily_limit_and_failed_answers(client, monkeypatch, openai):
     monkeypatch.setattr(get_settings(), "attune_daily_limit", 1)
     family = register_family(client, "limit@example.com")
+    subscribe(client, family)
 
     def broken(*_):
         raise attune.AttuneUnavailable
@@ -258,7 +275,7 @@ def test_a_stream_that_fails_saves_nothing_and_refusals_are_plain_errors(client,
     assert events[-1] == {"type": "error", "detail": attune.FAILED}
     assert client.get("/api/v1/attune/conversations", headers=family).json() == []
 
-    monkeypatch.setattr(get_settings(), "attune_daily_limit", 0)
+    monkeypatch.setattr(get_settings(), "attune_free_daily_limit", 0)
     refused = client.post("/api/v1/attune/ask/stream", headers=family, json={"message": "Hi"})
     assert refused.status_code == 429
 
@@ -346,3 +363,21 @@ def test_insights_count_usage_without_revealing_questions(client, platform_admin
     assert data["rated_up"] == 1 and data["rated_down"] == 0
     assert len(data["daily"]) == 14 and data["daily"][-1]["questions"] == 2
     assert "Secret worry" not in str(data)
+
+
+def test_free_families_get_one_question_a_day_and_subscribers_the_full_limit(client, monkeypatch, openai):
+    monkeypatch.setattr(get_settings(), "attune_free_daily_limit", 1)
+    free = register_family(client, "free-attune@example.com")
+    status = client.get("/api/v1/attune/status", headers=free).json()
+    assert status["free_plan"] is True and status["daily_limit"] == 1 and status["remaining_today"] == 1
+
+    first = ask(client, free, message="One")
+    assert first.status_code == 200 and first.json()["remaining_today"] == 0
+    second = ask(client, free, message="Two")
+    assert second.status_code == 429
+    assert "free plan includes 1 question a day" in second.json()["detail"]
+
+    subscribe(client, free)
+    status = client.get("/api/v1/attune/status", headers=free).json()
+    assert status["free_plan"] is False and status["daily_limit"] == 30 and status["remaining_today"] == 29
+    assert ask(client, free, message="Two").status_code == 200

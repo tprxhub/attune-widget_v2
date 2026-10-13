@@ -28,7 +28,7 @@ from app.oidc_identity import (
 )
 from app.schemas import (
     AdminReferencesRead,
-    ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, ChildCreate, ChildRead, ChildUpdate,
+    ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, ProfileUpdate, ChildCreate, ChildRead, ChildUpdate,
     AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
     LoginRequest, OrganisationCreate, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
     PlayDoseUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
@@ -539,6 +539,16 @@ def reset_password(payload: PasswordReset, db: Session = Depends(get_db)):
 @router.get("/auth/me", response_model=UserRead)
 def me(user: User = Depends(get_current_user)):
     return user
+
+
+@router.patch("/auth/me", response_model=UserRead)
+def update_me(payload: ProfileUpdate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    name = " ".join(payload.display_name.split())
+    if not name:
+        raise HTTPException(status_code=422, detail="Please enter your name.")
+    user.display_name = name
+    audit(db, user.id, "user.name_changed", "user", user.id)
+    return commit(db, user)
 
 
 @router.post("/auth/me/avatar", response_model=UserRead)

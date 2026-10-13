@@ -7,6 +7,8 @@ export interface AttuneStatus {
   dailyLimit: number;
   usedToday: number;
   remainingToday: number;
+  /** On the free plan, where Attune allows fewer questions a day. */
+  freePlan: boolean;
 }
 
 export interface AttuneMessage {
@@ -77,12 +79,14 @@ export async function getAttuneStatus(): Promise<AttuneStatus> {
     daily_limit: number;
     used_today: number;
     remaining_today: number;
+    free_plan?: boolean;
   }>("/attune/status");
   return {
     enabled: row.enabled,
     dailyLimit: row.daily_limit,
     usedToday: row.used_today,
     remainingToday: row.remaining_today,
+    freePlan: row.free_plan ?? false,
   };
 }
 

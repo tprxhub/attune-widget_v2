@@ -62,3 +62,16 @@ def test_avatar_upload_rejects_non_images(client):
         files={"file": ("profile.txt", b"not an image", "text/plain")},
     )
     assert response.status_code == 415
+
+
+def test_people_can_change_their_own_name(client):
+    from test_free_play_plan import register_family
+
+    headers = register_family(client, "rename@example.com")
+    response = client.patch("/api/v1/auth/me", headers=headers, json={"display_name": "  Esther   Smith "})
+    assert response.status_code == 200
+    assert response.json()["display_name"] == "Esther Smith"
+    assert client.get("/api/v1/auth/me", headers=headers).json()["display_name"] == "Esther Smith"
+    assert client.patch("/api/v1/auth/me", headers=headers, json={"display_name": "   "}).status_code == 422
+    assert client.patch("/api/v1/auth/me", headers=headers, json={"display_name": "x" * 121}).status_code == 422
+    assert client.patch("/api/v1/auth/me", json={"display_name": "Nobody"}).status_code == 401

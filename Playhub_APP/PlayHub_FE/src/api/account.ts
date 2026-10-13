@@ -53,6 +53,13 @@ export async function getAccount(session: Session): Promise<AccountProfile> {
   };
 }
 
+export async function updateMyName(displayName: string) {
+  return apiRequest<ApiUser>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify({ display_name: displayName }),
+  });
+}
+
 export async function uploadProfilePhoto(file: File) {
   const form = new FormData();
   form.append("file", file);

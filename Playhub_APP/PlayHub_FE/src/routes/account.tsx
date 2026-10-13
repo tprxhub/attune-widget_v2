@@ -15,6 +15,7 @@ import {
   Loader2,
   Map,
   Mail,
+  Pencil,
   ImageUp,
   RotateCcw,
   ShieldCheck,
@@ -31,6 +32,7 @@ import {
   chooseProfileSticker,
   getAccount,
   removeProfileAvatar,
+  updateMyName,
   uploadProfilePhoto,
 } from "@/api/account";
 import { Protected } from "@/auth/guards";
@@ -133,6 +135,28 @@ function AccountPage() {
   const [avatarError, setAvatarError] = useState("");
 
   const strength = useMemo(() => strengthOf(next), [next]);
+
+  // The signed-in person's own name (for a family, the parent's name, not the child's).
+  const ownName = session.guardianName || session.name;
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [nameError, setNameError] = useState("");
+  const rename = useMutation({
+    mutationFn: (name: string) => updateMyName(name),
+    onSuccess: async () => {
+      await refreshSession();
+      await account.refetch();
+      setNameDraft(null);
+      setNameError("");
+    },
+    onError: (reason) =>
+      setNameError(reason instanceof Error ? reason.message : "Could not update your name."),
+  });
+  const saveName = () => {
+    const name = (nameDraft ?? "").trim();
+    if (!name) return setNameError("Please enter your name.");
+    if (name === ownName) return setNameDraft(null);
+    rename.mutate(name);
+  };
 
   const save = useMutation({
     mutationFn: () => changePassword({ current, next }),
@@ -309,6 +333,80 @@ function AccountPage() {
               </div>
             ) : (
               <div className="mt-2 divide-y divide-navy/8">
+                {nameDraft === null ? (
+                  <Row
+                    icon={UserRound}
+                    label="Your name"
+                    value={ownName || "Not set"}
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNameDraft(ownName);
+                          setNameError("");
+                        }}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-navy/6 px-3 py-1.5 text-[11px] font-bold text-navy transition hover:bg-navy/10"
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden />
+                        Edit
+                      </button>
+                    }
+                  />
+                ) : (
+                  <form
+                    className="py-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      saveName();
+                    }}
+                  >
+                    <label
+                      htmlFor="account-name"
+                      className="block text-[11px] font-bold tracking-[0.12em] text-navy/50 uppercase"
+                    >
+                      Your name
+                    </label>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input
+                        id="account-name"
+                        autoFocus
+                        maxLength={120}
+                        value={nameDraft}
+                        onChange={(event) => setNameDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Escape") setNameDraft(null);
+                        }}
+                        aria-invalid={Boolean(nameError)}
+                        aria-describedby={nameError ? "account-name-error" : undefined}
+                        className="min-h-11 min-w-0 flex-1 rounded-2xl border border-navy/15 bg-card px-4 text-sm outline-none transition focus:border-blue focus:ring-2 focus:ring-blue/25"
+                      />
+                      <button
+                        type="submit"
+                        disabled={rename.isPending}
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-navy px-4 text-sm font-bold text-white disabled:opacity-60"
+                      >
+                        {rename.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                        ) : (
+                          <Check className="h-4 w-4" aria-hidden />
+                        )}
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNameDraft(null)}
+                        className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-bold text-navy/70 hover:bg-navy/6"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {nameError && (
+                      <p id="account-name-error" role="alert" className="mt-1.5 text-xs text-coral">
+                        {nameError}
+                      </p>
+                    )}
+                  </form>
+                )}
                 <Row
                   icon={Mail}
                   label="Email"

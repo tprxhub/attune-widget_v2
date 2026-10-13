@@ -113,6 +113,7 @@ class AttuneStatus(BaseModel):
     daily_limit: int
     used_today: int
     remaining_today: int
+    free_plan: bool = False
 
 
 class AttuneAsk(BaseModel):
@@ -435,6 +436,13 @@ def _used_today(db: Session, user: User) -> int:
     ) or 0
 
 
+def _on_free_plan(db: Session, user: User) -> bool:
+    """The free tier, decided the same way as the Play Plan catalogue's locks."""
+    from app.api import _open_play_plan_ids  # local import: app.api is the larger module
+
+    return _open_play_plan_ids(db, user) is not None
+
+
 def _own_conversation(db: Session, conversation_id: str, user: User) -> AttuneConversation:
     conversation = db.get(AttuneConversation, conversation_id)
     if not conversation or conversation.user_id != user.id:
@@ -459,13 +467,16 @@ def _title(message: str) -> str:
 
 @router.get("/status", response_model=AttuneStatus)
 def attune_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    settings = get_settings()
     used = _used_today(db, user)
+    free = _on_free_plan(db, user)
+    settings = get_settings()
+    limit = settings.attune_free_daily_limit if free else settings.attune_daily_limit
     return AttuneStatus(
         enabled=attune_enabled(),
-        daily_limit=settings.attune_daily_limit,
+        daily_limit=limit,
         used_today=used,
-        remaining_today=max(0, settings.attune_daily_limit - used),
+        remaining_today=max(0, limit - used),
+        free_plan=free,
     )
 
 
@@ -567,12 +578,12 @@ class _Question:
     history: list[dict[str, str]]
     instructions: str
     used_today: int
+    daily_limit: int
     asked_at: datetime
 
 
 def _prepare(payload: AttuneAsk, user: User, db: Session) -> _Question:
     """Every check that can refuse a question, done before anything is sent to the model."""
-    settings = get_settings()
     if not attune_enabled():
         raise HTTPException(status_code=503, detail="Attune isn’t switched on yet.")
     message = payload.message.strip()
@@ -587,11 +598,17 @@ def _prepare(payload: AttuneAsk, user: User, db: Session) -> _Question:
         raise HTTPException(status_code=404, detail="Activity not found")
 
     used = _used_today(db, user)
-    if used >= settings.attune_daily_limit:
-        raise HTTPException(
-            status_code=429,
-            detail=f"You’ve asked Attune {settings.attune_daily_limit} questions today. Please come back tomorrow.",
-        )
+    free = _on_free_plan(db, user)
+    settings = get_settings()
+    limit = settings.attune_free_daily_limit if free else settings.attune_daily_limit
+    if used >= limit:
+        if free:
+            questions = "1 question" if limit == 1 else f"{limit} questions"
+            detail = (f"The free plan includes {questions} a day with Attune. "
+                      "Subscribe to keep asking, or come back tomorrow.")
+        else:
+            detail = f"You’ve asked Attune {limit} questions today. Please come back tomorrow."
+        raise HTTPException(status_code=429, detail=detail)
     history = [{"role": m.role, "content": m.content} for m in (conversation.messages if conversation else [])]
     return _Question(
         message=message,
@@ -601,6 +618,7 @@ def _prepare(payload: AttuneAsk, user: User, db: Session) -> _Question:
         history=history[-HISTORY_MESSAGES:] + [{"role": "user", "content": message}],
         instructions=build_instructions(db, child, activity, user, first_reply=not history),
         used_today=used,
+        daily_limit=limit,
         asked_at=datetime.now(timezone.utc),
     )
 
@@ -628,7 +646,7 @@ def _save(db: Session, user: User, question: _Question, reply: str) -> AttuneAns
         conversation=AttuneConversationRead.model_validate(conversation),
         question=AttuneMessageRead.model_validate(asked),
         answer=AttuneMessageRead.model_validate(answer),
-        remaining_today=max(0, get_settings().attune_daily_limit - question.used_today - 1),
+        remaining_today=max(0, question.daily_limit - question.used_today - 1),
     )
 
 

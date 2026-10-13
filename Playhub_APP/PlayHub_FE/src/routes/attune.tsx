@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
@@ -49,7 +49,7 @@ import {
 } from "@/api/attune";
 import { listRecentAttempts } from "@/api/attempts";
 import { Protected } from "@/auth/guards";
-import { useSession } from "@/auth/session";
+import { useCapabilities, useSession } from "@/auth/session";
 import { AppHeaderControls } from "@/components/AppShell";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { AttuneAvatar, AttuneMascot } from "@/features/attune/AttuneAvatar";
@@ -376,38 +376,43 @@ function AttunePage() {
   );
 
   const composer = (
-    <Composer
-      textareaRef={composerRef}
-      value={draft}
-      onChange={setDraft}
-      onSend={() => send(draft)}
-      onStop={() => abortRef.current?.abort()}
-      streaming={streaming}
-      disabled={!enabled || outOfQuestions}
-      canSend={canAsk && Boolean(draft.trim())}
-      placeholder={
-        outOfQuestions
-          ? "You’ve reached today’s question limit. Come back tomorrow."
-          : activeChild
-            ? `Ask anything about ${activeChild.name}’s play…`
-            : "Ask Attune anything about play…"
-      }
-      chip={
-        activity && about ? (
-          <span className="ph-pill inline-flex max-w-full items-center gap-1.5 bg-blue/10 py-1 pr-1 pl-3 text-xs font-bold text-blue">
-            <span className="truncate">Asking about: {about}</span>
-            <button
-              type="button"
-              onClick={() => void navigate({ search: {}, replace: true })}
-              aria-label="Stop asking about this Activity"
-              className="ph-pill grid h-5 w-5 shrink-0 place-items-center hover:bg-blue/15"
-            >
-              <X className="h-3 w-3" aria-hidden />
-            </button>
-          </span>
-        ) : null
-      }
-    />
+    <>
+      {outOfQuestions && status.data?.freePlan && <FreePlanLimit />}
+      <Composer
+        textareaRef={composerRef}
+        value={draft}
+        onChange={setDraft}
+        onSend={() => send(draft)}
+        onStop={() => abortRef.current?.abort()}
+        streaming={streaming}
+        disabled={!enabled || outOfQuestions}
+        canSend={canAsk && Boolean(draft.trim())}
+        placeholder={
+          outOfQuestions
+            ? status.data?.freePlan
+              ? "You’ve used today’s free question."
+              : "You’ve reached today’s question limit. Come back tomorrow."
+            : activeChild
+              ? `Ask anything about ${activeChild.name}’s play…`
+              : "Ask Attune anything about play…"
+        }
+        chip={
+          activity && about ? (
+            <span className="ph-pill inline-flex max-w-full items-center gap-1.5 bg-blue/10 py-1 pr-1 pl-3 text-xs font-bold text-blue">
+              <span className="truncate">Asking about: {about}</span>
+              <button
+                type="button"
+                onClick={() => void navigate({ search: {}, replace: true })}
+                aria-label="Stop asking about this Activity"
+                className="ph-pill grid h-5 w-5 shrink-0 place-items-center hover:bg-blue/15"
+              >
+                <X className="h-3 w-3" aria-hidden />
+              </button>
+            </span>
+          ) : null
+        }
+      />
+    </>
   );
 
   return (
@@ -1029,6 +1034,33 @@ function ChatHistory({
         </div>
       )}
     </>
+  );
+}
+
+/** Shown in place of asking once a free-plan family has used today's question. */
+function FreePlanLimit() {
+  const { canManageSubscription } = useCapabilities();
+  return (
+    <div className="ph-r-2xl mb-3 flex flex-wrap items-center gap-3 border border-coral/25 bg-coral/5 p-3 sm:p-4">
+      <span className="ph-pill grid h-9 w-9 shrink-0 place-items-center bg-coral text-white">
+        <Sparkles className="h-4 w-4" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-navy">You’ve used today’s free question</p>
+        <p className="text-xs leading-snug text-navy/65">
+          The free plan includes 1 question a day. Subscribe to ask Attune as often as you need.
+        </p>
+      </div>
+      {canManageSubscription && (
+        <Link
+          to="/subscription"
+          search={{ checkout: undefined }}
+          className="ph-pill inline-flex min-h-10 items-center gap-1.5 bg-coral px-4 text-sm font-bold text-white transition hover:brightness-105"
+        >
+          Upgrade
+        </Link>
+      )}
+    </div>
   );
 }
 

@@ -67,6 +67,10 @@ class PasswordReset(APIModel):
     new_password: str = Field(min_length=8, max_length=256)
 
 
+class ProfileUpdate(APIModel):
+    display_name: str = Field(min_length=1, max_length=120)
+
+
 class AvatarStickerUpdate(APIModel):
     sticker: Literal["bunny", "bear", "fox", "owl", "elephant", "cat", "turtle", "duck"]
 
