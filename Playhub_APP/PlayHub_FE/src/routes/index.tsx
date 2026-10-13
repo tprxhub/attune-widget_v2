@@ -2,7 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, ArrowUpRight, GraduationCap, HeartHandshake, Quote } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  GraduationCap,
+  HeartHandshake,
+  Menu,
+  Quote,
+  X,
+} from "lucide-react";
 import { GOALS } from "@/api/domain";
 import { apiAssetUrl } from "@/api/client";
 import { DEFAULT_HOMEPAGE_CONTENT, HOMEPAGE_QUERY_KEY, loadHomepage } from "@/api/homepage";
@@ -184,6 +192,21 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
     ["Pricing", "#pricing", "pricing"],
   ] as const;
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  // Below the large breakpoint the links live in a menu behind the hamburger button.
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setMenuOpen(false);
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const onWide = () => wide.matches && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    wide.addEventListener("change", onWide);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      wide.removeEventListener("change", onWide);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     const ids = nav.flatMap(([, , id]) => (id ? [id] : []));
@@ -216,21 +239,24 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
     window.history.replaceState(null, "", `#${id}`);
   };
 
+  // The open menu sits on a cream panel, so the header switches to its light style with it.
+  const solid = scrolled || menuOpen;
+
   return (
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-cream/95 shadow-[var(--shadow-card)] backdrop-blur-md" : "bg-transparent"
+        solid ? "bg-cream/95 shadow-[var(--shadow-card)] backdrop-blur-md" : "bg-transparent"
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 pt-2 pb-4 sm:px-6 lg:pt-7 lg:pb-5">
-        <Link to="/" className={scrolled ? "" : "[&_span]:text-cream"}>
+        <Link to="/" className={solid ? "" : "[&_span]:text-cream"}>
           <Logo />
         </Link>
 
         <nav
           aria-label="Main"
           className={`ph-pill hidden min-h-11 items-center gap-1 px-2 py-1.5 backdrop-blur-md lg:flex ${
-            scrolled ? "bg-navy/6" : "bg-cream/12"
+            solid ? "bg-navy/6" : "bg-cream/12"
           }`}
         >
           {nav.map(([label, target, sectionId]) => {
@@ -262,14 +288,14 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span className={`hidden sm:inline ${scrolled ? "" : "text-cream"}`}>
+          <span className={`hidden lg:inline ${solid ? "" : "text-cream"}`}>
             <GuideButton />
           </span>
           {signedIn ? (
             <Link
               to={homePath}
               className={`ph-pill inline-flex min-h-11 items-center px-5 text-sm font-semibold ${
-                scrolled ? "bg-navy text-cream" : "bg-cream text-navy"
+                solid ? "bg-navy text-cream" : "bg-cream text-navy"
               }`}
             >
               Open Play Hub
@@ -278,8 +304,8 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
             <>
               <Link
                 to="/login"
-                className={`ph-pill hidden min-h-11 items-center px-4 text-sm font-semibold sm:inline-flex ${
-                  scrolled ? "text-navy hover:bg-navy/6" : "text-cream hover:bg-cream/15"
+                className={`ph-pill hidden min-h-11 items-center px-4 text-sm font-semibold lg:inline-flex ${
+                  solid ? "text-navy hover:bg-navy/6" : "text-cream hover:bg-cream/15"
                 }`}
               >
                 Log in
@@ -287,15 +313,90 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
               <Link
                 to="/signup"
                 className={`ph-pill inline-flex min-h-11 items-center px-5 text-sm font-semibold ${
-                  scrolled ? "bg-navy text-cream" : "bg-cream text-navy"
+                  solid ? "bg-navy text-cream" : "bg-cream text-navy"
                 }`}
               >
                 Sign up free
               </Link>
             </>
           )}
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-controls="home-menu"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            className={`ph-pill grid h-11 w-11 shrink-0 place-items-center transition-colors lg:hidden ${
+              solid ? "text-navy hover:bg-navy/8" : "bg-cream/15 text-cream hover:bg-cream/25"
+            }`}
+          >
+            {menuOpen ? (
+              <X className="h-5 w-5" aria-hidden />
+            ) : (
+              <Menu className="h-5 w-5" aria-hidden />
+            )}
+          </button>
         </div>
       </div>
+      {menuOpen && (
+        <div
+          id="home-menu"
+          className="max-h-[calc(100dvh-4.5rem)] overflow-y-auto border-t border-navy/8 bg-cream px-4 pt-2 pb-5 shadow-[var(--shadow-card)] sm:px-6 lg:hidden"
+        >
+          <nav aria-label="Menu" className="mx-auto flex max-w-7xl flex-col">
+            {nav.map(([label, target, sectionId]) => {
+              const className = `flex min-h-12 items-center rounded-xl px-3 text-base font-semibold transition-colors ${
+                sectionId && activeSection === sectionId
+                  ? "bg-navy/8 text-navy"
+                  : "text-navy/85 hover:bg-navy/6"
+              }`;
+              return sectionId ? (
+                <a
+                  key={label}
+                  href={target}
+                  onClick={(event) => {
+                    setMenuOpen(false);
+                    scrollTo(event, sectionId);
+                  }}
+                  aria-current={activeSection === sectionId ? "location" : undefined}
+                  className={className}
+                >
+                  {label}
+                </a>
+              ) : (
+                <Link
+                  key={label}
+                  to={target}
+                  onClick={() => setMenuOpen(false)}
+                  className={className}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="mx-auto mt-3 flex max-w-7xl flex-col gap-2 border-t border-navy/8 pt-4 text-navy [&>button]:justify-center">
+            <GuideButton />
+            {signedIn ? (
+              <Link
+                to={homePath}
+                onClick={() => setMenuOpen(false)}
+                className="ph-pill inline-flex min-h-11 items-center justify-center bg-navy px-5 text-sm font-semibold text-cream"
+              >
+                Open Play Hub
+              </Link>
+            ) : (
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="ph-pill inline-flex min-h-11 items-center justify-center border border-navy/15 px-5 text-sm font-semibold text-navy"
+              >
+                Log in
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
