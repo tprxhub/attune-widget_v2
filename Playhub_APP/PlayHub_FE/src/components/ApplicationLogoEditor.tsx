@@ -1,3 +1,4 @@
+import { IMAGE_DIMENSIONS } from "./ImageDimensionsGuide";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -57,7 +58,8 @@ export function ApplicationLogoEditor() {
         Application logo
       </h2>
       <p className="mt-1 text-sm text-navy/65">
-        Shown on the homepage, sign-in screens, and throughout Play Hub.
+        Shown on the homepage, sign-in screens, and throughout Play Hub. Recommended:{" "}
+        {IMAGE_DIMENSIONS.logo}.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-5">
         <div className="grid h-24 w-44 place-items-center rounded-xl border border-dashed border-gray-300 bg-white p-3">

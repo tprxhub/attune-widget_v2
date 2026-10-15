@@ -67,6 +67,32 @@ describe("play progress insights", () => {
     expect(insightFor([progressing], 0)?.next).toContain("fast track");
   });
 
+  test("template wording uses the documented score and mood bands", () => {
+    const effortCases = [
+      [16, "very little"],
+      [33, "a little"],
+      [67, "a fair amount of"],
+      [100, "a lot of"],
+    ] as const;
+    for (const [score, wording] of effortCases) {
+      const insight = insightFor([dose("Starter", [score, 33, 33, 33, 33], 33, false)], 0);
+      expect(insight?.seeing).toContain(`${wording} support`);
+    }
+
+    const moodCases = [
+      [4, "happy or content"],
+      [3.99, "sometimes happy, sometimes not"],
+      [2.8, "sometimes happy, sometimes not"],
+      [2.79, "not happy"],
+    ] as const;
+    for (const [averageMood, wording] of moodCases) {
+      const point = dose("Starter", [33, 33, 33, 33, 33], 33, false);
+      // The documented variable is the API's dose average; it is the single source of truth.
+      point.mood = averageMood;
+      expect(insightFor([point], 0)?.seeing).toContain(`seemed ${wording}`);
+    }
+  });
+
   test("a dose still in progress has no insight, and the tally counts completed doses only", () => {
     const doses = [
       dose("Starter", [33, 33, 0, 0, 0], 0, true),

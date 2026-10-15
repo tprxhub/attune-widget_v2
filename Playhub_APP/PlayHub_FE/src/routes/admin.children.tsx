@@ -1,3 +1,4 @@
+import { usePricePlans } from "@/api/pricing";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -21,7 +22,6 @@ import { getProgressForChildren } from "@/api/progress";
 import { inviteParent } from "@/api/org";
 import { getAdminReferences, referenceDoses } from "@/api/references";
 import {
-  PRICE_PLANS,
   adminActivateSubscription,
   adminCancelSubscription,
   daysLeftLabel,
@@ -667,9 +667,13 @@ function SubscriptionModal({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const pricing = usePricePlans();
+  const plans = pricing.plans;
   const [duration, setDuration] = useState<PlanDuration>(sub?.duration ?? "6m");
+  const chosenDuration =
+    plans.find((plan) => plan.duration === duration)?.duration ?? plans[0]!.duration;
   const start = useMutation({
-    mutationFn: () => adminActivateSubscription(child.id, duration),
+    mutationFn: () => adminActivateSubscription(child.id, chosenDuration),
     onSuccess: onChanged,
   });
   const cancel = useMutation({
@@ -697,15 +701,15 @@ function SubscriptionModal({
       </div>
 
       <div className="mt-4 grid gap-2">
-        {PRICE_PLANS.map((p) => (
+        {plans.map((p) => (
           <button
             key={p.duration}
             type="button"
             onClick={() => setDuration(p.duration)}
-            aria-pressed={duration === p.duration}
+            aria-pressed={chosenDuration === p.duration}
             className={cn(
               "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors",
-              duration === p.duration
+              chosenDuration === p.duration
                 ? "border-blue bg-blue/8"
                 : "border-navy/15 hover:border-navy/35",
             )}

@@ -4,6 +4,8 @@ from app.main import app
 
 
 EXPECTED_OPERATIONS = {
+    ("GET", "/api/v1/billing/plans"),
+    ("PUT", "/api/v1/billing/plans"),
     ("GET", "/health"),
     ("GET", "/ready"),
     ("POST", "/api/v1/auth/register"),
@@ -29,6 +31,8 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/invitations"),
     ("GET", "/api/v1/invitations"),
     ("POST", "/api/v1/invitations/{invitation_id}/activation"),
+    ("PATCH", "/api/v1/invitations/{invitation_id}/moderator"),
+    ("DELETE", "/api/v1/invitations/{invitation_id}"),
     ("POST", "/api/v1/invitations/accept"),
     ("GET", "/api/v1/audit-events"),
     ("GET", "/api/v1/site-content/branding"),
@@ -47,6 +51,9 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/attune/insights"),
     ("POST", "/api/v1/attune/ask"),
     ("POST", "/api/v1/attune/ask/stream"),
+    ("POST", "/api/v1/play-pulse/results"),
+    ("GET", "/api/v1/admin/play-pulse/results"),
+    ("GET", "/api/v1/admin/play-pulse/results/export"),
     ("PUT", "/api/v1/attune/messages/{message_id}/feedback"),
     ("GET", "/api/v1/admin/references"),
     ("GET", "/api/v1/admin/overview"),
@@ -54,6 +61,7 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/organisations/{organisation_id}"),
     ("POST", "/api/v1/organisations"),
     ("PATCH", "/api/v1/organisations/{organisation_id}"),
+    ("POST", "/api/v1/organisations/{organisation_id}/renewal"),
     ("GET", "/api/v1/play-plans"),
     ("POST", "/api/v1/play-plans"),
     ("PATCH", "/api/v1/play-plans/{plan_id}"),

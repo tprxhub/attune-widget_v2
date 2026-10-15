@@ -6,6 +6,7 @@ import { useApplicationLogo } from "@/api/branding";
 import type { Attempt } from "@/lib/types";
 import { shareSupportMoodCard } from "./shareSupportMood";
 import { averageMood, celebrate, moodColor, recentMoods, independence, TRACK } from "./supportMood";
+import progressWordmark from "@/assets/progress-play-wordmark.png";
 
 const SUPPORT_COLOR = "#2459A0";
 
@@ -165,7 +166,7 @@ export function SupportMoodRings({
         </button>
       </div>
 
-      <InteractiveProgressRings supportScore={supportScore} moods={moods} logo={logo} />
+      <InteractiveProgressRings supportScore={supportScore} moods={moods} logo={progressWordmark} />
 
       <ul
         aria-label="Chart legend"

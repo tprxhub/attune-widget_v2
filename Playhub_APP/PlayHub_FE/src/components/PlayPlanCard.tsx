@@ -104,10 +104,10 @@ export function PlayPlanCard({
         <span className="relative flex items-start justify-between">
           <span className="inline-flex min-w-0 max-w-[calc(100%-5rem)] items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-[10px] font-extrabold tracking-widest whitespace-nowrap text-white uppercase backdrop-blur-md">
             <span className={cn("h-1.5 w-1.5 rounded-full", TOKEN_BG[goal.color])} aria-hidden />
-            <span className="truncate">{goal.short}</span>
+            <span className="truncate">Play Plan</span>
           </span>
           <span className="shrink-0 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-[10px] font-extrabold tracking-widest whitespace-nowrap text-white uppercase backdrop-blur-md">
-            {plan.level}
+            {plan.level} dose
           </span>
         </span>
 
@@ -129,12 +129,10 @@ export function PlayPlanCard({
 
       <span className="block px-4 pt-6 pb-4">
         <h3 className="text-xl leading-tight font-extrabold text-navy">{plan.title}</h3>
-        <span className="mt-2 block">
-          <LevelDots level={plan.level} />
+        <span className="mt-2 inline-flex items-center gap-2 text-xs font-bold tracking-wide text-navy">
+          <LevelDots level={plan.level} showLabel={false} />
+          {plan.level} dose
         </span>
-        <p className="mt-3 line-clamp-2 min-h-[2.6em] text-xs leading-relaxed text-navy/60">
-          {plan.summary}
-        </p>
         <span className="mt-4 flex flex-wrap gap-2">
           <span className={cn("rounded-lg px-3 py-1 text-xs font-bold", TOKEN_SOFT[goal.color])}>
             {plan.entries.length} checkpoints
@@ -167,7 +165,7 @@ export function PlayPlanCard({
             </>
           ) : (
             <>
-              Start Play Dose <ArrowRight className="h-4 w-4" aria-hidden />
+              Start Play <ArrowRight className="h-4 w-4" aria-hidden />
             </>
           )}
         </span>

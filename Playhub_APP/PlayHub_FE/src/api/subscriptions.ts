@@ -1,7 +1,6 @@
 import type { PlanDuration, Subscription } from "@/lib/types";
 import { apiRequest, getApiChildren, type ApiSubscription } from "./client";
 import { mapSubscription } from "./mappers";
-import { perMonthLabel, planPriceLabel } from "@/lib/money";
 
 /** What a paid plan unlocks for a child; shown on the Subscription page and the home page. */
 export const PLAN_FEATURES = [
@@ -11,36 +10,6 @@ export const PLAN_FEATURES = [
   "Log Sessions for past dates too",
   "Full Progress chart and status",
   "Invite a Moderator",
-];
-
-export const PRICE_PLANS: {
-  duration: PlanDuration;
-  label: string;
-  price: string;
-  per: string;
-  note: string;
-}[] = [
-  {
-    duration: "3m",
-    label: "3-Month",
-    price: planPriceLabel("3m")!,
-    per: perMonthLabel("3m"),
-    note: "Trying the programme or a short-term goal.",
-  },
-  {
-    duration: "6m",
-    label: "6-Month",
-    price: planPriceLabel("6m")!,
-    per: perMonthLabel("6m"),
-    note: "A full development block across a term.",
-  },
-  {
-    duration: "12m",
-    label: "12-Month",
-    price: planPriceLabel("12m")!,
-    per: perMonthLabel("12m"),
-    note: "Best value for an ongoing programme.",
-  },
 ];
 
 /** Matches RENEWAL_WINDOW_DAYS on the server: renewing opens this many days before the last day. */
@@ -88,8 +57,6 @@ export async function getSubscriptions(childIds: string[]): Promise<Subscription
   return (await getApiChildren()).filter((child) => wanted.has(child.id)).map(mapSubscription);
 }
 
-const monthsFor: Record<PlanDuration, number> = { "3m": 3, "6m": 6, "12m": 12 };
-
 function subscriptionFromResponse(childId: string, sub: ApiSubscription): Subscription {
   return {
     childId,
@@ -99,7 +66,7 @@ function subscriptionFromResponse(childId: string, sub: ApiSubscription): Subscr
     expiresAt: sub.ends_on,
     refundWindowEndsAt: sub.refundable_until,
     renewalOpen: !!sub.renewal_open,
-    priceLabel: planPriceLabel(sub.plan_name) ?? sub.plan_name,
+    priceLabel: sub.plan_name?.replace(/^(\d+)m$/, "$1-Month") ?? null,
   };
 }
 
@@ -124,7 +91,7 @@ export async function adminActivateSubscription(
 ): Promise<Subscription> {
   const start = new Date();
   const end = new Date(start);
-  end.setMonth(end.getMonth() + monthsFor[duration]);
+  end.setMonth(end.getMonth() + Number.parseInt(duration, 10));
   const sub = await apiRequest<ApiSubscription>(`/children/${childId}/subscription`, {
     method: "PUT",
     body: JSON.stringify({

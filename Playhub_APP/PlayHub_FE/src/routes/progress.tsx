@@ -439,31 +439,17 @@ export function ProgressPage() {
       </div>
       <div className="mt-4 rounded-xl bg-white p-4 text-navy">
         <h3 className="text-lg font-bold">What does it mean?</h3>
-        <ol className="mt-3 space-y-3">
+        <ol className="mt-3 divide-y divide-navy/10">
           {nextSteps.map((step, index) => {
             const expanded = openNextStep === index;
             return (
-              <li
-                key={step.title}
-                className={cn(
-                  "relative overflow-hidden rounded-2xl border transition-all duration-200",
-                  expanded
-                    ? "border-amber/45 bg-cream text-navy shadow-[0_14px_30px_-20px_rgba(0,0,0,0.75)]"
-                    : "border-navy/10 bg-navy/[0.025] text-navy hover:border-blue/25 hover:bg-blue/5",
-                )}
-              >
-                {expanded && (
-                  <span
-                    className="absolute inset-y-0 left-0 w-1 rounded-r-full bg-coral"
-                    aria-hidden
-                  />
-                )}
+              <li key={step.title} className="py-1 text-navy">
                 <button
                   type="button"
                   onClick={() => setOpenNextStep(expanded ? null : index)}
                   aria-expanded={expanded}
                   aria-controls={`next-step-${index}`}
-                  className="grid min-h-16 w-full grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center gap-3 p-3.5 text-left"
+                  className="grid min-h-14 w-full grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-navy/[0.035] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue"
                 >
                   <span
                     className={cn(
@@ -477,7 +463,7 @@ export function ProgressPage() {
                   <span
                     className={cn(
                       "grid h-8 w-8 place-items-center rounded-full transition-colors",
-                      expanded ? "bg-navy/6 text-navy" : "bg-navy/6 text-navy/70",
+                      expanded ? "bg-navy/[0.06] text-navy" : "bg-navy/[0.06] text-navy/70",
                     )}
                   >
                     <ChevronDown
@@ -489,18 +475,16 @@ export function ProgressPage() {
                     />
                   </span>
                 </button>
-                {
-                  <div
-                    hidden={!expanded}
-                    data-report-expand
-                    id={`next-step-${index}`}
-                    className="px-3.5 pb-3.5 sm:pl-[4.75rem]"
-                  >
-                    <p className="rounded-xl border-l-2 border-coral bg-navy/[0.045] px-3.5 py-3 text-sm leading-relaxed text-navy/72">
-                      {step.body}
-                    </p>
-                  </div>
-                }
+                <div
+                  hidden={!expanded}
+                  data-report-expand
+                  id={`next-step-${index}`}
+                  className="pb-3 pl-[3.25rem] pr-2 sm:pl-[3.75rem]"
+                >
+                  <p className="border-l-2 border-coral pl-3 text-sm leading-relaxed text-navy/72">
+                    {step.body}
+                  </p>
+                </div>
               </li>
             );
           })}

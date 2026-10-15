@@ -16,6 +16,7 @@ export function InteractiveProgressRings({
   moods: MoodDay[];
   logo: string;
 }) {
+  const [ringProgress, setRingProgress] = useState(0);
   const [shown, setShown] = useState<RingKind | null>(null);
   const [pinned, setPinned] = useState<RingKind | null>(null);
   const graph = useRef<HTMLDivElement>(null);
@@ -24,6 +25,27 @@ export function InteractiveProgressRings({
   const average = averageMood(moods);
   const MoodSymbol = moodMeta(Math.round(average ?? 3)).icon;
   const score = supportScore === null ? null : Math.round(100 - supportScore);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      setRingProgress(1);
+      return;
+    }
+
+    const duration = 1800;
+    let frame = 0;
+    let startedAt: number | undefined;
+    const animate = (now: number) => {
+      startedAt ??= now;
+      const linear = Math.min(1, (now - startedAt) / duration);
+      setRingProgress(1 - (1 - linear) ** 3);
+      if (linear < 1) frame = window.requestAnimationFrame(animate);
+    };
+    frame = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   const clear = () => {
     setShown(null);
     setPinned(null);
@@ -77,8 +99,9 @@ export function InteractiveProgressRings({
             value={independence(supportScore)}
             color="#2459A0"
             track="#E8EEF6"
+            progress={ringProgress}
           />
-          <RingMarker radius={70} value={independence(supportScore)}>
+          <RingMarker radius={70} value={independence(supportScore) * ringProgress}>
             <text
               x={0}
               y={0}
@@ -107,8 +130,9 @@ export function InteractiveProgressRings({
             value={average === null ? 0 : average / 5}
             color={average === null ? TRACK : moodColor(Math.round(average))}
             track="#EDF2E9"
+            progress={ringProgress}
           />
-          <RingMarker radius={58} value={average === null ? 0 : average / 5}>
+          <RingMarker radius={58} value={(average === null ? 0 : average / 5) * ringProgress}>
             <MoodSymbol
               x={-3}
               y={-3}
@@ -123,11 +147,13 @@ export function InteractiveProgressRings({
       </svg>
       <div className="pointer-events-none absolute inset-[25%] flex flex-col items-center justify-center text-center">
         <p className="text-sm font-bold sm:text-base">Let’s</p>
-        <img
-          src={logo}
-          alt="Play Hub"
-          className="my-1 h-auto w-20 max-w-full object-contain sm:w-24"
-        />
+        <div className="relative my-1 h-9 w-16 shrink-0 overflow-hidden sm:h-10 sm:w-[4.5rem]">
+          <img
+            src={logo}
+            alt="Play Hub"
+            className="absolute top-0 left-0 h-16 w-16 max-w-none -translate-y-[19%] object-contain sm:h-[4.5rem] sm:w-[4.5rem]"
+          />
+        </div>
         <p className="text-sm font-bold sm:text-base">again soon!</p>
       </div>
       {shown && (
@@ -215,7 +241,7 @@ function RingTarget({
 }
 
 /** Keep the marker upright at the advancing end of the clockwise ring. */
-function RingMarker({
+export function RingMarker({
   radius,
   value,
   children,

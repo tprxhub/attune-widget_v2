@@ -40,13 +40,9 @@ const personas: Array<[string, string, string[]]> = [
   ["School Moderator", "moderator@playhub.local", [...common, "/org", "/check-in"]],
   ["Clinic Moderator", "supporter@brightsteps.local", [...common, "/org", "/check-in"]],
   ["Organisation Member", "hana@sunrise.local", common],
-  [
-    "Subscribed family",
-    "parent@playhub.local",
-    [...common, "/check-in", "/subscription", "/invite"],
-  ],
+  ["Subscribed family", "parent@playhub.local", [...common, "/check-in", "/invite"]],
   ["Family Moderator", "nanny@playhub.local", [...common, "/check-in"]],
-  ["Free family", "free.parent@playhub.local", [...common, "/check-in", "/subscription"]],
+  ["Free family", "free.parent@playhub.local", [...common, "/check-in"]],
 ];
 
 async function authenticate(page: Page, email: string) {
@@ -146,8 +142,9 @@ test("phone navigation exposes all permitted destinations and keeps focus inside
     "Account",
   ])
     await expect(menu.getByRole("link", { name: label, exact: true })).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
   await page.keyboard.press("Shift+Tab");
-  await expect(menu.getByRole("link", { name: "Account", exact: true })).toBeFocused();
+  await expect(menu.getByRole("button", { name: "Sign out", exact: true })).toBeFocused();
   await menu.getByRole("link", { name: "Plans library", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/plans/);
   await expect(menu).toHaveCount(0);

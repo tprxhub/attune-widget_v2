@@ -59,19 +59,22 @@ test("Play Plan details can be edited and survive a reload", async ({ page }) =>
   await expect(dialog).not.toBeVisible();
 });
 
-test("Start guide ends with a clear session logging goal", async ({ page }) => {
+test("the guide button opens How Play Hub works, with no step-by-step tour", async ({ page }) => {
   await login(page, "parent@playhub.local");
-  await page.getByRole("button", { name: "Start navigation guide", exact: true }).click();
-  const guide = page.getByRole("dialog", { name: "Play Hub navigation guide" });
-  await expect(
-    guide.getByText("Your goal: log your first session.", { exact: true }),
-  ).toBeVisible();
-  while (await guide.getByRole("button", { name: "Next", exact: true }).count()) {
-    await guide.getByRole("button", { name: "Next", exact: true }).click();
-  }
-  await guide.getByRole("button", { name: "Log your first session", exact: true }).click();
-  await expect(guide).not.toBeVisible();
-  await expect(page).toHaveURL(/\/check-in$/);
+  await expect(page.getByRole("button", { name: /Start (navigation )?guide/ })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Play Hub navigation guide" })).toHaveCount(0);
+  await page.getByRole("button", { name: "How Play Hub works", exact: true }).first().click();
+  const guide = page.getByRole("dialog", { name: "How Play Hub works" });
+  await expect(guide).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(guide).toHaveCount(0);
+
+  await page.goto("/account");
+  await page
+    .getByRole("region", { name: "Preferences", exact: true })
+    .getByRole("button", { name: /How Play Hub works/ })
+    .click();
+  await expect(page.getByRole("dialog", { name: "How Play Hub works" })).toBeVisible();
 });
 
 test("Progress exports the displayed graphs and insights as a printable PDF report", async ({
@@ -121,7 +124,7 @@ test("Account shows children in a dropdown and puts account actions in Preferenc
   await expect(children.locator("li").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Jump back in", exact: true })).toHaveCount(0);
   const preferences = page.getByRole("region", { name: "Preferences", exact: true });
-  await expect(preferences.getByRole("button", { name: /Navigation guide/ })).toBeVisible();
+  await expect(preferences.getByRole("button", { name: /How Play Hub works/ })).toBeVisible();
   await preferences.getByRole("button", { name: /Change password/ }).click();
   await expect(page.getByRole("dialog").filter({ hasText: "Change password" })).toBeVisible();
 });

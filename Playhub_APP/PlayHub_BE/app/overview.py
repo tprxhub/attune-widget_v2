@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.billing import PLAN_CATALOG
+from app import licenses
 from app.models import (
     AccountScope,
     Activity,
@@ -266,12 +267,8 @@ def build_overview(db: Session, user: User, scope: str, audit_condition) -> Over
 
     if access.organisations:
         orgs = [o for o in db.scalars(select(Organisation)).all() if scope in ("all", "b2b") or o.id == scope]
-        used = Counter(
-            org_id
-            for org_id, in db.execute(
-                select(Child.organisation_id).where(Child.organisation_id.is_not(None), Child.is_active.is_(True))
-            ).all()
-        )
+        # Licences in use, counted by each organisation's licence type (children or Moderators).
+        used = licenses.usage(db, orgs)
 
         def ref(org: Organisation) -> OrgRef:
             return OrgRef(id=org.id, name=org.name, used=used.get(org.id, 0), limit=org.seat_limit,

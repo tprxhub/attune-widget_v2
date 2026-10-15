@@ -3,15 +3,11 @@ import { X } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
 import { cn } from "@/lib/utils";
 import { PolicyBody } from "./PolicyLayout";
-import { PRIVACY_INTRO, PRIVACY_SECTIONS } from "./privacy";
-import { TERMS_INTRO, TERMS_SECTIONS } from "./terms";
+import { usePolicyContent, type PolicyKey } from "./usePolicyContent";
 
-export type PolicyKey = "terms" | "privacy";
+export type { PolicyKey } from "./usePolicyContent";
 
-const POLICIES = {
-  terms: { title: "Terms of service", intro: TERMS_INTRO, sections: TERMS_SECTIONS },
-  privacy: { title: "Privacy policy", intro: PRIVACY_INTRO, sections: PRIVACY_SECTIONS },
-} as const;
+const POLICY_LABELS = { terms: "Terms of service", privacy: "Privacy policy" } as const;
 
 /**
  * The Terms of service and Privacy policy in a dialog, so people can read them without leaving
@@ -29,7 +25,7 @@ export function PolicyModal({
   const [active, setActive] = useState<PolicyKey>(initial);
   const scrollRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const policy = POLICIES[active];
+  const policy = usePolicyContent(active);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -62,7 +58,7 @@ export function PolicyModal({
                 {policy.title}
               </h2>
               <div className="mt-3 flex gap-2" role="tablist" aria-label="Policies">
-                {(Object.keys(POLICIES) as PolicyKey[]).map((key) => (
+                {(Object.keys(POLICY_LABELS) as PolicyKey[]).map((key) => (
                   <button
                     key={key}
                     type="button"
@@ -76,7 +72,7 @@ export function PolicyModal({
                         : "border border-navy/15 text-navy hover:border-navy/35",
                     )}
                   >
-                    {POLICIES[key].title}
+                    {POLICY_LABELS[key]}
                   </button>
                 ))}
               </div>

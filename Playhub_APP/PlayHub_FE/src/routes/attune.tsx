@@ -15,6 +15,7 @@ import {
   BookOpen,
   Download,
   Languages,
+  Lock,
   MoreHorizontal,
   Pencil,
   ShieldCheck,
@@ -38,6 +39,7 @@ import {
   askAttuneStream,
   deleteAttuneConversation,
   getAttuneConversation,
+  getAttuneResetDelay,
   getAttuneStatus,
   listAttuneConversations,
   rateAttuneAnswer,
@@ -54,6 +56,7 @@ import { AppHeaderControls } from "@/components/AppShell";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { AttuneAvatar, AttuneMascot } from "@/features/attune/AttuneAvatar";
 import { AttuneReply } from "@/features/attune/AttuneReply";
+import { createStreamBuffer } from "@/features/attune/streamBuffer";
 import { groupByDate } from "@/features/attune/groupByDate";
 import { useActiveChild } from "@/lib/active-child";
 import type { Attempt } from "@/lib/types";
@@ -145,6 +148,7 @@ function AttunePage() {
   const navigate = useNavigate({ from: "/attune" });
   const queryClient = useQueryClient();
   const { session } = useSession();
+  const { canManageSubscription } = useCapabilities();
   const { activeChild, isLoading: childrenLoading } = useActiveChild();
   const childId = activeChild?.id;
 
@@ -155,9 +159,14 @@ function AttunePage() {
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [searchFocus, setSearchFocus] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  const requestVersion = useRef(0);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  const status = useQuery({ queryKey: ["attune", "status"], queryFn: getAttuneStatus });
+  const status = useQuery({
+    queryKey: ["attune", "status"],
+    queryFn: getAttuneStatus,
+    refetchInterval: () => getAttuneResetDelay(),
+  });
   const conversations = useQuery({
     queryKey: ["attune", "conversations", childId ?? "none"],
     queryFn: () => listAttuneConversations(childId),
@@ -177,7 +186,9 @@ function AttunePage() {
   });
 
   const openChat = useCallback((id: string | null) => {
+    requestVersion.current++;
     abortRef.current?.abort();
+    abortRef.current = null;
     setSelectedId(id);
     setTurn(null);
     setHistoryOpen(false);
@@ -201,30 +212,41 @@ function AttunePage() {
   const streaming = turn?.state === "streaming";
 
   const ask = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async ({ message, version }: { message: string; version: number }) => {
       const controller = new AbortController();
       abortRef.current = controller;
-      return askAttuneStream(
-        {
-          message,
-          conversationId: selectedId ?? undefined,
-          childId: selectedId ? undefined : childId,
-          activityId: activity,
-        },
-        (piece) =>
-          setTurn((current) =>
-            current?.state === "streaming"
-              ? { ...current, answer: current.answer + piece }
-              : current,
-          ),
-        controller.signal,
-      );
+      const buffer = createStreamBuffer((piece) => {
+        if (version !== requestVersion.current || controller.signal.aborted) return;
+        setTurn((current) =>
+          current?.state === "streaming" ? { ...current, answer: current.answer + piece } : current,
+        );
+      });
+      try {
+        return await askAttuneStream(
+          {
+            message,
+            conversationId: selectedId ?? undefined,
+            childId: selectedId ? undefined : childId,
+            activityId: activity,
+          },
+          (piece) => {
+            if (version === requestVersion.current && !controller.signal.aborted)
+              buffer.push(piece);
+          },
+          controller.signal,
+        );
+      } finally {
+        if (version === requestVersion.current && !controller.signal.aborted) buffer.flush();
+        else buffer.cancel();
+      }
     },
-    onMutate: (message) => {
+    onMutate: ({ message, version }) => {
+      requestVersion.current = version;
       setTurn({ question: message, answer: "", state: "streaming" });
       setDraft("");
     },
-    onSuccess: (result) => {
+    onSuccess: (result, { version }) => {
+      if (version !== requestVersion.current) return;
       const previous = queryClient.getQueryData<AttuneConversationDetail>([
         "attune",
         "conversation",
@@ -244,7 +266,8 @@ function AttunePage() {
       );
       void queryClient.invalidateQueries({ queryKey: ["attune", "conversations"] });
     },
-    onError: (error, message) => {
+    onError: (error, { message, version }) => {
+      if (version !== requestVersion.current) return;
       if (error instanceof DOMException && error.name === "AbortError") {
         setTurn((current) => (current ? { ...current, state: "stopped" } : current));
         return;
@@ -256,9 +279,12 @@ function AttunePage() {
         error: error instanceof Error ? error.message : "Attune couldn’t answer just now.",
       });
     },
-    onSettled: () => {
+    onSettled: (_result, _error, { version }) => {
+      if (version !== requestVersion.current) return;
       abortRef.current = null;
-      composerRef.current?.focus();
+      if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+        composerRef.current?.focus();
+      }
     },
   });
 
@@ -325,17 +351,25 @@ function AttunePage() {
   function send(text: string) {
     const message = text.trim();
     if (!message || !canAsk) return;
-    ask.mutate(message);
+    ask.mutate({ message, version: ++requestVersion.current });
   }
 
   // A question passed in the link (?q=) is asked once, in a fresh chat, then removed from the URL.
   const askedFromLink = useRef(false);
   useEffect(() => {
-    if (!q || askedFromLink.current || !status.data?.enabled || childrenLoading) return;
+    if (
+      !q ||
+      askedFromLink.current ||
+      !status.data?.enabled ||
+      status.data.freePlan ||
+      childrenLoading
+    )
+      return;
     askedFromLink.current = true;
     void navigate({ search: ({ q: _q, ...rest }) => rest, replace: true });
-    if (status.data.remainingToday > 0) ask.mutate(q.trim());
-    else setDraft(q);
+    if (status.data.remainingToday > 0) {
+      ask.mutate({ message: q.trim(), version: ++requestVersion.current });
+    } else setDraft(q);
   }, [q, status.data, childrenLoading, navigate, ask]);
 
   const empty = messages.length === 0 && !turn && !(selectedId && conversation.isLoading);
@@ -354,6 +388,30 @@ function AttunePage() {
         <p className="mt-2 text-sm text-navy/65">
           Attune isn’t switched on for Play Hub yet. Please check back shortly.
         </p>
+      </section>
+    );
+  }
+
+  if (status.isSuccess && status.data.freePlan) {
+    return (
+      <section className="ph-card m-auto max-w-lg p-8 text-center">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber/20 text-navy">
+          <Lock className="h-6 w-6" aria-hidden />
+        </span>
+        <h1 className="mt-4 text-xl font-bold">Attune is locked on the free plan</h1>
+        <p className="mt-2 text-sm leading-relaxed text-navy/65">
+          Upgrade to ask Attune up to 30 questions each day. Your question allowance refreshes at
+          midnight UTC.
+        </p>
+        {canManageSubscription && (
+          <Link
+            to="/subscription"
+            search={{ checkout: undefined }}
+            className="ph-pill mt-5 inline-flex min-h-11 items-center gap-2 bg-coral px-5 text-sm font-bold text-white transition hover:brightness-105"
+          >
+            See subscription plans
+          </Link>
+        )}
       </section>
     );
   }
@@ -377,7 +435,6 @@ function AttunePage() {
 
   const composer = (
     <>
-      {outOfQuestions && status.data?.freePlan && <FreePlanLimit />}
       <Composer
         textareaRef={composerRef}
         value={draft}
@@ -389,9 +446,7 @@ function AttunePage() {
         canSend={canAsk && Boolean(draft.trim())}
         placeholder={
           outOfQuestions
-            ? status.data?.freePlan
-              ? "You’ve used today’s free question."
-              : "You’ve reached today’s question limit. Come back tomorrow."
+            ? "You’ve reached today’s question limit. Come back tomorrow."
             : activeChild
               ? `Ask anything about ${activeChild.name}’s play…`
               : "Ask Attune anything about play…"
@@ -1018,7 +1073,7 @@ function ChatHistory({
       {status && (
         <div className="border-t border-navy/8 px-4 py-3">
           <div className="flex justify-between text-[11px] font-semibold text-navy/55">
-            <span>Questions today</span>
+            <span>Questions today · resets 00:00 UTC</span>
             <span>
               {status.remainingToday} of {status.dailyLimit} left
             </span>
@@ -1034,33 +1089,6 @@ function ChatHistory({
         </div>
       )}
     </>
-  );
-}
-
-/** Shown in place of asking once a free-plan family has used today's question. */
-function FreePlanLimit() {
-  const { canManageSubscription } = useCapabilities();
-  return (
-    <div className="ph-r-2xl mb-3 flex flex-wrap items-center gap-3 border border-coral/25 bg-coral/5 p-3 sm:p-4">
-      <span className="ph-pill grid h-9 w-9 shrink-0 place-items-center bg-coral text-white">
-        <Sparkles className="h-4 w-4" aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-navy">You’ve used today’s free question</p>
-        <p className="text-xs leading-snug text-navy/65">
-          The free plan includes 1 question a day. Subscribe to ask Attune as often as you need.
-        </p>
-      </div>
-      {canManageSubscription && (
-        <Link
-          to="/subscription"
-          search={{ checkout: undefined }}
-          className="ph-pill inline-flex min-h-10 items-center gap-1.5 bg-coral px-4 text-sm font-bold text-white transition hover:brightness-105"
-        >
-          Upgrade
-        </Link>
-      )}
-    </div>
   );
 }
 
@@ -1081,14 +1109,19 @@ function MessageList({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
+  const atBottomRef = useRef(true);
   const stick = useRef(true);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") =>
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior });
 
   // Follow the answer as it streams in, unless the reader has scrolled up to read.
-  useLayoutEffect(() => {
-    if (stick.current) scrollToBottom(turn?.state === "streaming" ? "auto" : "smooth");
+  useEffect(() => {
+    if (!stick.current) return;
+    const frame = requestAnimationFrame(() =>
+      scrollToBottom(turn?.state === "streaming" ? "auto" : "smooth"),
+    );
+    return () => cancelAnimationFrame(frame);
   }, [messages.length, turn?.answer, turn?.state, loading]);
 
   return (
@@ -1099,7 +1132,10 @@ function MessageList({
           const el = e.currentTarget;
           const near = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
           stick.current = near;
-          setAtBottom(near);
+          if (near !== atBottomRef.current) {
+            atBottomRef.current = near;
+            setAtBottom(near);
+          }
         }}
         className="h-full overflow-y-auto"
       >
@@ -1159,6 +1195,8 @@ function MessageList({
           type="button"
           onClick={() => {
             stick.current = true;
+            atBottomRef.current = true;
+            setAtBottom(true);
             scrollToBottom();
           }}
           aria-label="Scroll to the latest message"

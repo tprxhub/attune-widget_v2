@@ -90,6 +90,14 @@ export async function getAttuneStatus(): Promise<AttuneStatus> {
   };
 }
 
+/** Time until the account's UTC question allowance rolls over at midnight. */
+export function getAttuneResetDelay() {
+  const now = new Date();
+  return (
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime() + 250
+  );
+}
+
 export async function listAttuneConversations(childId?: string): Promise<AttuneConversation[]> {
   const query = childId ? `?child_id=${encodeURIComponent(childId)}` : "";
   const rows = await apiRequest<ConversationRow[]>(`/attune/conversations${query}`);

@@ -1,14 +1,16 @@
 import type { Org, StaffMember } from "@/lib/types";
 import { apiRequest, getApiChildren, type ApiOrganisation, type ApiUser } from "./client";
-import { createStaffInvitation, listStaff, regenerateStaffActivation } from "./admin";
+import {
+  createStaffInvitation,
+  deleteStaffInvitation,
+  listStaff,
+  regenerateStaffActivation,
+  updateModeratorInvitation,
+} from "./admin";
 import { mapOrganisation, mapStaff } from "./mappers";
 
 export async function getOrg(orgId: string): Promise<Org | undefined> {
-  const [org, children] = await Promise.all([
-    apiRequest<ApiOrganisation>(`/organisations/${orgId}`),
-    getApiChildren(),
-  ]);
-  return mapOrganisation(org, children.filter((child) => child.organisation_id === orgId).length);
+  return mapOrganisation(await apiRequest<ApiOrganisation>(`/organisations/${orgId}`));
 }
 
 export async function listSupporters(orgId?: string): Promise<StaffMember[]> {
@@ -28,6 +30,17 @@ export async function createSupporter(input: {
 
 export async function regenerateSupporterActivation(supporterId: string) {
   return regenerateStaffActivation(supporterId);
+}
+
+export async function editSupporterInvitation(
+  supporterId: string,
+  input: { name: string; email: string; childId?: string },
+) {
+  return updateModeratorInvitation(supporterId, input);
+}
+
+export async function deleteSupporterInvitation(supporterId: string) {
+  return deleteStaffInvitation(supporterId);
 }
 
 export async function inviteParent(childId: string, email: string) {

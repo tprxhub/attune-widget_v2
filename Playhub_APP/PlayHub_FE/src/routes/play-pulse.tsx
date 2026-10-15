@@ -1,5 +1,14 @@
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listGoals, listPlans } from "@/api/plans";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -12,16 +21,19 @@ import {
   Heart,
   Loader2,
   LockKeyhole,
+  Mail,
   MessagesSquare,
   PersonStanding,
+  Phone,
   Play,
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  UserRound,
 } from "lucide-react";
 import { useApplicationLogo } from "@/api/branding";
+import { savePlayPulseResult, type PulseCheck, type PulseContact } from "@/api/playPulse";
 import { useSession } from "@/auth/session";
-import { SocialSignInButtons, type SocialCredential } from "@/components/SocialSignInButtons";
 import { PulseHeartbeat } from "@/features/play-pulse/PulseHeartbeat";
 import {
   AGE_BANDS,
@@ -41,6 +53,12 @@ import {
   type ScoreTier,
 } from "@/features/play-pulse/scoring";
 import { PulseResultCard } from "@/features/play-pulse/PulseResultCard";
+import {
+  contactErrors,
+  lastSavedCheck,
+  markCheckSaved,
+  usePulseContact,
+} from "@/features/play-pulse/pulseContact";
 import { usePlayPulsePersistence } from "@/features/play-pulse/usePlayPulsePersistence";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -134,30 +152,29 @@ function PlayPulsePage() {
   usePlayPulsePersistence();
   const dispatch = useAppDispatch();
   const state = useAppSelector(selectPlayPulse);
-  const { session, signInWithProvider, hydrated: sessionHydrated } = useSession();
-  const [authPending, setAuthPending] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const { session, hydrated: sessionHydrated } = useSession();
+  const [contact, setContact] = usePulseContact();
   const isAnonymous = session.role === "anonymous";
+  // Signed-in people see the result straight away; guests once they have filled in the form.
+  const canSeeResult = !isAnonymous || Boolean(contact);
   const goal = PLAY_PULSE_GOALS.find((item) => item.id === state.goalId) ?? null;
+  const screen = state.screen === "results" && !canSeeResult ? "gate" : state.screen;
 
   useEffect(() => {
-    if (state.screen === "gate" && sessionHydrated && !isAnonymous) dispatch(resultsRevealed());
-  }, [dispatch, isAnonymous, sessionHydrated, state.screen]);
-
-  const signInAndReveal = async (social: SocialCredential) => {
-    setAuthPending(true);
-    setAuthError(null);
-    try {
-      await signInWithProvider(social.provider, social.credential, social.name);
+    if (state.screen === "gate" && sessionHydrated && contact !== undefined && canSeeResult)
       dispatch(resultsRevealed());
-    } catch (reason) {
-      setAuthError(reason instanceof Error ? reason.message : "Sign-in was unsuccessful.");
-    } finally {
-      setAuthPending(false);
-    }
-  };
+  }, [canSeeResult, contact, dispatch, sessionHydrated, state.screen]);
 
-  if (!state.hydrated || !sessionHydrated) {
+  // Each step starts at the top, not where the previous one was scrolled to. Again on the next
+  // frame, in case the browser's scroll anchoring nudged the page as the new step laid out.
+  useLayoutEffect(() => {
+    const top = () => window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    top();
+    const frame = window.requestAnimationFrame(top);
+    return () => window.cancelAnimationFrame(frame);
+  }, [screen, state.domainIndex]);
+
+  if (!state.hydrated || !sessionHydrated || contact === undefined) {
     return (
       <main className="grid min-h-screen place-items-center bg-cream">
         <div className="flex items-center gap-3 text-sm font-bold text-navy/60">
@@ -167,10 +184,8 @@ function PlayPulsePage() {
     );
   }
 
-  const screen = state.screen === "results" && isAnonymous ? "gate" : state.screen;
-
   return (
-    <main className="min-h-screen overflow-x-clip bg-cream text-navy">
+    <main className="min-h-screen overflow-x-clip bg-cream text-navy [overflow-anchor:none]">
       <div className="pointer-events-none fixed inset-0 opacity-60" aria-hidden>
         <span className="absolute -top-32 -left-24 h-80 w-80 rounded-full bg-amber/25 blur-3xl" />
         <span className="absolute top-1/3 -right-32 h-96 w-96 rounded-full bg-blue/10 blur-3xl" />
@@ -194,7 +209,12 @@ function PlayPulsePage() {
         </div>
       </header>
 
-      <div className="relative mx-auto w-full max-w-2xl px-4 pt-2 pb-20 sm:px-6 sm:pt-5">
+      <div
+        className={cn(
+          "relative mx-auto w-full px-4 pt-2 pb-20 sm:px-6 sm:pt-5",
+          screen === "results" ? "max-w-5xl" : "max-w-2xl",
+        )}
+      >
         <PulseHeartbeat
           screenKey={`${screen}-${state.domainIndex}`}
           progress={questionProgress(state)}
@@ -203,17 +223,26 @@ function PlayPulsePage() {
         <div key={`${screen}-${state.domainIndex}`} className="ph-rise mt-4">
           {screen === "intro" && <IntroScreen />}
           {screen === "goal" && <GoalScreen />}
-          {screen === "quiz" && goal && state.band && <QuizScreen goal={goal} band={state.band} />}
-          {screen === "gate" && goal && (
+          {screen === "quiz" && goal && state.band && (
+            <QuizScreen goal={goal} band={state.band} revealResult={canSeeResult} />
+          )}
+          {screen === "gate" && goal && state.band && (
             <ResultGate
-              pending={authPending}
-              error={authError}
-              onCredential={signInAndReveal}
-              onError={setAuthError}
+              goal={goal}
+              band={state.band}
+              onSaved={(details) => {
+                setContact(details);
+                dispatch(resultsRevealed());
+              }}
             />
           )}
           {screen === "results" && goal && state.band && (
-            <ResultsScreen goal={goal} band={state.band} />
+            <ResultsScreen
+              goal={goal}
+              band={state.band}
+              contact={isAnonymous ? (contact ?? null) : null}
+              onForgetContact={() => setContact(null)}
+            />
           )}
         </div>
       </div>
@@ -338,10 +367,17 @@ function GoalScreen() {
   );
 }
 
-function QuizScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId }) {
+function QuizScreen({
+  goal,
+  band,
+  revealResult,
+}: {
+  goal: PlayPulseGoal;
+  band: AgeBandId;
+  revealResult: boolean;
+}) {
   const dispatch = useAppDispatch();
   const { childName, domainIndex, answers } = useAppSelector(selectPlayPulse);
-  const { session } = useSession();
   const domain = DOMAINS[domainIndex] ?? DOMAINS[0]!;
   const questions = goal.questions[band][domain];
   const selected = answers[domain];
@@ -407,10 +443,7 @@ function QuizScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId }) {
         })}
       </div>
 
-      <PrimaryButton
-        disabled={!ready}
-        onClick={() => dispatch(quizAdvanced({ revealResult: session.role !== "anonymous" }))}
-      >
+      <PrimaryButton disabled={!ready} onClick={() => dispatch(quizAdvanced({ revealResult }))}>
         {domainIndex === DOMAINS.length - 1 ? "See Support Score" : "Next domain"}
         <ArrowRight className="h-5 w-5" aria-hidden />
       </PrimaryButton>
@@ -418,17 +451,78 @@ function QuizScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId }) {
   );
 }
 
+/** The finished check, ready to save, and a fingerprint that tells one check from another. */
+function useFinishedCheck(goal: PlayPulseGoal, band: AgeBandId) {
+  const { childName, answers } = useAppSelector(selectPlayPulse);
+  return useMemo(() => {
+    const result = computePlayPulseResult(goal, band, answers);
+    const tiers = Object.values(result.domainTiers);
+    const check: PulseCheck = {
+      childName: childName.trim() || "Your child",
+      ageBand: band,
+      goalId: goal.id,
+      supportScore: result.supportScore,
+      tier: result.tier,
+      areasOnTrack: tiers.filter((tier) => tier === "ontrack").length,
+      areasAssessed: tiers.filter((tier) => tier !== "unknown").length,
+      domainTiers: result.domainTiers,
+      answers,
+    };
+    return {
+      result,
+      check,
+      fingerprint: JSON.stringify([childName.trim(), band, goal.id, answers]),
+    };
+  }, [answers, band, childName, goal]);
+}
+
+const EMPTY_CONTACT: PulseContact = { name: "", phone: "", email: "" };
+
 function ResultGate({
-  pending,
-  error,
-  onCredential,
-  onError,
+  goal,
+  band,
+  onSaved,
 }: {
-  pending: boolean;
-  error: string | null;
-  onCredential: (credential: SocialCredential) => void;
-  onError: (message: string) => void;
+  goal: PlayPulseGoal;
+  band: AgeBandId;
+  onSaved: (contact: PulseContact) => void;
 }) {
+  const { check, fingerprint } = useFinishedCheck(goal, band);
+  const [form, setForm] = useState<PulseContact>(EMPTY_CONTACT);
+  const [website, setWebsite] = useState("");
+  const [errors, setErrors] = useState<Partial<Record<keyof PulseContact, string>>>({});
+  const [failure, setFailure] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const set = (field: keyof PulseContact) => (value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const found = contactErrors(form);
+    setErrors(found);
+    setFailure(null);
+    if (Object.keys(found).length) return;
+    const details = {
+      name: form.name.trim().replace(/\s+/g, " "),
+      email: form.email.trim().toLowerCase(),
+      phone: form.phone.trim().replace(/\s+/g, " "),
+    };
+    setPending(true);
+    try {
+      await savePlayPulseResult(check, details, website);
+      markCheckSaved(fingerprint);
+      onSaved(details);
+    } catch (reason) {
+      setFailure(
+        reason instanceof Error ? reason.message : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
     <section>
       <Eyebrow>Your Play Pulse is ready</Eyebrow>
@@ -436,54 +530,166 @@ function ResultGate({
         One last step to reveal the score
       </h1>
       <p className="mt-4 text-base leading-relaxed font-medium text-blue">
-        Sign in to see the Support Score and the four-domain breakdown.
+        Tell us where to keep {check.childName === "Your child" ? "the" : `${check.childName}’s`}{" "}
+        result, then see the Support Score and the four-domain breakdown. No account needed.
       </p>
 
-      <div className="relative mt-8 min-h-[390px] overflow-hidden rounded-[28px] border border-navy/8 bg-white p-6 shadow-[0_24px_70px_-30px_rgba(0,42,100,.45)] sm:p-8">
-        <div className="pointer-events-none select-none blur-[7px]" aria-hidden>
-          <p className="eyebrow text-navy/40">Support Score</p>
-          <p className="mt-4 text-7xl font-bold text-coral">54%</p>
-          <p className="mt-2 text-2xl font-bold">Needs Practice</p>
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            {DOMAINS.map((domain) => (
-              <div key={domain} className="h-14 rounded-xl bg-navy/8" />
-            ))}
+      <form
+        noValidate
+        onSubmit={submit}
+        className="relative mt-8 overflow-hidden rounded-[28px] border border-navy/8 bg-white p-6 shadow-[0_24px_70px_-30px_rgba(0,42,100,.45)] sm:p-8"
+      >
+        <div className="flex items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-amber text-navy shadow-lg">
+            <LockKeyhole className="h-6 w-6" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold">Reveal the Support Score</h2>
+            <p className="mt-1 text-sm text-navy/60">All fields are required.</p>
           </div>
         </div>
-        <div className="absolute inset-0 grid place-items-center bg-white/72 p-6 backdrop-blur-[2px]">
-          <div className="w-full min-w-0 max-w-sm text-center">
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-amber text-navy shadow-lg">
-              <LockKeyhole className="h-7 w-7" aria-hidden />
-            </span>
-            <h2 className="mt-5 text-2xl font-bold">Reveal the Support Score</h2>
-            <p className="mt-2 text-sm leading-relaxed text-navy/60">
-              Your responses stay in this browser. Signing in only confirms who can view the result.
-            </p>
-            <div className="mt-6 flex min-h-11 justify-center">
-              {pending ? (
-                <span className="inline-flex items-center gap-2 font-bold text-navy/60">
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> Signing in…
-                </span>
-              ) : (
-                <div className="w-full">
-                  <SocialSignInButtons onCredential={onCredential} onError={onError} />
-                </div>
-              )}
-            </div>
-            {error && (
-              <p
-                role="alert"
-                className="mt-4 rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral"
-              >
-                {error}
-              </p>
-            )}
-          </div>
+
+        <div className="mt-6 grid gap-4">
+          <ContactField
+            id="pulse-contact-name"
+            label="Your name"
+            icon={UserRound}
+            value={form.name}
+            onChange={set("name")}
+            error={errors.name}
+            autoComplete="name"
+            placeholder="e.g. Sara Khan"
+            maxLength={120}
+          />
+          <ContactField
+            id="pulse-contact-phone"
+            label="Phone number"
+            icon={Phone}
+            type="tel"
+            inputMode="tel"
+            value={form.phone}
+            onChange={set("phone")}
+            error={errors.phone}
+            autoComplete="tel"
+            placeholder="e.g. +971 50 123 4567"
+            maxLength={32}
+          />
+          <ContactField
+            id="pulse-contact-email"
+            label="Email"
+            icon={Mail}
+            type="email"
+            inputMode="email"
+            value={form.email}
+            onChange={set("email")}
+            error={errors.email}
+            autoComplete="email"
+            placeholder="you@example.com"
+            maxLength={255}
+          />
+          {/* Hidden from people; bots that fill in every field give themselves away. */}
+          <input
+            type="text"
+            name="website"
+            value={website}
+            onChange={(event) => setWebsite(event.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden
+            className="absolute -left-[9999px] h-px w-px opacity-0"
+          />
         </div>
-      </div>
+
+        {failure && (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl bg-coral/10 p-3 text-sm font-semibold text-coral"
+          >
+            {failure}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="mt-6 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-coral px-6 text-base font-bold text-white shadow-[0_14px_28px_-12px_rgba(168,41,29,.7)] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-60 disabled:hover:translate-y-0"
+        >
+          {pending ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> Saving…
+            </>
+          ) : (
+            <>
+              See the Support Score <ArrowRight className="h-5 w-5" aria-hidden />
+            </>
+          )}
+        </button>
+        <p className="mt-4 text-center text-xs leading-relaxed text-navy/55">
+          We keep these details with your Play Pulse results and may contact you about Play Hub. See
+          our{" "}
+          <Link to="/policies/privacy-policy" className="font-bold text-blue underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+      </form>
 
       <GateBackButton />
     </section>
+  );
+}
+
+function ContactField({
+  id,
+  label,
+  icon: Icon,
+  value,
+  onChange,
+  error,
+  ...input
+}: {
+  id: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string | undefined;
+  type?: string;
+  inputMode?: "tel" | "email" | "text";
+  autoComplete: string;
+  placeholder: string;
+  maxLength: number;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="text-sm font-bold text-navy">
+        {label}{" "}
+        <span className="text-coral" aria-hidden>
+          *
+        </span>
+      </label>
+      <div className="relative mt-1.5">
+        <Icon className="pointer-events-none absolute top-1/2 left-4 h-4.5 w-4.5 -translate-y-1/2 text-navy/40" />
+        <input
+          id={id}
+          required
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
+          className={cn(
+            "min-h-13 w-full rounded-2xl border-2 bg-white pr-4 pl-11 text-base font-semibold transition focus:outline-none",
+            error ? "border-coral/60 focus:border-coral" : "border-navy/10 focus:border-amber",
+          )}
+          {...input}
+        />
+      </div>
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 text-xs font-semibold text-coral">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -500,14 +706,46 @@ function GateBackButton() {
   );
 }
 
-function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId }) {
+function ResultsScreen({
+  goal,
+  band,
+  contact,
+  onForgetContact,
+}: {
+  goal: PlayPulseGoal;
+  band: AgeBandId;
+  contact: PulseContact | null;
+  onForgetContact: () => void;
+}) {
   const dispatch = useAppDispatch();
-  const { childName, answers } = useAppSelector(selectPlayPulse);
-  const result = useMemo(() => computePlayPulseResult(goal, band, answers), [answers, band, goal]);
-  const name = childName.trim() || "Your child";
+  const { result, check, fingerprint } = useFinishedCheck(goal, band);
+  const name = check.childName;
+  const saving = useRef<string | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  // Save each finished check once: guests with the details they gave, signed-in people by account.
+  const save = () => {
+    if (lastSavedCheck() === fingerprint || saving.current === fingerprint) return;
+    saving.current = fingerprint;
+    markCheckSaved(fingerprint);
+    setSaveFailed(false);
+    savePlayPulseResult(check, contact).catch(() => {
+      markCheckSaved(null);
+      saving.current = null;
+      setSaveFailed(true);
+    });
+  };
+  useEffect(save, [fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const copy = resultCopy(result.tier);
-  const catalog = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
-  const goals = useQuery({ queryKey: ["goals"], queryFn: listGoals });
+  // Play Plans need an account, so a guest is offered a free one instead of the plan link.
+  const signedIn = useSession().session.role !== "anonymous";
+  const catalog = useQuery({
+    queryKey: ["plans"],
+    queryFn: () => listPlans(),
+    enabled: signedIn,
+  });
+  const goals = useQuery({ queryKey: ["goals"], queryFn: listGoals, enabled: signedIn });
   const normalise = (value: string) =>
     value
       .trim()
@@ -535,7 +773,33 @@ function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId })
         }
       />
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      {(contact || saveFailed) && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-navy/55">
+          {saveFailed ? (
+            <>
+              <span className="text-coral">This result couldn’t be saved.</span>
+              <button type="button" onClick={save} className="font-bold text-blue underline">
+                Try again
+              </button>
+            </>
+          ) : (
+            contact && (
+              <>
+                <span>Saved for {contact.name}.</span>
+                <button
+                  type="button"
+                  onClick={onForgetContact}
+                  className="font-bold text-blue underline"
+                >
+                  Not you?
+                </button>
+              </>
+            )
+          )}
+        </p>
+      )}
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {DOMAINS.map((domain) => {
           const domainTier = result.domainTiers[domain];
           const style = TIER_STYLE[domainTier];
@@ -543,7 +807,7 @@ function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId })
           return (
             <div
               key={domain}
-              className="flex min-h-20 items-center justify-between gap-3 rounded-2xl border border-navy/8 bg-white p-4 shadow-[var(--shadow-card)]"
+              className="flex min-h-20 flex-col items-start justify-center gap-3 rounded-2xl border border-navy/8 bg-white p-4 shadow-[var(--shadow-card)]"
             >
               <span className="flex min-w-0 items-center gap-3">
                 <span
@@ -585,7 +849,14 @@ function ResultsScreen({ goal, band }: { goal: PlayPulseGoal; band: AgeBandId })
           >
             Book a Play Consult <ArrowRight className="h-4 w-4" aria-hidden />
           </a>
-          {matchingPlan ? (
+          {!signedIn ? (
+            <Link
+              to="/signup"
+              className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-center text-sm font-bold text-white transition hover:bg-white/15"
+            >
+              <Play className="h-4 w-4" aria-hidden /> Start the Play Plan free
+            </Link>
+          ) : matchingPlan ? (
             <Link
               to="/plans/$planId"
               params={{ planId: matchingPlan.id }}

@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from app.config import Settings
 
 
-# Prices are charged in UAE dirhams. Amounts are in fils (1 AED = 100 fils); keep them in step
-# with PRICE_PLANS in the frontend (src/api/subscriptions.ts).
+# Prices are charged in UAE dirhams, in fils (1 AED = 100 fils).
+# Legacy catalogue for checkouts created before editable pricing; new purchases use app.pricing.
 CURRENCY = "aed"
 
 PLAN_CATALOG = {
@@ -17,9 +17,9 @@ PLAN_CATALOG = {
 }
 
 
-def plan_price(settings: Settings, plan: str | None) -> dict | None:
+def plan_price(settings: Settings, plan: str | None, catalog: dict | None = None) -> dict | None:
     """The plan as it is charged now: its catalogue price, or the test price while one is set."""
-    selected = PLAN_CATALOG.get(plan or "")
+    selected = (PLAN_CATALOG if catalog is None else catalog).get(plan or "")
     if selected is None or settings.billing_test_amount is None:
         return selected
     return {**selected, "amount": settings.billing_test_amount, "name": f"{selected['name']} (test price)"}
@@ -50,12 +50,15 @@ class CheckoutResult:
     url: str
 
 
-def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: str, plan: str) -> CheckoutResult:
+def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: str, plan: str, catalog: dict | None = None) -> CheckoutResult:
     if not settings.stripe_secret_key or not settings.stripe_webhook_secret:
         raise BillingError("Stripe payments are not configured")
-    selected = plan_price(settings, plan)
+    selected = plan_price(settings, plan, catalog)
     if selected is None:
         raise BillingError("Unknown plan")
+    metadata = {"child_id": child_id, "plan": plan, "user_id": user_id}
+    if catalog is not None:
+        metadata.update(plan_amount=str(selected["amount"]), plan_months=str(selected["months"]), plan_label=selected["name"])
     try:
         import stripe
 
@@ -74,8 +77,8 @@ def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: s
                     "product_data": {"name": selected["name"]},
                 },
             }],
-            metadata={"child_id": child_id, "plan": plan, "user_id": user_id},
-            payment_intent_data={"metadata": {"child_id": child_id, "plan": plan, "user_id": user_id}},
+            metadata=metadata,
+            payment_intent_data={"metadata": metadata},
         )
     except Exception as exc:
         raise BillingError("Stripe Checkout could not be started") from exc
@@ -108,3 +111,20 @@ def create_refund(settings: Settings, payment_intent_id: str, child_id: str) -> 
     except Exception as exc:
         raise BillingError("Stripe could not process the refund") from exc
     return refund.id
+
+
+def settled_plan(settings: Settings, session, field) -> dict | None:
+    """Use the price frozen by our server in a signed Stripe session, including after catalogue edits."""
+    metadata = field(session, "metadata", {}) or {}
+    snapshot = [field(metadata, key) for key in ("plan_amount", "plan_months", "plan_label")]
+    if not any(value is not None for value in snapshot):
+        return plan_price(settings, field(metadata, "plan"))  # Checkouts created before editable pricing.
+    try:
+        amount, months = int(snapshot[0]), int(snapshot[1])
+    except (TypeError, ValueError):
+        return None
+    if not 1 <= amount <= 100000000 or not 1 <= months <= 60 or field(metadata, "plan") != f"{months}m":
+        return None
+    if not isinstance(snapshot[2], str) or not snapshot[2].strip() or len(snapshot[2]) > 200:
+        return None
+    return {"amount": amount, "months": months, "name": snapshot[2]}

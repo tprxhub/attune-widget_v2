@@ -168,6 +168,22 @@ class InvitationCreate(APIModel):
         return UserCreate.normalise_email(value)
 
 
+class ModeratorInvitationUpdate(APIModel):
+    email: str = Field(min_length=3, max_length=255)
+    display_name: str = Field(min_length=1, max_length=120)
+    child_id: str | None = None
+
+    @field_validator("display_name", mode="before")
+    @classmethod
+    def clean_display_name(cls, value: str) -> str:
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, value: str) -> str:
+        return UserCreate.normalise_email(value)
+
+
 class InvitationRead(APIModel):
     id: str
     email: str
@@ -216,14 +232,23 @@ class OrganisationCreate(APIModel):
     name: str = Field(min_length=2, max_length=160)
     kind: str = Field(default="school", min_length=2, max_length=40)
     seat_limit: int = Field(default=0, ge=0)
-    billing_cycle: str | None = Field(default=None, max_length=32)
+    license_type: Literal["children", "moderators"] = "children"
+    billing_cycle: Literal["monthly", "annual"] = "annual"
+    # Price of one licence per billing cycle, in fils (AED 1 = 100 fils).
+    license_price: int = Field(default=0, ge=0, le=10_000_000)
+    billing_started_on: date | None = None
+    renews_on: date | None = None
 
 
 class OrganisationUpdate(APIModel):
     name: str | None = Field(default=None, min_length=2, max_length=160)
     kind: str | None = Field(default=None, min_length=2, max_length=40)
     seat_limit: int | None = Field(default=None, ge=0)
-    billing_cycle: str | None = Field(default=None, max_length=32)
+    license_type: Literal["children", "moderators"] | None = None
+    billing_cycle: Literal["monthly", "annual"] | None = None
+    license_price: int | None = Field(default=None, ge=0, le=10_000_000)
+    billing_started_on: date | None = None
+    renews_on: date | None = None
     is_active: bool | None = None
 
 
@@ -232,7 +257,16 @@ class OrganisationRead(APIModel):
     name: str
     kind: str
     seat_limit: int
+    license_type: str = "children"
+    # Licences in use, counted by license_type.
+    licenses_used: int = 0
     billing_cycle: str | None
+    license_price: int = 0
+    billing_started_on: date | None = None
+    renews_on: date | None = None
+    amount_per_cycle: int = 0
+    annual_value: int = 0
+    renewal_status: str = "none"
     is_active: bool
     created_at: datetime
 
@@ -466,7 +500,7 @@ class SubscriptionRead(APIModel):
 
 class CheckoutCreate(APIModel):
     child_id: str
-    plan: Literal["3m", "6m", "12m"]
+    plan: str = Field(pattern=r"^[1-9][0-9]?m$", max_length=3)
 
 
 class CheckoutCreated(APIModel):
@@ -705,6 +739,7 @@ class HomeHero(HomeContentModel):
     secondary_cta: Label
     footnote: Paragraph
     image_url: ImageUrl = ""
+    mobile_image_url: ImageUrl = ""
 
 
 class HomeJourneyStep(HomeContentModel):
@@ -780,8 +815,25 @@ class HomeFooter(HomeContentModel):
     copyright: Label
 
 
+class HomeAuthImages(HomeContentModel):
+    login_image_url: ImageUrl = ""
+    signup_image_url: ImageUrl = ""
+
+
+class HomePolicy(HomeContentModel):
+    title: Heading
+    body: _copy(100000)
+
+
+class HomePolicies(HomeContentModel):
+    privacy: HomePolicy | None = None
+    terms: HomePolicy | None = None
+
+
 class HomepageContent(HomeContentModel):
     hero: HomeHero
+    auth: HomeAuthImages = Field(default_factory=HomeAuthImages)
+    policies: HomePolicies = Field(default_factory=HomePolicies)
     journey: HomeJourney
     skills: HomeSkills
     week: HomeWeek

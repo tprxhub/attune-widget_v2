@@ -214,7 +214,7 @@ function ChildDashboard() {
             <h2 className="mt-2 text-2xl font-extrabold text-navy">Choose the next Play Dose</h2>
             <p className="mt-1 text-sm text-navy/60">
               {goal
-                ? `${goal.name} · Pick the level that feels right today.`
+                ? `${session.role === "parent" ? (plan?.title ?? goal.name) : goal.name} · Pick the dose that feels right today.`
                 : "Pick a plan and press play."}
             </p>
           </div>

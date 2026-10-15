@@ -1,12 +1,13 @@
 import type { PlanDuration } from "@/lib/types";
 
 /**
- * Play Hub charges in UAE dirhams. These must match PLAN_CATALOG in the backend
- * (app/billing.py), which holds the same prices in fils.
+ * Play Hub charges in UAE dirhams. Legacy price labels remain for older callers;
+ * public pricing and purchases use the saved catalogue from /billing/plans.
  */
 export const CURRENCY = "AED";
 
 export const PLAN_PRICES: Record<PlanDuration, { amount: number; months: number }> = {
+  "1m": { amount: 63, months: 1 },
   "3m": { amount: 189, months: 3 },
   "6m": { amount: 339, months: 6 },
   "12m": { amount: 579, months: 12 },
@@ -27,5 +28,5 @@ export function planPriceLabel(duration: string | null | undefined): string | nu
 /** "AED 63 / month" */
 export function perMonthLabel(duration: PlanDuration): string {
   const plan = PLAN_PRICES[duration];
-  return `${fmtMoney(Math.round((plan.amount / plan.months) * 100) / 100)} / month`;
+  return plan ? `${fmtMoney(Math.round((plan.amount / plan.months) * 100) / 100)} / month` : "";
 }

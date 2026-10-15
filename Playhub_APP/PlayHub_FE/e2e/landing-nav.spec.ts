@@ -34,9 +34,9 @@ test("header links scroll to their section on the home page", async ({ page }) =
   await page.goto("/#pricing");
   const pricing = page.locator("#pricing");
   await expect(pricing.getByRole("heading", { name: "Simple pricing, per child" })).toBeVisible();
-  for (const price of ["AED 0", "AED 189", "AED 339", "AED 579"])
+  for (const price of ["AED 0", "AED 63", "AED 189", "AED 339"])
     await expect(pricing).toContainText(price);
-  await expect(pricing.getByRole("link", { name: /Choose 12-month/ })).toBeVisible();
+  await expect(pricing.getByRole("link", { name: /Choose 6-month/ })).toBeVisible();
 
   // Play Pulse is a separate page, not a section.
   await nav.getByRole("link", { name: "Play Pulse" }).click();

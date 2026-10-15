@@ -1,4 +1,4 @@
-import type { Org, PermissionKey, StaffMember } from "@/lib/types";
+import type { LicenseType, Org, PermissionKey, StaffMember } from "@/lib/types";
 import {
   apiRequest,
   getApiChildren,
@@ -51,19 +51,17 @@ function pendingStaff(invite: ApiInvitation): StaffMember | null {
 }
 
 export async function listOrgs(): Promise<Org[]> {
-  const [orgs, children] = await Promise.all([
-    apiRequest<ApiOrganisation[]>("/organisations"),
-    getApiChildren(),
-  ]);
-  return orgs.map((org) =>
-    mapOrganisation(org, children.filter((child) => child.organisation_id === org.id).length),
-  );
+  const orgs = await apiRequest<ApiOrganisation[]>("/organisations");
+  return orgs.map(mapOrganisation);
 }
 
 export async function createOrg(input: {
   name: string;
   kind: "School" | "Clinic";
   licenses: number;
+  licenseType: LicenseType;
+  billingCycle: "Monthly" | "Annual";
+  /** AED per licence per cycle. */
   licensePrice: number;
 }) {
   const org = await apiRequest<ApiOrganisation>("/organisations", {
@@ -72,18 +70,43 @@ export async function createOrg(input: {
       name: input.name,
       kind: input.kind.toLowerCase(),
       seat_limit: input.licenses,
-      billing_cycle: "annual",
+      license_type: input.licenseType,
+      billing_cycle: input.billingCycle.toLowerCase(),
+      license_price: Math.round(input.licensePrice * 100),
     }),
   });
   return mapOrganisation(org);
 }
 
-export async function updateOrgLicenses(orgId: string, licenses: number) {
+export async function updateOrgLicenses(orgId: string, licenses: number, licenseType: LicenseType) {
   const org = await apiRequest<ApiOrganisation>(`/organisations/${orgId}`, {
     method: "PATCH",
-    body: JSON.stringify({ seat_limit: licenses }),
+    body: JSON.stringify({ seat_limit: licenses, license_type: licenseType }),
   });
   return mapOrganisation(org);
+}
+
+/** Change how an organisation is billed: cycle, AED per licence, and the next renewal date. */
+export async function updateOrgBilling(
+  orgId: string,
+  input: { billingCycle: "Monthly" | "Annual"; licensePrice: number; renewsOn: string | null },
+) {
+  const org = await apiRequest<ApiOrganisation>(`/organisations/${orgId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      billing_cycle: input.billingCycle.toLowerCase(),
+      license_price: Math.round(input.licensePrice * 100),
+      ...(input.renewsOn ? { renews_on: input.renewsOn } : {}),
+    }),
+  });
+  return mapOrganisation(org);
+}
+
+/** Record a payment for another cycle: the renewal date moves on by one cycle. */
+export async function recordOrgRenewal(orgId: string) {
+  return mapOrganisation(
+    await apiRequest<ApiOrganisation>(`/organisations/${orgId}/renewal`, { method: "POST" }),
+  );
 }
 
 export async function toggleOrgActive(orgId: string) {
@@ -93,7 +116,7 @@ export async function toggleOrgActive(orgId: string) {
     method: "PATCH",
     body: JSON.stringify({ is_active: !current.active }),
   });
-  return mapOrganisation(org, current.licensesUsed);
+  return mapOrganisation(org);
 }
 
 async function staffData(includePending = true) {
@@ -149,6 +172,33 @@ export async function regenerateStaffActivation(staffId: string): Promise<StaffI
     method: "POST",
   });
   return invitationResult(invitation);
+}
+
+export async function updateModeratorInvitation(
+  staffId: string,
+  input: { name: string; email: string; childId?: string },
+): Promise<StaffInvitationResult> {
+  if (!staffId.startsWith("invitation:")) {
+    throw new Error("Only a pending Moderator invitation can be edited.");
+  }
+  const invitationId = staffId.slice("invitation:".length);
+  const invitation = await apiRequest<ApiInvitation>(`/invitations/${invitationId}/moderator`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      email: input.email,
+      display_name: input.name,
+      child_id: input.childId ?? null,
+    }),
+  });
+  return invitationResult(invitation);
+}
+
+export async function deleteStaffInvitation(staffId: string): Promise<void> {
+  if (!staffId.startsWith("invitation:")) {
+    throw new Error("Only a pending invitation can be deleted.");
+  }
+  const invitationId = staffId.slice("invitation:".length);
+  await apiRequest<void>(`/invitations/${invitationId}`, { method: "DELETE" });
 }
 
 export async function listEducators(): Promise<StaffMember[]> {

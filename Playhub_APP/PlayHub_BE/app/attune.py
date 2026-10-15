@@ -470,7 +470,7 @@ def attune_status(user: User = Depends(get_current_user), db: Session = Depends(
     used = _used_today(db, user)
     free = _on_free_plan(db, user)
     settings = get_settings()
-    limit = settings.attune_free_daily_limit if free else settings.attune_daily_limit
+    limit = 0 if free else min(30, max(0, settings.attune_daily_limit))
     return AttuneStatus(
         enabled=attune_enabled(),
         daily_limit=limit,
@@ -600,15 +600,17 @@ def _prepare(payload: AttuneAsk, user: User, db: Session) -> _Question:
     used = _used_today(db, user)
     free = _on_free_plan(db, user)
     settings = get_settings()
-    limit = settings.attune_free_daily_limit if free else settings.attune_daily_limit
+    if free:
+        raise HTTPException(
+            status_code=403,
+            detail="Attune is available on a paid plan. Subscribe to ask up to 30 questions a day.",
+        )
+    limit = min(30, max(0, settings.attune_daily_limit))
     if used >= limit:
-        if free:
-            questions = "1 question" if limit == 1 else f"{limit} questions"
-            detail = (f"The free plan includes {questions} a day with Attune. "
-                      "Subscribe to keep asking, or come back tomorrow.")
-        else:
-            detail = f"You’ve asked Attune {limit} questions today. Please come back tomorrow."
-        raise HTTPException(status_code=429, detail=detail)
+        raise HTTPException(
+            status_code=429,
+            detail=f"You’ve asked Attune {limit} questions today. Please come back tomorrow.",
+        )
     history = [{"role": m.role, "content": m.content} for m in (conversation.messages if conversation else [])]
     return _Question(
         message=message,

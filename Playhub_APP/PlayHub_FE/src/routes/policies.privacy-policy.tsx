@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PolicyLayout } from "@/features/policies/PolicyLayout";
-import { PRIVACY_INTRO, PRIVACY_SECTIONS } from "@/features/policies/privacy";
+import { SavedPolicyPage } from "@/features/policies/SavedPolicyPage";
 
 export const Route = createFileRoute("/policies/privacy-policy")({
   head: () => ({
@@ -13,7 +12,5 @@ export const Route = createFileRoute("/policies/privacy-policy")({
       },
     ],
   }),
-  component: () => (
-    <PolicyLayout title="Privacy policy" intro={PRIVACY_INTRO} sections={PRIVACY_SECTIONS} />
-  ),
+  component: () => <SavedPolicyPage policy="privacy" />,
 });

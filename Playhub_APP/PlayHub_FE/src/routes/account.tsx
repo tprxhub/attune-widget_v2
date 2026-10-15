@@ -1,26 +1,29 @@
+import { IMAGE_DIMENSIONS } from "@/components/ImageDimensionsGuide";
 import { ConfirmButton } from "@/components/ConfirmButton";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Building2,
+  BadgeCheck,
   CalendarDays,
   Camera,
   Check,
   CheckCircle2,
   Copy,
+  CreditCard,
   Eye,
   EyeOff,
   KeyRound,
   Loader2,
-  Map,
   Mail,
   Pencil,
+  HelpCircle,
   ImageUp,
   RotateCcw,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
   Trash2,
   UserRound,
   Users,
@@ -46,7 +49,8 @@ import { accountLabel, roleLabel } from "@/lib/roles";
 import type { AvatarSticker } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ADMIN_NAVIGATION_OPTIONS, useNavigationPreferences } from "@/lib/navigation-preferences";
-import { startNavigationTour } from "@/features/guide/navigation-tour-events";
+import { GuideSheet } from "@/features/guide/GuideDialog";
+import { useActiveChild } from "@/lib/active-child";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -115,6 +119,7 @@ function strengthOf(value: string) {
 
 function AccountPage() {
   const { session, refreshSession } = useSession();
+  const { children, activeChild, isLoading: childrenLoading } = useActiveChild();
   const navigation = useNavigationPreferences(session.personaId);
   const account = useQuery({
     queryKey: ["account", session.personaId],
@@ -128,6 +133,7 @@ function AccountPage() {
   const [copied, setCopied] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pwOpen, setPwOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [selectedSticker, setSelectedSticker] = useState<AvatarSticker | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -277,12 +283,42 @@ function AccountPage() {
                 sticker={session.avatarSticker}
                 className="h-16 w-16 text-2xl ring-1 ring-white/15 sm:h-20 sm:w-20"
               />
-              <span className="absolute -right-1.5 -bottom-1.5 grid h-8 w-8 place-items-center rounded-full border-2 border-navy bg-amber text-navy shadow-sm transition-transform group-hover:scale-105">
-                <Camera className="h-4 w-4" aria-hidden />
+              <span className="absolute -right-1 -bottom-1 grid h-6 w-6 place-items-center rounded-full border-2 border-navy bg-amber text-navy shadow-sm transition-transform group-hover:scale-105">
+                <Camera className="h-3 w-3" aria-hidden />
               </span>
             </button>
             <div className="min-w-0 flex-1">
-              <h2 className="truncate text-2xl font-bold sm:text-3xl">{session.name}</h2>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h2 className="truncate text-2xl font-bold sm:text-3xl">{session.name}</h2>
+                {session.role === "parent" &&
+                  session.accountType === "b2c" &&
+                  activeChild &&
+                  (activeChild.subscription?.status === "active" ? (
+                    <Link
+                      to="/subscription"
+                      aria-label={`Manage ${activeChild.subscription.duration ? `${Number.parseInt(activeChild.subscription.duration, 10)}-month` : "active"} subscription`}
+                      className="group relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue"
+                    >
+                      <BadgeCheck className="h-6 w-6 fill-[#1d9bf0] text-white" aria-hidden />
+                      <span
+                        role="tooltip"
+                        className="pointer-events-none absolute top-full left-1/2 z-50 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-navy px-3 py-2 text-xs font-semibold text-white shadow-lg group-hover:block group-focus-visible:block"
+                      >
+                        {activeChild.subscription.duration
+                          ? `${Number.parseInt(activeChild.subscription.duration, 10)}-month subscription`
+                          : "Active subscription"}
+                      </span>
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/subscription"
+                      className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-cream px-3 text-xs font-bold text-navy transition-colors hover:bg-amber"
+                    >
+                      <CreditCard className="h-3.5 w-3.5" aria-hidden />
+                      Subscription
+                    </Link>
+                  ))}
+              </div>
               <p className="mt-1 truncate text-sm text-cream/70">
                 {session.guardianName
                   ? `Child account · run by ${session.guardianName}`
@@ -297,19 +333,6 @@ function AccountPage() {
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-[11px] font-bold">
                     <Users className="h-3.5 w-3.5" aria-hidden />
                     Managed by {session.guardianName}
-                  </span>
-                )}
-                {session.accountType === "b2c" && (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold",
-                      session.tier === "subscribed"
-                        ? "bg-blue text-white"
-                        : "bg-white/12 text-cream",
-                    )}
-                  >
-                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                    {session.tier === "subscribed" ? "Subscribed" : "Free plan"}
                   </span>
                 )}
                 {session.accountType === "b2b" && data?.orgName && (
@@ -327,7 +350,7 @@ function AccountPage() {
           {/* Details */}
           <section className="ph-card min-w-0 p-5 sm:p-6">
             <h2 className="text-lg font-bold">Your details</h2>
-            {account.isLoading || !data ? (
+            {account.isLoading || childrenLoading || !data ? (
               <div className="mt-4">
                 <CardSkeleton lines={5} />
               </div>
@@ -430,12 +453,12 @@ function AccountPage() {
                 />
                 <details className="py-3">
                   <summary className="cursor-pointer text-sm font-bold">
-                    Children ({data.childCount})
+                    Children ({children.length})
                   </summary>
-                  {data.childCount ? (
+                  {children.length ? (
                     <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto pl-4 text-sm text-navy/75">
-                      {data.childNames.map((name, index) => (
-                        <li key={`${name}-${index}`}>{name}</li>
+                      {children.map((child) => (
+                        <li key={child.id}>{child.name}</li>
                       ))}
                     </ul>
                   ) : (
@@ -459,20 +482,20 @@ function AccountPage() {
             <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
               <button
                 type="button"
-                onClick={startNavigationTour}
+                onClick={() => setGuideOpen(true)}
                 className="group flex min-w-0 flex-wrap items-center gap-3 rounded-2xl bg-navy p-3.5 text-left text-white transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
               >
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber text-navy">
-                  <Map className="h-5 w-5" aria-hidden />
+                  <HelpCircle className="h-5 w-5" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold">Navigation guide</span>
+                  <span className="block truncate text-sm font-bold">How Play Hub works</span>
                   <span className="block text-xs text-white/65">
-                    Take a quick tour of every tool available to you
+                    Levels, progress statuses and how a Play Plan runs
                   </span>
                 </span>
                 <span className="shrink-0 rounded-full bg-coral px-3 py-1.5 text-[11px] font-bold text-white transition group-hover:bg-coral/90">
-                  Start tour
+                  Open guide
                 </span>
               </button>
 
@@ -609,7 +632,8 @@ function AccountPage() {
                 <div className="mt-3 min-w-0 sm:mt-0 sm:ml-4">
                   <p className="font-bold">Preview</p>
                   <p className="mt-1 text-xs leading-relaxed text-navy/60">
-                    Square images work best. JPG, PNG and WebP files up to 5 MB are supported.
+                    Recommended: {IMAGE_DIMENSIONS.avatar}. JPG, PNG and WebP files up to 5 MB are
+                    supported.
                   </p>
                   <label className="mt-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full bg-navy px-4 text-xs font-bold text-white transition hover:bg-navy/90">
                     <ImageUp className="h-4 w-4" aria-hidden />
@@ -704,6 +728,7 @@ function AccountPage() {
       )}
 
       {/* Password modal */}
+      {guideOpen && <GuideSheet onClose={() => setGuideOpen(false)} />}
       {pwOpen && (
         <ModalPortal>
           <div

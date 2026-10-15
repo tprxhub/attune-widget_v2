@@ -142,6 +142,7 @@ export interface Child {
   freePlanGoalId?: string | undefined;
   colorToken: "coral" | "blue" | "amber";
   note?: string | undefined;
+  subscription?: Subscription | undefined;
 }
 
 export interface Attempt {
@@ -173,7 +174,7 @@ export interface Attempt {
   editedBy?: string | undefined;
 }
 
-export type PlanDuration = "3m" | "6m" | "12m";
+export type PlanDuration = `${number}m`;
 
 export interface Subscription {
   childId: string;
@@ -187,18 +188,30 @@ export interface Subscription {
   renewalOpen: boolean;
 }
 
+export type LicenseType = "children" | "moderators";
+
 export interface Org {
   id: string;
   name: string;
   kind: "School" | "Clinic";
   licenses: number;
   licensesUsed: number;
+  /** What uses a licence: each active child, or each Moderator (active or invited). */
+  licenseType: LicenseType;
   username: string;
   password: string;
   active: boolean;
   createdAt: string;
   billingCycle: "Monthly" | "Annual";
+  /** AED per licence per billing cycle; 0 when no price is set. */
   licensePrice: number;
+  billingStartedOn: string | null;
+  renewsOn: string | null;
+  /** AED for one billing cycle: licences × price. */
+  amountPerCycle: number;
+  /** AED over a year. */
+  annualValue: number;
+  renewalStatus: "none" | "overdue" | "due_soon" | "active";
 }
 
 export interface StaffMember {

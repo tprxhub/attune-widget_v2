@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import enum
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
@@ -135,12 +135,40 @@ class Organisation(TimestampMixin, Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
     name: Mapped[str] = mapped_column(String(160), unique=True, index=True, nullable=False)
     kind: Mapped[str] = mapped_column(String(40), default="school", nullable=False)
+    # The licence count; what it counts depends on license_type (0 means no limit).
     seat_limit: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # "children": each active child uses a licence. "moderators": each active Moderator (and each
+    # Moderator invitation still waiting to be accepted) uses one. One type at a time.
+    license_type: Mapped[str] = mapped_column(String(16), default="children", server_default="children", nullable=False)
+    # "monthly" or "annual": how often the organisation is invoiced for its licences.
     billing_cycle: Mapped[Optional[str]] = mapped_column(String(32))
+    # Price of one licence for one billing cycle, in fils (1 AED = 100 fils). 0 = not set.
+    license_price: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    billing_started_on: Mapped[Optional[date]] = mapped_column(Date)
+    # When the current paid period ends; recording a renewal moves it on by one cycle.
+    renews_on: Mapped[Optional[date]] = mapped_column(Date)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     users: Mapped[list[User]] = relationship(back_populates="organisation")
     children: Mapped[list[Child]] = relationship(back_populates="organisation")
+
+    @property
+    def amount_per_cycle(self) -> int:
+        """What one billing cycle costs, in fils: licences × price per licence."""
+        return (self.seat_limit or 0) * (self.license_price or 0)
+
+    @property
+    def annual_value(self) -> int:
+        """The licence value over a year, in fils."""
+        return self.amount_per_cycle * (12 if self.billing_cycle == "monthly" else 1)
+
+    @property
+    def renewal_status(self) -> str:
+        """"none" (no date set), "overdue", "due_soon" (within 14 days) or "active"."""
+        if not self.renews_on:
+            return "none"
+        days = (self.renews_on - date.today()).days
+        return "overdue" if days < 0 else "due_soon" if days <= 14 else "active"
 
 
 class User(TimestampMixin, Base):
@@ -508,3 +536,48 @@ class AttuneMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     conversation: Mapped[AttuneConversation] = relationship(back_populates="messages")
+
+
+class PlayPulseContact(TimestampMixin, Base):
+    """Someone who took Play Pulse without a Play Hub account, from the form shown before the result.
+    One row per email address: taking another check updates the name and phone they gave."""
+
+    __tablename__ = "play_pulse_contacts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    phone: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    results: Mapped[list[PlayPulseResult]] = relationship(back_populates="contact")
+
+
+class PlayPulseResult(Base):
+    """One finished Play Pulse check: who took it (a contact from the form, or a signed-in account),
+    the child, the goal, and the score shown to them."""
+
+    __tablename__ = "play_pulse_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    contact_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("play_pulse_contacts.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    child_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    age_band: Mapped[str] = mapped_column(String(16), nullable=False)
+    goal_id: Mapped[str] = mapped_column(String(40), index=True, nullable=False)
+    goal_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    support_score: Mapped[int] = mapped_column(Integer, nullable=False)
+    tier: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
+    areas_on_track: Mapped[int] = mapped_column(Integer, nullable=False)
+    areas_assessed: Mapped[int] = mapped_column(Integer, nullable=False)
+    domain_tiers: Mapped[dict] = mapped_column(JSON, nullable=False)
+    answers: Mapped[dict] = mapped_column(JSON, nullable=False)
+    # Set here, to the microsecond, so checks taken in the same second still list newest first.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), server_default=func.now(), index=True,
+        nullable=False,
+    )
+
+    contact: Mapped[Optional[PlayPulseContact]] = relationship(back_populates="results")
+    user: Mapped[Optional[User]] = relationship()

@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PolicyLayout } from "@/features/policies/PolicyLayout";
-import { TERMS_INTRO, TERMS_SECTIONS } from "@/features/policies/terms";
+import { SavedPolicyPage } from "@/features/policies/SavedPolicyPage";
 
 export const Route = createFileRoute("/policies/terms-of-service")({
   head: () => ({
@@ -12,7 +11,5 @@ export const Route = createFileRoute("/policies/terms-of-service")({
       },
     ],
   }),
-  component: () => (
-    <PolicyLayout title="Terms of service" intro={TERMS_INTRO} sections={TERMS_SECTIONS} />
-  ),
+  component: () => <SavedPolicyPage policy="terms" />,
 });

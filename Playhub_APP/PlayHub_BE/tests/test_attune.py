@@ -9,6 +9,8 @@ from app.models import Subscription, SubscriptionStatus
 from conftest import TestingSession
 from test_free_play_plan import make_plan_with_steps, register_family
 
+REAL_ON_FREE_PLAN = attune._on_free_plan
+
 
 @pytest.fixture
 def openai(monkeypatch):
@@ -17,7 +19,8 @@ def openai(monkeypatch):
     monkeypatch.setattr(settings, "attune_provider", "openai")
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
     monkeypatch.setattr(settings, "attune_daily_limit", 30)
-    monkeypatch.setattr(settings, "attune_free_daily_limit", 30)
+    # Most assistant behavior tests use a paid account so they can focus on chat behavior.
+    monkeypatch.setattr(attune, "_on_free_plan", lambda _db, _user: False)
     calls = []
 
     def fake(instructions, conversation):
@@ -84,7 +87,7 @@ def test_a_conversation_keeps_its_history_and_child_context(client, openai):
     listed = client.get(f"/api/v1/attune/conversations?child_id={child['id']}", headers=family).json()
     assert [c["id"] for c in listed] == [conversation_id]
     status = client.get("/api/v1/attune/status", headers=family).json()
-    assert status == {"enabled": True, "daily_limit": 30, "used_today": 2, "remaining_today": 28, "free_plan": True}
+    assert status == {"enabled": True, "daily_limit": 30, "used_today": 2, "remaining_today": 28, "free_plan": False}
 
 
 def test_sessions_and_the_current_play_dose_reach_the_context(client, platform_admin, openai):
@@ -113,19 +116,18 @@ def test_sessions_and_the_current_play_dose_reach_the_context(client, platform_a
     assert "1. Pass the peg" in context
 
 
-def test_free_families_cannot_read_locked_steps_through_attune(client, platform_admin, openai):
-    plan_id = make_plan_with_steps(client, platform_admin, "Locked Grip")
-    activity_id = client.get("/api/v1/play-plans?include_inactive=true", headers=platform_admin).json()
-    activity_id = next(p for p in activity_id if p["id"] == plan_id)["play_doses"][0]["activities"][0]["id"]
+def test_free_families_cannot_use_attune_and_subscription_unlocks_it(client, monkeypatch, openai):
     family = register_family(client, "locked@example.com")
-    assert ask(client, family, message="How do I do it?", activity_id=activity_id).status_code == 200
-    assert "Do the thing" not in openai[0]["instructions"]
-    assert "locked on the free plan" in openai[0]["instructions"]
+    monkeypatch.setattr(attune, "_on_free_plan", REAL_ON_FREE_PLAN)
+    status = client.get("/api/v1/attune/status", headers=family).json()
+    assert status["free_plan"] is True and status["daily_limit"] == status["remaining_today"] == 0
+    response = ask(client, family, message="How do I do it?")
+    assert response.status_code == 403
+    assert "paid plan" in response.json()["detail"]
 
-    child = client.get("/api/v1/children", headers=family).json()[0]
-    client.put(f"/api/v1/children/{child['id']}/free-play-plan", headers=family, json={"play_plan_id": plan_id})
-    assert ask(client, family, message="And now?", activity_id=activity_id).status_code == 200
-    assert "1. Do the thing" in openai[1]["instructions"]
+    subscribe(client, family)
+    assert client.get("/api/v1/attune/status", headers=family).json()["daily_limit"] == 30
+    assert ask(client, family, message="How do I do it?").status_code == 200
 
 
 def test_people_only_see_their_own_conversations_and_children(client, platform_admin, openai):
@@ -218,6 +220,7 @@ def test_deepinfra_uses_chat_completions_and_hides_thinking(client, monkeypatch)
 
     monkeypatch.setattr(attune.httpx, "post", fake_post)
     family = register_family(client, "deepinfra@example.com")
+    subscribe(client, family)
     assert client.get("/api/v1/attune/status", headers=family).json()["enabled"] is True
     answer = ask(client, family, message="Grip ideas?")
     assert answer.status_code == 200
@@ -275,9 +278,10 @@ def test_a_stream_that_fails_saves_nothing_and_refusals_are_plain_errors(client,
     assert events[-1] == {"type": "error", "detail": attune.FAILED}
     assert client.get("/api/v1/attune/conversations", headers=family).json() == []
 
-    monkeypatch.setattr(get_settings(), "attune_free_daily_limit", 0)
+    monkeypatch.setattr(attune, "_on_free_plan", REAL_ON_FREE_PLAN)
+    assert client.get("/api/v1/attune/status", headers=family).json()["daily_limit"] == 0
     refused = client.post("/api/v1/attune/ask/stream", headers=family, json={"message": "Hi"})
-    assert refused.status_code == 429
+    assert refused.status_code == 403
 
 
 def test_partial_replies_hide_thinking_and_citations_until_complete():
@@ -365,19 +369,15 @@ def test_insights_count_usage_without_revealing_questions(client, platform_admin
     assert "Secret worry" not in str(data)
 
 
-def test_free_families_get_one_question_a_day_and_subscribers_the_full_limit(client, monkeypatch, openai):
-    monkeypatch.setattr(get_settings(), "attune_free_daily_limit", 1)
+def test_free_families_are_locked_and_subscribers_get_up_to_30_questions(client, monkeypatch, openai):
+    monkeypatch.setattr(attune, "_on_free_plan", REAL_ON_FREE_PLAN)
     free = register_family(client, "free-attune@example.com")
     status = client.get("/api/v1/attune/status", headers=free).json()
-    assert status["free_plan"] is True and status["daily_limit"] == 1 and status["remaining_today"] == 1
-
-    first = ask(client, free, message="One")
-    assert first.status_code == 200 and first.json()["remaining_today"] == 0
-    second = ask(client, free, message="Two")
-    assert second.status_code == 429
-    assert "free plan includes 1 question a day" in second.json()["detail"]
+    assert status["free_plan"] is True and status["daily_limit"] == 0 and status["remaining_today"] == 0
+    assert ask(client, free, message="One").status_code == 403
 
     subscribe(client, free)
+    monkeypatch.setattr(get_settings(), "attune_daily_limit", 100)
     status = client.get("/api/v1/attune/status", headers=free).json()
-    assert status["free_plan"] is False and status["daily_limit"] == 30 and status["remaining_today"] == 29
+    assert status["free_plan"] is False and status["daily_limit"] == 30 and status["remaining_today"] == 30
     assert ask(client, free, message="Two").status_code == 200

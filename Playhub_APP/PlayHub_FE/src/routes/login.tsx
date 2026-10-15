@@ -1,3 +1,4 @@
+import { useHomepageContent } from "@/features/homepage/useHomepageContent";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Building2, Eye, EyeOff, HeartHandshake, Loader2 } from "lucide-react";
@@ -10,7 +11,7 @@ import {
   socialSignInEnabled,
   type SocialCredential,
 } from "@/components/SocialSignInButtons";
-import { ApiError } from "@/api/client";
+import { ApiError, apiAssetUrl } from "@/api/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
@@ -39,6 +40,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  const { auth } = useHomepageContent();
   const [tab, setTab] = useState<"b2c" | "b2b">("b2c");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -131,7 +133,7 @@ function LoginPage() {
   };
 
   return (
-    <AuthLayout artImage={loginArt}>
+    <AuthLayout artImage={apiAssetUrl(auth.login_image_url) || loginArt}>
       <h1 className="text-4xl leading-[1.05] font-bold tracking-tight text-navy sm:text-5xl">
         Welcome Back
       </h1>

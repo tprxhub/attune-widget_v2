@@ -1,8 +1,11 @@
+import { HomepageEditorNavigation } from "@/components/HomepageEditorNavigation";
+import { useSession } from "@/auth/session";
+import { ImageDimensionsGuide, IMAGE_DIMENSIONS } from "@/components/ImageDimensionsGuide";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ExternalLink, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
+import { ExternalLink, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import {
   DEFAULT_HOMEPAGE_CONTENT,
   HOMEPAGE_LIMITS,
@@ -17,6 +20,7 @@ import {
 } from "@/api/homepage";
 import { apiAssetUrl } from "@/api/client";
 import { Protected } from "@/auth/guards";
+import { SubscriptionPricingEditor } from "@/components/SubscriptionPricingEditor";
 import { ApplicationLogoEditor } from "@/components/ApplicationLogoEditor";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
@@ -70,8 +74,18 @@ const field = (
   options: Partial<Omit<FieldSpec, "path" | "label" | "limit">> = {},
 ): FieldSpec => ({ path, label, limit, ...options });
 
+function homepageImageDimensions(path: Path): string {
+  if (path[0] === "auth") return IMAGE_DIMENSIONS.auth;
+  if (path[0] === "journey") return IMAGE_DIMENSIONS.journey;
+  if (path[0] === "week") return IMAGE_DIMENSIONS.week;
+  return path[1] === "mobile_image_url" ? IMAGE_DIMENSIONS.phone : IMAGE_DIMENSIONS.hero;
+}
+
 const image = (path: Path, label: string, hint: string): FieldSpec =>
-  field(path, label, 1000, { image: true, hint });
+  field(path, label, 1000, {
+    image: true,
+    hint: `Recommended: ${homepageImageDimensions(path)}. ${hint}`,
+  });
 
 function buildSections(
   content: HomepageContent,
@@ -102,10 +116,52 @@ function buildSections(
               "Background picture",
               "Optional web address of a picture. Leave blank to keep the built-in photo.",
             ),
+            image(
+              ["hero", "mobile_image_url"],
+              "Phone wallpaper",
+              "Portrait image for phones below 640px. Leave blank to use the generated Play Hub wallpaper. Desktop and tablet use Background picture.",
+            ),
           ],
         },
       ],
     },
+    {
+      id: "auth-images",
+      title: "Login & signup images",
+      blurb: "Separate photographs beside the login and signup forms on large screens.",
+      groups: [
+        {
+          fields: [
+            image(
+              ["auth", "login_image_url"],
+              "Login image",
+              "Leave blank to keep the built-in login photo.",
+            ),
+            image(
+              ["auth", "signup_image_url"],
+              "Signup image",
+              "Leave blank to keep the built-in signup photo.",
+            ),
+          ],
+        },
+      ],
+    },
+    ...(["privacy", "terms"] as const).map((key): Section => ({
+      id: `policy-${key}`,
+      title: key === "privacy" ? "Privacy policy" : "Terms of service",
+      blurb: "Content shared by the public policy page and the signup policy dialog.",
+      groups: [
+        {
+          fields: [
+            field(["policies", key, "title"], "Page title", L.heading),
+            field(["policies", key, "body"], "Page content", 100_000, {
+              multiline: true,
+              hint: "Use ## for section headings, - for bullet points, and a blank line between paragraphs. Text is displayed safely without HTML.",
+            }),
+          ],
+        },
+      ],
+    })),
     {
       id: "journey",
       title: "How it works",
@@ -394,7 +450,7 @@ function FieldControl({
       {spec.multiline ? (
         <textarea
           {...shared}
-          rows={spec.limit > 300 ? 4 : 2}
+          rows={spec.limit > 10_000 ? 18 : spec.limit > 300 ? 4 : 2}
           onChange={(event) => onChange(event.target.value)}
         />
       ) : (
@@ -454,12 +510,18 @@ function FieldControl({
 /* ---------- the screen ---------- */
 
 function HomepageEditor() {
+  const { session } = useSession();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: HOMEPAGE_QUERY_KEY, queryFn: loadHomepage });
   const saved = query.data;
   // `edits` only exists while there is something unsaved; until then the saved copy is shown.
   const [edits, setEdits] = useState<HomepageContent | null>(null);
-  const [open, setOpen] = useState<ReadonlySet<string>>(new Set(["hero"]));
+  const [active, setActive] = useState("hero");
+  const workspace = useRef<HTMLDivElement>(null);
+  const selectSection = (id: string) => {
+    setActive(id);
+    requestAnimationFrame(() => workspace.current?.scrollIntoView({ block: "start" }));
+  };
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
   const draft = edits ?? saved?.content ?? null;
@@ -529,7 +591,7 @@ function HomepageEditor() {
     onSuccess: (state: HomepageState) => {
       queryClient.setQueryData(HOMEPAGE_QUERY_KEY, state);
       setEdits(null);
-      setNotice({ kind: "ok", text: "Saved. The home page now shows your changes." });
+      setNotice({ kind: "ok", text: "Saved. Your page content and images are now live." });
     },
     onError: (error: Error) => setNotice({ kind: "error", text: error.message }),
   });
@@ -550,22 +612,12 @@ function HomepageEditor() {
     },
   });
 
-  const toggle = (id: string) =>
-    setOpen((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const allOpen = sections.length > 0 && sections.every((section) => open.has(section.id));
-
   return (
     <>
       <PageHeader
         eyebrow="Platform"
         title="Home page"
-        description="Edit the words on the public home page. Nothing changes for visitors until you save."
+        description="Choose a section to edit. Your draft stays intact when you switch sections."
         actions={
           <a
             href="/"
@@ -590,194 +642,194 @@ function HomepageEditor() {
           )}
         </div>
       ) : (
-        <div className="mt-5 space-y-4">
-          <ApplicationLogoEditor />
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-navy/65">
-              {saved?.customised
-                ? `Showing your saved wording${saved.updatedAt ? ` · last saved ${fmtDateTime(saved.updatedAt)}` : ""}.`
-                : "Showing the original wording. Edit anything below to make it your own."}
-            </p>
-            <button
-              type="button"
-              onClick={() =>
-                setOpen(allOpen ? new Set() : new Set(sections.map((section) => section.id)))
-              }
-              className="text-xs font-bold text-blue hover:underline"
-            >
-              {allOpen ? "Collapse all sections" : "Expand all sections"}
-            </button>
-          </div>
-
-          {sections.map((section) => {
-            const isOpen = open.has(section.id);
-            const problems = errorsIn(section);
-            const panelId = `home-section-${section.id}`;
-            return (
-              <section key={section.id} className="ph-card overflow-hidden">
-                <h2>
-                  <button
-                    type="button"
-                    onClick={() => toggle(section.id)}
-                    aria-expanded={isOpen}
-                    aria-controls={panelId}
-                    className="grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-4 text-left transition hover:bg-navy/[0.02]"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-lg font-bold">{section.title}</span>
-                      <span className="block text-xs font-normal text-navy/60">
-                        {section.blurb}
-                      </span>
-                    </span>
-                    {problems > 0 && (
-                      <span className="rounded-full bg-coral/12 px-2.5 py-1 text-[11px] font-bold text-coral">
-                        {problems} to fix
-                      </span>
-                    )}
-                    <ChevronDown
-                      className={cn(
-                        "h-5 w-5 shrink-0 text-navy/55 transition-transform duration-200",
-                        isOpen && "rotate-180",
-                      )}
-                      aria-hidden
-                    />
-                  </button>
-                </h2>
-
-                <div id={panelId} hidden={!isOpen} className="border-t border-navy/8 p-5">
-                  {section.note && (
-                    <p className="mb-4 rounded-xl bg-blue/8 px-4 py-3 text-xs text-navy/75">
-                      {section.note}{" "}
-                      <Link to="/admin/plans" className="font-bold text-blue hover:underline">
-                        Open Plans library
-                      </Link>
-                    </p>
-                  )}
-                  <div className="space-y-5">
-                    {section.groups.map((group, index) => (
-                      <fieldset
-                        key={group.title ?? index}
-                        className={cn(
-                          group.title && "rounded-2xl border border-navy/10 bg-navy/[0.02] p-4",
-                        )}
-                      >
-                        {group.title && (
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <legend className="float-left text-sm font-bold">{group.title}</legend>
-                            {group.remove && (
-                              <ConfirmButton
-                                confirmationTitle={group.remove.label + "?"}
-                                confirmationMessage="The story will be removed from your draft. Save the homepage to publish this change."
-                                confirmLabel="Remove story"
-                                type="button"
-                                onClick={group.remove.onRemove}
-                                disabled={group.remove.disabled}
-                                aria-label={group.remove.label}
-                                className="inline-flex items-center gap-1.5 text-xs font-bold text-coral hover:underline disabled:cursor-not-allowed disabled:text-navy/30 disabled:no-underline"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                                Remove
-                              </ConfirmButton>
-                            )}
-                          </div>
-                        )}
-                        <div className="grid clear-both gap-4 sm:grid-cols-2">
-                          {group.fields.map((spec) => (
-                            <FieldControl
-                              key={pathKey(spec.path)}
-                              spec={spec}
-                              value={getAt(draft, spec.path)}
-                              error={errors.get(pathKey(spec.path)) ?? null}
-                              onChange={(value) => {
-                                setNotice(null);
-                                setEdits(setAt(draft, spec.path, value));
-                              }}
-                              onUploaded={(url) => {
-                                setNotice(null);
-                                setEdits((current) => setAt(current ?? draft, spec.path, url));
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </fieldset>
-                    ))}
-                  </div>
-                  {section.add && (
-                    <button
-                      type="button"
-                      onClick={section.add.onAdd}
-                      disabled={section.add.disabled}
-                      className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Plus className="h-3.5 w-3.5" aria-hidden />
-                      {section.add.label}
-                      {section.add.disabled && ` (up to ${MAX_QUOTES})`}
-                    </button>
-                  )}
-                </div>
-              </section>
-            );
-          })}
-
-          <div className="ph-card sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 shadow-(--shadow-lift)">
-            <div className="min-w-0 text-sm" role="status" aria-live="polite">
-              {notice ? (
-                <span
-                  className={cn("font-semibold", notice.kind === "ok" ? "text-blue" : "text-coral")}
-                >
-                  {notice.text}
-                </span>
-              ) : errors.size > 0 ? (
-                <span className="font-semibold text-coral">
-                  {errors.size} field{errors.size === 1 ? "" : "s"} need attention before you can
-                  save.
-                </span>
-              ) : dirty ? (
-                <span className="font-semibold text-navy">You have unsaved changes.</span>
-              ) : (
-                <span className="text-navy/55">Everything is saved.</span>
-              )}
+        <div
+          ref={workspace}
+          className="mt-5 grid min-w-0 scroll-mt-24 gap-5 lg:grid-cols-[210px_minmax(0,1fr)]"
+        >
+          <HomepageEditorNavigation
+            sections={sections.map((section) => ({
+              id: section.id,
+              title: section.title,
+              issues: errorsIn(section),
+            }))}
+            active={active}
+            onSelect={selectSection}
+            superAdmin={session.role === "super_admin"}
+          />
+          <div className="min-w-0 space-y-4">
+            <div id="editor-panel-logo" hidden={active !== "logo"}>
+              <ApplicationLogoEditor />
+            </div>
+            <div id="editor-panel-dimensions" hidden={active !== "dimensions"}>
+              <ImageDimensionsGuide />
+            </div>
+            <div id="editor-panel-pricing" hidden={active !== "pricing"}>
+              <SubscriptionPricingEditor />
+            </div>
+            <div hidden={!sections.some((section) => section.id === active)}>
+              <p className="text-xs text-navy/55">
+                {saved?.customised
+                  ? `Showing your saved wording${saved.updatedAt ? ` · last saved ${fmtDateTime(saved.updatedAt)}` : ""}.`
+                  : "Showing the original wording. Edit anything below to make it your own."}
+              </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {saved?.customised && !dirty && (
-                <ConfirmButton
-                  confirmationTitle="Reset homepage?"
-                  confirmationMessage="Your saved homepage text and images will return to the original defaults. The application logo will stay unchanged."
-                  confirmLabel="Reset homepage"
-                  type="button"
-                  onClick={() => reset.mutateAsync()}
-                  className="inline-flex min-h-10 items-center gap-1.5 rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
+            {sections.map((section) => {
+              const panelId = `home-section-${section.id}`;
+              return (
+                <section
+                  key={section.id}
+                  id={`editor-panel-${section.id}`}
+                  hidden={active !== section.id}
+                  className="ph-card overflow-hidden"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-                  Reset to original wording
-                </ConfirmButton>
-              )}
-              {dirty && (
-                <ConfirmButton
-                  confirmationTitle="Discard changes?"
-                  confirmationMessage="Your unsaved homepage edits will be lost."
-                  confirmLabel="Discard changes"
+                  <header className="border-b border-navy/8 px-5 py-4">
+                    <h2 className="text-lg font-bold">{section.title}</h2>
+                    <p className="mt-1 text-xs text-navy/60">{section.blurb}</p>
+                  </header>
+                  <div id={panelId} className="p-5">
+                    {section.note && (
+                      <p className="mb-4 rounded-xl bg-blue/8 px-4 py-3 text-xs text-navy/75">
+                        {section.note}{" "}
+                        <Link to="/admin/plans" className="font-bold text-blue hover:underline">
+                          Open Plans library
+                        </Link>
+                      </p>
+                    )}
+                    <div className="space-y-5">
+                      {section.groups.map((group, index) => (
+                        <fieldset
+                          key={group.title ?? index}
+                          className={cn(
+                            group.title && "rounded-2xl border border-navy/10 bg-navy/[0.02] p-4",
+                          )}
+                        >
+                          {group.title && (
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <legend className="float-left text-sm font-bold">
+                                {group.title}
+                              </legend>
+                              {group.remove && (
+                                <ConfirmButton
+                                  confirmationTitle={group.remove.label + "?"}
+                                  confirmationMessage="The story will be removed from your draft. Save the homepage to publish this change."
+                                  confirmLabel="Remove story"
+                                  type="button"
+                                  onClick={group.remove.onRemove}
+                                  disabled={group.remove.disabled}
+                                  aria-label={group.remove.label}
+                                  className="inline-flex items-center gap-1.5 text-xs font-bold text-coral hover:underline disabled:cursor-not-allowed disabled:text-navy/30 disabled:no-underline"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                  Remove
+                                </ConfirmButton>
+                              )}
+                            </div>
+                          )}
+                          <div className="grid clear-both gap-4 sm:grid-cols-2">
+                            {group.fields.map((spec) => (
+                              <FieldControl
+                                key={pathKey(spec.path)}
+                                spec={spec}
+                                value={getAt(draft, spec.path)}
+                                error={errors.get(pathKey(spec.path)) ?? null}
+                                onChange={(value) => {
+                                  setNotice(null);
+                                  setEdits(setAt(draft, spec.path, value));
+                                }}
+                                onUploaded={(url) => {
+                                  setNotice(null);
+                                  setEdits((current) => setAt(current ?? draft, spec.path, url));
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </fieldset>
+                      ))}
+                    </div>
+                    {section.add && (
+                      <button
+                        type="button"
+                        onClick={section.add.onAdd}
+                        disabled={section.add.disabled}
+                        className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden />
+                        {section.add.label}
+                        {section.add.disabled && ` (up to ${MAX_QUOTES})`}
+                      </button>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+
+            <div
+              hidden={!sections.some((section) => section.id === active)}
+              className="ph-card sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-10 sm:bottom-3 flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 shadow-(--shadow-lift)"
+            >
+              <div className="min-w-0 text-sm" role="status" aria-live="polite">
+                {notice ? (
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      notice.kind === "ok" ? "text-blue" : "text-coral",
+                    )}
+                  >
+                    {notice.text}
+                  </span>
+                ) : errors.size > 0 ? (
+                  <span className="font-semibold text-coral">
+                    {errors.size} field{errors.size === 1 ? "" : "s"} need attention before you can
+                    save.
+                  </span>
+                ) : dirty ? (
+                  <span className="font-semibold text-navy">You have unsaved changes.</span>
+                ) : (
+                  <span className="text-navy/55">Everything is saved.</span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {saved?.customised && !dirty && (
+                  <ConfirmButton
+                    confirmationTitle="Reset homepage?"
+                    confirmationMessage="Your saved homepage, phone wallpaper, login and signup images, and policy content will return to the original defaults. The application logo will stay unchanged."
+                    confirmLabel="Reset homepage"
+                    type="button"
+                    onClick={() => reset.mutateAsync()}
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                    Reset to original wording
+                  </ConfirmButton>
+                )}
+                {dirty && (
+                  <ConfirmButton
+                    confirmationTitle="Discard changes?"
+                    confirmationMessage="Your unsaved homepage edits will be lost."
+                    confirmLabel="Discard changes"
+                    type="button"
+                    onClick={() => {
+                      setEdits(null);
+                      setNotice(null);
+                    }}
+                    className="inline-flex min-h-10 items-center rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
+                  >
+                    Discard changes
+                  </ConfirmButton>
+                )}
+                <button
                   type="button"
                   onClick={() => {
-                    setEdits(null);
-                    setNotice(null);
+                    if (draft && errors.size === 0) save.mutate(draft);
                   }}
-                  className="inline-flex min-h-10 items-center rounded-full border-2 border-navy/15 px-4 text-xs font-bold hover:border-navy/40"
+                  disabled={!dirty || errors.size > 0 || save.isPending}
+                  className="inline-flex min-h-10 items-center rounded-full bg-navy px-5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Discard changes
-                </ConfirmButton>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  if (draft && errors.size === 0) save.mutate(draft);
-                }}
-                disabled={!dirty || errors.size > 0 || save.isPending}
-                className="inline-flex min-h-10 items-center rounded-full bg-navy px-5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {save.isPending ? "Saving…" : "Save changes"}
-              </button>
+                  {save.isPending ? "Saving…" : "Save changes"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

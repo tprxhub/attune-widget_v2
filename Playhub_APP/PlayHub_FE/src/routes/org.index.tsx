@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, Activity, Plus, UserCog, UserPlus, Users } from "lucide-react";
@@ -8,12 +9,14 @@ import { listPlans } from "@/api/plans";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
+import { LicenceLimitModal, OrgLicenseNote } from "@/components/OrgLicenseNote";
+import { licencesFull } from "@/lib/licences";
 import { ChildProgressIcon } from "@/components/ChildProgressIcon";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
-import type { Child } from "@/lib/types";
+import type { Child, LicenseType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/org/")({
@@ -55,6 +58,8 @@ function OrgChildren() {
     queryFn: () => getOrg(session.orgId!),
     enabled: !!session.orgId,
   });
+  // Which "licences are all used" message is open, if any.
+  const [limit, setLimit] = useState<LicenseType | null>(null);
 
   const list = kids.data ?? [];
   const assigned = list.filter((c) => c.supporterId).length;
@@ -70,12 +75,22 @@ function OrgChildren() {
             <div className="flex flex-wrap gap-2">
               <Link
                 to="/org/supporters"
+                onClick={(event) => {
+                  if (!licencesFull(org.data, "moderators")) return;
+                  event.preventDefault();
+                  setLimit("moderators");
+                }}
                 className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-navy/15 bg-card px-5 text-sm font-bold text-navy transition-colors hover:border-navy/40"
               >
                 <UserPlus className="h-4 w-4" aria-hidden /> Add a Moderator
               </Link>
               <Link
                 to="/org/enroll"
+                onClick={(event) => {
+                  if (!licencesFull(org.data, "children")) return;
+                  event.preventDefault();
+                  setLimit("children");
+                }}
                 className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
               >
                 <Plus className="h-4 w-4" aria-hidden /> Enrol a child in a Play Plan
@@ -84,6 +99,10 @@ function OrgChildren() {
           ) : undefined
         }
       />
+      <OrgLicenseNote org={org.data} kind="children" />
+      {limit && org.data && (
+        <LicenceLimitModal org={org.data} kind={limit} onClose={() => setLimit(null)} />
+      )}
 
       {/* Caseload summary strip */}
       {list.length > 0 && !plans.isLoading && (

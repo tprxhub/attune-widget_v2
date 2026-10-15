@@ -1,11 +1,11 @@
+import { usePricePlans } from "@/api/pricing";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, Loader2, ShieldCheck } from "lucide-react";
 import {
   PLAN_FEATURES,
-  PRICE_PLANS,
   checkout,
   daysLeftLabel,
   getSubscription,
@@ -23,7 +23,13 @@ import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
 
 export const Route = createFileRoute("/subscription")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { plan?: PlanDuration | undefined; checkout?: string | undefined } => ({
+    plan:
+      typeof search["plan"] === "string" && /^[1-9][0-9]?m$/.test(search["plan"])
+        ? (search["plan"] as PlanDuration)
+        : undefined,
     checkout:
       search["checkout"] === "success" || search["checkout"] === "cancelled"
         ? search["checkout"]
@@ -35,10 +41,13 @@ export const Route = createFileRoute("/subscription")({
       {
         name: "description",
         content:
-          "Subscribe per child for 3, 6 or 12 months to unlock every Play Dose and Session logging.",
+          "Subscribe per child for a choice of month durations to unlock every Play Dose and Session logging.",
       },
       { property: "og:title", content: "Subscription — Play Hub" },
-      { property: "og:description", content: "Subscribe per child for 3, 6 or 12 months." },
+      {
+        property: "og:description",
+        content: "Subscribe per child for a choice of month durations.",
+      },
     ],
   }),
   component: () => (
@@ -49,12 +58,15 @@ export const Route = createFileRoute("/subscription")({
 });
 
 function SubscriptionPage() {
-  const { checkout: checkoutResult } = Route.useSearch();
+  const { checkout: checkoutResult, plan: requestedPlan } = Route.useSearch();
   const { session, refreshSession } = useSession();
   const { activeChild, children } = useActiveChild();
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<PlanDuration>("6m");
+  const pricing = usePricePlans();
+  const plans = pricing.plans;
+  const [selected, setSelected] = useState<PlanDuration>(requestedPlan ?? "6m");
 
+  const chosenPlan = plans.find((plan) => plan.duration === selected) ?? plans[0]!;
   const childId = activeChild?.id;
   const sub = useQuery({
     queryKey: ["sub", childId],
@@ -65,9 +77,10 @@ function SubscriptionPage() {
   });
 
   const buy = useMutation({
-    mutationFn: () => checkout(childId!, selected),
+    mutationFn: () => checkout(childId!, chosenPlan.duration),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sub", childId] });
+      queryClient.invalidateQueries({ queryKey: ["children", session.personaId] });
       if (session.tier === "free") queryClient.invalidateQueries();
     },
   });
@@ -76,6 +89,7 @@ function SubscriptionPage() {
     mutationFn: () => refundSubscription(childId!),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["sub", childId] });
+      await queryClient.invalidateQueries({ queryKey: ["children", session.personaId] });
       await refreshSession();
     },
   });
@@ -90,7 +104,18 @@ function SubscriptionPage() {
   if (children.length === 0) {
     return (
       <>
-        <PageHeader eyebrow="Billing" title="Subscription" />
+        <PageHeader
+          eyebrow="Billing"
+          title="Subscription"
+          actions={
+            <Link
+              to="/account"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-navy/12 px-4 text-sm font-bold text-navy hover:bg-navy/5"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden /> Back to account
+            </Link>
+          }
+        />
         <div className="ph-card mx-auto max-w-md p-8 text-center">
           <p className="text-lg font-bold">Add a child first</p>
           <p className="mt-2 text-sm text-navy/70">
@@ -113,6 +138,14 @@ function SubscriptionPage() {
         eyebrow="Billing"
         title="Subscription"
         description="Each subscription unlocks one child. A shared family login still needs a subscription per child."
+        actions={
+          <Link
+            to="/account"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-navy/12 px-4 text-sm font-bold text-navy hover:bg-navy/5"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden /> Back to account
+          </Link>
+        }
       />
 
       {checkoutResult && (
@@ -217,6 +250,11 @@ function SubscriptionPage() {
                 locked.
               </p>
             ) : null}
+            {pricing.isError && (
+              <p role="alert" className="mb-4 text-sm text-coral">
+                Prices could not be loaded. Please refresh before subscribing.
+              </p>
+            )}
             {(cancel.error || buy.error) && (
               <p role="alert" className="mt-3 rounded-2xl bg-coral/10 px-4 py-3 text-sm text-coral">
                 {(cancel.error ?? buy.error)?.message}
@@ -226,8 +264,8 @@ function SubscriptionPage() {
 
           <section>
             <div className="grid gap-4 sm:grid-cols-3">
-              {PRICE_PLANS.map((p) => {
-                const isSelected = selected === p.duration;
+              {plans.map((p) => {
+                const isSelected = chosenPlan.duration === p.duration;
                 return (
                   <button
                     key={p.duration}
@@ -243,9 +281,9 @@ function SubscriptionPage() {
                   >
                     <span className="flex items-center justify-between">
                       <span className="text-sm font-bold">{p.label}</span>
-                      {p.duration === "12m" && (
-                        <span className="rounded-full bg-amber/30 px-2 py-0.5 text-[10px] font-bold">
-                          Best value
+                      {p.featured && (
+                        <span className="ml-2 max-w-[60%] break-words rounded-full bg-amber/30 px-2 py-0.5 text-[10px] font-bold">
+                          {p.badge_text ?? "Best value"}
                         </span>
                       )}
                     </span>
@@ -271,15 +309,15 @@ function SubscriptionPage() {
               <button
                 type="button"
                 onClick={() => buy.mutate()}
-                disabled={buy.isPending || (active && !canRenew)}
+                disabled={buy.isPending || !pricing.isSuccess || (active && !canRenew)}
                 className="mt-5 flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-coral px-6 text-base font-bold text-white disabled:opacity-60"
               >
                 {buy.isPending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
                 {canRenew
-                  ? `Renew ${activeChild?.name} — ${PRICE_PLANS.find((p) => p.duration === selected)?.price}`
+                  ? `Renew ${activeChild?.name} — ${chosenPlan.price}`
                   : active
                     ? "Already subscribed"
-                    : `${stage === "ended" ? "Re-subscribe" : "Subscribe"} ${activeChild?.name} — ${PRICE_PLANS.find((p) => p.duration === selected)?.price}`}
+                    : `${stage === "ended" ? "Re-subscribe" : "Subscribe"} ${activeChild?.name} — ${chosenPlan.price}`}
               </button>
               <p className="mt-3 inline-flex items-center gap-2 text-xs text-navy/55">
                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Secure card payment via Stripe.

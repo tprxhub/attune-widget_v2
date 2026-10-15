@@ -12,6 +12,8 @@ import { getAdminReferences, referenceDoses } from "@/api/references";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
+import { LicenceLimitModal, OrgLicenseNote } from "@/components/OrgLicenseNote";
+import { licencesFull } from "@/lib/licences";
 import { LEVEL_GUIDANCE } from "@/components/brand";
 import { Select } from "@/components/Select";
 import type { Level } from "@/lib/types";
@@ -130,8 +132,14 @@ function EnrolPage() {
     onSuccess: () => setTimeout(() => navigate({ to: isAdmin ? "/admin/children" : "/org" }), 900),
   });
 
+  const [limitOpen, setLimitOpen] = useState(false);
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (licencesFull(org.data, "children")) {
+      setLimitOpen(true);
+      return;
+    }
     const next: Record<string, string> = {};
     if (name.trim().length < 2) next["name"] = "Enter the child's name.";
     const n = Number(age);
@@ -150,6 +158,10 @@ function EnrolPage() {
         title="Enrol a child in a Play Plan"
         description="Licenses come from your organisation's plan — no card needed here."
       />
+      <OrgLicenseNote org={org.data} kind="children" />
+      {limitOpen && org.data && (
+        <LicenceLimitModal org={org.data} kind="children" onClose={() => setLimitOpen(false)} />
+      )}
 
       <form onSubmit={submit} className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
         <section className="ph-card space-y-5 p-5 sm:p-6">

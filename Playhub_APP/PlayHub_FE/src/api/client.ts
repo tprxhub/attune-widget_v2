@@ -120,6 +120,42 @@ export async function apiStream(
   return response.body;
 }
 
+/** Download a file from an authenticated GET endpoint and save it under the server's filename. */
+export async function apiDownload(path: string, fallbackName: string): Promise<void> {
+  const token = getAccessToken();
+  let response: Response;
+  try {
+    response = await fetch(`${API_ROOT}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    throw new ApiError("Could not reach Play Hub.", 0);
+  }
+  if (!response.ok) {
+    const payload: unknown = (response.headers.get("content-type") ?? "").includes(
+      "application/json",
+    )
+      ? await response.json()
+      : await response.text();
+    throw new ApiError(
+      errorMessage(payload, `Download failed (${response.status})`),
+      response.status,
+      payload,
+    );
+  }
+  const name =
+    /filename="([^"]+)"/.exec(response.headers.get("content-disposition") ?? "")?.[1] ??
+    fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function apiAssetUrl(path?: string | null) {
   if (!path || /^(https?:|blob:|data:)/i.test(path)) return path ?? undefined;
   const assetPath = path.startsWith("/") ? path : `/${path}`;
@@ -257,7 +293,16 @@ export interface ApiOrganisation {
   name: string;
   kind: string;
   seat_limit: number;
+  license_type?: "children" | "moderators";
+  licenses_used?: number;
   billing_cycle: string | null;
+  /** Fils per licence per cycle (AED 1 = 100 fils). */
+  license_price?: number;
+  billing_started_on?: string | null;
+  renews_on?: string | null;
+  amount_per_cycle?: number;
+  annual_value?: number;
+  renewal_status?: "none" | "overdue" | "due_soon" | "active";
   is_active: boolean;
   created_at: string;
 }

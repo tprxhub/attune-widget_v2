@@ -29,7 +29,7 @@ import { useFreePlan } from "@/features/plans/useFreePlan";
 export const Route = createFileRoute("/plans/$planId/")({
   head: ({ params }) => {
     const plan = planById(params.planId);
-    const title = plan ? `${plan.title} — ${plan.level} — Play Hub` : "Play Plan — Play Hub";
+    const title = plan ? `${plan.title} — ${plan.level} dose — Play Hub` : "Play Plan — Play Hub";
     const description = plan?.summary ?? "A guided one-week Play Plan with a clear next step.";
     return {
       meta: [
@@ -130,10 +130,11 @@ function PlanWeek() {
           <div className="relative">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-navy">
               <GoalIcon goalId={data.goalId} goalName={goal?.name} className="h-3.5 w-3.5" />{" "}
-              {goal?.name}
+              {session.role === "parent" ? "Play Plan" : goal?.name}
             </span>
             <h1 className="mt-2.5 text-2xl font-bold text-white sm:text-3xl">
-              {data.title} <span className="text-lg font-medium opacity-80">— {data.level}</span>
+              {data.title}{" "}
+              <span className="text-lg font-medium opacity-80">— {data.level} dose</span>
             </h1>
           </div>
         </div>
@@ -148,8 +149,8 @@ function PlanWeek() {
           </div>
           <p className="mt-4 text-[15px] leading-relaxed text-navy/85">{data.summary}</p>
           <p className="mt-2 text-sm text-navy/60">
-            Not sure this is the right level? Start at Starter — move down to Rookie if it's
-            difficult, or up to Pro if it feels easy.
+            Not sure which dose to choose? Start at Starter — move down to Rookie if it's difficult,
+            or up to Pro if it feels easy.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2">
@@ -159,7 +160,7 @@ function PlanWeek() {
                 params={{ planId: data.id, entryId: nextUp.entry.id }}
                 className="inline-flex min-h-12 items-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white"
               >
-                Continue: {nextUp.entry.label} <ArrowRight className="h-4 w-4" aria-hidden />
+                Play: {nextUp.entry.label} <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             ) : (
               <span className="inline-flex min-h-12 items-center gap-2 rounded-full bg-blue px-6 text-sm font-bold text-white">
@@ -175,7 +176,7 @@ function PlanWeek() {
                   params={{ planId: sibling.id }}
                   className="inline-flex min-h-12 items-center rounded-full border border-navy/15 px-5 text-sm font-bold hover:border-navy/40"
                 >
-                  Switch to {level}
+                  Switch to {level} dose
                 </Link>
               ) : null;
             })}
@@ -183,9 +184,9 @@ function PlanWeek() {
         </div>
       </section>
 
-      {/* Play Doses timeline */}
+      {/* Activities within the selected dose */}
       <section className="ph-card mt-5 p-6">
-        <h2 className="text-[17px] font-bold">Play Doses</h2>
+        <h2 className="text-[17px] font-bold">Activities in this dose</h2>
         <ol className="relative mt-3">
           <span
             className="absolute top-0 bottom-0 left-[15px] w-0.5 rounded bg-navy/8"

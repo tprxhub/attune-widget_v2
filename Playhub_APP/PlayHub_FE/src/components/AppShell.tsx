@@ -1,13 +1,13 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { isPlatformRole } from "@/lib/roles";
-import type { PermissionKey } from "@/lib/types";
+import type { PermissionKey, Session } from "@/lib/types";
 import {
   BadgeCheck,
   BarChart3,
+  HeartPulse,
   Building2,
   CalendarCheck,
   ClipboardList,
-  CreditCard,
   HeartHandshake,
   Home,
   LayoutGrid,
@@ -17,8 +17,9 @@ import {
   UserPlus,
   UserRound,
   Users,
-  LogOut,
   Menu,
+  Search,
+  CornerDownLeft,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -35,14 +36,36 @@ import { RenewalNotice } from "./RenewalNotice";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { ModalPortal } from "./ModalPortal";
 import { QueryStatusBoundary } from "./QueryStatusBoundary";
+import { SignOutButton } from "./SignOutButton";
 import { useNavigationPreferences } from "@/lib/navigation-preferences";
-import { NavigationTour } from "@/features/guide/NavigationTour";
 
 interface NavItem {
   to: string;
   label: string;
   short: string;
   icon: typeof Home;
+}
+
+function SignedInIdentity({ session }: { session: Session }) {
+  return (
+    <span
+      title={`${session.name} · ${roleLabel(session.role, session.accountType)}`}
+      className="flex min-w-0 items-center gap-3 text-sm font-semibold"
+    >
+      <ProfileAvatar
+        name={session.name}
+        photoUrl={session.avatarUrl}
+        sticker={session.avatarSticker}
+        className="h-12 w-12 shrink-0 rounded-xl"
+      />
+      <span className="min-w-0 truncate leading-tight">
+        <span className="block truncate">{session.name}</span>
+        <span className="block truncate text-[11px] font-medium text-current/60">
+          {roleLabel(session.role, session.accountType)}
+        </span>
+      </span>
+    </span>
+  );
 }
 
 /**
@@ -84,6 +107,12 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
         label: "Progress",
         short: "Progress",
         icon: BarChart3,
+      },
+      role === "super_admin" && {
+        to: "/admin/play-pulse",
+        label: "Play Pulse leads",
+        short: "Pulse",
+        icon: HeartPulse,
       },
       allowed("audit") && {
         to: "/admin/audit",
@@ -169,15 +198,12 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     progress,
     attune,
   ];
-  if (role === "parent") {
-    items.push({ to: "/subscription", label: "Subscription", short: "Billing", icon: CreditCard });
-  }
   items.push(account);
   return items;
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { session, signOut } = useSession();
+  const { session } = useSession();
   const navigate = useNavigate();
   const { canInviteSupporter } = useCapabilities();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -188,31 +214,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       ? baseItems.filter((item) => item.to === "/account" || isNavigationVisible(item.to))
       : baseItems;
   }, [isNavigationVisible, session.accountType, session.permissions, session.role]);
-  const tourItems = useMemo(() => {
-    const navigationItems = items.map(({ to, label }) => ({ to, label }));
-    if (session.role !== "educator") return navigationItems;
-
-    const childSteps = [
-      {
-        to: "/dashboard",
-        label: "Switch child view",
-        target: "child-switcher",
-        description:
-          "Use this selector to move between children—or choose All children for an organisation-wide dashboard. Your Dashboard and Progress views update for the child you select.",
-      },
-      {
-        to: "/dashboard",
-        label: "Add a child",
-        target: "add-child",
-        description:
-          "Open the child selector and choose Add a Member whenever you need to enrol another child. The guide has opened the menu so you can see exactly where it lives.",
-      },
-    ];
-
-    return navigationItems.length > 0
-      ? [navigationItems[0]!, ...childSteps, ...navigationItems.slice(1)]
-      : childSteps;
-  }, [items, session.role]);
   const org = useQuery({
     queryKey: ["org", session.orgId],
     queryFn: () => getOrg(session.orgId!),
@@ -231,24 +232,36 @@ export function AppShell({ children }: { children: ReactNode }) {
   const mobileItems = canInviteSupporter
     ? [...items, { to: "/invite", label: "Invite a moderator", short: "Invite", icon: UserPlus }]
     : items;
+  const searchItems = useMemo(() => {
+    const searchableItems = canInviteSupporter
+      ? [...items, { to: "/invite", label: "Invite a moderator", short: "Invite", icon: UserPlus }]
+      : items;
+    return searchableItems.map((item) => ({
+      ...item,
+      keywords:
+        `${item.label} ${item.short} ${item.to.replaceAll("/", " ").replaceAll("-", " ")}`.toLocaleLowerCase(),
+    }));
+  }, [canInviteSupporter, items]);
 
   return (
     <div className="min-h-screen bg-background lg:flex">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col overflow-y-auto border-r border-navy/10 bg-navy px-4 py-6 text-white lg:flex">
-        <Link to="/" className="text-white">
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-navy/10 bg-navy px-4 py-6 text-white [@media(max-height:820px)]:px-3 [@media(max-height:820px)]:py-3 lg:flex">
+        <Link to="/" className="shrink-0 text-white">
           <Logo size="large" />
         </Link>
-        <nav aria-label="Main" className="mt-6 flex-1 space-y-1">
+        <nav
+          aria-label="Main"
+          className="mt-6 min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain [@media(max-height:820px)]:mt-3 [@media(max-height:820px)]:space-y-0.5"
+        >
           {items.map((item) => (
             <Link
               key={item.to}
               to={item.to}
               activeOptions={{ exact: true }}
               aria-current={isActive(item.to) ? "page" : undefined}
-              data-tour-path={item.to}
               className={cn(
-                "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors",
+                "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors [@media(max-height:820px)]:min-h-9",
                 isActive(item.to)
                   ? "bg-amber text-navy"
                   : "text-white/70 hover:bg-white/10 hover:text-white",
@@ -264,7 +277,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               activeOptions={{ exact: true }}
               aria-current={isActive("/invite") ? "page" : undefined}
               className={cn(
-                "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors",
+                "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors [@media(max-height:820px)]:min-h-9",
                 isActive("/invite")
                   ? "bg-amber text-navy"
                   : "text-white/70 hover:bg-white/10 hover:text-white",
@@ -275,40 +288,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           )}
         </nav>
-        <div className="mt-4 rounded-2xl bg-white/8 p-3">
-          <p className="text-[10px] font-bold tracking-[0.14em] text-amber uppercase">Signed in</p>
-          <div className="mt-2 flex items-center gap-2.5">
-            <ProfileAvatar
-              name={session.name}
-              photoUrl={session.avatarUrl}
-              sticker={session.avatarSticker}
-              className="h-10 w-10 rounded-xl ring-1 ring-white/15"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold">{session.name}</p>
-              <p className="truncate text-xs text-white/60">
-                {session.guardianName
-                  ? `Run by ${session.guardianName}`
-                  : roleLabel(session.role, session.accountType)}
-              </p>
-              {org.data && (
-                <p className="mt-1 flex items-center gap-1.5 truncate text-xs font-semibold text-amber">
-                  <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">{org.data.name}</span>
-                </p>
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              signOut();
-              void navigate({ to: "/", replace: true });
-            }}
-            className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-white/12 px-3 text-xs font-bold transition-colors hover:bg-white/20"
-          >
-            <LogOut className="h-3.5 w-3.5" aria-hidden /> Sign out
-          </button>
+        <div className="mt-auto shrink-0 border-t border-white/12 pt-4 [@media(max-height:820px)]:pt-2">
+          <SignedInIdentity session={session} />
         </div>
       </aside>
 
@@ -330,7 +311,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             </div>
             <span className="col-start-3 row-start-1 sm:hidden [&_button]:h-11 [&_button]:w-11 [&_button]:justify-center [&_button]:rounded-xl [&_button]:border-white/15 [&_button]:bg-white/5 [&_button]:px-0 [&_button]:text-white [&_button>span]:hidden">
-              <GuideButton tour />
+              <GuideButton />
             </span>
             <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-end gap-2 sm:flex-wrap">
               {/* The child and organisation pickers change nothing on the Account page. */}
@@ -349,20 +330,21 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span className="truncate">{org.data.name}</span>
                 </span>
               )}
-              <span className="hidden max-w-[16rem] truncate text-xs font-semibold text-white/70 sm:inline lg:hidden">
-                {session.name}
+              <span className="hidden max-w-[16rem] min-w-0 truncate text-xs font-semibold text-white/70 sm:inline lg:hidden">
+                {session.name} · {roleLabel(session.role, session.accountType)}
                 {org.data ? ` · ${org.data.name}` : ""}
               </span>
               <span className="hidden lg:inline">
                 <span className="[&_button]:min-h-10 [&_button]:border-navy/10 [&_button]:bg-card/80 [&_button]:text-navy [&_button]:shadow-[0_1px_0_rgba(16,42,74,0.04)] [&_button:hover]:border-coral/40 [&_button:hover]:text-coral">
-                  <GuideButton tour />
+                  <GuideButton />
                 </span>
               </span>
               <span className="hidden sm:inline lg:hidden">
                 <span className="[&_button]:border-white/25 [&_button]:text-white">
-                  <GuideButton tour />
+                  <GuideButton />
                 </span>
               </span>
+              <SignOutButton className="hidden border-navy/10 bg-white text-navy shadow-sm hover:border-coral/35 hover:bg-white hover:text-coral lg:inline-flex" />
             </div>
           </div>
 
@@ -378,7 +360,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                     to={item.to}
                     activeOptions={{ exact: true }}
                     aria-current={isActive(item.to) ? "page" : undefined}
-                    data-tour-path={item.to}
                     className={cn(
                       "inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold whitespace-nowrap",
                       isActive(item.to) ? "bg-amber text-navy" : "text-white/70 hover:bg-white/10",
@@ -406,10 +387,345 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* Mobile bottom tabs */}
         <MobileNavigation items={mobileItems} activePath={bestMatch} pathname={pathname} />
-        <NavigationTour items={tourItems} />
+        <FloatingNavigator items={searchItems} activePath={bestMatch} />
       </div>
     </div>
   );
+}
+
+function FloatingNavigator({
+  items,
+  activePath,
+}: {
+  items: Array<NavItem & { keywords: string }>;
+  activePath: string | undefined;
+}) {
+  const navigate = useNavigate();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setOpen((isOpen) => !isOpen);
+      }
+    }
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const trigger = triggerRef.current;
+    return () => trigger?.focus();
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label="Search and navigate"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+        className="fixed right-4 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-40 inline-flex h-12 items-center gap-2 rounded-full border border-white/20 bg-navy px-4 text-sm font-bold text-white shadow-[0_12px_32px_rgba(7,42,91,0.26)] transition-all hover:-translate-y-0.5 hover:bg-blue focus-visible:ring-4 focus-visible:ring-amber/50 focus-visible:outline-none sm:right-6 sm:bottom-6 lg:right-8"
+      >
+        <Search className="h-4 w-4" aria-hidden />
+        <span className="hidden sm:inline">Search pages</span>
+        <kbd className="hidden rounded-md bg-white/12 px-1.5 py-0.5 text-[10px] text-white/75 sm:inline">
+          ⌘ K
+        </kbd>
+      </button>
+      {open && (
+        <FloatingNavigatorDialog
+          items={items}
+          activePath={activePath}
+          onClose={() => setOpen(false)}
+          onNavigate={(item) => {
+            setOpen(false);
+            void navigate({ to: item.to as never });
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function FloatingNavigatorDialog({
+  items,
+  activePath,
+  onClose,
+  onNavigate,
+}: {
+  items: Array<NavItem & { keywords: string }>;
+  activePath: string | undefined;
+  onClose: () => void;
+  onNavigate: (item: NavItem & { keywords: string }) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const results = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase();
+    return term ? items.filter((item) => item.keywords.includes(term)) : items;
+  }, [items, query]);
+
+  useEffect(() => setActiveIndex(0), [query]);
+  useEffect(() => {
+    if (results.length) {
+      document
+        .getElementById(`navigator-result-${activeIndex}`)
+        ?.scrollIntoView({ block: "nearest" });
+    }
+  }, [activeIndex, results.length]);
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+    } else if (event.key === "ArrowDown" && results.length) {
+      event.preventDefault();
+      setActiveIndex((index) => (index + 1) % results.length);
+    } else if (event.key === "ArrowUp" && results.length) {
+      event.preventDefault();
+      setActiveIndex((index) => (index - 1 + results.length) % results.length);
+    } else if (event.key === "Enter" && results[activeIndex]) {
+      event.preventDefault();
+      onNavigate(results[activeIndex]!);
+    } else if (event.key === "Tab") {
+      trapDialogFocus(event, dialogRef.current);
+    }
+  }
+
+  return (
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-[1100] flex items-start justify-center bg-navy/45 px-3 pt-[10vh] pb-4 backdrop-blur-[3px] sm:px-6 sm:pt-[14vh]"
+        onClick={(event) => event.target === event.currentTarget && onClose()}
+      >
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="navigator-title"
+          onKeyDown={handleKeyDown}
+          className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/70 bg-card shadow-[0_30px_100px_rgba(7,42,91,0.3)]"
+        >
+          <NavigatorDialogHeader onClose={onClose} />
+
+          <div className="p-3 sm:p-4">
+            <NavigatorSearchBox
+              inputRef={inputRef}
+              query={query}
+              onQueryChange={setQuery}
+              activeResultId={results[activeIndex] ? `navigator-result-${activeIndex}` : undefined}
+            />
+
+            <div className="mt-3 flex items-center justify-between px-2 text-[11px] font-semibold tracking-wide text-navy/45 uppercase">
+              <span>{query ? "Matching pages" : "Quick navigation"}</span>
+              <span>
+                {results.length} {results.length === 1 ? "page" : "pages"}
+              </span>
+            </div>
+            <NavigatorResults
+              results={results}
+              activePath={activePath}
+              activeIndex={activeIndex}
+              onHover={setActiveIndex}
+              onNavigate={onNavigate}
+            />
+            <p className="mt-3 border-t border-navy/8 px-2 pt-3 text-center text-[11px] font-medium text-navy/45">
+              <kbd className="rounded border border-navy/10 px-1 py-0.5">↑</kbd>{" "}
+              <kbd className="rounded border border-navy/10 px-1 py-0.5">↓</kbd> to navigate
+              <span className="mx-1">·</span>
+              <kbd className="rounded border border-navy/10 px-1 py-0.5">Enter</kbd> to open
+              <span className="mx-1">·</span>
+              <kbd className="rounded border border-navy/10 px-1 py-0.5">Ctrl/⌘ K</kbd> search
+            </p>
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
+  );
+}
+
+function NavigatorDialogHeader({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="bg-gradient-to-r from-navy to-blue px-5 pt-5 pb-4 text-white sm:px-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-bold tracking-[0.18em] text-white/65 uppercase">
+            Play Hub Navigator
+          </p>
+          <h2 id="navigator-title" className="mt-1 text-xl font-bold sm:text-2xl">
+            Where would you like to go?
+          </h2>
+        </div>
+        <button
+          type="button"
+          aria-label="Close search"
+          onClick={onClose}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/12 text-white transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-amber focus-visible:outline-none"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NavigatorSearchBox({
+  inputRef,
+  query,
+  onQueryChange,
+  activeResultId,
+}: {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  query: string;
+  onQueryChange: (query: string) => void;
+  activeResultId: string | undefined;
+}) {
+  return (
+    <label className="flex min-h-13 items-center gap-3 rounded-2xl border border-navy/12 bg-white px-4 shadow-[0_4px_18px_rgba(7,42,91,0.06)] focus-within:border-blue/50 focus-within:ring-4 focus-within:ring-blue/10">
+      <Search className="h-5 w-5 shrink-0 text-blue" aria-hidden />
+      <input
+        ref={inputRef}
+        autoFocus
+        type="search"
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        placeholder="Search pages, plans, progress…"
+        aria-label="Search application pages"
+        aria-controls="navigator-results"
+        aria-activedescendant={activeResultId}
+        className="min-w-0 flex-1 bg-transparent py-3 text-base text-navy outline-none placeholder:text-navy/40"
+      />
+      <kbd className="hidden rounded-lg border border-navy/10 bg-cream px-2 py-1 text-xs font-semibold text-navy/50 sm:inline">
+        ESC
+      </kbd>
+    </label>
+  );
+}
+
+function NavigatorResults({
+  results,
+  activePath,
+  activeIndex,
+  onHover,
+  onNavigate,
+}: {
+  results: Array<NavItem & { keywords: string }>;
+  activePath: string | undefined;
+  activeIndex: number;
+  onHover: (index: number) => void;
+  onNavigate: (item: NavItem & { keywords: string }) => void;
+}) {
+  return (
+    <div
+      id="navigator-results"
+      role="listbox"
+      aria-label="Navigation results"
+      className="mt-2 max-h-[min(52dvh,26rem)] space-y-1 overflow-y-auto overscroll-contain"
+    >
+      {results.length ? (
+        results.map((item, index) => (
+          <NavigatorResult
+            key={item.to}
+            item={item}
+            index={index}
+            active={index === activeIndex}
+            current={item.to === activePath}
+            onHover={onHover}
+            onNavigate={onNavigate}
+          />
+        ))
+      ) : (
+        <NavigatorEmptyState />
+      )}
+    </div>
+  );
+}
+
+function NavigatorResult({
+  item,
+  index,
+  active,
+  current,
+  onHover,
+  onNavigate,
+}: {
+  item: NavItem & { keywords: string };
+  index: number;
+  active: boolean;
+  current: boolean;
+  onHover: (index: number) => void;
+  onNavigate: (item: NavItem & { keywords: string }) => void;
+}) {
+  return (
+    <button
+      id={`navigator-result-${index}`}
+      type="button"
+      role="option"
+      aria-selected={active}
+      onMouseEnter={() => onHover(index)}
+      onClick={() => onNavigate(item)}
+      className={cn(
+        "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left transition-colors sm:px-4",
+        active ? "bg-amber/20 text-navy" : "text-navy hover:bg-navy/5",
+      )}
+    >
+      <span
+        className={cn(
+          "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
+          active ? "bg-amber text-navy" : "bg-blue/8 text-blue",
+        )}
+      >
+        <item.icon className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-bold">{item.label}</span>
+        <span className="block truncate text-xs text-navy/45">{item.to}</span>
+      </span>
+      {current ? (
+        <span className="rounded-full bg-blue/10 px-2.5 py-1 text-[10px] font-bold text-blue">
+          Current
+        </span>
+      ) : active ? (
+        <CornerDownLeft className="h-4 w-4 shrink-0 text-navy/45" aria-hidden />
+      ) : null}
+    </button>
+  );
+}
+
+function NavigatorEmptyState() {
+  return (
+    <div className="rounded-2xl bg-cream px-4 py-8 text-center">
+      <Search className="mx-auto h-6 w-6 text-navy/30" aria-hidden />
+      <p className="mt-2 text-sm font-bold text-navy">No pages found</p>
+      <p className="mt-1 text-xs text-navy/55">Try a different name or keyword.</p>
+    </div>
+  );
+}
+
+function trapDialogFocus(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  dialog: HTMLDivElement | null,
+) {
+  const controls = dialog?.querySelectorAll<HTMLElement>(
+    'input, button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+  );
+  const first = controls?.[0];
+  const last = controls?.[controls.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
 }
 
 /**
@@ -435,8 +751,9 @@ export function AppHeaderControls({ className }: { className?: string }) {
         </span>
       )}
       <span className="[&_button]:min-h-10 [&_button]:border-navy/10 [&_button]:bg-card [&_button]:text-navy [&_button:hover]:border-coral/40 [&_button:hover]:text-coral">
-        <GuideButton tour />
+        <GuideButton />
       </span>
+      <SignOutButton className="hidden border-navy/10 bg-white text-navy shadow-sm hover:border-coral/35 hover:bg-white hover:text-coral lg:inline-flex" />
     </div>
   );
 }
@@ -450,11 +767,12 @@ function MobileNavigation({
   activePath: string | undefined;
   pathname: string;
 }) {
+  const { session } = useSession();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const visible = items.length > 5 ? items.slice(0, 4) : items;
-  const hasMore = items.length > 5;
+  const visible = items.length > 4 ? items.slice(0, 4) : items;
+  const hasMore = items.length > 4;
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -477,7 +795,6 @@ function MobileNavigation({
                 to={item.to}
                 activeOptions={{ exact: true }}
                 aria-current={activePath === item.to ? "page" : undefined}
-                data-tour-path={item.to}
                 className={cn(
                   "flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-[11px] font-bold",
                   activePath === item.to ? "text-coral" : "text-navy/55",
@@ -571,6 +888,23 @@ function MobileNavigation({
                   </Link>
                 ))}
               </nav>
+              <div className="mt-4 flex items-center gap-3 border-t border-navy/10 pt-4">
+                <ProfileAvatar
+                  name={session.name}
+                  photoUrl={session.avatarUrl}
+                  sticker={session.avatarSticker}
+                  className="h-10 w-10 rounded-xl"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-navy">{session.name}</p>
+                  <p className="truncate text-xs text-navy/55">
+                    {session.guardianName
+                      ? `Run by ${session.guardianName}`
+                      : roleLabel(session.role, session.accountType)}
+                  </p>
+                </div>
+                <SignOutButton className="shrink-0 bg-navy text-white hover:bg-navy/90 hover:bg-current/5" />
+              </div>
             </div>
           </div>
         </ModalPortal>

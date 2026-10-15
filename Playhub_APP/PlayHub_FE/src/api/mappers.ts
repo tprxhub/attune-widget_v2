@@ -1,4 +1,3 @@
-import { planPriceLabel } from "@/lib/money";
 import type {
   Attempt,
   PermissionKey,
@@ -51,7 +50,7 @@ export function mapSubscription(child: ApiChild): Subscription {
   const sub = child.subscription;
   const today = new Date().toISOString().slice(0, 10);
   const isActive = sub?.status === "active" && (!sub.ends_on || sub.ends_on >= today);
-  const duration = sub?.plan_name?.match(/^(3m|6m|12m)$/)?.[1] as Subscription["duration"];
+  const duration = sub?.plan_name?.match(/^([1-9][0-9]?m)$/)?.[1] as Subscription["duration"];
   return {
     childId: child.id,
     status: isActive
@@ -64,7 +63,7 @@ export function mapSubscription(child: ApiChild): Subscription {
     expiresAt: sub?.ends_on ?? null,
     refundWindowEndsAt: sub?.refundable_until ?? null,
     renewalOpen: isActive && !!sub?.renewal_open,
-    priceLabel: planPriceLabel(duration) ?? sub?.plan_name ?? null,
+    priceLabel: duration ? duration.replace(/m$/, "-Month") : (sub?.plan_name ?? null),
   };
 }
 
@@ -85,6 +84,7 @@ export function mapChild(child: ApiChild): Child {
     planStartedAt: child.plan_started_at ?? new Date().toISOString().slice(0, 10),
     colorToken: token === "coral" || token === "amber" ? token : "blue",
     note: child.notes ?? undefined,
+    subscription: mapSubscription(child),
   };
 }
 
@@ -201,19 +201,26 @@ export function mapAttempt(row: ApiAttempt, plans: PlayPlan[]): Attempt {
   };
 }
 
-export function mapOrganisation(org: ApiOrganisation, licensesUsed = 0): Org {
+export function mapOrganisation(org: ApiOrganisation): Org {
   return {
     id: org.id,
     name: org.name,
     kind: org.kind.toLowerCase() === "clinic" ? "Clinic" : "School",
     licenses: org.seat_limit,
-    licensesUsed,
+    // Counted by the server: active children, or active and invited Moderators.
+    licensesUsed: org.licenses_used ?? 0,
+    licenseType: org.license_type ?? "children",
     username: "Email-based sign in",
     password: "Managed by invitation",
     active: org.is_active,
     createdAt: org.created_at.slice(0, 10),
     billingCycle: org.billing_cycle?.toLowerCase() === "monthly" ? "Monthly" : "Annual",
-    licensePrice: 0,
+    licensePrice: (org.license_price ?? 0) / 100,
+    billingStartedOn: org.billing_started_on ?? null,
+    renewsOn: org.renews_on ?? null,
+    amountPerCycle: (org.amount_per_cycle ?? 0) / 100,
+    annualValue: (org.annual_value ?? 0) / 100,
+    renewalStatus: org.renewal_status ?? "none",
   };
 }
 

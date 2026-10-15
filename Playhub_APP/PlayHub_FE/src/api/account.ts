@@ -2,7 +2,6 @@ import type { AvatarSticker, Session } from "@/lib/types";
 import {
   apiAssetUrl,
   apiRequest,
-  getApiChildren,
   getCurrentUser,
   type ApiOrganisation,
   type ApiUser,
@@ -22,14 +21,11 @@ export interface AccountProfile {
   orgKind: string | null;
   orgUsername: string | null;
   memberSince: string | null;
-  childCount: number;
-  childNames: string[];
 }
 
 export async function getAccount(session: Session): Promise<AccountProfile> {
-  const [user, children, org] = await Promise.all([
+  const [user, org] = await Promise.all([
     getCurrentUser(),
-    getApiChildren(),
     session.orgId
       ? apiRequest<ApiOrganisation>(`/organisations/${session.orgId}`)
       : Promise.resolve(null),
@@ -48,8 +44,6 @@ export async function getAccount(session: Session): Promise<AccountProfile> {
     orgKind: org?.kind ?? null,
     orgUsername: null,
     memberSince: user.created_at.slice(0, 10),
-    childCount: children.length,
-    childNames: children.map((child) => child.name),
   };
 }
 

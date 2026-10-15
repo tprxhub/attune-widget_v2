@@ -271,3 +271,35 @@ def test_application_logo_upload_and_reset(client, family, platform_admin):
     assert client.delete(f"{url}/logo", headers=platform_admin).status_code == 204
     assert client.get(url).json()["content"] is None
     assert client.get(logo).status_code == 404
+
+
+def test_images_and_policies_are_saved_and_public(client, platform_admin):
+    payload = homepage()
+    payload["hero"]["mobile_image_url"] = "/uploads/phone.jpg"
+    payload["auth"] = {"login_image_url": "/uploads/login.jpg", "signup_image_url": "https://example.com/signup.webp"}
+    payload["policies"] = {
+        "privacy": {"title": "Your privacy", "body": "## Your data\n\n- Name\n- Email\n\nYour choices."},
+        "terms": {"title": "Service terms", "body": "Terms approved by the site owner."},
+    }
+    response = client.put(URL, headers=platform_admin, json=payload)
+    assert response.status_code == 200
+    stored = client.get(URL).json()["content"]
+    for key in ("auth", "policies"):
+        assert stored[key] == payload[key]
+    assert stored["hero"]["mobile_image_url"] == "/uploads/phone.jpg"
+
+
+@pytest.mark.parametrize("path", ["hero.mobile_image_url", "auth.login_image_url", "auth.signup_image_url"])
+def test_new_image_fields_reject_unsafe_urls(client, platform_admin, path):
+    payload = homepage()
+    payload["auth"] = {"login_image_url": "", "signup_image_url": ""}
+    section, key = path.split(".")
+    payload[section][key] = "javascript:alert(1)"
+    assert client.put(URL, headers=platform_admin, json=payload).status_code == 422
+
+
+@pytest.mark.parametrize("body", ["", "x" * 100001])
+def test_policy_content_requires_bounded_nonempty_text(client, platform_admin, body):
+    payload = homepage()
+    payload["policies"] = {"privacy": {"title": "Privacy", "body": body}}
+    assert client.put(URL, headers=platform_admin, json=payload).status_code == 422

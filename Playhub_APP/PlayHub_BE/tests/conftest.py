@@ -50,3 +50,15 @@ def platform_admin(client):
     assert response.status_code == 201
     token = client.post("/api/v1/auth/login", json={"email": "admin@example.com", "password": "A-secure-password"}).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+def register_family(client, email="family@example.com"):
+    response = client.post("/api/v1/auth/register-family", json={
+        "email": email,
+        "display_name": "Family",
+        "guardian_name": "Family Guardian",
+        "child_name": "Family Child",
+        "password": "secure-password",
+    })
+    assert response.status_code == 201
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}

@@ -382,6 +382,46 @@ test("free family cannot log Sessions", async ({ page }) => {
   await expect(page.getByText("Free plan", { exact: true })).toBeVisible();
 });
 
+test("signed-in families can sign out from the app and home page headers", async ({ page }) => {
+  await login(page, "free.parent@playhub.local");
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.getByRole("banner").getByRole("link", { name: "Log in", exact: true }).click();
+  await page.getByLabel("Email Address").fill("free.parent@playhub.local");
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Log in", exact: true }).click();
+  await expect(page).toHaveURL(/\/(dashboard|org|admin)(?:[/?#]|$)/);
+  await page.goto("/");
+  const homeHeader = page.getByRole("banner");
+  await expect(homeHeader.getByRole("link", { name: "Open Play Hub" })).toBeVisible();
+  await expect(homeHeader.getByRole("button", { name: "Sign out" })).toBeVisible();
+});
+
+test("free family opens Subscription from Account and can return", async ({ page }) => {
+  await login(page, "free.parent@playhub.local");
+  await page.goto("/account");
+
+  await page.getByRole("link", { name: "Subscription", exact: true }).click();
+  await expect(page).toHaveURL(/\/subscription$/);
+  await page.getByRole("link", { name: "Back to account" }).click();
+  await expect(page).toHaveURL(/\/account$/);
+});
+
+test("subscribed family sees a duration badge beside the account name", async ({ page }) => {
+  await login(page, "parent@playhub.local");
+  await page.goto("/account");
+
+  const badge = page.getByRole("link", { name: "Manage 6-month subscription" });
+  await expect(badge).toBeVisible();
+  await badge.hover();
+  await expect(page.getByRole("tooltip")).toHaveText("6-month subscription");
+  await badge.click();
+  await expect(page).toHaveURL(/\/subscription$/);
+  await page.getByRole("link", { name: "Back to account" }).click();
+  await expect(page).toHaveURL(/\/account$/);
+});
+
 test("subscribed family can check in from an unassigned Play Dose", async ({ page }) => {
   await login(page, "parent@playhub.local");
   await page.goto("/plans");

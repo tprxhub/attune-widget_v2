@@ -6,16 +6,19 @@ import { chooseFreePlan } from "@/api/children";
 import { invalidatePlanCatalog } from "@/api/plans";
 import { ModalPortal } from "@/components/ModalPortal";
 import type { Goal, PlayPlan } from "@/lib/types";
+import { useSession } from "@/auth/session";
 import { useFreePlan } from "./useFreePlan";
 
 /** Asks once, then opens `goal` as the child's free Play Plan. */
 export function ChooseFreePlanDialog({
   goal,
+  planTitle,
   childName,
   childId,
   onClose,
 }: {
   goal: Goal;
+  planTitle: string;
   childName: string;
   childId: string;
   onClose: () => void;
@@ -69,7 +72,7 @@ export function ChooseFreePlanDialog({
             </button>
           </div>
           <h2 id="free-plan-title" className="mt-4 text-xl font-bold">
-            Open {goal.name} for free?
+            Open {planTitle} for free?
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-navy/70">
             On the free plan, {childName} can open the <b>Rookie Play Dose</b> of <b>one</b> Play
@@ -97,7 +100,7 @@ export function ChooseFreePlanDialog({
               onClick={() => choose.mutate()}
               className="min-h-11 rounded-full bg-navy px-5 text-sm font-bold text-cream hover:bg-navy/90 disabled:opacity-60"
             >
-              {choose.isPending ? "Opening…" : `Open ${goal.short}`}
+              {choose.isPending ? "Opening…" : `Open ${planTitle}`}
             </button>
           </div>
         </div>
@@ -107,10 +110,13 @@ export function ChooseFreePlanDialog({
 }
 
 /** The note at the top of the Play Plans page for a free family. */
-export function FreePlanBanner({ goals }: { goals: Goal[] }) {
+export function FreePlanBanner({ goals, plans }: { goals: Goal[]; plans: PlayPlan[] }) {
   const { active, child, chosenGoalId, canChoose, canManageSubscription } = useFreePlan();
+  const { session } = useSession();
   if (!active || !child) return null;
   const chosen = goals.find((goal) => goal.id === chosenGoalId);
+  const chosenPlan = plans.find((plan) => plan.goalId === chosenGoalId);
+  const chosenName = session.role === "parent" ? (chosenPlan?.title ?? chosen?.name) : chosen?.name;
   return (
     <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber/50 bg-amber/15 px-4 py-3 text-navy">
       <p className="flex items-start gap-2.5 text-sm leading-snug">
@@ -118,7 +124,7 @@ export function FreePlanBanner({ goals }: { goals: Goal[] }) {
         <span>
           {chosen ? (
             <>
-              <b>{chosen.name}</b> is {child.name}’s free Play Plan, with its Rookie Play Dose open.
+              <b>{chosenName}</b> is {child.name}’s free Play Plan, with its Rookie dose open.
               Subscribe to open every Play Dose and Play Plan.
             </>
           ) : canChoose ? (
@@ -147,9 +153,13 @@ export function FreePlanBanner({ goals }: { goals: Goal[] }) {
 /** Stands in for a plan's page when the family can't open it on the free tier. */
 export function FreePlanGate({ goal, dose }: { goal: Goal; dose?: PlayPlan }) {
   const { child, chosenGoalId, accessFor, canManageSubscription } = useFreePlan();
+  const { session } = useSession();
   const [choosing, setChoosing] = useState(false);
   const access = accessFor(goal, dose);
-  const title = dose ? `${goal.name} · ${dose.level}` : goal.name;
+  const title =
+    dose && session.role === "parent"
+      ? `${dose.title} · ${dose.level} dose`
+      : `${goal.name}${dose ? ` · ${dose.level}` : ""}`;
   return (
     <section className="ph-card mt-4 p-8 text-center">
       <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy text-white">
@@ -186,6 +196,7 @@ export function FreePlanGate({ goal, dose }: { goal: Goal; dose?: PlayPlan }) {
       {choosing && child && (
         <ChooseFreePlanDialog
           goal={goal}
+          planTitle={dose?.title ?? goal.name}
           childId={child.id}
           childName={child.name}
           onClose={() => setChoosing(false)}

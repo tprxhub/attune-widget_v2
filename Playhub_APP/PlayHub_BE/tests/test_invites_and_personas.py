@@ -1,3 +1,24 @@
+from app.mailer import SENT
+
+
+def create_moderator_invitation(client, headers, school, email, name):
+    organisation = client.post(
+        "/api/v1/organisations", headers=headers, json={"name": school}
+    ).json()
+    invitation = client.post(
+        "/api/v1/invitations",
+        headers=headers,
+        json={
+            "email": email,
+            "display_name": name,
+            "role": "moderator",
+            "account_scope": "organisation",
+            "organisation_id": organisation["id"],
+        },
+    ).json()
+    return organisation, invitation
+
+
 def test_invitation_acceptance_and_audit(client, platform_admin):
     organisation = client.post("/api/v1/organisations", headers=platform_admin, json={"name": "Test Organisation"}).json()
     invitation = client.post("/api/v1/invitations", headers=platform_admin, json={
@@ -17,20 +38,13 @@ def test_invitation_acceptance_and_audit(client, platform_admin):
 
 
 def test_pending_invitation_activation_link_can_be_securely_regenerated(client, platform_admin):
-    organisation = client.post(
-        "/api/v1/organisations", headers=platform_admin, json={"name": "Link Recovery School"}
-    ).json()
-    invitation = client.post(
-        "/api/v1/invitations",
-        headers=platform_admin,
-        json={
-            "email": "recover-moderator@example.com",
-            "display_name": "Recovery Moderator",
-            "role": "moderator",
-            "account_scope": "organisation",
-            "organisation_id": organisation["id"],
-        },
-    ).json()
+    _, invitation = create_moderator_invitation(
+        client,
+        platform_admin,
+        "Link Recovery School",
+        "recover-moderator@example.com",
+        "Recovery Moderator",
+    )
     old_token = invitation["acceptance_token"]
 
     regenerated = client.post(
@@ -51,6 +65,96 @@ def test_pending_invitation_activation_link_can_be_securely_regenerated(client, 
 
     audit = client.get("/api/v1/audit-events", headers=platform_admin).json()
     assert any(event["action"] == "invitation.activation_regenerated" for event in audit)
+
+
+def test_pending_moderator_invitation_can_be_corrected_and_old_link_is_expired(client, platform_admin):
+    _, invitation = create_moderator_invitation(
+        client,
+        platform_admin,
+        "Invite Correction School",
+        "wrong-address@example.com",
+        "Test Moderator",
+    )
+    old_token = invitation["acceptance_token"]
+    SENT.clear()
+
+    updated = client.patch(
+        f"/api/v1/invitations/{invitation['id']}/moderator",
+        headers=platform_admin,
+        json={
+            "email": "  Correct.Address@Example.com ",
+            "display_name": "Correct Moderator",
+            "child_id": None,
+        },
+    )
+    assert updated.status_code == 200
+    corrected = updated.json()
+    assert corrected["email"] == "correct.address@example.com"
+    assert corrected["display_name"] == "Correct Moderator"
+    assert corrected["acceptance_token"] != old_token
+    assert len([message for message in SENT if message.to == "correct.address@example.com"]) == 1
+    assert not [message for message in SENT if message.to == "wrong-address@example.com"]
+
+    assert client.post(
+        "/api/v1/invitations/accept",
+        json={"token": old_token, "password": "A-secure-password"},
+    ).status_code == 422
+    accepted = client.post(
+        "/api/v1/invitations/accept",
+        json={"token": corrected["acceptance_token"], "password": "A-secure-password"},
+    )
+    assert accepted.status_code == 200
+
+    listed = client.get("/api/v1/invitations", headers=platform_admin).json()
+    assert not any(item.get("acceptance_token") for item in listed)
+    audit = client.get("/api/v1/audit-events", headers=platform_admin).json()
+    assert any(event["action"] == "invitation.moderator_details_updated" for event in audit)
+
+
+def test_pending_moderator_invitation_can_be_deleted_and_link_is_invalidated(client, platform_admin):
+    _, invitation = create_moderator_invitation(
+        client,
+        platform_admin,
+        "Invitation Removal School",
+        "remove-moderator@example.com",
+        "Remove Moderator",
+    )
+
+    deleted = client.delete(f"/api/v1/invitations/{invitation['id']}", headers=platform_admin)
+
+    assert deleted.status_code == 204
+    assert not any(
+        item["id"] == invitation["id"]
+        for item in client.get("/api/v1/invitations", headers=platform_admin).json()
+    )
+    assert client.post(
+        "/api/v1/invitations/accept",
+        json={"token": invitation["acceptance_token"], "password": "A-secure-password"},
+    ).status_code == 422
+    events = client.get("/api/v1/audit-events", headers=platform_admin).json()
+    assert any(event["action"] == "invitation.deleted" for event in events)
+
+    repeated = client.delete(f"/api/v1/invitations/{invitation['id']}", headers=platform_admin)
+    assert repeated.status_code == 404
+
+
+def test_accepted_moderator_invitation_cannot_be_deleted(client, platform_admin):
+    _, invitation = create_moderator_invitation(
+        client,
+        platform_admin,
+        "Accepted Invite School",
+        "accepted-moderator@example.com",
+        "Accepted Moderator",
+    )
+    accepted = client.post(
+        "/api/v1/invitations/accept",
+        json={"token": invitation["acceptance_token"], "password": "A-secure-password"},
+    )
+    assert accepted.status_code == 200
+
+    deleted = client.delete(f"/api/v1/invitations/{invitation['id']}", headers=platform_admin)
+
+    assert deleted.status_code == 409
 
 
 def test_dedicated_tester_switches_among_test_personas(client):

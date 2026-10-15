@@ -1,3 +1,4 @@
+import { IMAGE_DIMENSIONS } from "@/components/ImageDimensionsGuide";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -985,6 +986,7 @@ function PlanModal({
             />
             <p className="mt-1 text-xs text-navy/55">
               Paste an image link, or upload an image below. It appears on the Play Dose card.
+              Recommended: {IMAGE_DIMENSIONS.thumbnail}.
             </p>
             <input
               id="pl-thumbnail-file"

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { HelpCircle, Map, X } from "lucide-react";
+import { HelpCircle, X } from "lucide-react";
 import { LEVEL_GUIDANCE } from "@/api/domain";
 import { STATUS_META } from "@/api/progress";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -7,37 +7,35 @@ import { LevelDots } from "@/components/brand";
 import { ModalPortal } from "@/components/ModalPortal";
 import { useSession } from "@/auth/session";
 import { LEVELS } from "@/lib/types";
-import { startNavigationTour } from "./navigation-tour-events";
 
-export function GuideButton({ label, tour = false }: { label?: string; tour?: boolean }) {
+/** Opens "How Play Hub works": the levels, the progress statuses and how a Play Plan runs. */
+export function GuideButton({ label = "How Play Hub works" }: { label?: string }) {
   const [open, setOpen] = useState(false);
-  const resolvedLabel = label ?? (tour ? "Start guide" : "How Play Hub works");
-  const Icon = tour ? Map : HelpCircle;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   return (
     <>
       <button
         type="button"
-        onClick={() => (tour ? startNavigationTour() : setOpen(true))}
-        aria-label={tour ? "Start navigation guide" : resolvedLabel}
+        onClick={() => setOpen(true)}
+        aria-label={label}
         className="inline-flex min-h-11 items-center gap-2 rounded-full border border-navy/15 px-4 text-sm font-semibold transition-colors hover:border-navy/40"
       >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden />
-        <span className="hidden sm:inline">{resolvedLabel}</span>
+        <HelpCircle className="h-4 w-4 shrink-0" aria-hidden />
+        <span className="hidden sm:inline">{label}</span>
         <span className="sm:hidden">Guide</span>
       </button>
-      {!tour && open && <GuideSheet onClose={() => setOpen(false)} />}
+      {open && <GuideSheet onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function GuideSheet({ onClose }: { onClose: () => void }) {
+export function GuideSheet({ onClose }: { onClose: () => void }) {
   const { session } = useSession();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   const showPricing =
     session.role === "anonymous" || (session.accountType === "b2c" && session.tier === "free");
 

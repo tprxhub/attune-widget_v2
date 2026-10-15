@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listGoals, listPlans } from "@/api/plans";
 import { LEVEL_GUIDANCE } from "@/api/domain";
 import { Protected } from "@/auth/guards";
+import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
 import { PlayPlanCard } from "@/components/PlayPlanCard";
 import { ListSkeleton } from "@/components/Skeletons";
@@ -21,12 +22,13 @@ export const Route = createFileRoute("/plans/")({
       {
         name: "description",
         content:
-          "Pick a Plan, pick a level, press play. Every Play Plan is a week-long Play Dose for the Fine Motor Play Kit.",
+          "Choose a Play Plan and its Rookie, Starter or Pro dose. Each dose is a week-long programme for the Fine Motor Play Kit.",
       },
       { property: "og:title", content: "Play Plans — Play Hub" },
       {
         property: "og:description",
-        content: "Pick a Plan, pick a level, press play — a week-long Play Dose for every skill.",
+        content:
+          "Choose a Play Plan and its Rookie, Starter or Pro dose — a week-long programme for every skill.",
       },
     ],
   }),
@@ -41,17 +43,18 @@ function PlansPage() {
   const goals = useQuery({ queryKey: ["goals"], queryFn: listGoals });
   const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
   const free = useFreePlan();
+  const { session } = useSession();
   const [choosing, setChoosing] = useState<Goal | null>(null);
 
   return (
     <>
       <PageHeader
         eyebrow="Play plans"
-        title="Pick a Plan, pick a level, press play."
-        description={`Every plan is a week-long Play Dose. ${LEVEL_GUIDANCE} All plans use the Fine Motor Play Kit.`}
+        title="Choose a Play Plan and its dose."
+        description={`Each plan has Rookie, Starter and Pro doses, with activities inside each dose. ${LEVEL_GUIDANCE} All plans use the Fine Motor Play Kit.`}
       />
 
-      <FreePlanBanner goals={goals.data ?? []} />
+      <FreePlanBanner goals={goals.data ?? []} plans={plans.data ?? []} />
 
       {plans.isLoading || goals.isLoading ? (
         <ListSkeleton rows={6} />
@@ -60,17 +63,20 @@ function PlansPage() {
           const goalPlans = (plans.data ?? []).filter((p) => p.goalId === goal.id);
           return (
             <section key={goal.id} className="mt-8 first:mt-4">
-              <div className="flex items-center gap-2.5">
-                <span
-                  className={cn("h-2.5 w-2.5 rounded-[3px]", TOKEN_BG[goal.color])}
-                  aria-hidden
-                />
-                <h2 className="text-lg font-bold">{goal.name}</h2>
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-navy/55">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue/8 px-3 py-1 text-xs font-bold text-navy">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={cn("h-2.5 w-2.5 rounded-[3px]", TOKEN_BG[goal.color])}
+                    aria-hidden
+                  />
+                  <h2 className="text-lg font-bold">
+                    {session.role === "parent" ? (goalPlans[0]?.title ?? goal.name) : goal.name}
+                  </h2>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-navy/10 bg-white/70 px-3 py-1.5 text-xs text-navy/60">
                   <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden />
-                  Created by <span className="text-blue">{goal.createdBy ?? "Super Admin"}</span>
+                  <span>Created by</span>
+                  <span className="font-semibold text-navy">{goal.createdBy ?? "Super Admin"}</span>
                 </span>
                 {free.active && goal.id === free.chosenGoalId && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-amber/35 px-3 py-1 text-xs font-bold text-navy">
@@ -84,7 +90,7 @@ function PlansPage() {
                 )}
               </div>
 
-              <ul className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {goalPlans.map((plan) => (
                   <li key={plan.id}>
                     <PlayPlanCard
@@ -104,6 +110,9 @@ function PlansPage() {
       {choosing && free.child && (
         <ChooseFreePlanDialog
           goal={choosing}
+          planTitle={
+            plans.data?.find((plan) => plan.goalId === choosing.id)?.title ?? choosing.name
+          }
           childId={free.child.id}
           childName={free.child.name}
           onClose={() => setChoosing(null)}

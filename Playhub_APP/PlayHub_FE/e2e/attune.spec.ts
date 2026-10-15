@@ -175,6 +175,7 @@ test("the Activity page opens Attune about that Activity", async ({ page }) => {
 
 type Mock = {
   remaining?: number;
+  freePlan?: boolean;
   /** What /ask/stream does: answer with this text, fail, or never finish. */
   reply?: string | "fail" | "hang";
 };
@@ -199,6 +200,7 @@ async function mockAttune(page: Page, mock: Mock = {}) {
           daily_limit: 30,
           used_today: 30 - state.remaining,
           remaining_today: state.remaining,
+          free_plan: mock.freePlan ?? false,
         },
       });
     }
@@ -261,6 +263,21 @@ async function mockAttune(page: Page, mock: Mock = {}) {
   });
   return state;
 }
+
+test("free families see Attune locked on the dashboard and assistant page", async ({ page }) => {
+  await mockAttune(page, { freePlan: true, remaining: 0 });
+  await login(page, "parent@playhub.local");
+  await page.goto("/dashboard");
+  await expect(page.getByRole("region", { name: "Attune locked" })).toContainText(
+    "up to 30 questions per day",
+  );
+  await page.goto("/attune");
+  await expect(
+    page.getByRole("heading", { name: "Attune is locked on the free plan" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "See subscription plans" })).toBeVisible();
+  await expect(page.getByLabel("Your question for Attune")).toHaveCount(0);
+});
 
 test("a question can be stopped while Attune is answering", async ({ page }) => {
   const state = await mockAttune(page, { reply: "hang" });

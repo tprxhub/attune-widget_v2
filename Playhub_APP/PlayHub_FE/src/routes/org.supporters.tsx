@@ -9,14 +9,18 @@ import {
   KeyRound,
   Loader2,
   Mail,
+  Pencil,
   Power,
   ShieldCheck,
+  Trash2,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
 import {
   createSupporter,
+  deleteSupporterInvitation,
+  editSupporterInvitation,
   getOrg,
   listSupporters,
   regenerateSupporterActivation,
@@ -28,6 +32,8 @@ import { listChildrenForSession } from "@/api/children";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
+import { LicenceLimitModal, OrgLicenseNote } from "@/components/OrgLicenseNote";
+import { licencesFull } from "@/lib/licences";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
@@ -64,9 +70,11 @@ function OrgSupporters() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [disabling, setDisabling] = useState<StaffMember | null>(null);
+  const [deletingInvitation, setDeletingInvitation] = useState<StaffMember | null>(null);
   const [reissuedCredentials, setReissuedCredentials] = useState<StaffInvitationResult | null>(
     null,
   );
+  const [editingInvitation, setEditingInvitation] = useState<StaffMember | null>(null);
   const [view, setView] = useViewMode("supporters");
 
   const supporters = useQuery({
@@ -104,13 +112,87 @@ function OrgSupporters() {
     },
   });
 
+  const removeInvitation = useMutation({
+    mutationFn: (id: string) => deleteSupporterInvitation(id),
+    onSuccess: async () => {
+      setDeletingInvitation(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["supporters"] }),
+        queryClient.invalidateQueries({ queryKey: ["org"] }),
+      ]);
+    },
+  });
+
+  const [limitOpen, setLimitOpen] = useState(false);
+
   const closeModal = () => {
     setOpen(false);
     setReissuedCredentials(null);
+    setEditingInvitation(null);
   };
 
   return (
     <>
+      {deletingInvitation && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 grid place-items-center bg-navy/45 p-4">
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-invitation-title"
+              className="w-full max-w-md rounded-3xl bg-card p-6 shadow-xl"
+            >
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral/10 text-coral">
+                  <Trash2 className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 id="delete-invitation-title" className="text-xl font-bold text-navy">
+                    Delete pending invitation?
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-navy/70">
+                    This permanently removes {deletingInvitation.name}’s unactivated invitation and
+                    invalidates its link. You can invite them again later.
+                  </p>
+                </div>
+              </div>
+              {removeInvitation.isError && (
+                <p role="alert" className="mt-4 rounded-2xl bg-coral/10 p-3 text-sm text-coral">
+                  {removeInvitation.error instanceof Error
+                    ? removeInvitation.error.message
+                    : "Could not delete this invitation."}
+                </p>
+              )}
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  disabled={removeInvitation.isPending}
+                  onClick={() => {
+                    setDeletingInvitation(null);
+                    removeInvitation.reset();
+                  }}
+                  className="min-h-11 rounded-full bg-navy/6 px-5 text-sm font-bold text-navy hover:bg-navy/12 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={removeInvitation.isPending}
+                  onClick={() => removeInvitation.mutate(deletingInvitation.id)}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white hover:bg-coral/90 disabled:opacity-60"
+                >
+                  {removeInvitation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  )}
+                  {removeInvitation.isPending ? "Deleting…" : "Delete invitation"}
+                </button>
+              </div>
+            </section>
+          </div>
+        </ModalPortal>
+      )}
       {disabling && (
         <ModalPortal>
           <div className="fixed inset-0 z-50 grid place-items-center bg-navy/45 p-4">
@@ -167,7 +249,12 @@ function OrgSupporters() {
           <button
             type="button"
             onClick={() => {
+              if (licencesFull(org.data, "moderators")) {
+                setLimitOpen(true);
+                return;
+              }
               setReissuedCredentials(null);
+              setEditingInvitation(null);
               setOpen(true);
             }}
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
@@ -176,6 +263,10 @@ function OrgSupporters() {
           </button>
         }
       />
+      <OrgLicenseNote org={org.data} kind="moderators" />
+      {limitOpen && org.data && (
+        <LicenceLimitModal org={org.data} kind="moderators" onClose={() => setLimitOpen(false)} />
+      )}
 
       {list.length > 0 && (
         <div className="ph-card mt-1 grid gap-4 bg-navy p-5 text-cream sm:grid-cols-3">
@@ -222,6 +313,12 @@ function OrgSupporters() {
                   busy={toggle.isPending && toggle.variables === s.id}
                   onGenerateLink={() => regenerate.mutate(s.id)}
                   generatingLink={regenerate.isPending && regenerate.variables === s.id}
+                  onEditInvitation={() => {
+                    setReissuedCredentials(null);
+                    setEditingInvitation(s);
+                    setOpen(true);
+                  }}
+                  onDeleteInvitation={() => setDeletingInvitation(s)}
                 />
               ))}
             </div>
@@ -259,19 +356,29 @@ function OrgSupporters() {
                       {s.invitationPending ? "Pending" : s.active ? "Active" : "Disabled"}
                     </span>
                     {s.invitationPending ? (
-                      <button
-                        type="button"
-                        onClick={() => regenerate.mutate(s.id)}
-                        disabled={regenerate.isPending}
-                        className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border-2 border-amber/45 px-4 text-xs font-bold text-navy hover:border-amber disabled:opacity-60"
-                      >
-                        {regenerate.isPending && regenerate.variables === s.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                        ) : (
-                          <KeyRound className="h-3.5 w-3.5" aria-hidden />
-                        )}
-                        View activation link
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => regenerate.mutate(s.id)}
+                          disabled={regenerate.isPending}
+                          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border-2 border-amber/45 px-4 text-xs font-bold text-navy hover:border-amber disabled:opacity-60"
+                        >
+                          {regenerate.isPending && regenerate.variables === s.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <KeyRound className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                          Resend activation link
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingInvitation(s)}
+                          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border-2 border-coral/25 px-4 text-xs font-bold text-coral hover:border-coral"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          Delete invite
+                        </button>
+                      </>
                     ) : (
                       <button
                         type="button"
@@ -314,6 +421,7 @@ function OrgSupporters() {
         <AddSupporterModal
           kids={children}
           initialCredentials={reissuedCredentials}
+          initialMember={editingInvitation}
           onClose={closeModal}
         />
       )}
@@ -337,6 +445,8 @@ function SupporterCard({
   busy,
   onGenerateLink,
   generatingLink,
+  onEditInvitation,
+  onDeleteInvitation,
 }: {
   member: StaffMember;
   assigned: Child[];
@@ -344,6 +454,8 @@ function SupporterCard({
   busy: boolean;
   onGenerateLink: () => void;
   generatingLink: boolean;
+  onEditInvitation: () => void;
+  onDeleteInvitation: () => void;
 }) {
   return (
     <article
@@ -397,19 +509,37 @@ function SupporterCard({
       </p>
 
       {member.invitationPending ? (
-        <button
-          type="button"
-          onClick={onGenerateLink}
-          disabled={generatingLink}
-          className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-amber/45 px-5 text-sm font-bold text-navy transition-colors hover:border-amber disabled:opacity-60"
-        >
-          {generatingLink ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <KeyRound className="h-4 w-4" aria-hidden />
-          )}
-          View activation link
-        </button>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onEditInvitation}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-amber/45 px-4 text-sm font-bold text-navy transition-colors hover:border-amber"
+          >
+            <Pencil className="h-4 w-4" aria-hidden />
+            Edit & resend
+          </button>
+          <button
+            type="button"
+            onClick={onGenerateLink}
+            disabled={generatingLink}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-navy px-4 text-sm font-bold text-white transition-colors hover:bg-blue disabled:opacity-60"
+          >
+            {generatingLink ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <KeyRound className="h-4 w-4" aria-hidden />
+            )}
+            Resend link
+          </button>
+          <button
+            type="button"
+            onClick={onDeleteInvitation}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-coral/25 px-4 text-sm font-semibold text-coral transition-colors hover:border-coral hover:bg-coral/5 sm:col-span-2"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+            Delete pending invitation
+          </button>
+        </div>
       ) : (
         <button
           type="button"
@@ -436,13 +566,316 @@ function SupporterCard({
   );
 }
 
+function ModeratorInvitationResult({
+  created,
+  isReplacementLink,
+  isEdited,
+  kids,
+  onUpdated,
+  onClose,
+}: {
+  created: StaffInvitationResult;
+  isReplacementLink: boolean;
+  isEdited: boolean;
+  kids: Child[];
+  onUpdated: (result: StaffInvitationResult) => void;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [copied, setCopied] = useState<"email" | "link" | "all" | null>(null);
+  const activationLink = created.credentials.acceptanceToken
+    ? `${window.location.origin}/accept-invite?token=${encodeURIComponent(created.credentials.acceptanceToken)}`
+    : null;
+  const edit = useMutation({
+    mutationFn: (input: { name: string; email: string; childId?: string }) =>
+      editSupporterInvitation(created.member.id, input),
+    onSuccess: (result) => {
+      onUpdated(result);
+      setEditing(false);
+      setCopied(null);
+      queryClient.invalidateQueries({ queryKey: ["supporters"] });
+      queryClient.invalidateQueries({ queryKey: ["children"] });
+    },
+  });
+  const copy = async (value: string, field: "email" | "link" | "all") => {
+    await navigator.clipboard.writeText(value);
+    setCopied(field);
+    window.setTimeout(() => setCopied(null), 1800);
+  };
+
+  if (editing) {
+    return (
+      <EditModeratorInvitationForm
+        member={created.member}
+        email={created.credentials.email}
+        kids={kids}
+        pending={edit.isPending}
+        error={
+          edit.isError
+            ? edit.error instanceof Error
+              ? edit.error.message
+              : "Could not update and resend the Moderator invitation."
+            : undefined
+        }
+        onCancel={() => {
+          setEditing(false);
+          edit.reset();
+        }}
+        onSubmit={(input) => edit.mutate(input)}
+      />
+    );
+  }
+
+  return (
+    <div className="mt-5 space-y-4">
+      <div className="rounded-2xl bg-blue/10 p-4">
+        <p className="flex items-center gap-2 text-sm font-bold text-blue">
+          <CheckCircle2 className="h-4 w-4" aria-hidden />
+          {isEdited
+            ? "Moderator details updated"
+            : isReplacementLink
+              ? "New activation link generated"
+              : "Moderator invitation created"}
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-navy/65">
+          {isEdited
+            ? "The old link has expired. A fresh one-time link was emailed to the corrected address."
+            : isReplacementLink
+              ? "Share this fresh one-time link securely. Any previous activation link for this account no longer works."
+              : "Share this one-time activation link securely. The Moderator chooses their own password, and their account stays pending until they activate it."}
+        </p>
+      </div>
+
+      <CredentialRow
+        label="Sign-in email"
+        value={created.credentials.email}
+        copied={copied === "email"}
+        onCopy={() => copy(created.credentials.email, "email")}
+      />
+      {activationLink ? (
+        <CredentialRow
+          label="One-time activation link"
+          value={activationLink}
+          copied={copied === "link"}
+          onCopy={() => copy(activationLink, "link")}
+        />
+      ) : (
+        <p className="rounded-2xl border border-amber/40 bg-amber/10 p-4 text-xs text-navy/70">
+          The invitation was saved, but this environment did not return an activation link.
+        </p>
+      )}
+
+      <p className="text-xs text-navy/55">
+        Link expires {fmtDateTime(created.credentials.expiresAt)} and can be used only once.
+      </p>
+
+      <div className="grid gap-2 pt-1 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <button
+          type="button"
+          onClick={() => {
+            edit.reset();
+            setEditing(true);
+          }}
+          className="min-h-12 whitespace-nowrap rounded-full border-2 border-amber/45 px-4 text-sm font-bold text-navy hover:border-amber"
+        >
+          Edit & resend
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-12 whitespace-nowrap rounded-full bg-navy/6 px-5 text-sm font-bold text-navy hover:bg-navy/12"
+        >
+          Done
+        </button>
+        {activationLink && (
+          <button
+            type="button"
+            onClick={() =>
+              copy(
+                `Play Hub Moderator account\nEmail: ${created.credentials.email}\nActivate: ${activationLink}`,
+                "all",
+              )
+            }
+            className="inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-navy px-5 text-sm font-bold text-white"
+          >
+            {copied === "all" ? (
+              <Check className="h-4 w-4" aria-hidden />
+            ) : (
+              <KeyRound className="h-4 w-4" aria-hidden />
+            )}
+            {copied === "all" ? "Copied" : "Copy details"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EditModeratorInvitationForm({
+  member,
+  email: initialEmail,
+  kids,
+  pending,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  member: StaffMember;
+  email: string;
+  kids: Child[];
+  pending: boolean;
+  error?: string | undefined;
+  onCancel: () => void;
+  onSubmit: (input: { name: string; email: string; childId?: string }) => void;
+}) {
+  const [name, setName] = useState(member.name);
+  const [email, setEmail] = useState(initialEmail);
+  const [childId, setChildId] = useState(member.childIds?.[0] ?? "");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  return (
+    <form
+      className="mt-5 space-y-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const next: Record<string, string> = {};
+        if (name.trim().length < 2) next["name"] = "Enter their name.";
+        if (!/^\S+@\S+\.\S+$/.test(email.trim())) next["email"] = "Enter a valid email address.";
+        setErrors(next);
+        if (!Object.keys(next).length) {
+          onSubmit({ name: name.trim(), email: email.trim(), ...(childId ? { childId } : {}) });
+        }
+      }}
+    >
+      <div className="rounded-2xl border border-amber/50 bg-amber/10 p-4 text-sm text-navy/75">
+        Saving these changes expires the old link, creates a fresh 7-day link, and emails it to the
+        corrected address.
+      </div>
+      <div>
+        <label htmlFor="sup-edit-name" className="text-sm font-bold">
+          Full name
+        </label>
+        <input
+          id="sup-edit-name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          className="mt-2 min-h-12 w-full rounded-2xl border border-navy/15 bg-card px-4 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/25"
+        />
+        {errors["name"] && (
+          <p className="mt-1.5 text-xs font-semibold text-coral">{errors["name"]}</p>
+        )}
+      </div>
+      <div>
+        <label htmlFor="sup-edit-email" className="text-sm font-bold">
+          Email
+        </label>
+        <input
+          id="sup-edit-email"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className="mt-2 min-h-12 w-full rounded-2xl border border-navy/15 bg-card px-4 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/25"
+        />
+        {errors["email"] && (
+          <p className="mt-1.5 text-xs font-semibold text-coral">{errors["email"]}</p>
+        )}
+      </div>
+      <div>
+        <label htmlFor="sup-edit-child" className="text-sm font-bold">
+          Assign a child <span className="font-normal text-navy/50">(optional)</span>
+        </label>
+        <Select
+          id="sup-edit-child"
+          value={childId}
+          onChange={setChildId}
+          options={[
+            { value: "", label: "No child for now" },
+            ...kids.map((child) => ({
+              value: child.id,
+              label: `${child.name} · Age ${child.age}`,
+            })),
+          ]}
+          className="mt-2"
+        />
+      </div>
+      {error && (
+        <p role="alert" className="rounded-2xl bg-coral/10 p-3 text-sm font-semibold text-coral">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={pending}
+          className="min-h-12 rounded-full border-2 border-navy/15 px-6 text-sm font-bold text-navy hover:border-navy/40 disabled:opacity-60"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={pending}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white disabled:opacity-60"
+        >
+          {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+          {pending ? "Updating & emailing…" : "Update & email new link"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PendingModeratorInvitationEdit({
+  member,
+  kids,
+  onCancel,
+  onUpdated,
+}: {
+  member: StaffMember;
+  kids: Child[];
+  onCancel: () => void;
+  onUpdated: (result: StaffInvitationResult) => void;
+}) {
+  const queryClient = useQueryClient();
+  const edit = useMutation({
+    mutationFn: (input: { name: string; email: string; childId?: string }) =>
+      editSupporterInvitation(member.id, input),
+    onSuccess: (result) => {
+      onUpdated(result);
+      queryClient.invalidateQueries({ queryKey: ["supporters"] });
+      queryClient.invalidateQueries({ queryKey: ["children"] });
+    },
+  });
+
+  return (
+    <EditModeratorInvitationForm
+      member={member}
+      email={member.email}
+      kids={kids}
+      pending={edit.isPending}
+      error={
+        edit.isError
+          ? edit.error instanceof Error
+            ? edit.error.message
+            : "Could not update and resend the Moderator invitation."
+          : undefined
+      }
+      onCancel={onCancel}
+      onSubmit={(input) => edit.mutate(input)}
+    />
+  );
+}
+
 function AddSupporterModal({
   kids,
   initialCredentials,
+  initialMember,
   onClose,
 }: {
   kids: Child[];
   initialCredentials: StaffInvitationResult | null;
+  initialMember: StaffMember | null;
   onClose: () => void;
 }) {
   const { session } = useSession();
@@ -451,7 +884,7 @@ function AddSupporterModal({
   const [email, setEmail] = useState("");
   const [childId, setChildId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [copied, setCopied] = useState<"email" | "link" | "all" | null>(null);
+  const [updatedCredentials, setUpdatedCredentials] = useState<StaffInvitationResult | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -475,17 +908,8 @@ function AddSupporterModal({
     },
   });
 
-  const created = initialCredentials ?? create.data;
-  const isReplacementLink = Boolean(initialCredentials);
-  const activationLink = created?.credentials.acceptanceToken
-    ? `${window.location.origin}/accept-invite?token=${encodeURIComponent(created.credentials.acceptanceToken)}`
-    : null;
-
-  const copy = async (value: string, field: "email" | "link" | "all") => {
-    await navigator.clipboard.writeText(value);
-    setCopied(field);
-    window.setTimeout(() => setCopied(null), 1800);
-  };
+  const created = updatedCredentials ?? initialCredentials ?? create.data;
+  const isReplacementLink = Boolean(initialCredentials || updatedCredentials);
 
   return (
     <ModalPortal>
@@ -503,12 +927,16 @@ function AddSupporterModal({
                   ? isReplacementLink
                     ? "Activation link ready"
                     : "Moderator login ready"
-                  : "Add a Moderator"}
+                  : initialMember
+                    ? "Edit Moderator invitation"
+                    : "Add a Moderator"}
               </h2>
               <p className="mt-1 text-sm text-navy/65">
                 {created
-                  ? `We’ve emailed ${created.member.name} the link below. You can also share it yourself.`
-                  : "They can log sessions for the members you assign them."}
+                  ? `We’ve emailed the activation link to ${created.credentials.email}. You can also share it yourself.`
+                  : initialMember
+                    ? `Correct ${initialMember.name}’s details and send a fresh activation link.`
+                    : "They can log sessions for the members you assign them."}
               </p>
             </div>
             <button
@@ -522,73 +950,22 @@ function AddSupporterModal({
           </div>
 
           {created ? (
-            <div className="mt-5 space-y-4">
-              <div className="rounded-2xl bg-blue/10 p-4">
-                <p className="flex items-center gap-2 text-sm font-bold text-blue">
-                  <CheckCircle2 className="h-4 w-4" aria-hidden />
-                  {isReplacementLink
-                    ? "New activation link generated"
-                    : "Moderator invitation created"}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-navy/65">
-                  {isReplacementLink
-                    ? "Share this fresh one-time link securely. Any previous activation link for this account no longer works."
-                    : "Share this one-time activation link securely. The Moderator chooses their own password, and their account stays pending until they activate it."}
-                </p>
-              </div>
-
-              <CredentialRow
-                label="Sign-in email"
-                value={created.credentials.email}
-                copied={copied === "email"}
-                onCopy={() => copy(created.credentials.email, "email")}
-              />
-              {activationLink ? (
-                <CredentialRow
-                  label="One-time activation link"
-                  value={activationLink}
-                  copied={copied === "link"}
-                  onCopy={() => copy(activationLink, "link")}
-                />
-              ) : (
-                <p className="rounded-2xl border border-amber/40 bg-amber/10 p-4 text-xs text-navy/70">
-                  The invitation was saved, but this environment did not return an activation link.
-                </p>
-              )}
-
-              <p className="text-xs text-navy/55">
-                Link expires {fmtDateTime(created.credentials.expiresAt)} and can be used only once.
-              </p>
-
-              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="min-h-12 rounded-full bg-navy/6 px-6 text-sm font-bold text-navy hover:bg-navy/12"
-                >
-                  Done
-                </button>
-                {activationLink && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copy(
-                        `Play Hub Moderator account\nEmail: ${created.credentials.email}\nActivate: ${activationLink}`,
-                        "all",
-                      )
-                    }
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-navy px-6 text-sm font-bold text-white"
-                  >
-                    {copied === "all" ? (
-                      <Check className="h-4 w-4" aria-hidden />
-                    ) : (
-                      <KeyRound className="h-4 w-4" aria-hidden />
-                    )}
-                    {copied === "all" ? "Copied" : "Copy login details"}
-                  </button>
-                )}
-              </div>
-            </div>
+            <ModeratorInvitationResult
+              key={created.member.id}
+              created={created}
+              isReplacementLink={isReplacementLink}
+              isEdited={Boolean(updatedCredentials)}
+              kids={kids}
+              onUpdated={setUpdatedCredentials}
+              onClose={onClose}
+            />
+          ) : initialMember ? (
+            <PendingModeratorInvitationEdit
+              member={initialMember}
+              kids={kids}
+              onCancel={onClose}
+              onUpdated={setUpdatedCredentials}
+            />
           ) : (
             <form
               className="mt-5 space-y-4"

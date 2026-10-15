@@ -1,3 +1,4 @@
+from conftest import register_family
 from datetime import datetime, timezone
 
 import jwt
@@ -7,16 +8,6 @@ from app.config import Settings, get_settings
 from app.google_identity import GoogleIdentity
 
 
-def register_family(client, email="family@example.com"):
-    response = client.post("/api/v1/auth/register-family", json={
-        "email": email,
-        "display_name": "Family",
-        "guardian_name": "Family Guardian",
-        "child_name": "Family Child",
-        "password": "secure-password",
-    })
-    assert response.status_code == 201
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def test_google_login_verifies_and_links_existing_authoritative_account(client, monkeypatch):

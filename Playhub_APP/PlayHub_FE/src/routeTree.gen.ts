@@ -30,6 +30,7 @@ import { Route as AdminEducatorsRouteImport } from './routes/admin.educators'
 import { Route as AdminHomepageRouteImport } from './routes/admin.homepage'
 import { Route as AdminOrgsRouteImport } from './routes/admin.orgs'
 import { Route as AdminPlansRouteImport } from './routes/admin.plans'
+import { Route as AdminPlayPulseRouteImport } from './routes/admin.play-pulse'
 import { Route as AdminProgressRouteImport } from './routes/admin.progress'
 import { Route as AdminTtpRouteImport } from './routes/admin.ttp'
 import { Route as AuthMicrosoftCallbackRouteImport } from './routes/auth.microsoft-callback'
@@ -147,6 +148,11 @@ const AdminPlansRoute = AdminPlansRouteImport.update({
   path: '/admin/plans',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPlayPulseRoute = AdminPlayPulseRouteImport.update({
+  id: '/admin/play-pulse',
+  path: '/admin/play-pulse',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminProgressRoute = AdminProgressRouteImport.update({
   id: '/admin/progress',
   path: '/admin/progress',
@@ -224,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/admin/homepage': typeof AdminHomepageRoute
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/play-pulse': typeof AdminPlayPulseRoute
   '/admin/progress': typeof AdminProgressRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/admin/homepage': typeof AdminHomepageRoute
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/play-pulse': typeof AdminPlayPulseRoute
   '/admin/progress': typeof AdminProgressRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/admin/homepage': typeof AdminHomepageRoute
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
+  '/admin/play-pulse': typeof AdminPlayPulseRoute
   '/admin/progress': typeof AdminProgressRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
@@ -329,6 +338,7 @@ export interface FileRouteTypes {
     | '/admin/homepage'
     | '/admin/orgs'
     | '/admin/plans'
+    | '/admin/play-pulse'
     | '/admin/progress'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
@@ -363,6 +373,7 @@ export interface FileRouteTypes {
     | '/admin/homepage'
     | '/admin/orgs'
     | '/admin/plans'
+    | '/admin/play-pulse'
     | '/admin/progress'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
@@ -397,6 +408,7 @@ export interface FileRouteTypes {
     | '/admin/homepage'
     | '/admin/orgs'
     | '/admin/plans'
+    | '/admin/play-pulse'
     | '/admin/progress'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
@@ -432,6 +444,7 @@ export interface RootRouteChildren {
   AdminHomepageRoute: typeof AdminHomepageRoute
   AdminOrgsRoute: typeof AdminOrgsRoute
   AdminPlansRoute: typeof AdminPlansRoute
+  AdminPlayPulseRoute: typeof AdminPlayPulseRoute
   AdminProgressRoute: typeof AdminProgressRoute
   AdminTtpRoute: typeof AdminTtpRoute
   AuthMicrosoftCallbackRoute: typeof AuthMicrosoftCallbackRoute
@@ -595,6 +608,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPlansRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/play-pulse': {
+      id: '/admin/play-pulse'
+      path: '/admin/play-pulse'
+      fullPath: '/admin/play-pulse'
+      preLoaderRoute: typeof AdminPlayPulseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/progress': {
       id: '/admin/progress'
       path: '/admin/progress'
@@ -696,6 +716,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminHomepageRoute: AdminHomepageRoute,
   AdminOrgsRoute: AdminOrgsRoute,
   AdminPlansRoute: AdminPlansRoute,
+  AdminPlayPulseRoute: AdminPlayPulseRoute,
   AdminProgressRoute: AdminProgressRoute,
   AdminTtpRoute: AdminTtpRoute,
   AuthMicrosoftCallbackRoute: AuthMicrosoftCallbackRoute,

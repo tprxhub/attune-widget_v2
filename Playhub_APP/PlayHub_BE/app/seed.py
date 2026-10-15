@@ -28,6 +28,7 @@ from app.models import (
     SubscriptionStatus,
     User,
 )
+from app.licenses import add_cycle
 from app.security import hash_password
 from app.smart_catalog import SMART_CATALOG
 
@@ -44,6 +45,12 @@ def organisation(db, *, name: str, kind: str, licenses: int, cycle: str) -> Orga
     item.seat_limit = licenses
     item.billing_cycle = cycle
     item.is_active = True
+    # Demo prices and dates, set once so recorded renewals survive a re-seed.
+    if not item.license_price:
+        item.license_price = 900 if cycle == "monthly" else 9900  # AED 9 a month, AED 99 a year
+    if not item.billing_started_on:
+        item.billing_started_on = date.today().replace(day=1)
+        item.renews_on = add_cycle(item.billing_started_on, cycle)
     return item
 
 

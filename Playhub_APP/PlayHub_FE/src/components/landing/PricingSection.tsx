@@ -1,6 +1,7 @@
+import { usePricePlans } from "@/api/pricing";
 import { Link } from "@tanstack/react-router";
 import { Building2, Check } from "lucide-react";
-import { PLAN_FEATURES, PRICE_PLANS } from "@/api/subscriptions";
+import { PLAN_FEATURES } from "@/api/subscriptions";
 import { fmtMoney } from "@/lib/money";
 import { useSession } from "@/auth/session";
 import { isPlatformRole } from "@/lib/roles";
@@ -15,6 +16,7 @@ const FREE_FEATURES = [
 /** Public pricing overview. Prices come from the same list the Subscription page uses. */
 export function PricingSection({ signedIn }: { signedIn: boolean }) {
   const { session } = useSession();
+  const { plans } = usePricePlans();
   const playHubPath = isPlatformRole(session.role) ? "/admin" : "/dashboard";
   const buyTo = signedIn ? "/subscription" : "/signup";
   return (
@@ -34,7 +36,7 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
         </p>
       </div>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <article className="ph-r-xl flex flex-col bg-card p-6 shadow-card">
           <h3 className="text-sm font-bold tracking-wide text-navy/60 uppercase">Free</h3>
           <p className="ph-display mt-3 text-4xl text-navy">{fmtMoney(0)}</p>
@@ -58,8 +60,8 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
           </Link>
         </article>
 
-        {PRICE_PLANS.map((plan) => {
-          const best = plan.duration === "12m";
+        {plans.map((plan) => {
+          const best = plan.featured;
           return (
             <article
               key={plan.duration}
@@ -69,8 +71,8 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
               )}
             >
               {best && (
-                <span className="absolute -top-3 left-6 rounded-full bg-amber px-3 py-1 text-[11px] font-bold text-navy">
-                  Best value
+                <span className="absolute -top-3 left-6 max-w-[calc(100%-3rem)] break-words rounded-full bg-amber px-3 py-1 text-[11px] font-bold text-navy">
+                  {plan.badge_text ?? "Best value"}
                 </span>
               )}
               <h3
@@ -102,6 +104,7 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
               </p>
               <Link
                 to={buyTo}
+                search={{ plan: signedIn ? plan.duration : undefined }}
                 className={cn(
                   "ph-pill mt-auto inline-flex min-h-11 items-center justify-center px-5 text-sm font-semibold",
                   best

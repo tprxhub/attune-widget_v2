@@ -11,7 +11,6 @@ import { FloatingPanel } from "@/components/FloatingPanel";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { activeChildSelected, selectActiveChildOverride } from "@/store/active-child-slice";
-import { NAVIGATION_TOUR_CHILD_MENU_EVENT } from "@/features/guide/navigation-tour-events";
 
 /** Dashboard-only choice for school admins: show every child instead of one. */
 export const ALL_CHILDREN = "all";
@@ -66,14 +65,6 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
   const allowAll = session.role === "educator" && pathname === "/dashboard";
 
   useEffect(() => {
-    const onTourMenu = (event: Event) => {
-      setOpen((event as CustomEvent<boolean>).detail);
-    };
-    window.addEventListener(NAVIGATION_TOUR_CHILD_MENU_EVENT, onTourMenu);
-    return () => window.removeEventListener(NAVIGATION_TOUR_CHILD_MENU_EVENT, onTourMenu);
-  }, []);
-
-  useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -96,7 +87,6 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
     <div ref={boxRef} className={cn("relative", className)}>
       <button
         ref={triggerRef}
-        data-tour-target="child-switcher"
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
@@ -184,7 +174,6 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
           {canAddMember && (
             <Link
               to="/org/enroll"
-              data-tour-target="add-child"
               onClick={() => setOpen(false)}
               className="mt-1 flex w-full items-center gap-2 rounded-xl border-t border-navy/8 px-2 py-2.5 text-left text-sm font-bold text-coral transition-colors hover:bg-coral/8"
             >

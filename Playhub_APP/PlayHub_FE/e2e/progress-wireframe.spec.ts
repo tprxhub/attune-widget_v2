@@ -21,6 +21,22 @@ for (const width of [375, 768, 1440]) {
     await expect(plan).toBeVisible();
     await expect(dose).toBeVisible();
     await expect(insights).toBeVisible();
+    const rings = page.getByRole("group", { name: "Independence and mood rings" });
+    const supportFill = rings.locator('circle[stroke="#2459A0"]');
+    const markers = rings.locator('g[transform^="translate("]');
+    await expect(supportFill).toHaveCount(1);
+    await expect(markers).toHaveCount(2);
+    const initialFill = await supportFill.getAttribute("stroke-dasharray");
+    const initialMarker = await markers.first().getAttribute("transform");
+    await page.waitForTimeout(250);
+    expect(await supportFill.getAttribute("stroke-dasharray")).not.toBe(initialFill);
+    expect(await markers.first().getAttribute("transform")).not.toBe(initialMarker);
+
+    const centerLogo = rings.locator("xpath=following-sibling::div//img");
+    await expect(centerLogo).toBeVisible();
+    expect(
+      await centerLogo.evaluate((image: HTMLImageElement) => image.naturalWidth),
+    ).toBeGreaterThan(0);
     const planBox = (await plan.boundingBox())!;
     const doseBox = (await dose.boundingBox())!;
     expect(doseBox.y).toBeGreaterThan(planBox.y + planBox.height);

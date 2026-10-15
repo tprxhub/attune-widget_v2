@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { PricingSection } from "@/components/landing/PricingSection";
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -13,8 +12,10 @@ import {
 } from "lucide-react";
 import { GOALS } from "@/api/domain";
 import { apiAssetUrl } from "@/api/client";
-import { DEFAULT_HOMEPAGE_CONTENT, HOMEPAGE_QUERY_KEY, loadHomepage } from "@/api/homepage";
+import { useHomepageContent } from "@/features/homepage/useHomepageContent";
+import mobileWallpaper from "@/assets/home-mobile-wallpaper.jpg";
 import { Logo } from "@/components/brand";
+import { SignOutButton } from "@/components/SignOutButton";
 import { GoalIcon } from "@/components/icons";
 import { GuideButton } from "@/features/guide/GuideDialog";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
@@ -64,17 +65,6 @@ export const Route = createFileRoute("/")({
 });
 
 const JOURNEY_IMAGES = [kidsHands, playTweezers, parentPencil];
-
-/** Saved copy from the Super Admin editor, over the built-in text. */
-function useHomepage() {
-  const { data } = useQuery({
-    queryKey: HOMEPAGE_QUERY_KEY,
-    queryFn: loadHomepage,
-    staleTime: 60_000,
-    retry: false,
-  });
-  return data?.content ?? DEFAULT_HOMEPAGE_CONTENT;
-}
 
 /** The real Progress chart with a made-up child's journey, so visitors see what parents get. */
 function SampleProgress() {
@@ -134,7 +124,9 @@ function PillLink({
   tone?: "cream" | "navy" | "outline";
 }) {
   const { session } = useSession();
-  const signedIn = session.role !== "anonymous";
+  const [sessionReady, setSessionReady] = useState(false);
+  useEffect(() => setSessionReady(true), []);
+  const signedIn = sessionReady && session.role !== "anonymous";
   const target = signedIn ? to : fallbackTo;
   const base =
     "group ph-pill inline-flex min-h-12 items-center gap-3 pr-2 pl-6 text-sm font-semibold tracking-wide transition-colors";
@@ -292,14 +284,23 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
             <GuideButton />
           </span>
           {signedIn ? (
-            <Link
-              to={homePath}
-              className={`ph-pill inline-flex min-h-11 items-center px-5 text-sm font-semibold ${
-                solid ? "bg-navy text-cream" : "bg-cream text-navy"
-              }`}
-            >
-              Open Play Hub
-            </Link>
+            <>
+              <Link
+                to={homePath}
+                className={`ph-pill inline-flex min-h-11 items-center px-5 text-sm font-semibold ${
+                  solid ? "bg-navy text-cream" : "bg-cream text-navy"
+                }`}
+              >
+                Open Play Hub
+              </Link>
+              <SignOutButton
+                className={
+                  solid
+                    ? "hidden lg:inline-flex border-navy/15 text-navy hover:bg-navy/5"
+                    : "hidden lg:inline-flex border-cream/25 text-cream hover:bg-cream/10"
+                }
+              />
+            </>
           ) : (
             <>
               <Link
@@ -378,13 +379,19 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
           <div className="mx-auto mt-3 flex max-w-7xl flex-col gap-2 border-t border-navy/8 pt-4 text-navy [&>button]:justify-center">
             <GuideButton />
             {signedIn ? (
-              <Link
-                to={homePath}
-                onClick={() => setMenuOpen(false)}
-                className="ph-pill inline-flex min-h-11 items-center justify-center bg-navy px-5 text-sm font-semibold text-cream"
-              >
-                Open Play Hub
-              </Link>
+              <>
+                <Link
+                  to={homePath}
+                  onClick={() => setMenuOpen(false)}
+                  className="ph-pill inline-flex min-h-11 items-center justify-center bg-navy px-5 text-sm font-semibold text-cream"
+                >
+                  Open Play Hub
+                </Link>
+                <SignOutButton
+                  onSignedOut={() => setMenuOpen(false)}
+                  className="w-full border-navy/15 text-navy hover:bg-navy/5"
+                />
+              </>
             ) : (
               <Link
                 to="/login"
@@ -403,8 +410,10 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
 
 function Landing() {
   const { session } = useSession();
-  const signedIn = session.role !== "anonymous";
-  const home = useHomepage();
+  const [sessionReady, setSessionReady] = useState(false);
+  useEffect(() => setSessionReady(true), []);
+  const signedIn = sessionReady && session.role !== "anonymous";
+  const home = useHomepageContent();
   const gridColumns =
     home.stories.quotes.length === 1
       ? "md:mx-auto md:max-w-xl md:grid-cols-1"
@@ -421,13 +430,19 @@ function Landing() {
       <main className="px-1 sm:px-5">
         {/* ── Hero ── */}
         <section className="relative isolate -mx-1 -mt-[88px] overflow-hidden pt-[78px] sm:-mx-5 sm:-mt-[88px] sm:pt-[88px] lg:-mt-[112px] lg:pt-[120px]">
-          <img
-            src={apiAssetUrl(home.hero.image_url) || HERO_IMAGE}
-            alt="A child playing outdoors with bright colourful toys"
-            fetchPriority="high"
-            decoding="async"
-            className="absolute inset-0 -z-20 h-full w-full object-cover"
-          />
+          <picture className="absolute inset-0 -z-20 h-full w-full">
+            <source
+              media="(max-width: 639px)"
+              srcSet={apiAssetUrl(home.hero.mobile_image_url) || mobileWallpaper}
+            />
+            <img
+              src={apiAssetUrl(home.hero.image_url) || HERO_IMAGE}
+              alt="A child and parent playing with colourful toys"
+              fetchPriority="high"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
+          </picture>
           <div
             className="absolute inset-0 -z-10 bg-gradient-to-r from-navy/92 via-navy/70 to-navy/35"
             aria-hidden

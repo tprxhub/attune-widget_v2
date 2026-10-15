@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { parseMarkdown, type Inline } from "./markdown";
 
 function InlineText({ parts }: { parts: Inline[] }) {
@@ -37,7 +37,7 @@ function InlineText({ parts }: { parts: Inline[] }) {
 }
 
 /** Attune's answer, formatted from its Markdown without ever rendering raw HTML. */
-export function AttuneReply({ text }: { text: string }) {
+export const AttuneReply = memo(function AttuneReply({ text }: { text: string }) {
   const blocks = useMemo(() => parseMarkdown(text), [text]);
   return (
     <div className="space-y-2 leading-relaxed">
@@ -101,4 +101,4 @@ export function AttuneReply({ text }: { text: string }) {
       })}
     </div>
   );
-}
+});

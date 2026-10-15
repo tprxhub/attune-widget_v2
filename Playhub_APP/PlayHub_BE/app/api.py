@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 import logging
 from secrets import token_urlsafe
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy import and_, false, func, not_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -15,7 +15,9 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_child_access, require_permission, require_roles
 from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, PlanPublicationStatus, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
 from app.config import get_settings
-from app.billing import BillingError, create_checkout, create_refund, paid_in_full, parse_webhook, plan_price
+from app.billing import BillingError, create_checkout, create_refund, paid_in_full, parse_webhook, settled_plan
+from app.pricing import billing_catalog
+from app.site_content import save_content
 from app.google_identity import GoogleIdentityError, verify_google_credential
 from app.overview import Overview, build_overview
 from app.oidc_identity import (
@@ -26,6 +28,7 @@ from app.oidc_identity import (
     verify_apple_credential,
     verify_microsoft_credential,
 )
+from app import licenses
 from app.schemas import (
     AdminReferencesRead,
     ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, ProfileUpdate, ChildCreate, ChildRead, ChildUpdate,
@@ -33,6 +36,7 @@ from app.schemas import (
     LoginRequest, OrganisationCreate, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
     PlayDoseUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
     SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, SiteContentRead,
+    ModeratorInvitationUpdate,
 )
 from app.security import create_access_token, hash_password, verify_password
 from app.services import audit, progress_summary
@@ -146,15 +150,8 @@ def validate_child_values(db: Session, values: dict, child_id: str | None = None
     organisation = one_or_404(db, Organisation, organisation_id) if organisation_id else None
     if organisation and not organisation.is_active:
         raise HTTPException(status_code=409, detail="Cannot enrol a child into a suspended organisation")
-    if organisation and values.get("is_active", True) and organisation.seat_limit:
-        license_query = select(func.count(Child.id)).where(
-            Child.organisation_id == organisation.id,
-            Child.is_active.is_(True),
-        )
-        if child_id:
-            license_query = license_query.where(Child.id != child_id)
-        if (db.scalar(license_query) or 0) >= organisation.seat_limit:
-            raise HTTPException(status_code=409, detail="Organisation license limit has been reached")
+    if organisation and values.get("is_active", True):
+        licenses.ensure_available(db, organisation, "children", exclude_child_id=child_id)
 
     dose_id = values.get("current_play_dose_id")
     if dose_id:
@@ -214,6 +211,8 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         account_scope=payload.account_scope,
         organisation_id=payload.organisation_id,
     )
+    if payload.role == Role.MODERATOR and payload.organisation_id:
+        licenses.ensure_available(db, db.get(Organisation, payload.organisation_id), "moderators")
     return commit(db, User(**payload.model_dump(exclude={"password"}), password_hash=hash_password(payload.password)))
 
 
@@ -657,6 +656,14 @@ def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require
         require_active_organisation=False,
     )
     was_active = target.is_active
+    # A Moderator who starts counting against the organisation's licences (reactivated, or
+    # given the Moderator role) needs a free licence.
+    counted_before = target.is_active and target.role == Role.MODERATOR
+    counted_after = (payload.is_active if payload.is_active is not None else target.is_active) and (
+        (payload.role or target.role) == Role.MODERATOR
+    )
+    if target.organisation_id and counted_after and not counted_before:
+        licenses.ensure_available(db, target.organisation, "moderators")
     for key, value in payload.model_dump(exclude_unset=True).items(): setattr(target, key, value)
     audit(db, actor.id, "user.updated", "user", target.id)
     target = commit(db, target)
@@ -687,6 +694,8 @@ def create_invitation(payload: InvitationCreate, actor: User = Depends(require_p
         account_scope=payload.account_scope,
         organisation_id=payload.organisation_id,
     )
+    if payload.role == Role.MODERATOR and payload.organisation_id:
+        licenses.ensure_available(db, db.get(Organisation, payload.organisation_id), "moderators")
     invited_child = validate_invitation_child(db, payload)
     if invited_child and actor.role == Role.ADMIN:
         require_child_access(invited_child, actor)
@@ -767,6 +776,91 @@ def regenerate_invitation_activation(
     )
 
 
+@router.patch("/invitations/{invitation_id}/moderator", response_model=InvitationCreated)
+def update_moderator_invitation(
+    invitation_id: str,
+    payload: ModeratorInvitationUpdate,
+    actor: User = Depends(require_permission("team", roles=(Role.ADMIN,))),
+    db: Session = Depends(get_db),
+):
+    """Correct a pending Moderator invite, invalidate its old link, and send a fresh one."""
+    invitation = one_or_404(db, Invitation, invitation_id)
+    if invitation.status != InvitationStatus.PENDING or invitation.role != Role.MODERATOR:
+        raise HTTPException(status_code=409, detail="Only pending Moderator invitations can be edited")
+    if actor.role == Role.ADMIN:
+        if actor.organisation_id:
+            if invitation.organisation_id != actor.organisation_id:
+                raise HTTPException(status_code=403, detail="You can manage only your organisation's invitations")
+        elif invitation.invited_by_id != actor.id:
+            raise HTTPException(status_code=403, detail="You can manage only invitations you created")
+
+    if db.scalar(select(User).where(User.email == payload.email)):
+        raise HTTPException(status_code=409, detail="This email already belongs to an account")
+    duplicate = db.scalar(
+        select(Invitation).where(
+            Invitation.id != invitation.id,
+            Invitation.email == payload.email,
+            Invitation.status == InvitationStatus.PENDING,
+        )
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail="A pending invitation already exists for this email")
+
+    invitation_payload = InvitationCreate(
+        email=payload.email,
+        display_name=payload.display_name,
+        role=invitation.role,
+        account_scope=invitation.account_scope,
+        organisation_id=invitation.organisation_id,
+        child_id=payload.child_id,
+    )
+    invited_child = validate_invitation_child(db, invitation_payload)
+    if invited_child and actor.role == Role.ADMIN:
+        require_child_access(invited_child, actor)
+
+    invitation.email = payload.email
+    invitation.display_name = payload.display_name.strip()
+    invitation.child_id = payload.child_id
+    invitation.token = token_urlsafe(32)
+    invitation.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    invitation = commit_audited(
+        db,
+        invitation,
+        actor_id=actor.id,
+        action="invitation.moderator_details_updated",
+        resource_type="invitation",
+        metadata={"role": invitation.role.value},
+    )
+    _email_invitation(db, invitation, actor)
+    return InvitationCreated.model_validate(invitation).model_copy(
+        update={"acceptance_token": invitation.token}
+    )
+
+
+@router.delete("/invitations/{invitation_id}", status_code=204, response_class=Response)
+def delete_pending_moderator_invitation(
+    invitation_id: str,
+    actor: User = Depends(require_permission("team", roles=(Role.ADMIN,))),
+    db: Session = Depends(get_db),
+):
+    """Remove an unaccepted Moderator invitation and release its pending licence."""
+    invitation = one_or_404(db, Invitation, invitation_id)
+    if invitation.status != InvitationStatus.PENDING or invitation.role != Role.MODERATOR:
+        raise HTTPException(status_code=409, detail="Only pending Moderator invitations can be deleted")
+    if actor.role not in (Role.ADMIN, Role.SUPER_ADMIN):
+        raise HTTPException(status_code=403, detail="Only an organisation Admin can delete this invitation")
+    if actor.role == Role.ADMIN:
+        if actor.organisation_id:
+            if invitation.organisation_id != actor.organisation_id:
+                raise HTTPException(status_code=403, detail="You can manage only your organisation's invitations")
+        elif invitation.invited_by_id != actor.id:
+            raise HTTPException(status_code=403, detail="You can manage only invitations you created")
+
+    audit(db, actor.id, "invitation.deleted", "invitation", invitation.id, {"role": invitation.role.value})
+    db.delete(invitation)
+    db.commit()
+
+
 @router.post("/invitations/accept", response_model=Token)
 def accept_invitation(payload: InvitationAccept, db: Session = Depends(get_db)):
     invitation = db.scalar(select(Invitation).where(Invitation.token == payload.token))
@@ -781,6 +875,10 @@ def accept_invitation(payload: InvitationAccept, db: Session = Depends(get_db)):
         account_scope=invitation.account_scope,
         organisation_id=invitation.organisation_id,
     )
+    if invitation.role == Role.MODERATOR and invitation.organisation_id:
+        licenses.ensure_available(
+            db, db.get(Organisation, invitation.organisation_id), "moderators", exclude_invitation_id=invitation.id,
+        )
     child = None
     if invitation.child_id:
         invitation_payload = InvitationCreate(
@@ -873,27 +971,32 @@ def admin_references(_: User = Depends(require_permission("children", "progress"
 
 @router.get("/organisations", response_model=list[OrganisationRead])
 def list_organisations(_: User = Depends(require_permission("organisations", "team", "children")), db: Session = Depends(get_db)):
-    return db.scalars(select(Organisation).order_by(Organisation.name)).all()
+    return licenses.with_usage(db, db.scalars(select(Organisation).order_by(Organisation.name)).all())
 
 
 @router.get("/organisations/{organisation_id}", response_model=OrganisationRead)
 def get_organisation(organisation_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if not user.is_platform and user.organisation_id != organisation_id:
         raise HTTPException(status_code=403, detail="You cannot access this organisation")
-    return one_or_404(db, Organisation, organisation_id)
+    return licenses.with_usage(db, [one_or_404(db, Organisation, organisation_id)])[0]
 
 
 @router.post("/organisations", response_model=OrganisationRead, status_code=201)
 def create_organisation(payload: OrganisationCreate, actor: User = Depends(require_permission("organisations")), db: Session = Depends(get_db)):
     if db.scalar(select(Organisation).where(Organisation.name == payload.name)):
         raise HTTPException(status_code=409, detail="Organisation name already exists")
-    return commit_audited(
+    values = payload.model_dump()
+    # Billing starts today unless given, and the first renewal is one cycle after the start.
+    values["billing_started_on"] = values["billing_started_on"] or date.today()
+    values["renews_on"] = values["renews_on"] or licenses.add_cycle(values["billing_started_on"], values["billing_cycle"])
+    created = commit_audited(
         db,
-        Organisation(**payload.model_dump()),
+        Organisation(**values),
         actor_id=actor.id,
         action="organisation.created",
         resource_type="organisation",
     )
+    return licenses.with_usage(db, [created])[0]
 
 
 @router.patch("/organisations/{organisation_id}", response_model=OrganisationRead)
@@ -904,17 +1007,12 @@ def update_organisation(organisation_id: str, payload: OrganisationUpdate, actor
     ):
         raise HTTPException(status_code=409, detail="Organisation name already exists")
     changes = payload.model_dump(exclude_unset=True)
-    if changes.get("seat_limit"):
-        in_use = db.scalar(
-            select(func.count(Child.id)).where(Child.organisation_id == item.id, Child.is_active.is_(True))
-        ) or 0
-        if changes["seat_limit"] < in_use:
-            raise HTTPException(
-                status_code=409,
-                detail=f"{in_use} licenses are in use. Deactivate children first, or choose {in_use} or more.",
-            )
+    if "seat_limit" in changes or "license_type" in changes:
+        licenses.ensure_fits(
+            db, item, changes.get("license_type", item.license_type), changes.get("seat_limit", item.seat_limit),
+        )
     for key, value in changes.items(): setattr(item, key, value)
-    return commit_audited(
+    updated = commit_audited(
         db,
         item,
         actor_id=actor.id,
@@ -922,6 +1020,26 @@ def update_organisation(organisation_id: str, payload: OrganisationUpdate, actor
         resource_type="organisation",
         metadata={"fields": sorted(changes)},
     )
+    return licenses.with_usage(db, [updated])[0]
+
+
+@router.post("/organisations/{organisation_id}/renewal", response_model=OrganisationRead)
+def renew_organisation(organisation_id: str, actor: User = Depends(require_permission("organisations")), db: Session = Depends(get_db)):
+    """Record that the organisation paid for another cycle: the renewal date moves on by one cycle
+    (from today when no date was set). Paying early keeps the original schedule."""
+    item = one_or_404(db, Organisation, organisation_id)
+    previous = item.renews_on
+    item.renews_on = licenses.add_cycle(previous or date.today(), item.billing_cycle)
+    renewed = commit_audited(
+        db,
+        item,
+        actor_id=actor.id,
+        action="organisation.renewed",
+        resource_type="organisation",
+        metadata={"from": previous.isoformat() if previous else None, "to": item.renews_on.isoformat(),
+                  "cycle": item.billing_cycle, "amount": item.amount_per_cycle},
+    )
+    return licenses.with_usage(db, [renewed])[0]
 
 
 @router.get("/play-plans", response_model=list[PlayPlanRead])
@@ -1346,6 +1464,9 @@ def create_billing_checkout(
         current.ends_on is None or current.ends_on >= date.today()
     ) and not current.renewal_open:
         raise HTTPException(status_code=409, detail="This child already has an active subscription")
+    catalogue = billing_catalog(db)
+    if payload.plan not in catalogue:
+        raise HTTPException(status_code=422, detail="This subscription plan is no longer available. Refresh the page to choose a current plan.")
     try:
         checkout = create_checkout(
             get_settings(),
@@ -1353,6 +1474,7 @@ def create_billing_checkout(
             email=user.email,
             child_id=child.id,
             plan=payload.plan,
+            catalog=catalogue,
         )
     except BillingError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -1456,7 +1578,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     metadata = stripe_field(data, "metadata", {}) or {}
     child_id = stripe_field(metadata, "child_id")
     plan = stripe_field(metadata, "plan")
-    selected = plan_price(get_settings(), plan)
+    selected = settled_plan(get_settings(), data, stripe_field)
     child = db.get(Child, child_id) if child_id else None
     if not child or not selected:
         logger.error("Stripe webhook has invalid metadata", extra={"child_id": child_id, "plan": plan})
@@ -1689,14 +1811,7 @@ def save_homepage_content(
     actor: User = Depends(require_permission("homepage")),
     db: Session = Depends(get_db),
 ):
-    row = db.get(SiteContent, HOMEPAGE_KEY) or SiteContent(key=HOMEPAGE_KEY, content={})
-    row.content = payload.model_dump(mode="json")
-    row.updated_by_id = actor.id
-    db.add(row)
-    db.flush()
-    audit(db, actor.id, "site_content.updated", "site_content", HOMEPAGE_KEY)
-    db.commit()
-    db.refresh(row)
+    row = save_content(db, actor.id, HOMEPAGE_KEY, payload.model_dump(mode="json"), "site_content.updated")
     return _site_content_read(row)
 
 

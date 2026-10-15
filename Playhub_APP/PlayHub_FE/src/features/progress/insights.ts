@@ -36,11 +36,10 @@ const effortWord = (score: number | null | undefined) => {
   return "a lot of";
 };
 
-const moodWord = (dose: ProgressPoint) => {
-  const moods = dose.days.filter((day) => day.finished && day.mood).map((day) => day.mood!);
-  const average = moods.length ? moods.reduce((a, b) => a + b, 0) / moods.length : 3;
-  if (average >= 4) return "happy or content";
-  if (average >= 2.8) return "sometimes happy, sometimes not";
+const moodWord = (average: number | null) => {
+  const score = average ?? 3;
+  if (score >= 4) return "happy or content";
+  if (score >= 2.8) return "sometimes happy, sometimes not";
   return "not happy";
 };
 
@@ -52,7 +51,7 @@ export function insightFor(doses: ProgressPoint[], index: number): Insight | nul
   if (!dose || !dose.complete || !dose.scenario) return null;
   const scenario = dose.scenario;
   const level = LEVEL_NAME[dose.level];
-  const mood = moodWord(dose);
+  const mood = moodWord(dose.mood);
   const tryPassed = dose.realLifeTryPassed;
   const passed = dose.passed;
   const firstFinished = dose.days.find((day) => day.finished);

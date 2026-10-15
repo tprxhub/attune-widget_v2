@@ -25,6 +25,27 @@ const legacySteps = [
 ];
 
 describe("homepage content migration", () => {
+  test("older saved homepages receive image and policy defaults", () => {
+    const content = mergeHomepageContent({ hero: { title: "Our existing homepage" } });
+    expect(content.hero.title).toBe("Our existing homepage");
+    expect(content.hero.mobile_image_url).toBe("");
+    expect(content.auth).toEqual({ login_image_url: "", signup_image_url: "" });
+    expect(content.policies).toEqual(DEFAULT_HOMEPAGE_CONTENT.policies);
+  });
+
+  test("preserves separate images and policy text when merging a saved response", () => {
+    const stored = {
+      hero: { mobile_image_url: "/uploads/phone.jpg" },
+      auth: { login_image_url: "/uploads/login.jpg", signup_image_url: "/uploads/signup.jpg" },
+      policies: { privacy: { title: "Your privacy", body: "## Information\n\nYour choices." } },
+    };
+    const content = mergeHomepageContent(stored);
+    expect(content.hero.mobile_image_url).toBe(stored.hero.mobile_image_url);
+    expect(content.auth).toEqual(stored.auth);
+    expect(content.policies.privacy).toEqual(stored.policies.privacy);
+    expect(content.policies.terms).toEqual(DEFAULT_HOMEPAGE_CONTENT.policies.terms);
+  });
+
   test("replaces the unchanged legacy week structure", () => {
     const content = mergeHomepageContent({
       week: {

@@ -50,10 +50,8 @@ class Settings(BaseSettings):
     # Optional OpenAI vector store with The Toy Pharmacy's own guidance, searched with file_search.
     openai_vector_store_id: str | None = None
     openai_timeout_seconds: float = 60
-    # Questions one person can ask Attune per day (UTC).
+    # Maximum questions one person can ask Attune per UTC day; capped at 30 in the API.
     attune_daily_limit: int = 30
-    # Families with no paid subscription (the same free tier as the Play Plan catalogue).
-    attune_free_daily_limit: int = 1
     cors_origins: str = (
         "http://localhost:3000,http://127.0.0.1:3000,"
         "http://localhost:4173,http://127.0.0.1:4173,"

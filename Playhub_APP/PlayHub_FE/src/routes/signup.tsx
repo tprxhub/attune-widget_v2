@@ -1,3 +1,5 @@
+import { apiAssetUrl } from "@/api/client";
+import { useHomepageContent } from "@/features/homepage/useHomepageContent";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -34,6 +36,7 @@ export const Route = createFileRoute("/signup")({
 });
 
 function SignupPage() {
+  const { auth } = useHomepageContent();
   const [childName, setChildName] = useState("");
   const [childAge, setChildAge] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -94,7 +97,7 @@ function SignupPage() {
   };
 
   return (
-    <AuthLayout artImage={loginArt}>
+    <AuthLayout artImage={apiAssetUrl(auth.signup_image_url) || loginArt}>
       <h1 className="text-3xl leading-[1.05] font-bold tracking-tight text-navy sm:text-4xl">
         Create an Account
       </h1>

@@ -1,5 +1,8 @@
 import { apiRequest } from "./client";
 import { LEVEL_GUIDANCE } from "./domain";
+import { PRIVACY_INTRO, PRIVACY_SECTIONS } from "@/features/policies/privacy";
+import { TERMS_INTRO, TERMS_SECTIONS } from "@/features/policies/terms";
+import { policyToText } from "@/features/policies/policyText";
 
 /**
  * Editable copy for the public home page. The shape matches the API (`HomepageContent` in
@@ -15,6 +18,7 @@ export interface HomeHero {
   secondary_cta: string;
   footnote: string;
   image_url: string;
+  mobile_image_url: string;
 }
 
 export interface HomeJourneyStep {
@@ -48,6 +52,11 @@ export interface HomeAudience {
 
 export interface HomepageContent {
   hero: HomeHero;
+  auth: { login_image_url: string; signup_image_url: string };
+  policies: {
+    privacy: { title: string; body: string };
+    terms: { title: string; body: string };
+  };
   journey: { eyebrow: string; title: string; steps: HomeJourneyStep[] };
   skills: { title: string; description: string; button_label: string; all_plans_label: string };
   week: {
@@ -86,6 +95,12 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
     footnote:
       "Families start free. Organisations are set up by The Toy Pharmacy with issued credentials.",
     image_url: "",
+    mobile_image_url: "",
+  },
+  auth: { login_image_url: "", signup_image_url: "" },
+  policies: {
+    privacy: { title: "Privacy policy", body: policyToText(PRIVACY_INTRO, PRIVACY_SECTIONS) },
+    terms: { title: "Terms of service", body: policyToText(TERMS_INTRO, TERMS_SECTIONS) },
   },
   journey: {
     eyebrow: "How it works",
