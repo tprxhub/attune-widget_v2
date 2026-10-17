@@ -4,7 +4,7 @@ import { CONSULT_BOOKING_URL } from "@/lib/contact";
 /** Features still to come, shown at the bottom of every dashboard (Attune has its own bar at the top). */
 export function ComingSoonTiles() {
   return (
-    <div className="mt-5 grid gap-3">
+    <div className="mt-5 grid max-w-md gap-3">
       <div className="ph-card flex items-center gap-3 px-4 py-3">
         <span className="inline-grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber/30 text-navy">
           <MessagesSquare className="h-4.5 w-4.5" aria-hidden />
@@ -28,7 +28,7 @@ export function ConsultationCard() {
       <div className="min-w-[180px] flex-1">
         <p className="text-sm font-bold">Something not quite right?</p>
         <p className="text-xs text-navy/60">
-          Book a 1:1 Play Consultation with one of our child psychologists for tailored guidance.
+          Book a 1:1 Play Consultation with one of our experts for tailored guidance.
         </p>
       </div>
       <a

@@ -529,7 +529,10 @@ export function ProgressPage() {
       ) : (
         <div className="mt-5 space-y-5">
           {/* Play Hub Summary hero */}
-          <section className="ph-card overflow-hidden bg-navy p-5 text-cream sm:p-6">
+          <section
+            className="ph-card overflow-hidden bg-navy p-5 text-cream sm:p-6"
+            data-report-summary
+          >
             {/* The summary and two compact figures on the left; the shareable celebration on the right. */}
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
               <div className="flex min-w-0 flex-col">
@@ -599,7 +602,7 @@ export function ProgressPage() {
             </div>
           </section>
 
-          <section className="ph-card p-5">
+          <section className="ph-card p-5" data-report-chart>
             <h2 className="text-lg font-bold">Play Progress</h2>
             <div className="mt-4">
               <ProgressChart

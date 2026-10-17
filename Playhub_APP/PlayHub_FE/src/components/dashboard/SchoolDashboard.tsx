@@ -12,7 +12,7 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import { getOrg, listSupporters } from "@/api/org";
+import { listSupporters } from "@/api/org";
 import { listGoals, listPlans } from "@/api/plans";
 import { getProgress, STATUS_META } from "@/api/progress";
 import { useSession } from "@/auth/session";
@@ -44,11 +44,6 @@ export function SchoolDashboard() {
   const override = useAppSelector(selectActiveChildOverride);
   const [filter, setFilter] = useState<StatusKey | "all" | "attention">("all");
 
-  const org = useQuery({
-    queryKey: ["org", session.orgId],
-    queryFn: () => getOrg(session.orgId!),
-    enabled: !!session.orgId,
-  });
   const supporters = useQuery({
     queryKey: ["supporters", session.orgId],
     queryFn: () => listSupporters(session.orgId),
@@ -169,18 +164,11 @@ export function SchoolDashboard() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Welcome back"
-        title="Here's your Play Hub"
-        description={`Every child, every moderator and what needs your eye today${
-          org.data ? ` at ${org.data.name}` : ""
-        }.`}
-        actions={actions}
-      />
+      <PageHeader eyebrow="Welcome back" title="Here's your Play Hub" actions={actions} />
 
       <section
         aria-label="Overview"
-        className="grid grid-cols-2 items-stretch gap-3 xl:grid-cols-4"
+        className="grid grid-cols-2 items-stretch gap-2.5 xl:grid-cols-4"
       >
         <Stat icon={Users} tone="blue" label="Children enrolled" value={rows.length} />
         <Stat
@@ -279,24 +267,24 @@ function Stat({
 }) {
   const body = (
     <>
-      <span className={cn("grid h-11 w-11 place-items-center rounded-2xl", TONES[tone])}>
-        <Icon className="h-5 w-5" aria-hidden />
+      <span className={cn("grid h-9 w-9 place-items-center rounded-xl", TONES[tone])}>
+        <Icon className="h-4 w-4" aria-hidden />
       </span>
-      <p className="mt-4 text-3xl leading-none font-bold text-navy">{value}</p>
-      <p className="mt-1.5 text-sm font-semibold text-navy/70">{label}</p>
-      {hint && <p className="mt-0.5 text-xs text-navy/50">{hint}</p>}
+      <p className="mt-2.5 text-2xl leading-none font-bold text-navy">{value}</p>
+      <p className="mt-1 text-sm font-semibold text-navy/70">{label}</p>
+      {hint && <p className="mt-0.5 text-[11px] text-navy/50">{hint}</p>}
     </>
   );
   return onClick ? (
     <button
       type="button"
       onClick={onClick}
-      className="ph-card min-w-0 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
+      className="ph-card min-w-0 p-3.5 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
     >
       {body}
     </button>
   ) : (
-    <div className="ph-card min-w-0 p-4">{body}</div>
+    <div className="ph-card min-w-0 p-3.5">{body}</div>
   );
 }
 

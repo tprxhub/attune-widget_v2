@@ -29,11 +29,20 @@ export async function printReport(element: HTMLElement, title: string): Promise<
     main { max-width: 1100px; margin: auto; }
     *, *::before, *::after { animation: none !important; transition: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     h1, h2, h3, summary { break-after: avoid; }
-    section, svg, li { break-inside: avoid; }
+    svg, li { break-inside: avoid; }
     [data-report-expand] { background: white; color: #072c61; border-radius: 12px; margin: 0 12px 12px; }
     [role="tooltip"] { display: none !important; }
     .report-instructions { margin: 0 0 20px; padding: 12px; background: #f2f4f7; font: 14px sans-serif; }
-    @media print { body { padding: 0; } .report-instructions { display: none; } }
+    @media print {
+      body { padding: 0; }
+      .report-instructions { display: none; }
+      .ph-card { box-shadow: none !important; }
+      [data-report-summary] { break-inside: avoid; }
+      [data-report-summary] > div { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr) !important; gap: 12px; }
+      [data-report-summary] .aspect-square { max-width: 240px !important; }
+      [data-report-summary] .ph-r-lg { padding: 14px !important; }
+      [data-report-chart] { break-before: page; }
+    }
   `;
   doc.head.append(css);
   doc.body.className = document.body.className;
@@ -55,7 +64,8 @@ export async function printReport(element: HTMLElement, title: string): Promise<
   });
   // Controls become static labels; no application buttons are included in the exported report.
   report.querySelectorAll("button").forEach((button) => {
-    if (/^(Share|Book|Export)\b/i.test(button.textContent?.trim() ?? "")) {
+    const buttonLabel = button.getAttribute("aria-label") ?? button.textContent?.trim() ?? "";
+    if (/^(Share|Book|Export)\b/i.test(buttonLabel)) {
       button.remove();
       return;
     }
