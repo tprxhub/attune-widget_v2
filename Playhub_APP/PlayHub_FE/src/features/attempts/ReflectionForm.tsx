@@ -99,10 +99,9 @@ export function ReflectionForm({
     <form onSubmit={handle} noValidate className="space-y-6">
       {showDate && (
         <div>
-          <label htmlFor={`${formId}-attempt-date`} className="text-sm font-bold">
+          <label htmlFor={`${formId}-attempt-date`} className="block text-sm font-bold">
             Date of the session
           </label>
-          <p className="text-xs text-navy/60">You can log a past session — no future dates.</p>
           <input
             id={`${formId}-attempt-date`}
             type="date"

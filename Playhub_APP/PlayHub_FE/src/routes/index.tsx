@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { PricingSection } from "@/components/landing/PricingSection";
+import { ApplicationFooter } from "@/components/landing/ApplicationFooter";
+import { PillLink } from "@/components/landing/PillLink";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -11,10 +13,12 @@ import {
   X,
 } from "lucide-react";
 import { GOALS } from "@/api/domain";
+import { loadPricingForRoute } from "@/api/pricing";
 import { apiAssetUrl } from "@/api/client";
-import { useHomepageContent } from "@/features/homepage/useHomepageContent";
+import { loadHomepageForRoute, useHomepageContent } from "@/features/homepage/useHomepageContent";
 import mobileWallpaper from "@/assets/home-mobile-wallpaper.jpg";
 import { Logo } from "@/components/brand";
+import { AccountMenu } from "@/components/AccountMenu";
 import { SignOutButton } from "@/components/SignOutButton";
 import { GoalIcon } from "@/components/icons";
 import { GuideButton } from "@/features/guide/GuideDialog";
@@ -22,7 +26,6 @@ import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { SAMPLE_PLANS, sampleProgressPoints } from "@/features/progress/sampleProgress";
 import { LEVELS } from "@/lib/types";
 import { useSession } from "@/auth/session";
-import { isPlatformRole } from "@/lib/roles";
 import heroKids from "@/assets/hero-kids-playing.jpg";
 import kidsHands from "@/assets/kids-hands-beads.jpg";
 import playTweezers from "@/assets/play-tweezers.jpg";
@@ -35,6 +38,13 @@ const HERO_IMAGE =
 const SHARE_IMAGE = "https://playhub.thetoypharmacy.com/og-image.png";
 
 export const Route = createFileRoute("/")({
+  loader: async ({ context }) => {
+    const [homepage, pricing] = await Promise.all([
+      loadHomepageForRoute(context.queryClient),
+      loadPricingForRoute(context.queryClient),
+    ]);
+    return { ...homepage, ...pricing };
+  },
   head: () => ({
     meta: [
       { title: "Play Hub — Play Plans for children's fine motor skills" },
@@ -112,48 +122,6 @@ function SampleProgress() {
   );
 }
 
-function PillLink({
-  to,
-  fallbackTo = "/login",
-  children,
-  tone = "cream",
-}: {
-  to: string;
-  fallbackTo?: string;
-  children: string;
-  tone?: "cream" | "navy" | "outline";
-}) {
-  const { session } = useSession();
-  const [sessionReady, setSessionReady] = useState(false);
-  useEffect(() => setSessionReady(true), []);
-  const signedIn = sessionReady && session.role !== "anonymous";
-  const target = signedIn ? to : fallbackTo;
-  const base =
-    "group ph-pill inline-flex min-h-12 items-center gap-3 pr-2 pl-6 text-sm font-semibold tracking-wide transition-colors";
-  const styles =
-    tone === "cream"
-      ? "bg-cream text-navy hover:bg-white"
-      : tone === "navy"
-        ? "bg-navy text-cream hover:bg-navy/90"
-        : "border border-navy/25 text-navy hover:bg-navy/5";
-  const dot =
-    tone === "cream"
-      ? "bg-coral text-white"
-      : tone === "navy"
-        ? "bg-amber text-navy"
-        : "bg-navy text-cream";
-  return (
-    <Link to={target} className={`${base} ${styles}`}>
-      {children}
-      <span
-        className={`ph-pill grid h-9 w-9 place-items-center ${dot} transition-transform group-hover:translate-x-0.5`}
-      >
-        <ArrowUpRight className="h-4 w-4" aria-hidden />
-      </span>
-    </Link>
-  );
-}
-
 function Eyebrow({ children, tone = "dark" }: { children: string; tone?: "dark" | "light" }) {
   return (
     <p
@@ -166,7 +134,7 @@ function Eyebrow({ children, tone = "dark" }: { children: string; tone?: "dark" 
   );
 }
 
-function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string }) {
+function StickyNav({ signedIn }: { signedIn: boolean }) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -286,20 +254,14 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
           {signedIn ? (
             <>
               <Link
-                to={homePath}
+                to="/hub"
                 className={`ph-pill inline-flex min-h-11 items-center px-5 text-sm font-semibold ${
                   solid ? "bg-navy text-cream" : "bg-cream text-navy"
                 }`}
               >
-                Open Play Hub
+                Open Hub
               </Link>
-              <SignOutButton
-                className={
-                  solid
-                    ? "hidden lg:inline-flex border-navy/15 text-navy hover:bg-navy/5"
-                    : "hidden lg:inline-flex border-cream/25 text-cream hover:bg-cream/10"
-                }
-              />
+              <AccountMenu tone={solid ? "dark" : "light"} className="hidden sm:block" />
             </>
           ) : (
             <>
@@ -381,11 +343,11 @@ function StickyNav({ signedIn, homePath }: { signedIn: boolean; homePath: string
             {signedIn ? (
               <>
                 <Link
-                  to={homePath}
+                  to="/hub"
                   onClick={() => setMenuOpen(false)}
                   className="ph-pill inline-flex min-h-11 items-center justify-center bg-navy px-5 text-sm font-semibold text-cream"
                 >
-                  Open Play Hub
+                  Open Hub
                 </Link>
                 <SignOutButton
                   onSignedOut={() => setMenuOpen(false)}
@@ -423,10 +385,7 @@ function Landing() {
 
   return (
     <div className="min-h-screen bg-cream">
-      <StickyNav
-        signedIn={signedIn}
-        homePath={isPlatformRole(session.role) ? "/admin" : "/dashboard"}
-      />
+      <StickyNav signedIn={signedIn} />
       <main className="px-1 sm:px-5">
         {/* ── Hero ── */}
         <section className="relative isolate -mx-1 -mt-[88px] overflow-hidden pt-[78px] sm:-mx-5 sm:-mt-[88px] sm:pt-[88px] lg:-mt-[112px] lg:pt-[120px]">
@@ -857,93 +816,7 @@ function Landing() {
         </section>
       </main>
 
-      {/* ── Footer ── */}
-      <footer className="sm:px-5 sm:pb-5">
-        <div className="bg-navy px-6 py-14 text-cream [border-radius:0] sm:px-10 sm:[border-radius:28px]">
-          <div className="mx-auto max-w-3xl text-center">
-            <h2 className="ph-display text-3xl sm:text-4xl">{home.footer.title}</h2>
-            <p className="mt-4 text-base leading-relaxed text-cream/75">
-              {home.footer.description}
-            </p>
-            <div className="mt-8 flex justify-center">
-              <PillLink to="/dashboard" fallbackTo="/signup">
-                {home.footer.button_label}
-              </PillLink>
-            </div>
-          </div>
-
-          <div className="mx-auto mt-14 grid max-w-7xl gap-10 border-t border-cream/15 pt-10 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="[&_span]:text-cream">
-              <Logo />
-              <p className="mt-4 max-w-xs text-sm leading-relaxed text-cream/65">
-                {home.footer.blurb}
-              </p>
-            </div>
-            {[
-              [
-                "Play Hub",
-                [
-                  ["Play Pulse", "/play-pulse"],
-                  ["Play Plans", signedIn ? "/plans" : "/login"],
-                  ["Progress", signedIn ? "/progress" : "/login"],
-                  ["Daily Check-In", signedIn ? "/check-in" : "/login"],
-                ],
-              ],
-              [
-                "Families",
-                [
-                  ["Sign up free", signedIn ? "/dashboard" : "/signup"],
-                  ["Subscription", signedIn ? "/subscription" : "/login"],
-                  ["Invite a Moderator", signedIn ? "/invite" : "/login"],
-                ],
-              ],
-              [
-                "Organisations",
-                [
-                  ["Log in", "/login"],
-                  ["Enrol a child in a Play Plan", signedIn ? "/org/enroll" : "/login"],
-                ],
-              ],
-            ].map(([title, links]) => (
-              <div key={String(title)}>
-                <p className="text-[11px] font-semibold tracking-[0.2em] text-cream/50 uppercase">
-                  {String(title)}
-                </p>
-                <ul className="mt-4 space-y-2.5">
-                  {(links as [string, string][]).map(([label, to]) => (
-                    <li key={label}>
-                      <Link
-                        to={to}
-                        className="inline-flex items-center gap-1.5 text-sm text-cream/80 hover:text-amber"
-                      >
-                        {label}
-                        <ArrowRight
-                          className="h-3 w-3 opacity-0 transition-opacity hover:opacity-100"
-                          aria-hidden
-                        />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div className="mx-auto mt-10 flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-3 text-xs text-cream/45">
-            <p>
-              © {new Date().getFullYear()} {home.footer.copyright}
-            </p>
-            <nav aria-label="Legal" className="flex gap-5">
-              <Link to="/policies/privacy-policy" className="hover:text-amber">
-                Privacy policy
-              </Link>
-              <Link to="/policies/terms-of-service" className="hover:text-amber">
-                Terms of service
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </footer>
+      <ApplicationFooter footer={home.footer} signedIn={signedIn} />
     </div>
   );
 }

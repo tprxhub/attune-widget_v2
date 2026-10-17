@@ -30,9 +30,12 @@ export const LEVEL_TOKEN: Record<Level, "amber" | "blue" | "coral"> = {
 export function Logo({
   className,
   size = "default",
+  wordmark = true,
 }: {
   className?: string;
   size?: "default" | "large";
+  /** Show "The Toy Pharmacy" beside the mark. */
+  wordmark?: boolean;
 }) {
   const logoUrl = useApplicationLogo();
   return (
@@ -47,7 +50,7 @@ export function Logo({
           size === "large" ? "h-20" : "h-14",
         )}
       />
-      <span className="hidden min-w-0 flex-col gap-0.5 leading-none sm:flex">
+      <span className={cn("hidden min-w-0 flex-col gap-0.5 leading-none", wordmark && "sm:flex")}>
         <span
           className={cn(
             "font-semibold tracking-[0.14em] uppercase opacity-60",

@@ -1,4 +1,6 @@
 import { SessionEditStamp } from "@/components/SessionEditStamp";
+import { AttuneStruggleLink } from "@/features/attune/AttuneStruggleLink";
+import { playPlanName } from "@/lib/planNames";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -192,13 +194,15 @@ function CheckInPage() {
           <div className="min-w-0 space-y-4">
             {/* Who are we logging for */}
             <section className="ph-card p-5">
-              <p className="flex items-center gap-2 text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
-                <CalendarCheck className="h-4 w-4" aria-hidden /> Who are we logging for?
-              </p>
-              <p className="mt-3 border-t border-navy/8 pt-3 text-sm text-navy/60">
-                Logging an Session for{" "}
-                <span className="font-bold text-navy">{activeChild.name}</span>
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <p className="flex items-center gap-2 text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
+                  <CalendarCheck className="h-4 w-4" aria-hidden /> Who are we logging for?
+                </p>
+                <p className="text-sm text-navy/60">
+                  Logging a Session for{" "}
+                  <span className="font-bold text-navy">{activeChild.name}</span>
+                </p>
+              </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="min-w-0">
                   <label htmlFor="checkin-play-plan" className="text-sm font-bold text-navy">
@@ -216,7 +220,7 @@ function CheckInPage() {
                     }}
                     options={playPlans.map((playPlan) => ({
                       value: playPlan.id,
-                      label: playPlan.name,
+                      label: playPlanName(playPlan, allDoses),
                     }))}
                     className="mt-2"
                   />
@@ -235,7 +239,7 @@ function CheckInPage() {
                     }}
                     options={doses.map((dose) => ({
                       value: dose.id,
-                      label: `${dose.title} · ${dose.level}`,
+                      label: dose.level,
                     }))}
                     className="mt-2"
                   />
@@ -258,6 +262,7 @@ function CheckInPage() {
                 Session saved to {activeChild?.name}'s history.
               </p>
             )}
+            {done && <AttuneStruggleLink className="-mt-2 px-1" />}
 
             {/* Step 1 — pick the Play Dose */}
             <section className="ph-card p-5">
@@ -401,6 +406,16 @@ function CheckInPage() {
                 )
                 .slice(0, 8)}
             />
+            {logged.length > 0 && (
+              <div className="flex justify-end">
+                <Link
+                  to="/progress"
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-navy px-5 text-sm font-bold text-cream transition hover:bg-navy/90"
+                >
+                  Full history in Progress
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -609,12 +624,6 @@ function RecentSessions({
                   aria-hidden
                 />
               </button>
-              <Link
-                to="/progress"
-                className="text-xs font-bold text-blue underline-offset-4 hover:underline"
-              >
-                Full history in Progress
-              </Link>
             </div>
           )}
         </div>

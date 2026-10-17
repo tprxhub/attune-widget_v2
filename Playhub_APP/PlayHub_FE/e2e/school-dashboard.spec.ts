@@ -6,7 +6,7 @@ async function login(page: Page, email: string) {
   await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(/\/(dashboard|org|admin)(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/(hub|dashboard|org|admin)(?:[/?#]|$)/);
 }
 
 test("school Admin sees every child on the dashboard and can open one", async ({ page }) => {
@@ -37,7 +37,7 @@ test("school Admin sees every child on the dashboard and can open one", async ({
   await page.getByRole("button", { name: /Selected child/ }).click();
   await page.getByRole("option", { name: /Omar/ }).click();
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
-  await expect(page.getByText(/Support Score and Mood for Omar/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Omar", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Play Progress" })).toBeVisible();
 
   await page.getByRole("button", { name: /Selected child: Omar/ }).click();

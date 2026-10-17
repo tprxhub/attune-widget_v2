@@ -5,7 +5,7 @@ export async function signIn(page: Page, email: string) {
   await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await Promise.all([
-    page.waitForURL(/\/(admin|dashboard)/),
+    page.waitForURL(/\/(hub|admin|dashboard|org)/, { waitUntil: "domcontentloaded" }),
     page.getByRole("button", { name: "Log in", exact: true }).click(),
   ]);
   await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);

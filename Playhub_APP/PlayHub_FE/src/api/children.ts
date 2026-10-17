@@ -44,6 +44,14 @@ export async function createChild(input: NewChildInput): Promise<Child> {
   return mapChild(child);
 }
 
+export async function renameChild(childId: string, name: string) {
+  const child = await apiRequest<ApiChild>(`/children/${childId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+  return mapChild(child);
+}
+
 export async function assignSupporter(childId: string, supporterId: string | undefined) {
   const child = await apiRequest<ApiChild>(`/children/${childId}`, {
     method: "PATCH",

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Lock, ThumbsUp } from "lucide-react";
+import { BookOpenText, Lock, Share2, ShieldAlert, ThumbsUp } from "lucide-react";
 import { getAttuneInsights } from "@/api/attune";
 import { AttuneAvatar } from "./AttuneAvatar";
 
@@ -36,10 +36,16 @@ export function AttuneInsightsCard() {
             Attune™ insights
           </h3>
           <p className="text-xs text-navy/55">
-            How families and staff use the AI play coach, across {data.children30Days}{" "}
+            How families and staff use the 24/7 Play Partner, across {data.children30Days}{" "}
             {data.children30Days === 1 ? "child" : "children"} this month.
           </p>
         </div>
+        <Link
+          to="/admin/attune-sources"
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-navy/15 px-4 text-sm font-bold hover:border-navy/35"
+        >
+          <BookOpenText className="h-4 w-4" aria-hidden /> Source register
+        </Link>
         <Link
           to="/attune"
           className="inline-flex min-h-10 items-center rounded-full border border-navy/15 px-4 text-sm font-bold hover:border-navy/35"
@@ -108,6 +114,21 @@ export function AttuneInsightsCard() {
               ? `${data.ratedUp} helpful · ${data.ratedDown} not helpful`
               : "No answers rated yet."}
           </p>
+          <dl className="mt-4 grid grid-cols-2 gap-2 border-t border-navy/8 pt-3 text-xs">
+            <div>
+              <dt className="flex items-center gap-1 font-bold text-navy/55">
+                <ShieldAlert className="h-3.5 w-3.5 text-coral" aria-hidden /> Safety answers
+              </dt>
+              <dd className="mt-0.5 text-lg font-bold">{data.safety30Days}</dd>
+            </div>
+            <div>
+              <dt className="flex items-center gap-1 font-bold text-navy/55">
+                <Share2 className="h-3.5 w-3.5 text-blue" aria-hidden /> Shared notes
+              </dt>
+              <dd className="mt-0.5 text-lg font-bold">{data.shared30Days}</dd>
+            </div>
+          </dl>
+          <p className="mt-1 text-[10px] text-navy/45">Last 30 days, for clinical review.</p>
         </div>
       </div>
 

@@ -25,6 +25,8 @@ import { LEVELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { FreePlanGate } from "@/features/plans/freePlan";
 import { useFreePlan } from "@/features/plans/useFreePlan";
+import { CONSULT_BOOKING_URL } from "@/lib/contact";
+import { AttuneMomentsCard } from "@/features/attune/AttuneMomentsCard";
 
 export const Route = createFileRoute("/plans/$planId/")({
   head: ({ params }) => {
@@ -129,8 +131,8 @@ function PlanWeek() {
           />
           <div className="relative">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-navy">
-              <GoalIcon goalId={data.goalId} goalName={goal?.name} className="h-3.5 w-3.5" />{" "}
-              {session.role === "parent" ? "Play Plan" : goal?.name}
+              <GoalIcon goalId={data.goalId} goalName={goal?.name} className="h-3.5 w-3.5" /> Play
+              Plan
             </span>
             <h1 className="mt-2.5 text-2xl font-bold text-white sm:text-3xl">
               {data.title}{" "}
@@ -296,6 +298,8 @@ function PlanWeek() {
         </ol>
       </section>
 
+      <AttuneMomentsCard className="mt-4" />
+
       {/* Play Consultation upsell */}
       <section className="ph-card mt-4 flex flex-wrap items-center gap-4 border-l-4 border-amber p-5">
         <span className="inline-grid h-11 w-11 place-items-center rounded-2xl bg-amber/25 text-navy">
@@ -308,7 +312,7 @@ function PlanWeek() {
           </p>
         </div>
         <a
-          href="https://thetoypharmacy.com/products/play-consult-call"
+          href={CONSULT_BOOKING_URL}
           target="_blank"
           rel="noreferrer"
           className="inline-flex min-h-11 items-center rounded-full bg-amber px-5 text-sm font-bold text-navy"

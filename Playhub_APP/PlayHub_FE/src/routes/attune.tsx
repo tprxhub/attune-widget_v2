@@ -36,7 +36,9 @@ import {
   X,
 } from "lucide-react";
 import {
+  ATTUNE_MODES,
   askAttuneStream,
+  isAttuneMode,
   deleteAttuneConversation,
   getAttuneConversation,
   getAttuneResetDelay,
@@ -47,15 +49,23 @@ import {
   type AttuneConversation,
   type AttuneConversationDetail,
   type AttuneMessage,
+  type AttuneMode,
+  type AttuneReference,
   type AttuneStatus,
 } from "@/api/attune";
 import { listRecentAttempts } from "@/api/attempts";
 import { Protected } from "@/auth/guards";
-import { useCapabilities, useSession } from "@/auth/session";
+import { useCapabilities } from "@/auth/session";
 import { AppHeaderControls } from "@/components/AppShell";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { AttuneAvatar, AttuneMascot } from "@/features/attune/AttuneAvatar";
 import { AttuneReply } from "@/features/attune/AttuneReply";
+import {
+  ReferencesPanel,
+  ReferencesToggle,
+  SafetyNotice,
+  ShareThisButton,
+} from "@/features/attune/AnswerExtras";
 import { createStreamBuffer } from "@/features/attune/streamBuffer";
 import { groupByDate } from "@/features/attune/groupByDate";
 import { useActiveChild } from "@/lib/active-child";
@@ -69,6 +79,8 @@ interface AttuneSearch {
   about?: string;
   /** A question to ask straight away, from an "Ask Attune about this" link elsewhere in Play Hub. */
   q?: string;
+  /** The way in: "Get an idea", "My child is struggling" or "What does this mean?". */
+  mode?: AttuneMode;
 }
 
 export const Route = createFileRoute("/attune")({
@@ -78,6 +90,7 @@ export const Route = createFileRoute("/attune")({
     ...(typeof search["q"] === "string" && search["q"].trim()
       ? { q: search["q"].slice(0, 500) }
       : {}),
+    ...(isAttuneMode(search["mode"]) ? { mode: search["mode"] } : {}),
   }),
   head: () => ({
     meta: [
@@ -85,7 +98,7 @@ export const Route = createFileRoute("/attune")({
       {
         name: "description",
         content:
-          "Attune™, the Play Hub play assistant: practical ideas for your child's Play Plan.",
+          "Attune™, your 24/7 Play Partner: OT-informed play ideas and support for hard moments, built around your child's Play Plan.",
       },
     ],
   }),
@@ -100,8 +113,66 @@ function suggestionsFor(
   name: string | undefined,
   aboutActivity: boolean,
   latest?: Pick<Attempt, "activity" | "completionStatus">,
+  mode?: AttuneMode,
 ) {
   const child = name ?? "my child";
+  if (mode === "regulation") {
+    return [
+      {
+        title: "Meltdown right now",
+        prompt: `${child} is melting down right now. What can I do?`,
+      },
+      {
+        title: "Refusing the Activity",
+        prompt: `${child} is refusing the Activity. What might be going on?`,
+      },
+      {
+        title: "Hard to stop and move on",
+        prompt: `${child} gets very upset when we have to stop and move on to something else.`,
+      },
+      { title: "I’m losing my patience", prompt: "Nothing is working and I’m losing my patience." },
+    ];
+  }
+  if (mode === "progress") {
+    return [
+      {
+        title: "This dose’s Support Score",
+        prompt: `What does ${child}’s Support Score for this Play Dose mean?`,
+      },
+      {
+        title: "Ready for the next level?",
+        prompt: `Is ${child} ready to move up a level, stay, or move down?`,
+      },
+      {
+        title: "What has changed",
+        prompt: `What has changed for ${child} across the last few Play Doses?`,
+      },
+      {
+        title: "Mood across Sessions",
+        prompt: `What does ${child}’s mood across recent Sessions tell us?`,
+      },
+    ];
+  }
+  if (mode === "idea" && !aboutActivity) {
+    return [
+      {
+        title: "An idea for today",
+        prompt: `Give me one play idea for ${child} today from the Play Plan.`,
+      },
+      {
+        title: "What comes next",
+        prompt: `What should ${child} try next in the Play Plan sequence?`,
+      },
+      {
+        title: "No kit toy today",
+        prompt: "We don’t have the kit toy with us today. What else could we use?",
+      },
+      {
+        title: "A free-play idea",
+        prompt: `Give me a short free-play idea that practises the same skill for ${child}.`,
+      },
+    ];
+  }
   if (aboutActivity) {
     return [
       { title: "Make it easier", prompt: "How can I make this Activity easier?" },
@@ -144,10 +215,9 @@ type Turn = {
 };
 
 function AttunePage() {
-  const { activity, about, q } = Route.useSearch();
+  const { activity, about, q, mode } = Route.useSearch();
   const navigate = useNavigate({ from: "/attune" });
   const queryClient = useQueryClient();
-  const { session } = useSession();
   const { canManageSubscription } = useCapabilities();
   const { activeChild, isLoading: childrenLoading } = useActiveChild();
   const childId = activeChild?.id;
@@ -228,6 +298,7 @@ function AttunePage() {
             conversationId: selectedId ?? undefined,
             childId: selectedId ? undefined : childId,
             activityId: activity,
+            mode,
           },
           (piece) => {
             if (version === requestVersion.current && !controller.signal.aborted)
@@ -373,7 +444,6 @@ function AttunePage() {
   }, [q, status.data, childrenLoading, navigate, ask]);
 
   const empty = messages.length === 0 && !turn && !(selectedId && conversation.isLoading);
-  const firstName = (session.guardianName || session.name).split(" ")[0];
   const currentTitle = selectedId
     ? (conversation.data?.title ??
       conversations.data?.find((c) => c.id === selectedId)?.title ??
@@ -447,23 +517,49 @@ function AttunePage() {
         placeholder={
           outOfQuestions
             ? "You’ve reached today’s question limit. Come back tomorrow."
-            : activeChild
-              ? `Ask anything about ${activeChild.name}’s play…`
-              : "Ask Attune anything about play…"
+            : mode === "regulation"
+              ? `Tell me what’s happening${activeChild ? ` with ${activeChild.name}` : ""}…`
+              : activeChild
+                ? `Ask anything about ${activeChild.name}’s play…`
+                : "Ask Attune anything about play…"
         }
         chip={
-          activity && about ? (
-            <span className="ph-pill inline-flex max-w-full items-center gap-1.5 bg-blue/10 py-1 pr-1 pl-3 text-xs font-bold text-blue">
-              <span className="truncate">Asking about: {about}</span>
-              <button
-                type="button"
-                onClick={() => void navigate({ search: {}, replace: true })}
-                aria-label="Stop asking about this Activity"
-                className="ph-pill grid h-5 w-5 shrink-0 place-items-center hover:bg-blue/15"
-              >
-                <X className="h-3 w-3" aria-hidden />
-              </button>
-            </span>
+          mode || (activity && about) ? (
+            <div className="flex flex-wrap gap-1.5">
+              {mode && (
+                <span className="ph-pill inline-flex max-w-full items-center gap-1.5 bg-amber/25 py-1 pr-1 pl-3 text-xs font-bold text-navy">
+                  <span className="truncate">{ATTUNE_MODES[mode].label}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void navigate({ search: ({ mode: _mode, ...rest }) => rest, replace: true })
+                    }
+                    aria-label={`Stop: ${ATTUNE_MODES[mode].label}`}
+                    className="ph-pill grid h-5 w-5 shrink-0 place-items-center hover:bg-amber/40"
+                  >
+                    <X className="h-3 w-3" aria-hidden />
+                  </button>
+                </span>
+              )}
+              {activity && about && (
+                <span className="ph-pill inline-flex max-w-full items-center gap-1.5 bg-blue/10 py-1 pr-1 pl-3 text-xs font-bold text-blue">
+                  <span className="truncate">Asking about: {about}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void navigate({
+                        search: ({ activity: _a, about: _b, ...rest }) => rest,
+                        replace: true,
+                      })
+                    }
+                    aria-label="Stop asking about this Activity"
+                    className="ph-pill grid h-5 w-5 shrink-0 place-items-center hover:bg-blue/15"
+                  >
+                    <X className="h-3 w-3" aria-hidden />
+                  </button>
+                </span>
+              )}
+            </div>
           ) : null
         }
       />
@@ -590,13 +686,10 @@ function AttunePage() {
             <div className="my-auto w-full max-w-2xl shrink-0">
               <AttuneMascot className="mx-auto h-24 w-24 sm:h-28 sm:w-28" />
               <h2 className="mt-3 text-center text-2xl font-bold sm:text-3xl">
-                {about
-                  ? `Questions about “${about}”?`
-                  : `Hi ${firstName}, how can I help${activeChild ? ` with ${activeChild.name}` : ""} today?`}
+                {emptyHeading(mode, about, activeChild?.name)}
               </h2>
               <p className="mx-auto mt-2 max-w-md text-center text-sm text-navy/60">
-                I know {activeChild ? `${activeChild.name}’s` : "your child’s"} Play Plan and recent
-                Sessions, so you can ask about anything from a tricky Session to new play ideas.
+                {emptyIntro(mode, activeChild?.name)}
               </p>
               <ul className="mt-4 flex flex-wrap justify-center gap-2 text-[11px] font-bold text-navy/60">
                 {[
@@ -623,6 +716,7 @@ function AttunePage() {
                   activeChild?.name,
                   Boolean(activity),
                   latestSession.data ?? undefined,
+                  mode,
                 ).map((s, index) => (
                   <button
                     key={s.title}
@@ -688,6 +782,30 @@ function AttunePage() {
   );
 }
 
+function emptyHeading(
+  mode: AttuneMode | undefined,
+  about: string | undefined,
+  childName: string | undefined,
+) {
+  if (mode === "regulation") return "Take a breath. Let’s work through this together.";
+  if (mode === "progress")
+    return `Let’s make sense of ${childName ? `${childName}’s` : "the"} progress`;
+  if (about) return `Questions about “${about}”?`;
+  if (mode === "idea") return `Let’s find the right idea${childName ? ` for ${childName}` : ""}`;
+  return `Hello, How Can I Help ${childName ?? "Your Child"} Today?`;
+}
+
+function emptyIntro(mode: AttuneMode | undefined, childName: string | undefined) {
+  const child = childName ? `${childName}’s` : "your child’s";
+  if (mode === "regulation")
+    return "Tell me what’s happening right now. If anyone may be in danger, call 999 (police) or 998 (ambulance) first.";
+  if (mode === "progress")
+    return `I’ll explain ${child} Support Score, mood and level in plain words, and what might come next.`;
+  if (mode === "idea")
+    return "Tell me what you’d like to practise. I’ll suggest one Activity and how to make it easier or harder.";
+  return "From choosing the next Play Plan to understanding your child’s progress, I’m here to guide you and answer your questions along the way.";
+}
+
 /** Save the open chat as a text file the adult can keep or share with a therapist. */
 function downloadChat(title: string, childName: string | undefined, messages: AttuneMessage[]) {
   const lines = [
@@ -698,9 +816,12 @@ function downloadChat(title: string, childName: string | undefined, messages: At
     ...messages.flatMap((m) => [
       `${m.role === "user" ? "You" : "Attune"} · ${new Date(m.createdAt).toLocaleString()}`,
       m.content,
+      ...(m.references.length
+        ? [`Informed by: ${m.references.map((r) => r.title).join("; ")}`]
+        : []),
       "",
     ]),
-    "Attune gives play ideas, not medical advice.",
+    DISCLAIMER,
   ];
   const url = URL.createObjectURL(
     new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" }),
@@ -856,13 +977,11 @@ function ChatMenu({
   );
 }
 
+const DISCLAIMER =
+  "Attune™ is an OT-informed tool created by a licensed occupational therapist. It gives play ideas, not medical advice. For worries about development, talk to your child’s clinician.";
+
 function Disclaimer() {
-  return (
-    <p className="mt-2 text-center text-[11px] text-navy/45">
-      Attune gives play ideas, not medical advice. For worries about development, talk to your
-      paediatrician or occupational therapist.
-    </p>
-  );
+  return <p className="mt-2 text-center text-[11px] text-navy/45">{DISCLAIMER}</p>;
 }
 
 /** Whether the chat list is folded down to an icon rail; remembered on this device. */
@@ -1152,9 +1271,12 @@ function MessageList({
             ) : (
               <AssistantMessage
                 key={m.id}
+                id={m.id}
                 content={m.content}
                 feedback={m.feedback}
                 createdAt={m.createdAt}
+                references={m.references}
+                safety={m.safety}
                 onRate={(value) => onRate(m.id, value)}
               />
             ),
@@ -1235,26 +1357,36 @@ function UserMessage({ content, createdAt }: { content: string; createdAt?: stri
 }
 
 function AssistantMessage({
+  id,
   content,
   streaming = false,
   stopped = false,
   feedback = null,
   createdAt,
+  references = [],
+  safety = false,
   onRate,
 }: {
+  /** Saved answers have an id, so they can be shared. */
+  id?: string;
   content: string;
   streaming?: boolean;
   stopped?: boolean;
   feedback?: "up" | "down" | null;
   createdAt?: string;
+  references?: AttuneReference[];
+  safety?: boolean;
   /** Saved answers can be rated; the one still arriving can't. */
   onRate?: (value: "up" | "down" | null) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [showReferences, setShowReferences] = useState(false);
+  const panelId = `attune-references-${id ?? "draft"}`;
   return (
     <div className="group flex gap-3">
       <AttuneAvatar className="mt-0.5 h-8 w-8" thinking={streaming && !content} />
       <div className="min-w-0 flex-1 text-[15px] text-navy">
+        {safety && <SafetyNotice />}
         {content ? (
           <AttuneReply text={content} />
         ) : !streaming ? null : (
@@ -1279,7 +1411,9 @@ function AssistantMessage({
           <div
             className={cn(
               "mt-1 flex gap-1 transition sm:focus-within:opacity-100",
-              feedback ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
+              feedback || showReferences
+                ? "opacity-100"
+                : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
             )}
           >
             <button
@@ -1325,12 +1459,22 @@ function AssistantMessage({
                   </button>
                 );
               })}
+            <ReferencesToggle
+              references={references}
+              open={showReferences}
+              onToggle={() => setShowReferences((v) => !v)}
+              panelId={panelId}
+            />
+            {id && <ShareThisButton messageId={id} />}
             {createdAt && (
               <time dateTime={createdAt} className="ml-1 self-center text-[10px] text-navy/40">
                 {timeOf(createdAt)}
               </time>
             )}
           </div>
+        )}
+        {showReferences && references.length > 0 && (
+          <ReferencesPanel references={references} id={panelId} />
         )}
       </div>
     </div>

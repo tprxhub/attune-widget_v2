@@ -35,13 +35,14 @@ function Blocked({
 }
 
 /**
- * For the log in and sign up pages: someone already signed in goes straight to their home
- * instead of seeing the form again.
+ * For the log in and sign up pages: someone already signed in goes straight to the Play Hub
+ * launcher instead of seeing the form again.
  */
 export function GuestOnly({ children }: { children: ReactNode }) {
   const { session, hydrated } = useSession();
   if (hydrated && session.role !== "anonymous") {
-    return <Navigate to={session.homePath} replace />;
+    // Signing in always lands on the Play Hub launcher.
+    return <Navigate to="/hub" replace />;
   }
   return <>{children}</>;
 }

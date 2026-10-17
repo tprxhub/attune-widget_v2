@@ -1,8 +1,19 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Activity, Plus, UserCog, UserPlus, Users } from "lucide-react";
-import { assignSupporter, listChildrenForSession } from "@/api/children";
+import {
+  ArrowUpRight,
+  Activity,
+  Check,
+  Loader2,
+  Pencil,
+  Plus,
+  UserCog,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
+import { assignSupporter, listChildrenForSession, renameChild } from "@/api/children";
 import { getOrg, listSupporters } from "@/api/org";
 import { getProgress } from "@/api/progress";
 import { listPlans } from "@/api/plans";
@@ -99,7 +110,8 @@ function OrgChildren() {
           ) : undefined
         }
       />
-      <OrgLicenseNote org={org.data} kind="children" />
+      {/* Licences are the organisation admin's business; Moderators don't see them. */}
+      {session.role === "educator" && <OrgLicenseNote org={org.data} kind="children" />}
       {limit && org.data && (
         <LicenceLimitModal org={org.data} kind={limit} onClose={() => setLimit(null)} />
       )}
@@ -159,6 +171,7 @@ function OrgChildren() {
               <ChildRow
                 key={child.id}
                 child={child}
+                canRename={session.role === "educator"}
                 planTitle={plans.data?.find((p) => p.id === child.currentPlanId)?.title ?? "—"}
                 supporterName={
                   child.supporterId === session.userId
@@ -197,10 +210,12 @@ function OrgChildren() {
 
 function ChildRow({
   child,
+  canRename,
   planTitle,
   supporterName,
 }: {
   child: Child;
+  canRename: boolean;
   planTitle: string;
   supporterName?: string | undefined;
 }) {
@@ -211,10 +226,10 @@ function ChildRow({
   return (
     <li className="flex flex-wrap items-center gap-3 p-4 sm:flex-nowrap">
       <ChildProgressIcon childId={child.id} size={40} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-bold text-navy">{child.name}</span>
+      <div className="min-w-0 flex-1">
+        <ChildName child={child} canRename={canRename} className="text-sm text-navy" />
         <span className="block text-xs text-navy/55">Age {child.age}</span>
-      </span>
+      </div>
       <span className="hidden min-w-0 flex-1 truncate text-xs text-navy/60 lg:block">
         {planTitle}
       </span>
@@ -271,19 +286,20 @@ function ChildCard({
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <div className="flex flex-1 flex-col p-5">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-          <ChildProgressIcon childId={child.id} size={48} />
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3.5">
+          <ChildProgressIcon childId={child.id} size={64} />
           <div className="min-w-0">
-            <h2 className="truncate text-lg leading-tight font-bold">{child.name}</h2>
+            <ChildName child={child} canRename={canAssign} heading className="text-lg" />
             <p className="truncate text-xs text-navy/55">Age {child.age}</p>
+            {report.data && (
+              <div className="mt-1.5">
+                <StatusBadge status={report.data.status} size="sm" />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="mt-4">
-          {report.data && <StatusBadge status={report.data.status} size="sm" />}
-        </div>
-
-        <div className="mt-3 rounded-2xl bg-navy/4 p-3">
+        <div className="mt-4 rounded-2xl bg-navy/4 p-3">
           <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
             <Activity className="h-3.5 w-3.5" aria-hidden /> Current Play Plan
           </p>
@@ -336,5 +352,120 @@ function ChildCard({
         </Link>
       </div>
     </article>
+  );
+}
+
+/** A child's name, with an inline rename for the organisation admin. */
+function ChildName({
+  child,
+  canRename,
+  heading = false,
+  className,
+}: {
+  child: Child;
+  canRename: boolean;
+  heading?: boolean;
+  className?: string;
+}) {
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const rename = useMutation({
+    mutationFn: (name: string) => renameChild(child.id, name),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["children"] });
+      setDraft(null);
+      setError("");
+    },
+    onError: (reason) =>
+      setError(reason instanceof Error ? reason.message : "Could not rename this child."),
+  });
+  const Name = heading ? "h2" : "span";
+  const inputId = `child-name-${child.id}`;
+
+  if (draft === null) {
+    return (
+      <span className="flex min-w-0 items-center gap-1.5">
+        <Name className={cn("block truncate leading-tight font-bold", className)}>
+          {child.name}
+        </Name>
+        {canRename && (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(child.name);
+              setError("");
+            }}
+            aria-label={`Edit ${child.name}'s name`}
+            title="Edit name"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-navy/50 transition hover:bg-navy/6 hover:text-navy"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  const save = () => {
+    const name = draft.trim().replace(/\s+/g, " ");
+    if (!name) return setError("Please enter the child's name.");
+    if (name === child.name) return setDraft(null);
+    rename.mutate(name);
+  };
+  return (
+    <form
+      className="min-w-0"
+      onSubmit={(event) => {
+        event.preventDefault();
+        save();
+      }}
+    >
+      <label htmlFor={inputId} className="sr-only">
+        Child's name
+      </label>
+      <div className="flex min-w-0 items-center gap-1">
+        <input
+          id={inputId}
+          autoFocus
+          maxLength={120}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setDraft(null);
+          }}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${inputId}-error` : undefined}
+          className="min-h-9 w-full min-w-0 flex-1 rounded-xl border border-navy/15 bg-card px-3 text-sm font-semibold text-navy outline-none transition focus:border-blue focus:ring-2 focus:ring-blue/25"
+        />
+        <button
+          type="submit"
+          disabled={rename.isPending}
+          aria-label="Save name"
+          title="Save"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy text-white disabled:opacity-60"
+        >
+          {rename.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Check className="h-4 w-4" aria-hidden />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setDraft(null)}
+          aria-label="Cancel"
+          title="Cancel"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-navy/60 hover:bg-navy/6"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+      {error && (
+        <p id={`${inputId}-error`} role="alert" className="mt-1 text-xs text-coral">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }

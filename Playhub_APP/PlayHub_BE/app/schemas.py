@@ -137,6 +137,8 @@ def _clean_permissions(value: list[str] | None) -> list[str] | None:
 
 class UserUpdate(APIModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=120)
+    # Sign-in email; only a Super Admin may change it.
+    email: str | None = Field(default=None, min_length=3, max_length=255)
     role: Role | None = None
     is_active: bool | None = None
     permissions: list[str] | None = None
@@ -145,6 +147,11 @@ class UserUpdate(APIModel):
     @classmethod
     def check_permissions(cls, value):
         return _clean_permissions(value)
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, value: str | None) -> str | None:
+        return None if value is None else UserCreate.normalise_email(value)
 
 
 class InvitationCreate(APIModel):

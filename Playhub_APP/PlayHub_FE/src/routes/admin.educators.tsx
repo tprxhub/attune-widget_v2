@@ -11,6 +11,7 @@ import {
   HeartHandshake,
   KeyRound,
   Loader2,
+  Pencil,
   Plus,
   Power,
   Search,
@@ -23,11 +24,13 @@ import {
   listStaffByOrg,
   regenerateStaffActivation,
   toggleStaffActive,
+  updateAccountDetails,
   type StaffInvitationResult,
 } from "@/api/admin";
 import { createSupporter } from "@/api/org";
 import { ModalPortal } from "@/components/ModalPortal";
 import { Protected } from "@/auth/guards";
+import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
 import { Select } from "@/components/Select";
@@ -75,6 +78,7 @@ function AdminEducators() {
   const [open, setOpen] = useState(false);
   const [createdAccess, setCreatedAccess] = useState<StaffInvitationResult | null>(null);
   const [isReplacementLink, setIsReplacementLink] = useState(false);
+  const [editing, setEditing] = useState<StaffMember | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -255,6 +259,7 @@ function AdminEducators() {
                       onToggle={() => (m.active ? toggle.mutateAsync(m.id) : toggle.mutate(m.id))}
                       onViewActivation={() => regenerate.mutate(m.id)}
                       viewingActivation={regenerate.isPending && regenerate.variables === m.id}
+                      onEdit={() => setEditing(m)}
                     />
                   ))}
                 </div>
@@ -273,6 +278,16 @@ function AdminEducators() {
                         </span>
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
+                        {!m.invitationPending && (
+                          <button
+                            type="button"
+                            onClick={() => setEditing(m)}
+                            aria-label={`Edit ${m.name}`}
+                            className="inline-flex min-h-9 items-center gap-1 rounded-full border border-navy/15 px-3 text-[11px] font-bold"
+                          >
+                            <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
+                          </button>
+                        )}
                         <span className="rounded-full bg-navy/6 px-2.5 py-1 text-[11px] font-bold">
                           {m.invitationPending
                             ? "Invite pending"
@@ -327,6 +342,17 @@ function AdminEducators() {
             ? regenerate.error.message
             : "Could not generate the activation link."}
         </p>
+      )}
+
+      {editing && (
+        <EditStaffModal
+          member={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            void queryClient.invalidateQueries({ queryKey: ["staff-by-org"] });
+          }}
+        />
       )}
 
       {open && (
@@ -423,21 +449,33 @@ function StaffCard({
   onToggle,
   onViewActivation,
   viewingActivation,
+  onEdit,
 }: {
   member: StaffMember;
   pending: boolean;
   onToggle: () => void;
   onViewActivation: () => void;
   viewingActivation: boolean;
+  onEdit: () => void;
 }) {
   return (
     <article className="rounded-2xl border border-navy/10 bg-card p-4 transition-shadow hover:shadow-md">
       <div className="flex min-w-0 items-center gap-3">
         <RoleIcon role={member.role} />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-bold">{member.name}</h3>
           <p className="truncate text-xs text-navy/55">{member.email}</p>
         </div>
+        {!member.invitationPending && (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${member.name}`}
+            className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-navy/15 px-3 text-[11px] font-bold hover:border-navy/40"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
+          </button>
+        )}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span
@@ -494,6 +532,123 @@ function StaffCard({
         </ConfirmButton>
       )}
     </article>
+  );
+}
+
+const editInput =
+  "mt-1.5 min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/25";
+
+/** Super Admin: correct a staff member's name or sign-in email. */
+function EditStaffModal({
+  member,
+  onClose,
+  onSaved,
+}: {
+  member: StaffMember;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { session } = useSession();
+  // Only a Super Admin may change a sign-in email; TTP employees can correct the name.
+  const canChangeEmail = session.role === "super_admin";
+  const [name, setName] = useState(member.name);
+  const [email, setEmail] = useState(member.email);
+  const [error, setError] = useState("");
+  const save = useMutation({
+    mutationFn: () =>
+      updateAccountDetails(member.id, {
+        name: name.trim(),
+        email: canChangeEmail ? email.trim() : member.email,
+      }),
+    onSuccess: onSaved,
+    onError: (reason: Error) => setError(reason.message),
+  });
+  const roleLabel = member.role === "educator" ? "Admin" : "Moderator";
+
+  return (
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-50 grid place-items-end bg-navy/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4"
+        onClick={onClose}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Edit ${roleLabel}`}
+          className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 shadow-xl sm:rounded-3xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold">Edit {roleLabel}</h2>
+              <p className="truncate text-xs text-navy/55">{member.email}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy/6 hover:bg-navy/12"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+          <form
+            className="mt-4 space-y-4"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (name.trim().length < 2) return setError("Enter their full name.");
+              if (!/^\S+@\S+\.\S+$/.test(email.trim()))
+                return setError("Enter a valid email address.");
+              setError("");
+              save.mutate();
+            }}
+          >
+            <label className="block text-sm font-bold">
+              Full name
+              <input value={name} onChange={(e) => setName(e.target.value)} className={editInput} />
+            </label>
+            <label className="block text-sm font-bold">
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={editInput}
+                disabled={!canChangeEmail}
+              />
+              <span className="mt-1 block text-xs font-normal text-navy/55">
+                {canChangeEmail
+                  ? "They sign in with this email."
+                  : "Only a Super Admin can change a sign-in email."}
+              </span>
+            </label>
+            {error && (
+              <p role="alert" className="text-sm font-semibold text-coral">
+                {error}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={save.isPending}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                Save changes
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </ModalPortal>
   );
 }
 

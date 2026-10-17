@@ -1,4 +1,4 @@
-import { usePricePlans } from "@/api/pricing";
+import { loadPricingForRoute, usePricePlans } from "@/api/pricing";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/format";
 
 export const Route = createFileRoute("/subscription")({
+  loader: ({ context }) => loadPricingForRoute(context.queryClient),
   validateSearch: (
     search: Record<string, unknown>,
   ): { plan?: PlanDuration | undefined; checkout?: string | undefined } => ({

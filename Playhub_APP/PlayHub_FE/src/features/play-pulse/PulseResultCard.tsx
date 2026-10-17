@@ -9,11 +9,12 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { useApplicationLogo } from "@/api/branding";
 import { SupportScoreInfo } from "@/components/SupportScoreInfo";
+import progressWordmark from "@/assets/progress-play-wordmark.png";
 import { RingMarker } from "@/features/progress/InteractiveProgressRings";
+import { HeartMarker, SmileMarker } from "@/features/progress/RingIcons";
 import { Confetti, FaceShape, Ring } from "@/features/progress/SupportMoodRings";
-import { independence } from "@/features/progress/supportMood";
+import { independence, lightShade } from "@/features/progress/supportMood";
 import { fmtDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PlayPulseDomain } from "./data";
@@ -51,7 +52,6 @@ export function PulseResultCard({
   domainTiers: Record<PlayPulseDomain, DomainTier>;
   focus: PlayPulseDomain | null;
 }) {
-  const logo = useApplicationLogo();
   const [shared, setShared] = useState<"idle" | "busy" | "done">("idle");
   const [shareError, setShareError] = useState(false);
   const cheer = pulseCheer(childName, goalName, tier, domainTiers, focus);
@@ -126,7 +126,7 @@ export function PulseResultCard({
               value={`${supportScore}%`}
               label="Support Score"
               sub={`${TIER_COPY[tier].label} · lower means less help needed`}
-              info="Based on your answers to this check. A lower score means less support is needed."
+              info="A lower score is better, meaning your child needs less support."
             />
             <MiniStat
               icon={Target}
@@ -177,36 +177,34 @@ export function PulseResultCard({
                 stroke={12}
                 value={independence(supportScore)}
                 color={SUPPORT_COLOR}
-                track="#E8EEF6"
+                track={lightShade(SUPPORT_COLOR)}
               />
-              <RingMarker radius={70} value={independence(supportScore)}>
-                <text
-                  x={0}
-                  y={0}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fontSize={8}
-                  fontFamily="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif"
-                  aria-hidden
-                >
-                  🫀
-                </text>
-              </RingMarker>
               <Ring
                 radius={58}
                 stroke={12}
                 value={cheer.onTrack / areas}
                 color={ON_TRACK_COLOR}
-                track="#EDF2E9"
+                track={lightShade(ON_TRACK_COLOR)}
               />
+              {/* Drawn after both rings so neither marker is covered: a red heart at the end of
+                  the blue (independence) ring, a yellow smile at the end of the green one. */}
+              <RingMarker radius={70} value={independence(supportScore)}>
+                <HeartMarker />
+              </RingMarker>
+              <RingMarker radius={58} value={cheer.onTrack / areas}>
+                <SmileMarker />
+              </RingMarker>
             </svg>
             <div className="pointer-events-none absolute inset-[25%] flex flex-col items-center justify-center text-center">
               <p className="text-sm font-bold sm:text-base">Let’s</p>
-              <img
-                src={logo}
-                alt="Play Hub"
-                className="my-1 h-auto w-20 max-w-full object-contain sm:w-24"
-              />
+              {/* The same "play" wordmark as the Progress page's rings. */}
+              <div className="relative my-1 h-9 w-16 shrink-0 overflow-hidden sm:h-10 sm:w-[4.5rem]">
+                <img
+                  src={progressWordmark}
+                  alt="Play Hub"
+                  className="absolute top-0 left-0 h-16 w-16 max-w-none -translate-y-[19%] object-contain sm:h-[4.5rem] sm:w-[4.5rem]"
+                />
+              </div>
               <p className="text-sm font-bold sm:text-base">again soon!</p>
             </div>
           </div>
@@ -222,6 +220,10 @@ export function PulseResultCard({
                 aria-hidden
               />
               Independence Score: {independent}%
+              <SupportScoreInfo
+                label="What Independence Score means"
+                description="Shows how independently your child can play and complete activities."
+              />
             </li>
             <li className="flex items-center gap-2">
               <span

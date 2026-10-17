@@ -91,8 +91,8 @@ function AdminChildren() {
   const currentPlan = (doseId: string) => {
     const dose = doses.find((d) => d.id === doseId);
     if (!dose) return null;
-    const goal = library.data?.plans.find((g) => g.id === dose.goalId);
-    return { plan: goal?.name ?? dose.title, level: dose.level, dose: dose.title };
+    // The Play Plan's name (every dose of a plan shares it as its title), then the dose's level.
+    return { plan: dose.title, level: dose.level };
   };
   const orgs = useQuery({ queryKey: ["orgs"], queryFn: listOrgs });
   const staff = useQuery({
@@ -278,7 +278,7 @@ function AdminChildren() {
                     <>
                       <p className="mt-1 line-clamp-2 text-sm font-bold">{current.plan}</p>
                       <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-navy/70">
-                        {current.level} · {current.dose}
+                        {current.level} dose
                       </p>
                       <p className="mt-1 text-xs text-navy/55">
                         Started {fmtDate(child.planStartedAt)}
@@ -358,7 +358,8 @@ function AdminChildren() {
           staff={staff.data ?? []}
           plans={referenceDoses(library.data?.plans ?? [], true).map((p) => ({
             id: p.id,
-            title: `${library.data?.plans.find((g) => g.id === p.goalId)?.name ?? p.title} · ${p.level} — ${p.title}`,
+            // Play Plan name, then the dose's level: "Fix the Pencil Grip · Rookie".
+            title: `${p.title} · ${p.level}`,
           }))}
           onClose={() => setEditing(null)}
           onSaved={() => {

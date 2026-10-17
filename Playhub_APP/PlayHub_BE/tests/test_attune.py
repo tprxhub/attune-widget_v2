@@ -109,7 +109,7 @@ def test_sessions_and_the_current_play_dose_reach_the_context(client, platform_a
     assert ask(client, platform_admin, message="Ideas?", child_id=child["id"], activity_id=activity["id"]).status_code == 200
     context = openai[0]["instructions"]
     assert "Current Play Plan: Grip" in context
-    assert "Current Play Dose: Peg Power (Starter level)" in context
+    assert "Current Play Dose: Peg Power (Starter level, GAS 0)" in context
     assert "2026-10-01: Peg Hand Switch" in context and "mood 4/5" in context
     assert "Big Win: Used her left hand" in context
     assert "asking about this Activity: Peg Hand Switch" in context

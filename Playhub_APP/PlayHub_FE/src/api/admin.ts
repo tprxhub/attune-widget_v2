@@ -78,6 +78,18 @@ export async function createOrg(input: {
   return mapOrganisation(org);
 }
 
+/** Rename an organisation or change whether it is a school or a clinic. */
+export async function updateOrgDetails(
+  orgId: string,
+  input: { name: string; kind: "School" | "Clinic" },
+) {
+  const org = await apiRequest<ApiOrganisation>(`/organisations/${orgId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name: input.name, kind: input.kind.toLowerCase() }),
+  });
+  return mapOrganisation(org);
+}
+
 export async function updateOrgLicenses(orgId: string, licenses: number, licenseType: LicenseType) {
   const org = await apiRequest<ApiOrganisation>(`/organisations/${orgId}`, {
     method: "PATCH",
@@ -322,6 +334,30 @@ export async function createTtpEmployee(input: {
     }),
   });
   return ttpResult(invitation);
+}
+
+/** Super Admin: correct someone's name or sign-in email. */
+export async function updateAccountDetails(userId: string, input: { name: string; email: string }) {
+  return apiRequest<ApiUser>(`/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ display_name: input.name, email: input.email }),
+  });
+}
+
+export async function updateTtpEmployee(
+  userId: string,
+  input: { name: string; email: string; permissions: PermissionKey[] },
+) {
+  return ttpFromUser(
+    await apiRequest<ApiUser>(`/users/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        display_name: input.name,
+        email: input.email,
+        permissions: input.permissions,
+      }),
+    }),
+  );
 }
 
 export async function updateTtpPermissions(userId: string, permissions: PermissionKey[]) {

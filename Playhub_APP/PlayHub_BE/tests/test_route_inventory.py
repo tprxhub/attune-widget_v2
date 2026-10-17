@@ -55,6 +55,8 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/admin/play-pulse/results"),
     ("GET", "/api/v1/admin/play-pulse/results/export"),
     ("PUT", "/api/v1/attune/messages/{message_id}/feedback"),
+    ("POST", "/api/v1/attune/messages/{message_id}/summary"),
+    ("GET", "/api/v1/attune/sources"),
     ("GET", "/api/v1/admin/references"),
     ("GET", "/api/v1/admin/overview"),
     ("GET", "/api/v1/organisations"),

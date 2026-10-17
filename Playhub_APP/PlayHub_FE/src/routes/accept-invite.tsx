@@ -45,8 +45,8 @@ function AcceptInvitationPage() {
         }),
       });
       setAccessToken(response.access_token);
-      const session = await refreshSession();
-      await navigate({ to: session.homePath });
+      await refreshSession();
+      await navigate({ to: "/hub" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to accept this invitation.");
     } finally {

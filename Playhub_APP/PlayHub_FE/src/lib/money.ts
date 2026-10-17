@@ -1,32 +1,11 @@
-import type { PlanDuration } from "@/lib/types";
-
 /**
- * Play Hub charges in UAE dirhams. Legacy price labels remain for older callers;
- * public pricing and purchases use the saved catalogue from /billing/plans.
+ * Play Hub charges in UAE dirhams. Subscription prices come only from the saved catalogue
+ * (/billing/plans), which the Super Admin edits under Subscription pricing.
  */
 export const CURRENCY = "AED";
-
-export const PLAN_PRICES: Record<PlanDuration, { amount: number; months: number }> = {
-  "1m": { amount: 63, months: 1 },
-  "3m": { amount: 189, months: 3 },
-  "6m": { amount: 339, months: 6 },
-  "12m": { amount: 579, months: 12 },
-};
 
 /** "AED 189", "AED 56.50" — whole amounts drop the decimals. */
 export function fmtMoney(amount: number): string {
   const fixed = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
   return `${CURRENCY} ${fixed.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-}
-
-/** "AED 189" for a plan, or null when the plan is unknown. */
-export function planPriceLabel(duration: string | null | undefined): string | null {
-  const plan = duration ? PLAN_PRICES[duration as PlanDuration] : undefined;
-  return plan ? fmtMoney(plan.amount) : null;
-}
-
-/** "AED 63 / month" */
-export function perMonthLabel(duration: PlanDuration): string {
-  const plan = PLAN_PRICES[duration];
-  return plan ? `${fmtMoney(Math.round((plan.amount / plan.months) * 100) / 100)} / month` : "";
 }

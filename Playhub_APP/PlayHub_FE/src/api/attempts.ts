@@ -28,11 +28,24 @@ export async function listAttempts(childId: string): Promise<Attempt[]> {
     .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
 }
 
-export async function listRecentAttempts(childIds: string[], limit = 8): Promise<Attempt[]> {
+async function recentAttempts(
+  childIds: string[],
+  limit: number,
+  include: (attempt: Attempt) => boolean = () => true,
+): Promise<Attempt[]> {
   const rows = (await Promise.all(childIds.map(listAttempts))).flat();
   return rows
+    .filter(include)
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
+}
+
+export async function listRecentAttempts(childIds: string[], limit = 8): Promise<Attempt[]> {
+  return recentAttempts(childIds, limit);
+}
+
+export async function listRecentCheckIns(childIds: string[], limit = 3): Promise<Attempt[]> {
+  return recentAttempts(childIds, limit, (attempt) => attempt.source === "daily_check_in");
 }
 
 /** Attempts are append-only in the API; saving never overwrites a previous session. */

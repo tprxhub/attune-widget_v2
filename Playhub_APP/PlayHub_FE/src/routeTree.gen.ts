@@ -16,6 +16,7 @@ import { Route as AttuneRouteImport } from './routes/attune'
 import { Route as CheckInRouteImport } from './routes/check-in'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as HubRouteImport } from './routes/hub'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PlayPulseRouteImport } from './routes/play-pulse'
@@ -24,6 +25,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SubscriptionRouteImport } from './routes/subscription'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAttuneSourcesRouteImport } from './routes/admin.attune-sources'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminChildrenRouteImport } from './routes/admin.children'
 import { Route as AdminEducatorsRouteImport } from './routes/admin.educators'
@@ -78,6 +80,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HubRoute = HubRouteImport.update({
+  id: '/hub',
+  path: '/hub',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InviteRoute = InviteRouteImport.update({
   id: '/invite',
   path: '/invite',
@@ -116,6 +123,11 @@ const SubscriptionRoute = SubscriptionRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAttuneSourcesRoute = AdminAttuneSourcesRouteImport.update({
+  id: '/admin/attune-sources',
+  path: '/admin/attune-sources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAuditRoute = AdminAuditRouteImport.update({
@@ -217,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/hub': typeof HubRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/play-pulse': typeof PlayPulseRoute
@@ -224,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
+  '/admin/attune-sources': typeof AdminAttuneSourcesRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
@@ -252,6 +266,7 @@ export interface FileRoutesByTo {
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/hub': typeof HubRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/play-pulse': typeof PlayPulseRoute
@@ -259,6 +274,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
+  '/admin/attune-sources': typeof AdminAttuneSourcesRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
@@ -288,6 +304,7 @@ export interface FileRoutesById {
   '/check-in': typeof CheckInRoute
   '/dashboard': typeof DashboardRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/hub': typeof HubRoute
   '/invite': typeof InviteRoute
   '/login': typeof LoginRoute
   '/play-pulse': typeof PlayPulseRoute
@@ -295,6 +312,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
+  '/admin/attune-sources': typeof AdminAttuneSourcesRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
@@ -325,6 +343,7 @@ export interface FileRouteTypes {
     | '/check-in'
     | '/dashboard'
     | '/forgot-password'
+    | '/hub'
     | '/invite'
     | '/login'
     | '/play-pulse'
@@ -332,6 +351,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/subscription'
+    | '/admin/attune-sources'
     | '/admin/audit'
     | '/admin/children'
     | '/admin/educators'
@@ -360,6 +380,7 @@ export interface FileRouteTypes {
     | '/check-in'
     | '/dashboard'
     | '/forgot-password'
+    | '/hub'
     | '/invite'
     | '/login'
     | '/play-pulse'
@@ -367,6 +388,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/subscription'
+    | '/admin/attune-sources'
     | '/admin/audit'
     | '/admin/children'
     | '/admin/educators'
@@ -395,6 +417,7 @@ export interface FileRouteTypes {
     | '/check-in'
     | '/dashboard'
     | '/forgot-password'
+    | '/hub'
     | '/invite'
     | '/login'
     | '/play-pulse'
@@ -402,6 +425,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/subscription'
+    | '/admin/attune-sources'
     | '/admin/audit'
     | '/admin/children'
     | '/admin/educators'
@@ -431,6 +455,7 @@ export interface RootRouteChildren {
   CheckInRoute: typeof CheckInRoute
   DashboardRoute: typeof DashboardRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HubRoute: typeof HubRoute
   InviteRoute: typeof InviteRoute
   LoginRoute: typeof LoginRoute
   PlayPulseRoute: typeof PlayPulseRoute
@@ -438,6 +463,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   SubscriptionRoute: typeof SubscriptionRoute
+  AdminAttuneSourcesRoute: typeof AdminAttuneSourcesRoute
   AdminAuditRoute: typeof AdminAuditRoute
   AdminChildrenRoute: typeof AdminChildrenRoute
   AdminEducatorsRoute: typeof AdminEducatorsRoute
@@ -510,6 +536,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/hub': {
+      id: '/hub'
+      path: '/hub'
+      fullPath: '/hub'
+      preLoaderRoute: typeof HubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/invite': {
       id: '/invite'
       path: '/invite'
@@ -564,6 +597,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/attune-sources': {
+      id: '/admin/attune-sources'
+      path: '/admin/attune-sources'
+      fullPath: '/admin/attune-sources'
+      preLoaderRoute: typeof AdminAttuneSourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/audit': {
@@ -703,6 +743,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckInRoute: CheckInRoute,
   DashboardRoute: DashboardRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HubRoute: HubRoute,
   InviteRoute: InviteRoute,
   LoginRoute: LoginRoute,
   PlayPulseRoute: PlayPulseRoute,
@@ -710,6 +751,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   SubscriptionRoute: SubscriptionRoute,
+  AdminAttuneSourcesRoute: AdminAttuneSourcesRoute,
   AdminAuditRoute: AdminAuditRoute,
   AdminChildrenRoute: AdminChildrenRoute,
   AdminEducatorsRoute: AdminEducatorsRoute,

@@ -14,7 +14,7 @@ async function login(page: Page, email: string) {
   await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/(dashboard|admin|org)/);
+  await expect(page).toHaveURL(/\/(hub|dashboard|admin|org)/);
 }
 
 test("without an OpenAI key Attune says it is coming soon", async ({ page }) => {
@@ -97,7 +97,7 @@ test("a parent asks Attune, sees a formatted answer and can reopen and delete th
 
   await login(page, "parent@playhub.local");
   await page.goto("/attune");
-  await expect(page.getByRole("heading", { name: /how can I help with/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /How Can I Help .+ Today\?/ })).toBeVisible();
   await page.getByLabel("Your question for Attune").fill("She gets frustrated with pegs");
   await page.keyboard.press("Enter");
 
@@ -120,7 +120,7 @@ test("a parent asks Attune, sees a formatted answer and can reopen and delete th
   await page.getByRole("button", { name: "Delete chat: She gets frustrated with pegs" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByText("No chats yet. Ask your first question.")).toBeVisible();
-  await expect(page.getByRole("heading", { name: /how can I help with/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /How Can I Help .+ Today\?/ })).toBeVisible();
 });
 
 test("the chat list collapses to an icon rail and remembers it", async ({ page }) => {
@@ -163,8 +163,8 @@ test("the Activity page opens Attune about that Activity", async ({ page }) => {
     );
   expect(doseHref).toBeTruthy();
   await page.goto(doseHref as string);
-  await page.getByRole("link", { name: "Ask Attune™" }).click();
-  await expect(page).toHaveURL(/\/attune\?activity=/);
+  await page.getByRole("link", { name: "Get an idea" }).click();
+  await expect(page).toHaveURL(/\/attune\?mode=idea&activity=/);
   await expect(page.getByText(/Asking about:/)).toBeVisible();
   await expect(
     page.getByRole("button", { name: /How can I make this Activity easier/ }),
@@ -338,11 +338,11 @@ test("the dashboard's Attune bar asks its question straight away", async ({ page
   await page.goto("/dashboard");
   const bar = page.getByRole("region", { name: "Ask Attune" });
   await expect(bar).toBeVisible();
-  await bar.getByRole("link", { name: "Ideas for today" }).click();
-  await expect(page).toHaveURL(/\/attune$/);
+  await bar.getByRole("link", { name: "Get an idea" }).click();
+  await expect(page).toHaveURL(/\/attune\?mode=idea$/);
   await expect(page.getByText("Try a quick game of tweezers.")).toBeVisible();
   expect(state.asked).toHaveLength(1);
-  expect(state.asked[0]).toMatch(/quick play idea/);
+  expect(state.asked[0]).toMatch(/one play idea/);
 });
 
 test("on a phone the chat history opens as a drawer", async ({ page }) => {

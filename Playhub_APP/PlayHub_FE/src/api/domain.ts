@@ -445,4 +445,4 @@ export const planByGoalAndLevel = (goalId: string, level: Level) =>
   PLAY_PLANS.find((plan) => plan.goalId === goalId && plan.level === level);
 
 export const LEVEL_GUIDANCE =
-  "Start at Starter — move down to Rookie if it's difficult, or up to Pro if it feels easy.";
+  "Begin with the Starter Play Dose. If your child finds it difficult, try Rookie. If they complete it successfully, skip Rookie and move to Pro.";

@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
+import { useRouterState } from "@tanstack/react-router";
 import { apiRequest } from "./client";
 import { fmtMoney } from "@/lib/money";
 import type { PlanDuration } from "@/lib/types";
@@ -57,7 +58,45 @@ export function displayPricePlan(plan: SubscriptionPricePlan) {
     per: `${fmtMoney(Math.round(plan.amount / plan.months) / 100)} / month`,
   };
 }
+/**
+ * Route loader for pages that show prices: fetch the saved catalogue before the page renders, so
+ * the built-in default prices never flash. A slow or failing API falls back to them after 3s.
+ */
+export async function loadPricingForRoute(
+  queryClient: QueryClient,
+): Promise<{ pricing: PricingCatalog | null }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const pricing = await Promise.race([
+      queryClient.ensureQueryData({ queryKey: PRICING_QUERY_KEY, queryFn: loadPricing }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("timeout")), 3000);
+      }),
+    ]);
+    return { pricing };
+  } catch {
+    return { pricing: null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function loadedPricing(loaderData: unknown): PricingCatalog | undefined {
+  if (loaderData && typeof loaderData === "object" && "pricing" in loaderData) {
+    return (loaderData as { pricing: PricingCatalog | null }).pricing ?? undefined;
+  }
+  return undefined;
+}
+
 export function usePricePlans() {
-  const query = useQuery({ queryKey: PRICING_QUERY_KEY, queryFn: loadPricing, staleTime: 60_000 });
+  const initial = useRouterState({
+    select: (state) => state.matches.map((match) => loadedPricing(match.loaderData)).find(Boolean),
+  });
+  const query = useQuery({
+    queryKey: PRICING_QUERY_KEY,
+    queryFn: loadPricing,
+    staleTime: 60_000,
+    ...(initial ? { initialData: initial } : {}),
+  });
   return { ...query, plans: (query.data ?? DEFAULT_PRICING).plans.map(displayPricePlan) };
 }

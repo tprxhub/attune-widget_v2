@@ -17,6 +17,7 @@ import { licencesFull } from "@/lib/licences";
 import { LEVEL_GUIDANCE } from "@/components/brand";
 import { Select } from "@/components/Select";
 import type { Level } from "@/lib/types";
+import { playPlanName } from "@/lib/planNames";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/org/enroll")({
@@ -239,7 +240,7 @@ function EnrolPage() {
           )}
 
           <fieldset>
-            <legend className="text-sm font-bold">Skill area</legend>
+            <legend className="text-sm font-bold">Play Plan</legend>
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
               {(goals.data ?? []).map((g) => (
                 <button
@@ -254,14 +255,14 @@ function EnrolPage() {
                       : "border-navy/15 bg-card hover:border-navy/35",
                   )}
                 >
-                  {g.short}
+                  {playPlanName(g, plans.data ?? [])}
                 </button>
               ))}
             </div>
           </fieldset>
 
           <fieldset>
-            <legend className="text-sm font-bold">Level</legend>
+            <legend className="text-sm font-bold">Play Dose level</legend>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {LEVELS.map((l) => (
                 <button
@@ -347,7 +348,7 @@ function EnrolPage() {
 
         <aside className="ph-card p-5 sm:p-6">
           <p className="eyebrow text-blue">Play Plan goal</p>
-          <h2 className="mt-1 text-lg font-bold">{plan?.title ?? "Pick a skill area and level"}</h2>
+          <h2 className="mt-1 text-lg font-bold">{plan?.title ?? "Pick a Play Plan and level"}</h2>
           {contentPlan && <p className="mt-2 text-sm text-navy/70">{contentPlan.summary}</p>}
           {errors["plan"] && (
             <p className="mt-2 text-xs font-semibold text-coral">{errors["plan"]}</p>

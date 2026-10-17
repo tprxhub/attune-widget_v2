@@ -13,7 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { getOrg, listSupporters } from "@/api/org";
-import { listGoals } from "@/api/plans";
+import { listGoals, listPlans } from "@/api/plans";
 import { getProgress, STATUS_META } from "@/api/progress";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
@@ -23,6 +23,7 @@ import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { StatusBadge, StatusIcon } from "@/components/StatusBadge";
 import { ALL_CHILDREN, useActiveChild } from "@/lib/active-child";
 import { fmtDate } from "@/lib/format";
+import { playPlanName } from "@/lib/planNames";
 import type { Child, ProgressReport, StaffMember, StatusKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ProgressPage } from "@/routes/progress";
@@ -53,10 +54,15 @@ export function SchoolDashboard() {
     queryFn: () => listSupporters(session.orgId),
   });
   const goals = useQuery({ queryKey: ["goals"], queryFn: () => listGoals() });
+  const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
   // The graph follows one Play Plan (a goal) through its levels, like the Progress page.
   const chartPlans = useMemo(
-    () => (goals.data ?? []).map((goal) => ({ id: goal.id, title: goal.name })),
-    [goals.data],
+    () =>
+      (goals.data ?? []).map((goal) => ({
+        id: goal.id,
+        title: playPlanName(goal, plans.data ?? []),
+      })),
+    [goals.data, plans.data],
   );
   const reports = useQueries({
     queries: children.map((child) => ({

@@ -29,7 +29,7 @@ test("editor publishes phone wallpaper, separate auth images and policy pages", 
   await page.getByLabel("Email Address").fill("admin@playhub.local");
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin/);
+  await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
   await page.goto("/admin/homepage");
 
   const phone = page.locator("#home-section-hero");

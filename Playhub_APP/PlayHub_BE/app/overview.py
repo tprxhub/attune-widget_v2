@@ -33,7 +33,7 @@ from app.models import (
     SubscriptionStatus,
     User,
 )
-from app.services import progress_summary
+from app.services import PROGRESS_LOAD, assigned_plan_id, progress_summary
 
 # The areas a TTP employee can be given; the Overview shows one section for each.
 AREAS = ("children", "progress", "organisations", "team", "billing", "plans", "audit", "homepage")
@@ -204,18 +204,19 @@ def build_overview(db: Session, user: User, scope: str, audit_condition) -> Over
     if needs_children:
         children = [
             child
-            for child in db.scalars(select(Child).options(selectinload(Child.subscription))).all()
+            for child in db.scalars(
+                select(Child).options(selectinload(Child.subscription), selectinload(Child.current_play_dose))
+            ).all()
             if child.is_active and _in_scope(scope, child.organisation_id, child.id)
         ]
     child_ids = {child.id for child in children}
 
     attempts: list[Attempt] = []
     if access.children or access.progress:
-        attempts = [
-            a
-            for a in db.scalars(select(Attempt).order_by(Attempt.occurred_on, Attempt.created_at)).all()
-            if a.child_id in child_ids
-        ]
+        attempts = list(db.scalars(
+            select(Attempt).options(*PROGRESS_LOAD).where(Attempt.child_id.in_(child_ids))
+            .order_by(Attempt.occurred_on, Attempt.created_at)
+        ).all())
     last_logged: dict[str, date] = {}
     for attempt in attempts:
         last_logged[attempt.child_id] = max(last_logged.get(attempt.child_id, attempt.occurred_on), attempt.occurred_on)
@@ -245,7 +246,7 @@ def build_overview(db: Session, user: User, scope: str, audit_condition) -> Over
         statuses: Counter[str] = Counter()
         consult: list[ChildRef] = []
         for child in children:
-            status = progress_summary(child.id, by_child.get(child.id, [])).headline_status
+            status = progress_summary(child.id, by_child.get(child.id, []), assigned_plan_id(child)).headline_status
             statuses[status] += 1
             if status == "needs_check_in":
                 consult.append(ChildRef(

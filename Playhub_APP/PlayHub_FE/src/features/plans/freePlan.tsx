@@ -159,7 +159,7 @@ export function FreePlanGate({ goal, dose }: { goal: Goal; dose?: PlayPlan }) {
   const title =
     dose && session.role === "parent"
       ? `${dose.title} · ${dose.level} dose`
-      : `${goal.name}${dose ? ` · ${dose.level}` : ""}`;
+      : `${dose?.title ?? goal.name}${dose ? ` · ${dose.level} dose` : ""}`;
   return (
     <section className="ph-card mt-4 p-8 text-center">
       <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-navy text-white">

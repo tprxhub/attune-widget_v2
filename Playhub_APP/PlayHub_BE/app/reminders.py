@@ -6,7 +6,7 @@ import asyncio
 import logging
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, selectinload
 
 from app import notifications
@@ -15,12 +15,19 @@ from app.models import RENEWAL_WINDOW_DAYS, Child, Subscription, SubscriptionSta
 logger = logging.getLogger(__name__)
 
 CHECK_EVERY_SECONDS = 60 * 60
+# Every API worker runs the hourly check; on Postgres this lock lets only one of them send at a time,
+# so no family gets the same email twice. Released when the transaction commits.
+NOTICE_LOCK_ID = 7_310_241
 
 
 def send_subscription_notices(db: Session, today: date | None = None) -> int:
     """Send any reminder or ended notice that is due; returns how many emails went out."""
     today = today or date.today()
     sent = 0
+    if db.get_bind().dialect.name == "postgresql" and not db.scalar(
+        text("SELECT pg_try_advisory_xact_lock(:id)"), {"id": NOTICE_LOCK_ID}
+    ):
+        return 0  # another worker is sending right now
     rows = db.scalars(
         select(Subscription)
         .options(selectinload(Subscription.child).selectinload(Child.owner))

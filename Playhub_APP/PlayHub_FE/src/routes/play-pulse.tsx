@@ -24,7 +24,6 @@ import {
   Mail,
   MessagesSquare,
   PersonStanding,
-  Phone,
   Play,
   RotateCcw,
   ShieldCheck,
@@ -60,6 +59,7 @@ import {
   usePulseContact,
 } from "@/features/play-pulse/pulseContact";
 import { usePlayPulsePersistence } from "@/features/play-pulse/usePlayPulsePersistence";
+import { PhoneField } from "@/components/PhoneField";
 import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
@@ -76,6 +76,7 @@ import {
   selectPlayPulse,
   type PlayPulseState,
 } from "@/store/play-pulse-slice";
+import { CONSULT_BOOKING_URL } from "@/lib/contact";
 
 export const Route = createFileRoute("/play-pulse")({
   head: () => ({
@@ -527,11 +528,11 @@ function ResultGate({
     <section>
       <Eyebrow>Your Play Pulse is ready</Eyebrow>
       <h1 className="mt-3 text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
-        One last step to reveal the score
+        Your child’s score is ready!
       </h1>
       <p className="mt-4 text-base leading-relaxed font-medium text-blue">
-        Tell us where to keep {check.childName === "Your child" ? "the" : `${check.childName}’s`}{" "}
-        result, then see the Support Score and the four-domain breakdown. No account needed.
+        Enter your name, email and phone number to receive your child’s score and personalised
+        guidance on their next steps. Your details stay private and secure
       </p>
 
       <form
@@ -544,7 +545,7 @@ function ResultGate({
             <LockKeyhole className="h-6 w-6" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-2xl font-bold">Reveal the Support Score</h2>
+            <h2 className="text-2xl font-bold">Show My Child’s Score</h2>
             <p className="mt-1 text-sm text-navy/60">All fields are required.</p>
           </div>
         </div>
@@ -561,18 +562,12 @@ function ResultGate({
             placeholder="e.g. Sara Khan"
             maxLength={120}
           />
-          <ContactField
+          <PhoneField
             id="pulse-contact-phone"
             label="Phone number"
-            icon={Phone}
-            type="tel"
-            inputMode="tel"
             value={form.phone}
             onChange={set("phone")}
             error={errors.phone}
-            autoComplete="tel"
-            placeholder="e.g. +971 50 123 4567"
-            maxLength={32}
           />
           <ContactField
             id="pulse-contact-email"
@@ -620,7 +615,7 @@ function ResultGate({
             </>
           ) : (
             <>
-              See the Support Score <ArrowRight className="h-5 w-5" aria-hidden />
+              Unlock My Child’s Score <ArrowRight className="h-5 w-5" aria-hidden />
             </>
           )}
         </button>
@@ -842,7 +837,7 @@ function ResultsScreen({
         <p className="mt-3 text-sm leading-relaxed text-white/70">{copy.body}</p>
         <div className="mt-6 grid gap-3">
           <a
-            href="https://thetoypharmacy.com/products/play-consult-call"
+            href={CONSULT_BOOKING_URL}
             target="_blank"
             rel="noreferrer"
             className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-coral px-5 text-sm font-bold text-white transition hover:-translate-y-0.5"

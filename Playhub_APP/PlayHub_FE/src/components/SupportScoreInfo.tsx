@@ -10,9 +10,12 @@ export const SUPPORT_SCORE_DEFINITION =
 export function SupportScoreInfo({
   className,
   description = SUPPORT_SCORE_DEFINITION,
+  label = "How Support Score is calculated",
 }: {
   className?: string;
   description?: string;
+  /** What the "i" button is called for screen readers. */
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const tooltipId = useId();
@@ -23,7 +26,7 @@ export function SupportScoreInfo({
       <button
         ref={anchorRef}
         type="button"
-        aria-label="How Support Score is calculated"
+        aria-label={label}
         aria-describedby={open ? tooltipId : undefined}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}

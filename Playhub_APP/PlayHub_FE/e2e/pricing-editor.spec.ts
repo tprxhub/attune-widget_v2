@@ -62,7 +62,7 @@ test("Super Admin publishes up to five subscription plans and image dimensions",
   await expect(publicPricing).toContainText("AED 499.50");
   await expect(publicPricing.getByText("Most popular", { exact: true })).toBeVisible();
   await expect(publicPricing.getByText("Popular Value", { exact: true })).toBeVisible();
-  await expect(publicPricing.locator("article")).toHaveCount(6); // Free plus five paid plans.
+  await expect(publicPricing.locator("article")).toHaveCount(5); // The five paid plans; there is no Free card.
   for (const width of [375, 768, 1440]) {
     await visitor.setViewportSize({ width, height: 900 });
     await publicPricing.scrollIntoViewIfNeeded();
@@ -73,10 +73,12 @@ test("Super Admin publishes up to five subscription plans and image dimensions",
   }
   await signIn(visitor, "free.parent@playhub.local");
   await visitor.goto("/");
-  await visitor
+  const choose = visitor
     .locator("#pricing")
-    .getByRole("link", { name: /Choose 9-month family plan/ })
-    .click();
+    .getByRole("link", { name: /Choose 9-month family plan/ });
+  // The link points at the Subscription page once the signed-in session has loaded.
+  await expect(choose).toHaveAttribute("href", /\/subscription\?plan=9m/);
+  await choose.click();
   await expect(visitor).toHaveURL(/\/subscription\?plan=9m/);
   await expect(visitor.getByText("Most popular", { exact: true })).toBeVisible();
   await expect(visitor.getByText("Popular Value", { exact: true })).toBeVisible();

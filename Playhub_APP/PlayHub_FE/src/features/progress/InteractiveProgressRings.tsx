@@ -3,7 +3,15 @@ import { X } from "lucide-react";
 import { moodMeta } from "@/components/icons";
 import { FloatingPanel } from "@/components/FloatingPanel";
 import { Ring } from "./ProgressRing";
-import { averageMood, independence, moodColor, TRACK, type MoodDay } from "./supportMood";
+import { HeartMarker, SmileMarker } from "./RingIcons";
+import {
+  averageMood,
+  independence,
+  lightShade,
+  moodColor,
+  TRACK,
+  type MoodDay,
+} from "./supportMood";
 
 type RingKind = "support" | "mood";
 
@@ -23,7 +31,6 @@ export function InteractiveProgressRings({
   const panel = useRef<HTMLDivElement>(null);
   const detailsId = useId();
   const average = averageMood(moods);
-  const MoodSymbol = moodMeta(Math.round(average ?? 3)).icon;
   const score = supportScore === null ? null : Math.round(100 - supportScore);
 
   useEffect(() => {
@@ -98,21 +105,11 @@ export function InteractiveProgressRings({
             stroke={12}
             value={independence(supportScore)}
             color="#2459A0"
-            track="#E8EEF6"
+            track={lightShade("#2459A0")}
             progress={ringProgress}
           />
           <RingMarker radius={70} value={independence(supportScore) * ringProgress}>
-            <text
-              x={0}
-              y={0}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize={8}
-              fontFamily="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif"
-              aria-hidden
-            >
-              🫀
-            </text>
+            <HeartMarker />
           </RingMarker>
         </RingTarget>
         <RingTarget
@@ -129,19 +126,11 @@ export function InteractiveProgressRings({
             stroke={12}
             value={average === null ? 0 : average / 5}
             color={average === null ? TRACK : moodColor(Math.round(average))}
-            track="#EDF2E9"
+            track={lightShade(average === null ? "#A89A8C" : moodColor(Math.round(average)))}
             progress={ringProgress}
           />
           <RingMarker radius={58} value={(average === null ? 0 : average / 5) * ringProgress}>
-            <MoodSymbol
-              x={-3}
-              y={-3}
-              width={6}
-              height={6}
-              fill="#FFB54D"
-              color="#11295B"
-              aria-hidden
-            />
+            <SmileMarker />
           </RingMarker>
         </RingTarget>
       </svg>

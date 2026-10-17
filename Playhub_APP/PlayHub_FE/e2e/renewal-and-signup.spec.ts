@@ -15,7 +15,7 @@ async function login(page: Page, email: string) {
   await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(/\/(dashboard|org|admin)(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/(hub|dashboard|org|admin)(?:[/?#]|$)/);
 }
 
 const isoInDays = (days: number) => {
@@ -34,9 +34,9 @@ test("sign up buttons open the sign up page, and signed-in people skip log in an
 
   await login(page, "parent@playhub.local");
   await page.goto("/login");
-  await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
   await page.goto("/signup");
-  await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
 });
 
 test("the home page shows the real progress chart with sample data", async ({ page }) => {
@@ -71,6 +71,7 @@ test("a family sees the last day and a soft renewal reminder in the final days",
   });
 
   await login(page, "parent@playhub.local");
+  await page.goto("/dashboard");
   const reminder = page.getByRole("status", { name: /Subscription reminder for/ }).first();
   await expect(reminder).toContainText("subscription ends in 5 days");
   await reminder.getByRole("link", { name: "Renew subscription" }).click();

@@ -158,3 +158,31 @@ def test_demo_addresses_on_the_local_domain_are_never_emailed():
     SENT.clear()
     send_email(OutgoingEmail("parent@playhub.local", "Subject", "Text"))
     assert SENT == []
+
+
+def test_a_super_admin_gets_only_the_basic_account_emails(client, platform_admin):
+    from types import SimpleNamespace
+
+    from app import notifications
+    from app.models import Role
+
+    SENT.clear()
+    # Basic emails still reach a Super Admin: password reset and password changed.
+    assert client.post("/api/v1/auth/password/forgot", json={"email": "admin@example.com"}).status_code == 202
+    changed = client.post("/api/v1/auth/change-password", headers=platform_admin,
+                          json={"current_password": "A-secure-password", "new_password": "Another-secure-password"})
+    assert changed.status_code == 200
+    assert [m.subject for m in sent_to("admin@example.com")] == [
+        "Reset your Play Hub password", "Your Play Hub password was changed",
+    ]
+
+    # Everything else skips a Super Admin, but still reaches other users.
+    SENT.clear()
+    admin = SimpleNamespace(role=Role.SUPER_ADMIN, email="admin@example.com", display_name="Admin")
+    parent = SimpleNamespace(role=Role.ADMIN, email="parent@example.com", display_name="Parent")
+    for person in (admin, parent):
+        notifications.welcome(person, "Ayla")
+        notifications.account_status(person, False)
+        notifications.payment_confirmed(person, "Ayla", "6-Month", 33900, datetime.now(timezone.utc).date(), False)
+    assert sent_to("admin@example.com") == []
+    assert len(sent_to("parent@example.com")) == 3

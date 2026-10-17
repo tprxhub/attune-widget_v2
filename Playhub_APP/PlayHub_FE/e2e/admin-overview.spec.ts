@@ -18,7 +18,8 @@ async function login(page: Page, email: string) {
   await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(/\/admin/);
+  await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
+  await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Platform overview" })).toBeVisible();
 }
 

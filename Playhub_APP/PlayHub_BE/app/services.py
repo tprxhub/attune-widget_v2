@@ -4,6 +4,8 @@ from collections import defaultdict
 from collections.abc import Sequence
 from datetime import date
 
+from sqlalchemy.orm import selectinload
+
 from app.models import (
     Attempt,
     AttemptSource,
@@ -178,15 +180,54 @@ def _weekly_points(ordered: Sequence[Attempt]) -> list[WeeklyProgressPoint]:
     return result
 
 
+def _live_scenario(point: WeeklyProgressPoint, previous: WeeklyProgressPoint | None) -> str:
+    """The status while a dose is still being logged, by the same rules as a completed one.
+
+    A Book a Play Consult verdict holds until the next dose completes. Progressing compares the
+    first finished practice day with the latest one, since day 5 may not be logged yet.
+    """
+    if previous is None:
+        return "first"
+    if {"rookie": 0, "starter": 1, "pro": 2}[point.level] > {"rookie": 0, "starter": 1, "pro": 2}[previous.level]:
+        return "settling"
+    if previous.scenario == "consult":
+        return "consult"
+    scores = [day.score for day in point.days if not day.is_try and day.score is not None]
+    if len(scores) >= 2 and scores[0] - scores[-1] >= 34:
+        return "progressing"
+    return "steady"
+
+
 def _headline(points: Sequence[WeeklyProgressPoint], current_plan_id: str | None) -> str:
-    """Describe the latest dose; an incomplete dose has no completed verdict."""
-    for point in reversed(points):
-        if point.play_plan_id == current_plan_id:
-            return SCENARIO_STATUS[point.scenario] if point.scenario else "insufficient_data"
-    return "insufficient_data"
+    """One of the five statuses for the current plan's latest dose, completed or in progress.
+
+    A completed dose keeps its verdict; an unfinished one is read by `_live_scenario` against the
+    plan's last completed dose. A plan with no sessions yet is the first dose at its level.
+    """
+    in_plan = [point for point in points if point.play_plan_id == current_plan_id]
+    if not in_plan:
+        return SCENARIO_STATUS["first"]
+    latest = in_plan[-1]
+    if latest.scenario:
+        return SCENARIO_STATUS[latest.scenario]
+    previous = next((point for point in reversed(in_plan[:-1]) if point.complete), None)
+    return SCENARIO_STATUS[_live_scenario(latest, previous)]
 
 
-def progress_summary(child_id: str, attempts: Sequence[Attempt]) -> ProgressSummary:
+# Load what progress scoring reads from each session (its Activity and Play Dose) in two batched
+# queries instead of one query per session.
+PROGRESS_LOAD = (selectinload(Attempt.activity), selectinload(Attempt.play_dose))
+
+
+def assigned_plan_id(child) -> str | None:
+    """The Play Plan of the child's assigned Play Dose, the one their cards name."""
+    return child.current_play_dose.play_plan_id if child.current_play_dose else None
+
+
+def progress_summary(child_id: str, attempts: Sequence[Attempt], plan_id: str | None = None) -> ProgressSummary:
+    """`plan_id` is the plan the child is on (their assigned dose's plan). The headline describes
+    that plan, so a session logged on another plan cannot change the badge next to its name.
+    Without one, the plan of the latest session is used."""
     ordered = sorted(attempts, key=_order)
     count = len(ordered)
     if not count:
@@ -201,13 +242,16 @@ def progress_summary(child_id: str, attempts: Sequence[Attempt]) -> ProgressSumm
             last_check_in=None,
             trend="insufficient_data",
             points=[],
+            # No sessions yet: the child is starting their first dose (one of the five statuses).
+            headline_status=SCENARIO_STATUS["first"],
+            current_play_plan_id=plan_id,
             reminder_due=False,
         )
 
     completion = sum(item.completion_score for item in ordered) / count
     mood = sum(item.mood_score for item in ordered) / count
     doses = _weekly_points(ordered)
-    current_plan_id = ordered[-1].play_plan_id
+    current_plan_id = plan_id or ordered[-1].play_plan_id
     headline = _headline(doses, current_plan_id)
     trend = {
         "progressing": "progress",

@@ -46,7 +46,7 @@ test("the Super Admin licenses an organisation by child or by Moderator", async 
   const renewal = card.getByText(/^Renews /);
   const before = await renewal.textContent();
   await card.getByRole("button", { name: /Record renewal/ }).click();
-  await page.getByRole("button", { name: "Record renewal", exact: true }).last().click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Record renewal" }).click();
   await expect(card.getByText(/^Renews /)).not.toHaveText(before ?? "");
 
   // Sunrise has active children, so child licences can't go below that count.

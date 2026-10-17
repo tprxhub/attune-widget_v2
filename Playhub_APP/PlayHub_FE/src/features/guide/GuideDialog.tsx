@@ -71,16 +71,22 @@ export function GuideSheet({ onClose }: { onClose: () => void }) {
             <h3 className="text-sm font-bold">The four levels</h3>
             <ol className="mt-3 space-y-2">
               {[
-                ["Play Hub", "The platform you are in right now."],
+                [
+                  "Play Hub",
+                  "Your home for guided play that helps your child build everyday skills.",
+                ],
                 [
                   "Play Plan",
-                  "A programme for one skill at one level, e.g. “Fix the Pencil Grip – Starter”.",
+                  "A step-by-step plan to build a specific skill, from buttoning shirts to using scissors”.",
                 ],
                 [
                   "Play Dose",
-                  "A single named, loggable session — video, instructions and a reflection form.",
+                  "A set of activities matched to your child’s level. Complete each dose to progress through Rookie, Starter and Pro.",
                 ],
-                ["Activity", "The specific task your child does inside a Play Dose."],
+                [
+                  "Activity",
+                  "Small, guided tasks that help your child practise and build towards the main skill.",
+                ],
               ].map(([term, desc], i) => (
                 <li key={term} className="flex gap-3 rounded-2xl bg-navy/4 p-3">
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-navy text-xs font-bold text-white">
@@ -134,15 +140,14 @@ export function GuideSheet({ onClose }: { onClose: () => void }) {
                 <div className="rounded-2xl border border-navy/12 p-4">
                   <p className="text-sm font-bold">Free</p>
                   <p className="mt-1 text-sm text-navy/90">
-                    See every Play Plan and try one Play Dose free to feel how it works. The
-                    remaining Play Doses and daily check-ins unlock when the child has an active
-                    subscription.
+                    Explore all Play Plans and try a few practice activities in a selected Play
+                    Dose. Subscribe to unlock full access and daily check-ins.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-blue/30 bg-blue/6 p-4">
                   <p className="text-sm font-bold text-blue">Subscribed (per child)</p>
                   <p className="mt-1 text-sm text-navy/90">
-                    Every Play Dose, video, Session and Progress chart unlocks for that child.
+                    Access all Play Doses, videos, sessions and progress charts for your child.
                     Cancel within 7 days for a refund.
                   </p>
                 </div>

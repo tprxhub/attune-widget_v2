@@ -1,4 +1,4 @@
-import { useHomepageContent } from "@/features/homepage/useHomepageContent";
+import { loadHomepageForRoute, useHomepageContent } from "@/features/homepage/useHomepageContent";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Building2, Eye, EyeOff, HeartHandshake, Loader2 } from "lucide-react";
@@ -15,6 +15,7 @@ import { ApiError, apiAssetUrl } from "@/api/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
+  loader: ({ context }) => loadHomepageForRoute(context.queryClient),
   head: () => ({
     meta: [
       { title: "Log in — Play Hub" },
@@ -66,15 +67,17 @@ function LoginPage() {
     if (password.length < 8) return setError("Enter your password (at least 8 characters).");
     setPending(true);
     try {
-      const session = linkSocial
-        ? await signInWithProvider(
-            linkSocial.provider,
-            linkSocial.credential,
-            linkSocial.name,
-            password,
-          )
-        : await signIn(email.trim(), password);
-      await navigate({ to: session.homePath });
+      if (linkSocial) {
+        await signInWithProvider(
+          linkSocial.provider,
+          linkSocial.credential,
+          linkSocial.name,
+          password,
+        );
+      } else {
+        await signIn(email.trim(), password);
+      }
+      await navigate({ to: "/hub" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to sign in.");
     } finally {
@@ -88,8 +91,8 @@ function LoginPage() {
     setLinkSocial(null);
     setNewSocial(null);
     try {
-      const session = await signInWithProvider(social.provider, social.credential, social.name);
-      await navigate({ to: session.homePath });
+      await signInWithProvider(social.provider, social.credential, social.name);
+      await navigate({ to: "/hub" });
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 404) {
         // First time with this account: ask for the child's details, then create the family account.
@@ -119,12 +122,12 @@ function LoginPage() {
     setPending(true);
     setError(null);
     try {
-      const session = await registerWithProvider({
+      await registerWithProvider({
         ...newSocial,
         childName: childName.trim(),
         childAge: age,
       });
-      await navigate({ to: session.homePath });
+      await navigate({ to: "/hub" });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to create your account.");
     } finally {

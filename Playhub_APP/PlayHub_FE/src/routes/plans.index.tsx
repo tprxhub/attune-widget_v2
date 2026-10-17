@@ -51,7 +51,7 @@ function PlansPage() {
       <PageHeader
         eyebrow="Play plans"
         title="Choose a Play Plan and its dose."
-        description={`Each plan has Rookie, Starter and Pro doses, with activities inside each dose. ${LEVEL_GUIDANCE} All plans use the Fine Motor Play Kit.`}
+        description={`Each Play Plan has three Play Doses: Rookie, Starter and Pro, each with its own activities. Begin with Starter. If your child finds it difficult, try Rookie. If they complete it successfully, move to Pro. You’ll use the Fine Motor Play Kit for every plan.`}
       />
 
       <FreePlanBanner goals={goals.data ?? []} plans={plans.data ?? []} />
@@ -69,9 +69,7 @@ function PlansPage() {
                     className={cn("h-2.5 w-2.5 rounded-[3px]", TOKEN_BG[goal.color])}
                     aria-hidden
                   />
-                  <h2 className="text-lg font-bold">
-                    {session.role === "parent" ? (goalPlans[0]?.title ?? goal.name) : goal.name}
-                  </h2>
+                  <h2 className="text-lg font-bold">{goalPlans[0]?.title ?? goal.name}</h2>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full border border-navy/10 bg-white/70 px-3 py-1.5 text-xs text-navy/60">
                   <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden />

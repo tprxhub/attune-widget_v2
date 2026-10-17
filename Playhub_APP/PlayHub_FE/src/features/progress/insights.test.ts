@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { InsightScenario, Level, ProgressDay, ProgressPoint } from "@/lib/types";
 import { dosesPassed, insightFor } from "./insights";
+import { lightShade } from "./supportMood";
 
 const day = (
   n: number | "try",
@@ -101,4 +102,10 @@ describe("play progress insights", () => {
     expect(insightFor(doses, 1)).toBeNull();
     expect(dosesPassed(doses)).toEqual({ passed: 1, total: 1 });
   });
+});
+
+test("ring tracks are a light shade of the ring colour", () => {
+  expect(lightShade("#2459A0")).toBe("#dee6f1");
+  expect(lightShade("#000000", 0.5)).toBe("#808080");
+  expect(lightShade("not-a-colour")).toBe("not-a-colour");
 });

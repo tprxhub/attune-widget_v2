@@ -72,10 +72,10 @@ test("a guest fills the form once, sees the Progress-style result, and is saved"
   await page.setViewportSize({ width: 1440, height: 900 });
   await takeCheck(page, "Noor");
 
-  const form = page.locator("form").filter({ hasText: "Reveal the Support Score" });
+  const form = page.locator("form").filter({ hasText: "Show My Child’s Score" });
   await expect(form).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign in with Google/ })).toHaveCount(0);
-  await form.getByRole("button", { name: /See the Support Score/ }).click();
+  await form.getByRole("button", { name: /Unlock My Child’s Score/ }).click();
   await expect(form.getByText("Please enter your name.")).toBeVisible();
   await expect(form.getByText(/valid phone number/)).toBeVisible();
   await expect(form.getByText(/valid email address/)).toBeVisible();
@@ -83,7 +83,7 @@ test("a guest fills the form once, sees the Progress-style result, and is saved"
   await form.getByLabel(/Your name/).fill("Guest Parent");
   await form.getByLabel(/Phone number/).fill("+971 50 765 4321");
   await form.getByLabel(/Email/).fill(email);
-  await form.getByRole("button", { name: /See the Support Score/ }).click();
+  await form.getByRole("button", { name: /Unlock My Child’s Score/ }).click();
 
   await expect(page.getByText("Play Pulse result", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Noor", exact: true })).toBeVisible();
@@ -136,7 +136,7 @@ test("signed-in people skip the form and appear with their role", async ({ page 
   await page.setViewportSize({ width: 1280, height: 900 });
   const before = (await adminRows(page, "parent@playhub.local")).length;
   await takeCheck(page, "Kai");
-  await expect(page.locator("form").filter({ hasText: "Reveal the Support Score" })).toHaveCount(0);
+  await expect(page.locator("form").filter({ hasText: "Show My Child’s Score" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Kai", exact: true })).toBeVisible();
   await expect
     .poll(async () => (await adminRows(page, "parent@playhub.local")).length)

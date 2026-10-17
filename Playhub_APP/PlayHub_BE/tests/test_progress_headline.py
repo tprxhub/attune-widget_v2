@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.models import CompletionStatus, HelpLevel, PlanLevel
-from app.services import _headline, _weekly_points
+from app.models import AttemptSource, CompletionStatus, HelpLevel, PlanLevel
+from app.services import _headline, _weekly_points, progress_summary
 
 START = date(2026, 7, 6)
 SCORE_HELP = {0: HelpLevel.INDEPENDENT, 33: HelpLevel.ONE_REMINDER, 67: HelpLevel.FEW_REMINDERS, 100: HelpLevel.HANDS_ON}
@@ -91,7 +91,7 @@ def test_the_headline_reads_the_latest_completed_dose_of_the_current_plan():
     points = _weekly_points(rows + other)
     assert _headline(points, "plan-a") == "settling_in"
     assert _headline(points, "plan-b") == "first_dose"
-    assert _headline(_weekly_points(dose([33], "skip")), "plan-a") == "insufficient_data"
+    assert _headline(_weekly_points(dose([33], "skip")), "plan-a") == "first_dose"
 
 
 def test_moving_down_does_not_claim_a_move_up():
@@ -101,4 +101,36 @@ def test_moving_down_does_not_claim_a_move_up():
 
 def test_incomplete_current_dose_does_not_show_a_previous_level_verdict():
     rows = dose([33, 0, 33, 0, 0], 0) + dose([67, 67, 33, 67, 67], 67, level="pro", start=START + timedelta(days=7)) + [session(1, 33, level="starter", when=START + timedelta(days=20))]
-    assert _headline(_weekly_points(rows), "plan-a") == "insufficient_data"
+    # Moved down from Pro: not "settling in", and one day is too little to call progress.
+    assert _headline(_weekly_points(rows), "plan-a") == "holding_steady"
+
+
+LATER = START + timedelta(days=7)
+
+
+@pytest.mark.parametrize(("rows", "expected"), [
+    ([], "first_dose"),
+    (dose([67, 33], "skip"), "first_dose"),
+    (dose([0, 0, 0, 0, 0], 0) + dose([33], "skip", level="pro", start=LATER), "settling_in"),
+    (dose([0, 0, 0, 0, 0], 0) + dose([100, 67, 33], "skip", start=LATER), "progressing"),
+    (dose([0, 0, 0, 0, 0], 0) + dose([67, 33, 67], "skip", start=LATER), "holding_steady"),
+], ids=["no-sessions", "first-dose-underway", "moved-up", "less-help-so-far", "same-help-so-far"])
+def test_a_dose_in_progress_still_gets_one_of_the_five_statuses(rows, expected):
+    assert _headline(_weekly_points(rows), "plan-a") == expected
+
+
+def test_book_a_play_consult_holds_while_the_next_dose_is_underway():
+    rows = (dose([100, 67, 67, 33, 67], 67) + dose([100, 67, 67, 67, 67], 67, start=LATER)
+            + dose([100, 0], "skip", start=LATER + timedelta(days=7)))
+    assert _headline(_weekly_points(rows), "plan-a") == "needs_check_in"
+
+
+def test_the_status_follows_the_assigned_plan_not_a_session_logged_on_another_plan():
+    assigned = dose([33, 0, 33, 0, 0], 0)
+    stray = [session(2, None, plan="plan-b", when=START + timedelta(days=20))]
+    for n, row in enumerate(assigned + stray):
+        row.id, row.activity_id, row.completion_score, row.source = f"a{n}", f"act{n}", 3, AttemptSource.DAILY_CHECK_IN
+    summary = progress_summary("child", assigned + stray, "plan-a")
+    assert summary.current_play_plan_id == "plan-a" and summary.headline_status == "first_dose"
+    # Without an assigned plan the latest session's plan is still used.
+    assert progress_summary("child", assigned + stray).current_play_plan_id == "plan-b"

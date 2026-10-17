@@ -13,7 +13,7 @@ for (const width of [375, 768, 1440]) {
     await page.getByLabel("Email Address").fill("parent@playhub.local");
     await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
     await page.getByRole("button", { name: "Log in", exact: true }).click();
-    await expect(page).toHaveURL(/\/(dashboard|org|admin)/);
+    await expect(page).toHaveURL(/\/(hub|dashboard|org|admin)/);
     await page.goto("/progress");
     const plan = page.getByRole("region", { name: "Within a Play Plan", exact: true });
     const dose = page.getByRole("region", { name: "Within a Play Dose", exact: true });
@@ -61,10 +61,9 @@ for (const width of [375, 768, 1440]) {
     await expect(history).toHaveAttribute("aria-expanded", "false");
     await history.click();
     await expect(history).toHaveAttribute("aria-expanded", "true");
-    await expect(insights.getByRole("link", { name: "Ask Attune", exact: true })).toHaveAttribute(
-      "href",
-      /\/attune\?q=/,
-    );
+    await expect(
+      insights.getByRole("link", { name: "What does this mean? Ask Attune", exact: true }),
+    ).toHaveAttribute("href", /\/attune\?mode=progress&q=/);
     await page.screenshot({ path: `test-results/progress-wireframe-${width}.png`, fullPage: true });
   });
 }

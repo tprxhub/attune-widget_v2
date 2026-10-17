@@ -16,12 +16,12 @@ async function login(page: Page, email: string, org = false) {
   await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(/\/(dashboard|org|admin)(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/(hub|dashboard|org|admin)(?:[/?#]|$)/);
 }
 
 async function fullyVisible(page: Page, name: string) {
   const list = page.getByRole("listbox").first();
-  await expect(list).toBeVisible();
+  await expect(list, name).toBeVisible();
   const box = (await list.boundingBox())!;
   const vp = page.viewportSize()!;
   expect(box.y).toBeGreaterThanOrEqual(0);
@@ -49,6 +49,7 @@ test("card dropdown, child switcher and progress filter are not clipped", async 
 
   // Progress plan filter.
   await page.goto("/progress");
+  await page.getByRole("button", { name: /^Session history Your check-ins/ }).click();
   await page
     .locator('button[aria-labelledby="progress-plan-filter-label progress-plan-filter-value"]')
     .click();

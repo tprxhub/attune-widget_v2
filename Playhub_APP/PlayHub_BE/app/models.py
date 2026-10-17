@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -533,9 +533,21 @@ class AttuneMessage(Base):
     activity_id: Mapped[Optional[str]] = mapped_column(ForeignKey("activities.id", ondelete="SET NULL"))
     # The asker's rating of an answer: "up", "down" or not rated.
     feedback: Mapped[Optional[str]] = mapped_column(String(8))
+    # What kind of help was asked for: "idea", "regulation", "progress", or None when Attune decides.
+    mode: Mapped[Optional[str]] = mapped_column(String(16))
+    # On answers: the source-register entries shown in the references panel ([{"id", "title"}]).
+    sources: Mapped[Optional[list]] = mapped_column(JSON)
+    # On answers: the safety pathway was used, so the app shows emergency contacts with it.
+    safety: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    # On answers: the "Share this" handover note, written once and then reused.
+    summary: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     conversation: Mapped[AttuneConversation] = relationship(back_populates="messages")
+
+    @property
+    def references(self) -> list:
+        return self.sources or []
 
 
 class PlayPulseContact(TimestampMixin, Base):

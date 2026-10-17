@@ -9,6 +9,7 @@ test("floating page search filters and opens a destination with the keyboard", a
     };
   });
   await signIn(page, "parent@playhub.local");
+  await page.goto("/dashboard");
 
   await page.getByRole("button", { name: "Search and navigate" }).click();
   const dialog = page.getByRole("dialog", { name: "Where would you like to go?" });
@@ -39,6 +40,7 @@ test("floating page search fits and remains usable on a phone", async ({ page })
     };
   });
   await signIn(page, "parent@playhub.local");
+  await page.goto("/dashboard");
 
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))

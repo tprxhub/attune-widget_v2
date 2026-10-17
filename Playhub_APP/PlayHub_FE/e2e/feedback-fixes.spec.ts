@@ -15,7 +15,7 @@ async function login(page: Page, email: string, organisation = false) {
   await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/(dashboard|admin|org)/);
+  await expect(page).toHaveURL(/\/(hub|dashboard|admin|org)/);
 }
 
 test("session edits persist without adding another session", async ({ page }) => {
@@ -61,6 +61,7 @@ test("Play Plan details can be edited and survive a reload", async ({ page }) =>
 
 test("the guide button opens How Play Hub works, with no step-by-step tour", async ({ page }) => {
   await login(page, "parent@playhub.local");
+  await page.goto("/dashboard");
   await expect(page.getByRole("button", { name: /Start (navigation )?guide/ })).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: "Play Hub navigation guide" })).toHaveCount(0);
   await page.getByRole("button", { name: "How Play Hub works", exact: true }).first().click();
@@ -177,6 +178,8 @@ test("Play Pulse recommendation opens its matching Play Plan", async ({ page }) 
   await plan.click();
   await expect(page).toHaveURL(/\/plans\/[^/]+$/);
   await expect(
-    page.getByRole("heading", { name: "Learn to Button a Shirt — Starter", exact: true }).first(),
+    page
+      .getByRole("heading", { name: "Learn to Button a Shirt — Starter dose", exact: true })
+      .first(),
   ).toBeVisible();
 });

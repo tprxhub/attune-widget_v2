@@ -3,7 +3,9 @@ import { SessionEditStamp } from "@/components/SessionEditStamp";
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, ChevronDown, Lock, PlayCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, Lock, PlayCircle } from "lucide-react";
+import { AttuneMomentsCard } from "@/features/attune/AttuneMomentsCard";
+import { AttuneStruggleLink } from "@/features/attune/AttuneStruggleLink";
 import { listAttempts, logAttempt } from "@/api/attempts";
 import { goalById, planByGoalAndLevel, planById } from "@/api/domain";
 import { entryActivities, entryStates, getPlan, type EntryState } from "@/api/plans";
@@ -283,33 +285,12 @@ function PlayDosePage() {
             );
           })}
 
-          {/* Attune */}
-          <section className="ph-card p-5">
-            <div className="rounded-2xl border border-blue/25 bg-blue/5 p-4">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-blue">Ask Attune™</p>
-                  <p className="text-xs text-navy/65">
-                    Your AI play coach — adapts the activity in the moment.
-                  </p>
-                </div>
-                <Link
-                  to="/attune"
-                  search={
-                    attuneActivity
-                      ? {
-                          activity: attuneActivity.id,
-                          about: attuneActivity.name || entry.activity,
-                        }
-                      : {}
-                  }
-                  className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-blue/40 px-4 text-sm font-bold text-blue transition hover:bg-blue/10"
-                >
-                  <Sparkles className="h-4 w-4" aria-hidden /> Ask Attune™
-                </Link>
-              </div>
-            </div>
-          </section>
+          {/* Attune: the two moments it helps with during or after a Session */}
+          <AttuneMomentsCard
+            activityId={attuneActivity?.id}
+            activityName={attuneActivity?.name || entry.activity}
+            description="Your 24/7 Play Partner: adapts this Activity in the moment, or helps when it gets hard."
+          />
         </div>
 
         <aside className="min-w-0 space-y-5">
@@ -372,6 +353,13 @@ function PlayDosePage() {
               >
                 Session logged. Nothing is overwritten — log again any time.
               </p>
+            )}
+            {justLogged && (
+              <AttuneStruggleLink
+                className="mt-2 px-1"
+                activityId={attuneActivity?.id}
+                activityName={attuneActivity?.name || entry.activity}
+              />
             )}
 
             {!entry.loggable ? (

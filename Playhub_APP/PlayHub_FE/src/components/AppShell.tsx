@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getOrg } from "@/api/org";
 import { useCapabilities, useSession } from "@/auth/session";
 import { roleLabel } from "@/lib/roles";
 import { GuideButton } from "@/features/guide/GuideDialog";
@@ -33,7 +32,10 @@ import { ChildSwitcherDropdown } from "@/lib/active-child";
 import { OrgScopeDropdown } from "@/lib/org-scope";
 import { Logo } from "./brand";
 import { RenewalNotice } from "./RenewalNotice";
+import { AccountMenu } from "./AccountMenu";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { DashboardIcon } from "./DashboardIcon";
+import { ServiceIcon } from "./ServiceIcon";
 import { ModalPortal } from "./ModalPortal";
 import { QueryStatusBoundary } from "./QueryStatusBoundary";
 import { SignOutButton } from "./SignOutButton";
@@ -44,28 +46,6 @@ interface NavItem {
   label: string;
   short: string;
   icon: typeof Home;
-}
-
-function SignedInIdentity({ session }: { session: Session }) {
-  return (
-    <span
-      title={`${session.name} · ${roleLabel(session.role, session.accountType)}`}
-      className="flex min-w-0 items-center gap-3 text-sm font-semibold"
-    >
-      <ProfileAvatar
-        name={session.name}
-        photoUrl={session.avatarUrl}
-        sticker={session.avatarSticker}
-        className="h-12 w-12 shrink-0 rounded-xl"
-      />
-      <span className="min-w-0 truncate leading-tight">
-        <span className="block truncate">{session.name}</span>
-        <span className="block truncate text-[11px] font-medium text-current/60">
-          {roleLabel(session.role, session.accountType)}
-        </span>
-      </span>
-    </span>
-  );
 }
 
 /**
@@ -93,7 +73,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     // A TTP employee sees only the pages that were ticked for them.
     const allowed = (key: PermissionKey) => role === "super_admin" || permissions.includes(key);
     const items: (NavItem | false)[] = [
-      { to: "/admin", label: "Overview", short: "Overview", icon: Home },
+      { to: "/admin", label: "Overview", short: "Overview", icon: DashboardIcon },
       allowed("children") && {
         to: "/admin/children",
         label: "Children",
@@ -159,7 +139,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
   // Organisation staff — no billing or subscription anywhere.
   if (accountType === "b2b" && (role === "educator" || role === "supporter")) {
     return [
-      { to: "/dashboard", label: "Dashboard", short: "Home", icon: Home },
+      { to: "/dashboard", label: "Dashboard", short: "Home", icon: DashboardIcon },
       plans,
       checkIn,
       progress,
@@ -182,7 +162,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
   // Organisation parent — read-only, so no logging entry point either.
   if (accountType === "b2b") {
     return [
-      { to: "/dashboard", label: "Dashboard", short: "Home", icon: Home },
+      { to: "/dashboard", label: "Dashboard", short: "Home", icon: DashboardIcon },
       plans,
       progress,
       attune,
@@ -192,7 +172,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
 
   // Family accounts.
   const items: NavItem[] = [
-    { to: "/dashboard", label: "Dashboard", short: "Home", icon: Home },
+    { to: "/dashboard", label: "Dashboard", short: "Home", icon: DashboardIcon },
     plans,
     checkIn,
     progress,
@@ -214,11 +194,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       ? baseItems.filter((item) => item.to === "/account" || isNavigationVisible(item.to))
       : baseItems;
   }, [isNavigationVisible, session.accountType, session.permissions, session.role]);
-  const org = useQuery({
-    queryKey: ["org", session.orgId],
-    queryFn: () => getOrg(session.orgId!),
-    enabled: !!session.orgId,
-  });
 
   // Highlight exactly one item: the longest nav path that matches the current URL.
   const candidates = [...items.map((i) => i.to), "/invite"];
@@ -246,9 +221,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background lg:flex">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col overflow-hidden border-r border-navy/10 bg-navy px-4 py-6 text-white [@media(max-height:820px)]:px-3 [@media(max-height:820px)]:py-3 lg:flex">
-        <Link to="/" className="shrink-0 text-white">
-          <Logo size="large" />
+      <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col overflow-hidden border-r border-navy/10 bg-navy px-4 py-6 text-white [@media(max-height:820px)]:px-3 [@media(max-height:820px)]:py-3 lg:flex">
+        <Link to="/hub" aria-label="Play Hub home" className="shrink-0 self-center text-white">
+          <Logo size="large" wordmark={false} />
         </Link>
         <nav
           aria-label="Main"
@@ -267,7 +242,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   : "text-white/70 hover:bg-white/10 hover:text-white",
               )}
             >
-              <item.icon className="h-4.5 w-4.5 shrink-0" aria-hidden />
+              <ServiceIcon icon={item.icon} />
               <span className="truncate">{item.label}</span>
             </Link>
           ))}
@@ -288,9 +263,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           )}
         </nav>
-        <div className="mt-auto shrink-0 border-t border-white/12 pt-4 [@media(max-height:820px)]:pt-2">
-          <SignedInIdentity session={session} />
-        </div>
       </aside>
 
       <div className={cn("flex min-w-0 flex-1 flex-col", fullBleed && "h-dvh overflow-hidden")}>
@@ -301,13 +273,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             fullBleed && "lg:hidden",
           )}
         >
-          <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3 sm:px-6 lg:py-4">
+          <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] lg:w-[80%] lg:max-w-none items-center gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3 sm:px-6 lg:py-4">
             <div className="flex min-w-0 items-center gap-3">
               <Link
-                to="/"
+                to="/hub"
+                aria-label="Play Hub home"
                 className="shrink-0 lg:hidden [&_img]:h-11 [&_img]:w-auto sm:[&_img]:h-14"
               >
-                <Logo />
+                <Logo wordmark={false} />
               </Link>
             </div>
             <span className="col-start-3 row-start-1 sm:hidden [&_button]:h-11 [&_button]:w-11 [&_button]:justify-center [&_button]:rounded-xl [&_button]:border-white/15 [&_button]:bg-white/5 [&_button]:px-0 [&_button]:text-white [&_button>span]:hidden">
@@ -322,17 +295,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               ) : (
                 <ChildSwitcherDropdown className="min-w-0 max-w-full [&>button]:max-w-full [&>button]:rounded-xl [&>button]:border-white/15 [&>button]:bg-white/10 [&>button]:text-white lg:[&>button]:border-navy/10 lg:[&>button]:bg-card/80 lg:[&>button]:text-navy" />
               )}
-              {org.data && (
-                <span className="hidden max-w-[14rem] min-w-0 items-center gap-2 rounded-full border border-navy/10 bg-card/80 py-1.5 pr-4 pl-2 text-sm font-bold text-navy shadow-[0_1px_0_rgba(16,42,74,0.04)] lg:inline-flex">
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue/12 text-blue">
-                    <Building2 className="h-4 w-4" aria-hidden />
-                  </span>
-                  <span className="truncate">{org.data.name}</span>
-                </span>
-              )}
               <span className="hidden max-w-[16rem] min-w-0 truncate text-xs font-semibold text-white/70 sm:inline lg:hidden">
                 {session.name} · {roleLabel(session.role, session.accountType)}
-                {org.data ? ` · ${org.data.name}` : ""}
               </span>
               <span className="hidden lg:inline">
                 <span className="[&_button]:min-h-10 [&_button]:border-navy/10 [&_button]:bg-card/80 [&_button]:text-navy [&_button]:shadow-[0_1px_0_rgba(16,42,74,0.04)] [&_button:hover]:border-coral/40 [&_button:hover]:text-coral">
@@ -344,7 +308,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <GuideButton />
                 </span>
               </span>
-              <SignOutButton className="hidden border-navy/10 bg-white text-navy shadow-sm hover:border-coral/35 hover:bg-white hover:text-coral lg:inline-flex" />
+              <AccountMenu tone="dark" className="hidden lg:block" />
             </div>
           </div>
 
@@ -353,7 +317,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-label="Sections"
             className="hidden overflow-x-auto border-t border-white/10 px-4 sm:block lg:hidden"
           >
-            <ul className="mx-auto flex max-w-6xl gap-1 py-2">
+            <ul className="mx-auto flex max-w-6xl gap-1 py-2 lg:w-[80%] lg:max-w-none">
               {mobileItems.map((item) => (
                 <li key={item.to}>
                   <Link
@@ -378,7 +342,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           className={cn(
             fullBleed
               ? "flex min-h-0 w-full min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-0"
-              : "mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:px-8 lg:pt-8",
+              : // On large screens every page uses 80% of the space beside the sidebar.
+                "mx-auto w-full min-w-0 max-w-6xl flex-1 lg:w-[80%] lg:max-w-none px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-10 lg:px-8 lg:pt-8",
           )}
         >
           <RenewalNotice />
@@ -734,26 +699,13 @@ function trapDialogFocus(
  */
 export function AppHeaderControls({ className }: { className?: string }) {
   const { session } = useSession();
-  const org = useQuery({
-    queryKey: ["org", session.orgId],
-    queryFn: () => getOrg(session.orgId!),
-    enabled: !!session.orgId,
-  });
   return (
     <div className={cn("flex min-w-0 items-center justify-end gap-2", className)}>
       <ChildSwitcherDropdown className="min-w-0 max-w-full [&>button]:max-w-full [&>button]:rounded-xl [&>button]:border-navy/10 [&>button]:bg-card [&>button]:text-navy" />
-      {org.data && (
-        <span className="hidden max-w-[14rem] min-w-0 items-center gap-2 rounded-full border border-navy/10 bg-card py-1.5 pr-4 pl-2 text-sm font-bold text-navy xl:inline-flex">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue/12 text-blue">
-            <Building2 className="h-4 w-4" aria-hidden />
-          </span>
-          <span className="truncate">{org.data.name}</span>
-        </span>
-      )}
       <span className="[&_button]:min-h-10 [&_button]:border-navy/10 [&_button]:bg-card [&_button]:text-navy [&_button:hover]:border-coral/40 [&_button:hover]:text-coral">
         <GuideButton />
       </span>
-      <SignOutButton className="hidden border-navy/10 bg-white text-navy shadow-sm hover:border-coral/35 hover:bg-white hover:text-coral lg:inline-flex" />
+      <AccountMenu tone="dark" className="hidden lg:block" />
     </div>
   );
 }
@@ -883,7 +835,7 @@ function MobileNavigation({
                         : "text-navy/75 hover:bg-navy/5",
                     )}
                   >
-                    <item.icon className="h-5 w-5 shrink-0" aria-hidden />
+                    <ServiceIcon icon={item.icon} className="h-8 w-8" />
                     {item.label}
                   </Link>
                 ))}

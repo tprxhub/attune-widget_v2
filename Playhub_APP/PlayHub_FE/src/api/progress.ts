@@ -10,32 +10,32 @@ export const STATUS_META: Record<
   first_dose: {
     label: "First dose at this level",
     token: "amber",
-    hint: "The first Play Dose in this plan is complete.",
+    hint: "Your child has completed their first Play Dose at this level.",
   },
   settling_in: {
     label: "Settling in",
     token: "navy",
-    hint: "Just moved up a level, so a bit more support is natural.",
+    hint: "Your child has moved to a new level and is getting familiar with the activities.",
   },
   progressing: {
     label: "Progressing",
     token: "blue",
-    hint: "Needed less help by the end of the dose than at the start.",
+    hint: "Your child needed less help at the end of the Play Dose than at the beginning.",
   },
   holding_steady: {
     label: "Holding steady",
     token: "amber",
-    hint: "About the same support as at the start of the dose.",
+    hint: "Your child needed a similar amount of help throughout the Play Dose.",
   },
   needs_check_in: {
     label: "Book a Play Consult",
     token: "coral",
-    hint: "The Real-Life Try wasn’t passed for two doses in a row.",
+    hint: "Your child found the Real-Life Try difficult in two consecutive Play Doses. Book a consult for guidance.",
   },
   no_data: {
     label: "Dose in progress",
     token: "navy",
-    hint: "Log the five practice days and the Real-Life Try to complete a Play Dose.",
+    hint: "Log your child’s progress across five practice days and the Real-Life Try to complete this Play Dose.",
   },
 };
 
@@ -178,7 +178,8 @@ export function reportFromApi(summary: ApiProgress, _plans: PlayPlan[] = []): Pr
   }));
   return {
     childId: summary.child_id,
-    status: points.at(-1)?.complete === false ? "no_data" : status,
+    // The API gives one of the five statuses even while a dose is underway.
+    status,
     currentPlanId,
     ...messaging(status, points, currentPlanId),
     lastCheckIn: summary.last_check_in,

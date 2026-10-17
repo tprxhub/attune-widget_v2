@@ -166,12 +166,10 @@ function Card({ label, children }: { label: string; children: ReactNode }) {
 
 function CardHead({
   title,
-  timeframe,
   control,
   stat,
 }: {
   title: string;
-  timeframe: string;
   control: ReactNode;
   stat: ReactNode;
 }) {
@@ -180,7 +178,6 @@ function CardHead({
       <div className="min-w-0">
         <h3 className="flex flex-wrap items-baseline gap-x-1 text-[15px] font-bold text-navy">
           {title}
-          <span className="text-xs font-normal text-[#8B93A0]">{timeframe}</span>
         </h3>
       </div>
       {stat}
@@ -247,8 +244,8 @@ const VERDICT_LABEL = { passed: "Passed", redo: "Redo", "in-progress": "In progr
 function doseOption(dose: ProgressPoint, index: number): SelectOption {
   return {
     value: String(index),
-    label: `Dose ${index + 1} · ${dose.level}`,
-    description: `${fmtDateRange(startOf(dose), endOf(dose))} · ${VERDICT_LABEL[doseVerdict(dose)]}`,
+    label: dose.level,
+    description: `Dose ${index + 1} · ${fmtDateRange(startOf(dose), endOf(dose))} · ${VERDICT_LABEL[doseVerdict(dose)]}`,
   };
 }
 
@@ -296,7 +293,6 @@ function DoseCard({
     <Card label="Within a Play Dose">
       <CardHead
         title="Within a Play Dose"
-        timeframe="progress across a week"
         control={
           pageLayout ? null : (
             <>
@@ -498,7 +494,6 @@ function PlanCard({
     <Card label="Within a Play Plan">
       <CardHead
         title="Within a Play Plan"
-        timeframe="progress across a few weeks"
         control={
           pageLayout ? null : (
             <>

@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
+import { LogOut, type LucideIcon } from "lucide-react";
 import { useSession } from "@/auth/session";
 import { cn } from "@/lib/utils";
 import { ConfirmButton } from "./ConfirmButton";
@@ -7,9 +7,11 @@ import { ConfirmButton } from "./ConfirmButton";
 export function SignOutButton({
   className,
   onSignedOut,
+  icon: Icon = LogOut,
 }: {
   className?: string;
   onSignedOut?: () => void;
+  icon?: LucideIcon;
 }) {
   const { signOut } = useSession();
   const navigate = useNavigate();
@@ -30,7 +32,7 @@ export function SignOutButton({
         className,
       )}
     >
-      <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
       Sign out
     </ConfirmButton>
   );

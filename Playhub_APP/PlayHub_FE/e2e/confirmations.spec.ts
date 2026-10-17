@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByLabel("Email Address").fill("admin@playhub.local");
   await page.getByLabel("Password", { exact: true }).fill("ChangeMe123!");
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin/);
+  await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
 });
 
 test("suspending an organisation waits for confirmation and supports error retry", async ({

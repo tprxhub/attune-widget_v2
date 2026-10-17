@@ -12,7 +12,7 @@ import {
 import { listAttempts } from "@/api/attempts";
 import { goalById, planById } from "@/api/domain";
 import { entryStates, listPlans, nextEntry } from "@/api/plans";
-import { assignedDoseNextStep, getProgress } from "@/api/progress";
+import { getProgress } from "@/api/progress";
 import { useCapabilities, useSession } from "@/auth/session";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
@@ -114,7 +114,6 @@ function ChildDashboard() {
   const logged = (attempts.data ?? []).map((a) => a.entryId);
   const today = plan ? nextEntry(states, logged) : undefined;
   const report = progress.data;
-  const nextStepText = assignedDoseNextStep(report, plan);
   const catalogPlans = plans.data ?? [];
   const currentFocusPlans = plan
     ? catalogPlans.filter((candidate) => candidate.goalId === plan.goalId)
@@ -129,7 +128,7 @@ function ChildDashboard() {
         description={
           isReadOnlyParent
             ? "A read-only view of your child's Play Plan, shared by their setting."
-            : "A little play each day — that's the whole ask."
+            : undefined
         }
         actions={
           canLogAttempts ? (
@@ -178,7 +177,7 @@ function ChildDashboard() {
                   <h2 className="mt-2.5 text-lg leading-snug font-bold">{today.entry.title}</h2>
                   <div className="mt-1.5 flex flex-wrap items-center gap-3">
                     <LevelDots level={plan.level} />
-                    <span className="text-sm text-navy/60">{goal?.name}</span>
+                    <span className="text-sm text-navy/60">{plan.title}</span>
                   </div>
                 </div>
                 <Link
@@ -188,14 +187,6 @@ function ChildDashboard() {
                 >
                   <PlayCircle className="h-5 w-5" aria-hidden /> Start Now
                 </Link>
-              </div>
-              <div className="mt-4 rounded-2xl border-l-4 border-coral bg-cream p-4">
-                <p className="text-[10.5px] font-bold tracking-[0.05em] text-coral uppercase">
-                  Next step
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-navy/85">
-                  {nextStepText ?? "Run today's Play Dose and log the Session while it's fresh."}
-                </p>
               </div>
             </LockedOverlay>
           ) : (
@@ -212,11 +203,6 @@ function ChildDashboard() {
           <div>
             <p className="eyebrow text-blue">Play Plans</p>
             <h2 className="mt-2 text-2xl font-extrabold text-navy">Choose the next Play Dose</h2>
-            <p className="mt-1 text-sm text-navy/60">
-              {goal
-                ? `${session.role === "parent" ? (plan?.title ?? goal.name) : goal.name} · Pick the dose that feels right today.`
-                : "Pick a plan and press play."}
-            </p>
           </div>
           <Link
             to="/plans"

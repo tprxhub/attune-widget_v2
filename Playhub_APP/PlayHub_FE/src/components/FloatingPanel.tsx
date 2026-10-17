@@ -14,6 +14,8 @@ interface FloatingPanelProps {
   panelRef: RefObject<HTMLDivElement | null>;
   align?: "left" | "right";
   className?: string;
+  maxHeight?: number;
+  overflow?: "auto" | "visible";
   children: ReactNode;
 }
 
@@ -30,6 +32,8 @@ export function FloatingPanel({
   panelRef,
   align = "left",
   className,
+  maxHeight = MAX_HEIGHT,
+  overflow = "auto",
   children,
 }: FloatingPanelProps) {
   const [style, setStyle] = useState<CSSProperties | null>(null);
@@ -42,25 +46,25 @@ export function FloatingPanel({
       const width = panelRef.current?.offsetWidth ?? 0;
       const below = window.innerHeight - rect.bottom - GAP - MARGIN;
       const above = rect.top - GAP - MARGIN;
-      const wanted = Math.min(MAX_HEIGHT, Math.max(panelRef.current?.scrollHeight ?? 0, 96));
+      const wanted = Math.min(maxHeight, Math.max(panelRef.current?.scrollHeight ?? 0, 96));
       const openUp = below < wanted && above > below;
-      const horizontal =
-        align === "right"
-          ? {
-              left: Math.max(
-                MARGIN,
-                Math.min(rect.right - width, window.innerWidth - width - MARGIN),
-              ),
-            }
-          : { left: Math.max(MARGIN, Math.min(rect.left, window.innerWidth - width - MARGIN)) };
-      setStyle({
+      const left = Math.max(
+        MARGIN,
+        Math.min(
+          align === "right" ? rect.right - width : rect.left,
+          window.innerWidth - width - MARGIN,
+        ),
+      );
+      const placement: CSSProperties & { "--floating-anchor-x": number } = {
         position: "fixed",
-        ...horizontal,
+        left,
+        "--floating-anchor-x": rect.left + rect.width / 2 - left,
         maxWidth: window.innerWidth - MARGIN * 2,
-        maxHeight: Math.max(96, Math.min(MAX_HEIGHT, openUp ? above : below)),
-        overflowY: "auto",
+        maxHeight: Math.max(96, Math.min(maxHeight, openUp ? above : below)),
+        overflowY: overflow,
         ...(openUp ? { bottom: window.innerHeight - rect.top + GAP } : { top: rect.bottom + GAP }),
-      });
+      };
+      setStyle(placement);
     }
     place();
     window.addEventListener("resize", place);
@@ -69,12 +73,13 @@ export function FloatingPanel({
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
-  }, [anchorRef, panelRef, align]);
+  }, [anchorRef, panelRef, align, maxHeight, overflow]);
 
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
       ref={panelRef}
+      data-side={style?.bottom !== undefined ? "top" : "bottom"}
       style={style ?? { position: "fixed", visibility: "hidden" }}
       className={`z-[1000] ${className ?? ""}`}
     >

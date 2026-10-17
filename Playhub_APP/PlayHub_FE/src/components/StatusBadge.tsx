@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from "react";
 import { FloatingPanel } from "./FloatingPanel";
-import { TrendingUp, Minus, TrendingDown, HelpCircle, Sparkles } from "lucide-react";
+import { TrendingUp, Minus, TrendingDown, Hourglass, Sparkles } from "lucide-react";
 import { STATUS_META } from "@/api/progress";
 import type { StatusKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,7 @@ const ICONS = {
   holding_steady: Minus,
   needs_check_in: TrendingDown,
   settling_in: Sparkles,
-  no_data: HelpCircle,
+  no_data: Hourglass,
 } as const;
 
 const STATUS_STYLES: Record<StatusKey, string> = {

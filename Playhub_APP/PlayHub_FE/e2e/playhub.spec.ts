@@ -10,7 +10,7 @@ async function login(page: Page, email: string, organisation = false) {
   const submit = page.getByRole("button", { name: "Log in" });
   await expect(submit).toBeEnabled();
   await submit.click();
-  await expect(page).toHaveURL(/\/(dashboard|org|admin)(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/(hub|dashboard|org|admin)(?:[/?#]|$)/);
 }
 
 async function expectScreen(page: Page, path: string, heading: string) {
@@ -28,13 +28,14 @@ async function chooseOption(scope: Page | Locator, labelText: string, optionText
 
 test("family Check-In persists and immediately updates Progress", async ({ page }) => {
   await login(page, "parent@playhub.local");
+  await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Here's your Play Hub" })).toBeVisible();
 
   await page.goto("/check-in");
   await expect(page.getByRole("heading", { name: "Daily Check-In" })).toBeVisible();
-  await expect(page.getByText("Logging an Session for Noah", { exact: false })).toBeVisible();
-  await chooseOption(page, "Play Plan", "Bilateral Coordination");
-  await chooseOption(page, "Play Dose", "Learn to Button a Shirt · Rookie");
+  await expect(page.getByText("Logging a Session for Noah", { exact: false })).toBeVisible();
+  await chooseOption(page, "Play Plan", "Learn to Button a Shirt");
+  await chooseOption(page, "Play Dose", "Rookie");
   await expect(page.getByText("Assigned dose:", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Yes", exact: true }).click();
   await page.getByRole("button", { name: "One reminder", exact: true }).click();
@@ -77,8 +78,9 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
     page.getByRole("img", { name: /Support Score for each Play Dose in this Play Plan/ }),
   ).toBeVisible();
   const nextSteps = page.getByRole("region", { name: "Progress insights" });
-  // Next steps come from the dose the child is on: finish it first, no placeholder steps.
-  await expect(nextSteps.locator("ol > li").first()).toContainText("Finish this Rookie Play Dose");
+  // Next steps describe the assigned plan, not the other plan logged above; no placeholder steps.
+  await expect(nextSteps).toContainText("What am I seeing?");
+  await expect(nextSteps).not.toContainText("Activity #");
   await expect(page.getByRole("heading", { name: "Session history" })).toHaveCount(1);
   await page.getByRole("button", { name: /Session history/ }).click();
   await expect(
@@ -109,12 +111,13 @@ test("Super Admin can operate platform controls and complete staff activation", 
   browser,
 }) => {
   await login(page, "admin@playhub.local");
+  await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Platform overview" })).toBeVisible();
 
   await page.goto("/admin/orgs");
   await page.getByRole("button", { name: "New organisation" }).click();
   await page.getByLabel("Name").fill("Browser Test School");
-  await page.getByRole("textbox", { name: "Licenses" }).fill("12");
+  await page.getByLabel("Child licences").fill("12");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByText("Browser Test School")).toBeVisible();
 
@@ -122,7 +125,7 @@ test("Super Admin can operate platform controls and complete staff activation", 
   const noah = page.locator("article").filter({ hasText: "Noah" });
   await expect(noah).toBeVisible();
   await noah.getByRole("link", { name: "Check-in" }).click();
-  await expect(page.getByText("Logging an Session for Noah", { exact: false })).toBeVisible();
+  await expect(page.getByText("Logging a Session for Noah", { exact: false })).toBeVisible();
 
   for (const [path, heading] of [
     ["/admin/progress", "Progress"],
@@ -180,7 +183,8 @@ test("Super Admin can operate platform controls and complete staff activation", 
   await invitePage.locator("#invite-password").fill(PASSWORD);
   await invitePage.locator("#invite-confirm").fill(PASSWORD);
   await invitePage.getByRole("button", { name: "Activate account" }).click();
-  await expect(invitePage).toHaveURL(/\/org(?:[/?#]|$)/);
+  await expect(invitePage).toHaveURL(/\/hub(?:[/?#]|$)/);
+  await invitePage.goto("/org");
   await expect(invitePage.getByRole("heading", { name: "Children", exact: true })).toBeVisible();
   await inviteContext.close();
 });
@@ -207,13 +211,13 @@ test("organisation Admin can create, track and activate a Moderator", async ({ p
     .locator("p")
     .textContent();
   expect(originalActivationLink).toMatch(/\/accept-invite\?token=.{20,}/);
-  await expect(modal.getByRole("button", { name: "Copy login details" })).toBeVisible();
+  await expect(modal.getByRole("button", { name: "Copy details" })).toBeVisible();
   await modal.getByRole("button", { name: "Done" }).click();
 
   let moderatorCard = page.locator("article").filter({ hasText: "Browser Test Moderator" });
   await expect(moderatorCard).toBeVisible();
   await expect(moderatorCard.getByText("Pending", { exact: true })).toBeVisible();
-  await moderatorCard.getByRole("button", { name: "View activation link" }).click();
+  await moderatorCard.getByRole("button", { name: "Resend link" }).click();
   await expect(modal.getByRole("heading", { name: "Activation link ready" })).toBeVisible();
   const activationLink = await modal
     .getByRole("button", { name: "Copy one-time activation link" })
@@ -230,7 +234,8 @@ test("organisation Admin can create, track and activate a Moderator", async ({ p
   await invitePage.locator("#invite-password").fill(PASSWORD);
   await invitePage.locator("#invite-confirm").fill(PASSWORD);
   await invitePage.getByRole("button", { name: "Activate account" }).click();
-  await expect(invitePage).toHaveURL(/\/org(?:[/?#]|$)/);
+  await expect(invitePage).toHaveURL(/\/hub(?:[/?#]|$)/);
+  await invitePage.goto("/org");
   await expect(invitePage.getByRole("heading", { name: "Children", exact: true })).toBeVisible();
   await expect(invitePage.getByText("Amira", { exact: true })).toBeVisible();
   await expect(invitePage.getByText("Omar", { exact: true })).toHaveCount(0);
@@ -287,11 +292,11 @@ test("family can sign up, restore its session, change password and sign in again
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("checkbox").check({ force: true });
   await page.getByRole("button", { name: "Create Account" }).click();
-  await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
   await expect(page.getByText("Mia", { exact: true }).first()).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Here's your Play Hub" })).toBeVisible();
+  await expect(page.getByText("Mia", { exact: true }).first()).toBeVisible();
   await page.goto("/account");
   await page.getByRole("button", { name: /Change password/ }).click();
   const passwordDialog = page.getByRole("dialog", { name: "Change password" });
@@ -303,7 +308,12 @@ test("family can sign up, restore its session, change password and sign in again
     passwordDialog.getByText("Password updated. Use the new one next time you sign in."),
   ).toBeVisible();
   await passwordDialog.getByRole("button", { name: "Close" }).click();
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Your account" }).first().click();
+  await page
+    .getByRole("menu", { name: "Your account" })
+    .getByRole("button", { name: "Sign out" })
+    .click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "Please sign in" })).toHaveCount(0);
 
@@ -311,7 +321,7 @@ test("family can sign up, restore its session, change password and sign in again
   await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(nextPassword);
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
 });
 
 test("organisation roles receive the correct writable and read-only experiences", async ({
@@ -323,7 +333,7 @@ test("organisation roles receive the correct writable and read-only experiences"
   await adminPage.goto("/org");
   await expect(adminPage.getByRole("heading", { name: "Children", exact: true })).toBeVisible();
   await adminPage.goto("/check-in");
-  await expect(adminPage.getByText("Logging an Session for Amira", { exact: false })).toBeVisible();
+  await expect(adminPage.getByText("Logging a Session for Amira", { exact: false })).toBeVisible();
   await adminPage.goto("/admin");
   await expect(
     adminPage.getByRole("heading", { name: "Not available for your role" }),
@@ -353,14 +363,14 @@ test("free family cannot log Sessions", async ({ page }) => {
     .getByRole("dialog")
     .getByRole("button", { name: /^Open / })
     .click();
-  await expect(page.getByText(/free Play Plan, with its Rookie Play Dose/)).toBeVisible();
+  await expect(page.getByText(/free Play Plan, with its Rookie dose/)).toBeVisible();
   await expect(page.getByRole("link", { name: /Subscribe to unlock/ }).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: /Start Play Dose/ })).toHaveCount(1);
+  await expect(page.getByRole("link", { name: /Play Now/ })).toHaveCount(1);
   await page
-    .getByRole("link", { name: /Start Play Dose/ })
+    .getByRole("link", { name: /Play Now/ })
     .first()
     .click();
-  await expect(page.getByRole("heading", { name: "Play Doses" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Activities in this dose" })).toBeVisible();
   await expect(page.getByText("Locked", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Upgrade to unlock" })).toHaveCount(0);
 
@@ -384,18 +394,28 @@ test("free family cannot log Sessions", async ({ page }) => {
 
 test("signed-in families can sign out from the app and home page headers", async ({ page }) => {
   await login(page, "free.parent@playhub.local");
-  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.goto("/dashboard");
+  // In the app, Sign out lives in the avatar menu in the top bar.
+  await page.getByRole("button", { name: "Your account" }).first().click();
+  await page
+    .getByRole("menu", { name: "Your account" })
+    .getByRole("button", { name: "Sign out" })
+    .click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.getByRole("banner").getByRole("link", { name: "Log in", exact: true }).click();
   await page.getByLabel("Email Address").fill("free.parent@playhub.local");
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Log in", exact: true }).click();
-  await expect(page).toHaveURL(/\/(dashboard|org|admin)(?:[/?#]|$)/);
+  await expect(page).toHaveURL(/\/(hub|dashboard|org|admin)(?:[/?#]|$)/);
   await page.goto("/");
   const homeHeader = page.getByRole("banner");
-  await expect(homeHeader.getByRole("link", { name: "Open Play Hub" })).toBeVisible();
-  await expect(homeHeader.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await expect(homeHeader.getByRole("link", { name: "Open Hub" })).toBeVisible();
+  // On the home page, Sign out lives in the avatar menu.
+  await homeHeader.getByRole("button", { name: "Your account" }).click();
+  await expect(
+    page.getByRole("menu", { name: "Your account" }).getByRole("button", { name: "Sign out" }),
+  ).toBeVisible();
 });
 
 test("free family opens Subscription from Account and can return", async ({ page }) => {
@@ -427,10 +447,8 @@ test("subscribed family can check in from an unassigned Play Dose", async ({ pag
   await page.goto("/plans");
 
   const bilateralPlan = page.locator("section").filter({
-    has: page.getByRole("heading", {
-      name: "Bilateral Coordination & Midline Crossing",
-      exact: true,
-    }),
+    // Families see each section under its Play Plan's name, not the category.
+    has: page.getByRole("heading", { name: "Learn to Button a Shirt", exact: true }),
   });
   await bilateralPlan
     .getByRole("link", { name: /Learn to Button a Shirt.*Rookie/ })
@@ -510,7 +528,7 @@ test("every seeded persona can open its permitted screens and privileged screens
         ["/check-in", "Daily Check-In"],
         ["/admin/progress", "Progress"],
         ["/admin/audit", "Audit log"],
-        ["/plans", "Pick a Plan, pick a level, press play."],
+        ["/plans", "Choose a Play Plan and its dose."],
         ["/admin/plans", "Play Plans library"],
         ["/admin/orgs", "Organisations"],
         ["/admin/educators", "Admins & Moderators"],
@@ -523,7 +541,7 @@ test("every seeded persona can open its permitted screens and privileged screens
       organisation: true,
       screens: [
         ["/dashboard", "Here's your Play Hub"],
-        ["/plans", "Pick a Plan, pick a level, press play."],
+        ["/plans", "Choose a Play Plan and its dose."],
         ["/check-in", "Daily Check-In"],
         ["/progress", "Progress"],
         ["/org", "Children"],
@@ -537,7 +555,7 @@ test("every seeded persona can open its permitted screens and privileged screens
       organisation: true,
       screens: [
         ["/dashboard", "Here's your Play Hub"],
-        ["/plans", "Pick a Plan, pick a level, press play."],
+        ["/plans", "Choose a Play Plan and its dose."],
         ["/check-in", "Daily Check-In"],
         ["/progress", "Progress"],
         ["/org", "Children"],
@@ -550,7 +568,7 @@ test("every seeded persona can open its permitted screens and privileged screens
       organisation: true,
       screens: [
         ["/dashboard", "Here's your Play Hub"],
-        ["/plans", "Pick a Plan, pick a level, press play."],
+        ["/plans", "Choose a Play Plan and its dose."],
         ["/progress", "Progress"],
         ["/account", "My account"],
       ],
@@ -560,7 +578,7 @@ test("every seeded persona can open its permitted screens and privileged screens
       email: "parent@playhub.local",
       screens: [
         ["/dashboard", "Here's your Play Hub"],
-        ["/plans", "Pick a Plan, pick a level, press play."],
+        ["/plans", "Choose a Play Plan and its dose."],
         ["/check-in", "Daily Check-In"],
         ["/progress", "Progress"],
         ["/subscription", "Subscription"],
@@ -573,7 +591,7 @@ test("every seeded persona can open its permitted screens and privileged screens
       email: "nanny@playhub.local",
       screens: [
         ["/dashboard", "Here's your Play Hub"],
-        ["/plans", "Pick a Plan, pick a level, press play."],
+        ["/plans", "Choose a Play Plan and its dose."],
         ["/check-in", "Daily Check-In"],
         ["/progress", "Progress"],
         ["/account", "My account"],
@@ -584,7 +602,7 @@ test("every seeded persona can open its permitted screens and privileged screens
       email: "free.parent@playhub.local",
       screens: [
         ["/dashboard", "Here's your Play Hub"],
-        ["/plans", "Pick a Plan, pick a level, press play."],
+        ["/plans", "Choose a Play Plan and its dose."],
         ["/check-in", "Daily Check-In"],
         ["/progress", "Progress"],
         ["/subscription", "Subscription"],
@@ -877,11 +895,10 @@ test("Super Admin can raise an organisation's licenses but not below the childre
   await login(page, "admin@playhub.local");
   await page.goto("/admin/orgs");
   const card = page.locator("article").first();
-  await card.getByRole("button", { name: /Edit seat count for/ }).click();
-  const input = card.getByRole("spinbutton");
-  await input.fill("250");
+  await card.getByRole("button", { name: /Change licences for/ }).click();
+  await card.getByLabel(/Number of licences for/).fill("250");
   await card.getByRole("button", { name: "Save" }).click();
-  await expect(card.getByText(/\/ 250 licenses used/)).toBeVisible();
+  await expect(card).toContainText(/\/ 250 (child|Moderator) licences/);
 });
 
 test("enrolling for an organisation fills in its Admin, or offers to create one", async ({

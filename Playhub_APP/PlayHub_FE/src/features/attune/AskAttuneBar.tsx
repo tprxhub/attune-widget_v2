@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, Lock } from "lucide-react";
 import { AttuneAvatar } from "./AttuneAvatar";
-import { getAttuneResetDelay, getAttuneStatus } from "@/api/attune";
+import { ATTUNE_MODES, getAttuneResetDelay, getAttuneStatus, type AttuneMode } from "@/api/attune";
 import { useCapabilities } from "@/auth/session";
 import { cn } from "@/lib/utils";
 
@@ -17,13 +17,11 @@ export function AskAttuneBar({ childName, className }: { childName?: string; cla
   if (!status.data?.enabled) return null;
   if (status.data.freePlan) return <AttuneUpgradeCard className={className} />;
   const child = childName ?? "my child";
-  const quick = [
-    { label: "Ideas for today", q: `Give me a quick play idea to do with ${child} today.` },
-    {
-      label: "A tricky Session",
-      q: `Sessions with ${child} have been hard lately. What can I change?`,
-    },
-    { label: "How it's going", q: `Explain how ${child}'s recent Sessions are going.` },
+  // The three moments Attune is built for (Product Reasoning Blueprint): each opens Attune in that mode.
+  const quick: { mode: AttuneMode; q?: string }[] = [
+    { mode: "idea", q: `Give me one play idea for ${child} today from the Play Plan.` },
+    { mode: "regulation" },
+    { mode: "progress", q: `What does ${child}’s recent progress mean?` },
   ];
   return (
     <section
@@ -36,13 +34,7 @@ export function AskAttuneBar({ childName, className }: { childName?: string; cla
       />
       <div className="relative flex items-center gap-3">
         <AttuneAvatar className="h-12 w-12 ring-2 ring-amber/60" />
-        <div className="min-w-0">
-          <h2 className="text-lg font-bold">Ask Attune™</h2>
-          <p className="text-sm text-cream/70">
-            Your AI play coach knows {childName ? `${childName}’s` : "your child’s"} Play Plan and
-            recent Sessions.
-          </p>
-        </div>
+        <h2 className="min-w-0 text-lg font-bold">Ask Attune™</h2>
       </div>
       <Link
         to="/attune"
@@ -56,12 +48,12 @@ export function AskAttuneBar({ childName, className }: { childName?: string; cla
       <div className="relative mt-3 flex flex-wrap gap-2">
         {quick.map((item) => (
           <Link
-            key={item.label}
+            key={item.mode}
             to="/attune"
-            search={{ q: item.q }}
+            search={item.q ? { mode: item.mode, q: item.q } : { mode: item.mode }}
             className="ph-pill inline-flex min-h-9 items-center border border-cream/20 px-3.5 text-xs font-bold text-cream transition hover:bg-cream/10"
           >
-            {item.label}
+            {ATTUNE_MODES[item.mode].label}
           </Link>
         ))}
       </div>

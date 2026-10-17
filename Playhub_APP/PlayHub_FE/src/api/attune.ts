@@ -11,12 +11,35 @@ export interface AttuneStatus {
   freePlan: boolean;
 }
 
+/** The three ways into Attune: "Get an idea", "My child is struggling", "What does this mean?". */
+export type AttuneMode = "idea" | "regulation" | "progress";
+
+export const ATTUNE_MODES: Record<AttuneMode, { label: string; short: string }> = {
+  idea: { label: "Get an idea", short: "Idea" },
+  regulation: { label: "My child is struggling", short: "Struggling" },
+  progress: { label: "What does this mean?", short: "Progress" },
+};
+
+export function isAttuneMode(value: unknown): value is AttuneMode {
+  return value === "idea" || value === "regulation" || value === "progress";
+}
+
+/** A source from Attune's clinical register that informed an answer (shown as plain text). */
+export interface AttuneReference {
+  id: string;
+  title: string;
+}
+
 export interface AttuneMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   activityId: string | null;
   feedback: "up" | "down" | null;
+  mode: AttuneMode | null;
+  references: AttuneReference[];
+  /** Attune used its safety pathway: show emergency contacts with this answer. */
+  safety: boolean;
   createdAt: string;
 }
 
@@ -45,6 +68,9 @@ interface MessageRow {
   content: string;
   activity_id: string | null;
   feedback?: "up" | "down" | null;
+  mode?: string | null;
+  references?: AttuneReference[];
+  safety?: boolean;
   created_at: string;
 }
 
@@ -62,6 +88,9 @@ const toMessage = (row: MessageRow): AttuneMessage => ({
   content: row.content,
   activityId: row.activity_id,
   feedback: row.feedback ?? null,
+  mode: isAttuneMode(row.mode) ? row.mode : null,
+  references: row.references ?? [],
+  safety: row.safety ?? false,
   createdAt: row.created_at,
 });
 
@@ -141,6 +170,10 @@ export interface AttuneInsights {
   children30Days: number;
   ratedUp: number;
   ratedDown: number;
+  /** Answers that used the safety pathway in the last 30 days. */
+  safety30Days: number;
+  /** Answers shared as a handover note in the last 30 days. */
+  shared30Days: number;
   daily: { date: string; questions: number }[];
 }
 
@@ -154,6 +187,8 @@ export async function getAttuneInsights(): Promise<AttuneInsights> {
     children_30_days: number;
     rated_up: number;
     rated_down: number;
+    safety_30_days?: number;
+    shared_30_days?: number;
     daily: { date: string; questions: number }[];
   }>("/attune/insights");
   return {
@@ -164,6 +199,8 @@ export async function getAttuneInsights(): Promise<AttuneInsights> {
     children30Days: row.children_30_days,
     ratedUp: row.rated_up,
     ratedDown: row.rated_down,
+    safety30Days: row.safety_30_days ?? 0,
+    shared30Days: row.shared_30_days ?? 0,
     daily: row.daily,
   };
 }
@@ -172,11 +209,49 @@ export async function deleteAttuneConversation(id: string): Promise<void> {
   await apiRequest<void>(`/attune/conversations/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
+/** "Share this": a plain-language handover note of the chat up to this answer. */
+export async function summariseAttuneAnswer(messageId: string): Promise<string> {
+  const row = await apiRequest<{ summary: string }>(
+    `/attune/messages/${encodeURIComponent(messageId)}/summary`,
+    { method: "POST" },
+  );
+  return row.summary;
+}
+
+export interface AttuneSource {
+  id: string;
+  reference: string;
+  citation: string;
+  status: "loaded" | "cited" | "background" | "proposed";
+  statusLabel: string;
+  supports: string;
+  evidence: string;
+  limitations: string;
+  licensing: string;
+  review: string;
+}
+
+/** The versioned clinical source register behind Attune's references (staff only). */
+export async function getAttuneSources(): Promise<{ version: string; sources: AttuneSource[] }> {
+  const row = await apiRequest<{
+    version: string;
+    sources: (Omit<AttuneSource, "statusLabel"> & { status_label: string })[];
+  }>("/attune/sources");
+  return {
+    version: row.version,
+    sources: row.sources.map(({ status_label, ...source }) => ({
+      ...source,
+      statusLabel: status_label,
+    })),
+  };
+}
+
 export async function askAttune(input: {
   message: string;
   conversationId?: string | undefined;
   childId?: string | undefined;
   activityId?: string | undefined;
+  mode?: AttuneMode | undefined;
 }): Promise<AttuneAnswer> {
   const row = await apiRequest<{
     conversation: ConversationRow;
@@ -190,6 +265,7 @@ export async function askAttune(input: {
       conversation_id: input.conversationId ?? null,
       child_id: input.childId ?? null,
       activity_id: input.activityId ?? null,
+      mode: input.mode ?? null,
     }),
   });
   return {
@@ -226,6 +302,7 @@ export async function askAttuneStream(
       conversation_id: input.conversationId ?? null,
       child_id: input.childId ?? null,
       activity_id: input.activityId ?? null,
+      mode: input.mode ?? null,
     }),
     ...(signal ? { signal } : {}),
   });

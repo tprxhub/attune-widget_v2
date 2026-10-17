@@ -18,6 +18,7 @@ import {
   recordOrgRenewal,
   toggleOrgActive,
   updateOrgBilling,
+  updateOrgDetails,
   updateOrgLicenses,
 } from "@/api/admin";
 import { Protected } from "@/auth/guards";
@@ -327,6 +328,7 @@ function AdminOrgs() {
               >
                 {org.active ? "Active" : "Suspended"}
               </span>
+              <OrgDetailsEditor org={org} compact />
               <LicenseEditor org={org} compact />
               <ConfirmButton
                 confirmationTitle={`Suspend ${org.name}?`}
@@ -364,6 +366,7 @@ function AdminOrgs() {
                   {org.active ? "Active" : "Suspended"}
                 </span>
               </div>
+              <OrgDetailsEditor org={org} />
 
               <div className="mt-4 rounded-2xl bg-navy/4 p-3">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
@@ -399,6 +402,111 @@ function AdminOrgs() {
         </div>
       )}
     </>
+  );
+}
+
+/** Rename an organisation or switch it between school and clinic. */
+function OrgDetailsEditor({ org, compact = false }: { org: Org; compact?: boolean }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(org.name);
+  const [kind, setKind] = useState<"School" | "Clinic">(
+    org.kind === "Clinic" ? "Clinic" : "School",
+  );
+  const [error, setError] = useState("");
+  const save = useMutation({
+    mutationFn: () => updateOrgDetails(org.id, { name: name.trim(), kind }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orgs"] });
+      setEditing(false);
+      setError("");
+    },
+    onError: (failure: Error) => setError(failure.message),
+  });
+  const invalid = name.trim().length < 2;
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setName(org.name);
+          setKind(org.kind === "Clinic" ? "Clinic" : "School");
+          setError("");
+          setEditing(true);
+        }}
+        aria-label={`Edit details for ${org.name}`}
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full text-xs font-bold text-blue hover:underline",
+          compact ? "shrink-0 px-2" : "mt-2",
+        )}
+      >
+        <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit details
+      </button>
+    );
+  }
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!invalid) save.mutate();
+      }}
+      className={cn(
+        "grid gap-2 rounded-2xl border border-navy/10 bg-card p-3",
+        compact ? "w-full basis-full sm:grid-cols-[minmax(0,1fr)_9rem_auto]" : "mt-2",
+      )}
+    >
+      <label className="block min-w-0">
+        <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
+          Organisation name
+        </span>
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          aria-label={`Name of ${org.name}`}
+          className="min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold"
+        />
+      </label>
+      <div className="min-w-0">
+        <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
+          Type
+        </span>
+        <Select
+          aria-label={`Type of ${org.name}`}
+          value={kind}
+          onChange={(next) => setKind(next as "School" | "Clinic")}
+          options={[
+            { value: "School", label: "School" },
+            { value: "Clinic", label: "Clinic" },
+          ]}
+        />
+      </div>
+      <div className="flex items-end gap-2">
+        <button
+          type="submit"
+          disabled={invalid || save.isPending}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-blue px-4 text-xs font-bold text-white disabled:opacity-50"
+        >
+          {save.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+          Save
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(false);
+            setError("");
+          }}
+          className="min-h-11 rounded-full px-3 text-xs font-bold text-navy/65"
+        >
+          Cancel
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="text-xs font-semibold text-coral sm:col-span-full">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }
 

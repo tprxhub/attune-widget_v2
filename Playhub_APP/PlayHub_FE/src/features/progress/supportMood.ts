@@ -6,6 +6,16 @@ export const MOOD_COLORS = ["#DF3B2D", "#F08A3C", "#A89A8C", "#F2B544", "#6FA05A
 export const moodColor = (mood: number) => MOOD_COLORS[Math.min(5, Math.max(1, mood)) - 1]!;
 /** The unfilled part of each ring blends into the white card. */
 export const TRACK = "#FFFFFF";
+/** A ring's unfilled track: a light shade of the ring's own colour (`#RRGGBB`), mixed with white. */
+export function lightShade(hex: string, white = 0.85) {
+  const channel = (offset: number) => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16);
+    return Math.round(value + (255 - value) * white)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return /^#[0-9a-f]{6}$/i.test(hex) ? `#${channel(1)}${channel(3)}${channel(5)}` : hex;
+}
 /** Stand-in for the face before any mood is logged. */
 export const EMPTY_FACE = "#ECEEF2";
 

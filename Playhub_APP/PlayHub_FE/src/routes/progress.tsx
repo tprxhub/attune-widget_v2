@@ -33,8 +33,10 @@ import { LEVEL_TOKEN, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { SupportMoodRings } from "@/features/progress/SupportMoodRings";
 import { useActiveChild } from "@/lib/active-child";
+import { CONSULT_BOOKING_URL } from "@/lib/contact";
 import { cn } from "@/lib/utils";
 import { printReport } from "@/lib/print-report";
+import { playPlanName } from "@/lib/planNames";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
@@ -75,7 +77,7 @@ function MiniStat({
   icon: typeof Flame;
   value: string;
   label: string;
-  sub: string;
+  sub?: string;
 }) {
   return (
     <div className="flex flex-col items-start gap-2.5 rounded-2xl bg-white/[0.07] p-3 ring-1 ring-white/10 sm:flex-row sm:items-center sm:gap-3">
@@ -87,7 +89,7 @@ function MiniStat({
           <p className="text-2xl leading-none font-bold">{value}</p>
           <p className="text-sm font-bold text-cream/85">{label}</p>
         </div>
-        <p className="truncate text-[11px] text-cream/55">{sub}</p>
+        {sub && <p className="truncate text-[11px] text-cream/55">{sub}</p>}
       </div>
     </div>
   );
@@ -314,7 +316,6 @@ export function ProgressPage() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [openNextStep, setOpenNextStep] = useState<number | null>(0);
   const [planFilter, setPlanFilter] = useState("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -333,8 +334,12 @@ export function ProgressPage() {
   const goals = useQuery({ queryKey: ["goals"], queryFn: () => listGoals() });
   // The graph follows one Play Plan (a goal, e.g. "Pinch & Grip") through its levels.
   const chartPlans = useMemo(
-    () => (goals.data ?? []).map((goal) => ({ id: goal.id, title: goal.name })),
-    [goals.data],
+    () =>
+      (goals.data ?? []).map((goal) => ({
+        id: goal.id,
+        title: playPlanName(goal, plans.data ?? []),
+      })),
+    [goals.data, plans.data],
   );
   const allRows = useMemo(() => attempts.data ?? [], [attempts.data]);
   const usedPlans = useMemo(
@@ -439,64 +444,24 @@ export function ProgressPage() {
       </div>
       <div className="mt-4 rounded-xl bg-white p-4 text-navy">
         <h3 className="text-lg font-bold">What does it mean?</h3>
-        <ol className="mt-3 divide-y divide-navy/10">
-          {nextSteps.map((step, index) => {
-            const expanded = openNextStep === index;
-            return (
-              <li key={step.title} className="py-1 text-navy">
-                <button
-                  type="button"
-                  onClick={() => setOpenNextStep(expanded ? null : index)}
-                  aria-expanded={expanded}
-                  aria-controls={`next-step-${index}`}
-                  className="grid min-h-14 w-full grid-cols-[2.25rem_minmax(0,1fr)_2rem] items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-navy/[0.035] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue"
-                >
-                  <span
-                    className={cn(
-                      "grid h-9 w-9 place-items-center rounded-xl text-xs font-extrabold transition-colors",
-                      expanded ? "bg-amber text-navy" : "bg-blue/10 text-blue",
-                    )}
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="min-w-0 text-sm leading-snug font-bold">{step.title}</span>
-                  <span
-                    className={cn(
-                      "grid h-8 w-8 place-items-center rounded-full transition-colors",
-                      expanded ? "bg-navy/[0.06] text-navy" : "bg-navy/[0.06] text-navy/70",
-                    )}
-                  >
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 shrink-0 transition-transform duration-200",
-                        expanded && "rotate-180",
-                      )}
-                      aria-hidden
-                    />
-                  </span>
-                </button>
-                <div
-                  hidden={!expanded}
-                  data-report-expand
-                  id={`next-step-${index}`}
-                  className="pb-3 pl-[3.25rem] pr-2 sm:pl-[3.75rem]"
-                >
-                  <p className="border-l-2 border-coral pl-3 text-sm leading-relaxed text-navy/72">
-                    {step.body}
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+        <div className="mt-2 space-y-3">
+          {nextSteps.map((step) => (
+            <p key={step.title} className="text-sm leading-relaxed text-navy/75">
+              {step.body}
+            </p>
+          ))}
+        </div>
       </div>
       <Link
         to="/attune"
-        search={{ q: `Explain ${activeChild.name}’s recent progress and what we should try next.` }}
+        search={{
+          mode: "progress",
+          q: `What does ${activeChild.name}’s progress chart mean, and what might come next?`,
+        }}
         className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-coral px-4 text-sm font-bold text-white hover:bg-coral/90"
       >
         <Sparkles className="h-4 w-4" aria-hidden />
-        Ask Attune
+        What does this mean? Ask Attune
       </Link>
     </section>
   ) : null;
@@ -506,7 +471,6 @@ export function ProgressPage() {
       <PageHeader
         eyebrow="Tracking"
         title="Progress"
-        description={`Support Score and Mood for ${activeChild.name}, day by day within a Play Dose and dose by dose across a Play Plan. Lower support means greater independence.`}
         actions={
           data ? (
             <div className="flex flex-wrap items-center gap-2" data-report-exclude>
@@ -514,11 +478,12 @@ export function ProgressPage() {
               <Link
                 to="/attune"
                 search={{
-                  q: `Explain ${activeChild.name}'s progress so far and what we should focus on next.`,
+                  mode: "progress",
+                  q: `What does ${activeChild.name}’s progress chart mean, and what might come next?`,
                 }}
                 className="inline-flex min-h-11 items-center gap-2 rounded-full border border-blue/30 px-4 text-sm font-bold text-blue transition hover:bg-blue/10"
               >
-                <Sparkles className="h-4 w-4" aria-hidden /> Ask Attune
+                <Sparkles className="h-4 w-4" aria-hidden /> What does this mean?
               </Link>
               {!isFreeGated && (
                 <button
@@ -609,20 +574,16 @@ export function ProgressPage() {
                       : "First Play Dose in progress"}
                   </span>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-cream/80">{data.narrative}</p>
-
                 <div className="mt-5 grid gap-3">
                   <MiniStat
                     icon={ActivityIcon}
                     value={String(data.totalSessions)}
                     label="Sessions"
-                    sub={`${data.activitiesCompleted} ${data.activitiesCompleted === 1 ? "activity" : "activities"} done`}
                   />
                   <MiniStat
                     icon={Flame}
                     value={String(sessionDayStreak(allRows))}
                     label="Day streak"
-                    sub="Consecutive days of play"
                   />
                 </div>
                 <p className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cream/60 lg:mt-auto lg:pt-4">
@@ -662,12 +623,14 @@ export function ProgressPage() {
                     ? `${data.status === "needs_check_in" ? "The Real-Life Try hasn’t been passed for two doses in a row." : "Support has stayed about the same through this dose."} A paid one-to-one session with a child psychologist can rework the Play Plan around what's actually getting in the way.`
                     : "A paid one-to-one session with a child psychologist, whenever you want a second opinion on the Play Plan — available to you as a subscribed Admin."}
                 </p>
-                <button
-                  type="button"
+                <a
+                  href={CONSULT_BOOKING_URL}
+                  target="_blank"
+                  rel="noreferrer"
                   className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white sm:w-auto"
                 >
                   <MessageSquareHeart className="h-4 w-4" aria-hidden /> Book a Play Consultation
-                </button>
+                </a>
               </section>
             )}
             {isFreeGated && canManageSubscription && (

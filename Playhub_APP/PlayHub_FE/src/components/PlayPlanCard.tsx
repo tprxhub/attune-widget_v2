@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Gift, Lock } from "lucide-react";
 import type { FreeAccess } from "@/features/plans/useFreePlan";
 import type { Goal, PlayPlan } from "@/lib/types";
-import { LevelDots, TOKEN_BG, TOKEN_SOFT } from "@/components/brand";
+import { LevelDots, TOKEN_BG } from "@/components/brand";
 import { GoalIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import thumbGrip from "@/assets/Thumbnails/Thumb1.jpeg";
@@ -27,10 +27,6 @@ const PLAN_THUMBNAILS: Record<string, string> = {
   scanning: thumbReading,
   letters: thumbWriting,
 };
-
-/** "Ages 4-6" from the API already carries the word; older content has just "4-6". */
-const agesLabel = (age: string | undefined) =>
-  !age ? "Ages 3+" : /^ages?\b/i.test(age.trim()) ? age.trim() : `Ages ${age}`;
 
 export function PlayPlanCard({
   plan,
@@ -102,11 +98,13 @@ export function PlayPlanCard({
         />
 
         <span className="relative flex items-start justify-between">
-          <span className="inline-flex min-w-0 max-w-[calc(100%-5rem)] items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-[10px] font-extrabold tracking-widest whitespace-nowrap text-white uppercase backdrop-blur-md">
+          <span className="inline-flex min-w-0 max-w-[calc(100%-5rem)] items-center gap-1.5 rounded-xl border border-white/30 bg-white/20 px-2.5 py-1 text-[10px] leading-tight font-extrabold tracking-wide text-white uppercase backdrop-blur-md">
             <span className={cn("h-1.5 w-1.5 rounded-full", TOKEN_BG[goal.color])} aria-hidden />
-            <span className="truncate">Play Plan</span>
+            <span className="min-w-0 [text-wrap:balance]" title={plan.title}>
+              {plan.title}
+            </span>
           </span>
-          <span className="shrink-0 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-[10px] font-extrabold tracking-widest whitespace-nowrap text-white uppercase backdrop-blur-md">
+          <span className="shrink-0 rounded-full border border-white/30 bg-white/20 px-2 py-1 text-[9px] font-extrabold tracking-wide whitespace-nowrap text-white uppercase backdrop-blur-md">
             {plan.level} dose
           </span>
         </span>
@@ -133,14 +131,6 @@ export function PlayPlanCard({
           <LevelDots level={plan.level} showLabel={false} />
           {plan.level} dose
         </span>
-        <span className="mt-4 flex flex-wrap gap-2">
-          <span className={cn("rounded-lg px-3 py-1 text-xs font-bold", TOKEN_SOFT[goal.color])}>
-            {plan.entries.length} checkpoints
-          </span>
-          <span className={cn("rounded-lg px-3 py-1 text-xs font-bold", TOKEN_SOFT[goal.color])}>
-            {agesLabel(plan.age)}
-          </span>
-        </span>
         <span
           className={cn(
             "mt-5 flex h-12 w-full items-center justify-center gap-2 text-sm font-extrabold transition-all ph-r-md",
@@ -165,7 +155,7 @@ export function PlayPlanCard({
             </>
           ) : (
             <>
-              Start Play <ArrowRight className="h-4 w-4" aria-hidden />
+              Play Now <ArrowRight className="h-4 w-4" aria-hidden />
             </>
           )}
         </span>

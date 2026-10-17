@@ -2,22 +2,11 @@ import { usePricePlans } from "@/api/pricing";
 import { Link } from "@tanstack/react-router";
 import { Building2, Check } from "lucide-react";
 import { PLAN_FEATURES } from "@/api/subscriptions";
-import { fmtMoney } from "@/lib/money";
-import { useSession } from "@/auth/session";
-import { isPlatformRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
-
-const FREE_FEATURES = [
-  "Browse every Play Plan",
-  "The Introduction and the Day 0 Play Dose",
-  "Play Pulse quick check",
-];
 
 /** Public pricing overview. Prices come from the same list the Subscription page uses. */
 export function PricingSection({ signedIn }: { signedIn: boolean }) {
-  const { session } = useSession();
   const { plans } = usePricePlans();
-  const playHubPath = isPlatformRole(session.role) ? "/admin" : "/dashboard";
   const buyTo = signedIn ? "/subscription" : "/signup";
   return (
     <section
@@ -36,30 +25,7 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
         </p>
       </div>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <article className="ph-r-xl flex flex-col bg-card p-6 shadow-card">
-          <h3 className="text-sm font-bold tracking-wide text-navy/60 uppercase">Free</h3>
-          <p className="ph-display mt-3 text-4xl text-navy">{fmtMoney(0)}</p>
-          <p className="text-xs font-semibold text-navy/55">Always free</p>
-          <p className="mt-3 text-sm text-navy/70">
-            Try Play Hub with your child before you commit.
-          </p>
-          <ul className="mt-5 mb-6 space-y-2 text-sm text-navy/75">
-            {FREE_FEATURES.map((line) => (
-              <li key={line} className="flex gap-2">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden />
-                {line}
-              </li>
-            ))}
-          </ul>
-          <Link
-            to={signedIn ? playHubPath : "/signup"}
-            className="ph-pill mt-auto inline-flex min-h-11 items-center justify-center border border-navy/20 px-5 text-sm font-semibold text-navy hover:bg-navy/5"
-          >
-            {signedIn ? "Open Play Hub" : "Create a free account"}
-          </Link>
-        </article>
-
+      <div className="mt-10 grid gap-4 md:grid-cols-3">
         {plans.map((plan) => {
           const best = plan.featured;
           return (
@@ -100,7 +66,7 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
                   className={cn("mt-0.5 h-4 w-4 shrink-0", best ? "text-amber" : "text-blue")}
                   aria-hidden
                 />
-                Everything in Free, plus every paid feature below
+                Every paid feature listed below
               </p>
               <Link
                 to={buyTo}

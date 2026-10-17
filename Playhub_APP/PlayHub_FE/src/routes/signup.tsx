@@ -1,5 +1,5 @@
 import { apiAssetUrl } from "@/api/client";
-import { useHomepageContent } from "@/features/homepage/useHomepageContent";
+import { loadHomepageForRoute, useHomepageContent } from "@/features/homepage/useHomepageContent";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -11,6 +11,7 @@ import { PolicyModal } from "@/features/policies/PolicyModal";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/signup")({
+  loader: ({ context }) => loadHomepageForRoute(context.queryClient),
   head: () => ({
     meta: [
       { title: "Create a free family account — Play Hub" },
@@ -58,14 +59,14 @@ function SignupPage() {
     setPending(true);
     const guardian = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
     try {
-      const session = await registerFamily({
+      await registerFamily({
         childName: childName.trim(),
         childAge: Number(childAge),
         guardianName: guardian,
         email: email.trim(),
         password,
       });
-      await navigate({ to: session.homePath });
+      await navigate({ to: "/hub" });
     } catch (reason) {
       setErrors({ form: reason instanceof Error ? reason.message : "Unable to create account." });
     } finally {

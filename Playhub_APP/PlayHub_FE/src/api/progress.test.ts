@@ -141,7 +141,8 @@ describe("progress data flow", () => {
     };
 
     const report = reportFromApi(summary, [plan]);
-    expect(report.status).toBe("no_data");
+    // The status comes from the API; the narrative still describes the dose underway.
+    expect(report.status).toBe("needs_check_in");
     // An incomplete dose describes current practice instead of a previous verdict.
     expect(report.headline).toBe("Starter dose in progress");
     expect(report.narrative).toContain("5 of 5 practice days logged at Starter");

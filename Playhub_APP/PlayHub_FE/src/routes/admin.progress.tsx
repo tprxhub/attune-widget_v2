@@ -107,7 +107,7 @@ function StatusPill({ row }: { row: AdminProgressRow }) {
     progressing: "Needs less help",
     holding_steady: "Support unchanged",
     settling_in: "Adjusting to a new level",
-    first_dose: "First dose completed",
+    first_dose: "First dose at this level",
     needs_check_in: "Consult recommended",
     no_data: report.totalSessions ? "Practising" : "Not started yet",
   };
@@ -120,7 +120,7 @@ function StatusPill({ row }: { row: AdminProgressRow }) {
       )}
     >
       {labels[report.status]}
-      {latest && report.status === "no_data" && ` · ${latest.kitSessionsLogged}/5 days`}
+      {latest && !latest.complete && ` · ${latest.kitSessionsLogged}/5 days`}
     </span>
   );
 }

@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # Testing only: charge every plan this amount (in fils, so 200 = AED 2.00, Stripe's minimum)
     # instead of its real price. Leave unset in normal operation.
     billing_test_amount: int | None = None
+    # Database connections each API worker keeps open, and how many more it may open under load.
+    # 3 workers x (5 + 10) = 45, inside the ~80-connection limit of the db.t3.micro RDS instance.
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
     # Klaviyo: when a private API key is set, emails are sent as a "Play Hub Email" event that a
     # Klaviyo flow turns into the email (subject and body come from the event). Takes precedence
     # over SMTP.
@@ -52,6 +56,8 @@ class Settings(BaseSettings):
     openai_timeout_seconds: float = 60
     # Maximum questions one person can ask Attune per UTC day; capped at 30 in the API.
     attune_daily_limit: int = 30
+    # Where Attune sends people for a Play Consult (the same booking page as the app's buttons).
+    attune_consult_url: str = "https://calendly.com/esther-thetoypharmacy/play-support-call"
     cors_origins: str = (
         "http://localhost:3000,http://127.0.0.1:3000,"
         "http://localhost:4173,http://127.0.0.1:4173,"

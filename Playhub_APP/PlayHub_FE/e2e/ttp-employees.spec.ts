@@ -12,7 +12,7 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   await page.getByLabel("Email Address").fill("admin@playhub.local");
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(/\/admin/);
+  await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
 
   await page.getByRole("link", { name: "TTP Employees" }).first().click();
   await page.getByRole("button", { name: "Add TTP employee" }).click();
@@ -44,7 +44,8 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   await employee.locator("#invite-password").fill(PASSWORD);
   await employee.locator("#invite-confirm").fill(PASSWORD);
   await employee.getByRole("button", { name: "Activate account" }).click();
-  await expect(employee).toHaveURL(/\/admin/);
+  await expect(employee).toHaveURL(/\/hub(?:[/?#]|$)/);
+  await employee.goto("/admin");
 
   const nav = employee.getByRole("navigation").first();
   await expect(employee.getByRole("link", { name: "Audit log" }).first()).toBeVisible();
@@ -80,10 +81,10 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   await page.reload();
   const card = page.locator("li").filter({ hasText: "Tara Test" });
   await expect(card).toContainText("Active");
-  await card.getByRole("button", { name: "Edit access" }).click();
-  const edit = page.getByRole("dialog", { name: "Edit access" });
+  await card.getByRole("button", { name: "Edit", exact: true }).click();
+  const edit = page.getByRole("dialog", { name: "Edit employee" });
   await edit.getByLabel(/^Children/).check();
-  await edit.getByRole("button", { name: "Save access" }).click();
+  await edit.getByRole("button", { name: "Save changes" }).click();
   await expect(card).toContainText("Children");
   await employee.reload();
   await expect(employee.getByRole("link", { name: "Children", exact: true }).first()).toBeVisible();

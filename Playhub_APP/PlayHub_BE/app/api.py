@@ -39,7 +39,7 @@ from app.schemas import (
     ModeratorInvitationUpdate,
 )
 from app.security import create_access_token, hash_password, verify_password
-from app.services import audit, progress_summary
+from app.services import PROGRESS_LOAD, assigned_plan_id, audit, progress_summary
 from app import notifications
 from app.mailer import OutgoingEmail, send_email
 from app.storage import StorageService, StorageUnavailable, UploadRejected, get_storage
@@ -646,6 +646,11 @@ def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require
         raise HTTPException(status_code=422, detail="You cannot deactivate your own account")
     if payload.role is not None and actor.role != Role.SUPER_ADMIN:
         raise HTTPException(status_code=403, detail="Only a platform administrator can change roles")
+    if payload.email is not None and payload.email != target.email:
+        if actor.role != Role.SUPER_ADMIN:
+            raise HTTPException(status_code=403, detail="Only a Super Admin can change a sign-in email")
+        if db.scalar(select(User).where(User.email == payload.email, User.id != target.id)):
+            raise HTTPException(status_code=409, detail="This email already belongs to an account")
     if payload.role == Role.SUPER_ADMIN and target.account_scope != AccountScope.PLATFORM:
         raise HTTPException(status_code=422, detail="Super Admin accounts must have platform scope")
     validate_user_values(
@@ -665,7 +670,7 @@ def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require
     if target.organisation_id and counted_after and not counted_before:
         licenses.ensure_available(db, target.organisation, "moderators")
     for key, value in payload.model_dump(exclude_unset=True).items(): setattr(target, key, value)
-    audit(db, actor.id, "user.updated", "user", target.id)
+    audit(db, actor.id, "user.updated", "user", target.id, {"fields": sorted(payload.model_dump(exclude_unset=True))})
     target = commit(db, target)
     if target.is_active != was_active:
         notifications.account_status(target, target.is_active)
@@ -952,11 +957,11 @@ def get_admin_overview(
 
 @router.get("/admin/progress", response_model=list[ProgressSummary])
 def get_platform_progress(_: User = Depends(require_permission("progress")), db: Session = Depends(get_db)):
-    children = db.scalars(select(Child).order_by(Child.name)).all()
+    children = db.scalars(select(Child).options(selectinload(Child.current_play_dose)).order_by(Child.name)).all()
     attempts_by_child: dict[str, list[Attempt]] = {child.id: [] for child in children}
-    for attempt in db.scalars(select(Attempt).order_by(Attempt.occurred_on, Attempt.created_at)).all():
+    for attempt in db.scalars(select(Attempt).options(*PROGRESS_LOAD).order_by(Attempt.occurred_on, Attempt.created_at)).all():
         attempts_by_child.setdefault(attempt.child_id, []).append(attempt)
-    return [progress_summary(child.id, attempts_by_child[child.id]) for child in children]
+    return [progress_summary(child.id, attempts_by_child[child.id], assigned_plan_id(child)) for child in children]
 
 
 @router.get("/admin/references", response_model=AdminReferencesRead)
@@ -1725,11 +1730,11 @@ def get_progress(child_id: str, play_plan_id: str | None = Query(default=None), 
     child = one_or_404(db, Child, child_id); require_child_access(child, user)
     if from_date and to_date and from_date > to_date:
         raise HTTPException(status_code=422, detail="from_date must be on or before to_date")
-    query = select(Attempt).where(Attempt.child_id == child_id)
+    query = select(Attempt).options(*PROGRESS_LOAD).where(Attempt.child_id == child_id)
     if play_plan_id: query = query.where(Attempt.play_plan_id == play_plan_id)
     if from_date: query = query.where(Attempt.occurred_on >= from_date)
     if to_date: query = query.where(Attempt.occurred_on <= to_date)
-    return progress_summary(child.id, db.scalars(query).all())
+    return progress_summary(child.id, db.scalars(query).all(), play_plan_id or assigned_plan_id(child))
 
 
 @router.post("/play-doses/{dose_id}/thumbnail", response_model=PlayDoseRead)

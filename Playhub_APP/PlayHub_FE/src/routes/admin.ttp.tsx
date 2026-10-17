@@ -8,7 +8,7 @@ import {
   listTtpEmployees,
   regenerateTtpActivation,
   setTtpActive,
-  updateTtpPermissions,
+  updateTtpEmployee,
   type TtpEmployee,
   type TtpInvitationResult,
 } from "@/api/admin";
@@ -158,7 +158,7 @@ function TtpEmployeesPage() {
                       onClick={() => setEditing(employee)}
                       className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
                     >
-                      <Pencil className="h-4 w-4" aria-hidden /> Edit access
+                      <Pencil className="h-4 w-4" aria-hidden /> Edit
                     </button>
                     <ConfirmButton
                       confirmationTitle={`Disable ${employee.name}?`}
@@ -449,22 +449,57 @@ function EditModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const [name, setName] = useState(employee.name);
+  const [email, setEmail] = useState(employee.email);
   const [permissions, setPermissions] = useState<PermissionKey[]>(employee.permissions);
   const [error, setError] = useState("");
   const save = useMutation({
-    mutationFn: () => updateTtpPermissions(employee.id, permissions),
+    mutationFn: () =>
+      updateTtpEmployee(employee.id, { name: name.trim(), email: email.trim(), permissions }),
     onSuccess: onSaved,
     onError: (reason: Error) => setError(reason.message),
   });
   return (
-    <Shell title="Edit access" subtitle={`${employee.name} · ${employee.email}`} onClose={onClose}>
+    <Shell
+      title="Edit employee"
+      subtitle={`${employee.name} · ${employee.email}`}
+      onClose={onClose}
+    >
       <form
         className="space-y-4"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
+          if (name.trim().length < 2) return setError("Enter their full name.");
+          if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Enter a valid email address.");
+          setError("");
           save.mutate();
         }}
       >
+        <div>
+          <label htmlFor="ttp-edit-name" className="text-sm font-bold">
+            Full name
+          </label>
+          <input
+            id="ttp-edit-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label htmlFor="ttp-edit-email" className="text-sm font-bold">
+            Email
+          </label>
+          <input
+            id="ttp-edit-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputCls}
+          />
+          <p className="mt-1 text-xs text-navy/55">They sign in with this email.</p>
+        </div>
         <AccessCheckboxes value={permissions} onChange={setPermissions} />
         {error && (
           <p role="alert" className="text-sm font-semibold text-coral">
@@ -478,7 +513,7 @@ function EditModal({
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
           >
             {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-            Save access
+            Save changes
           </button>
           <button
             type="button"
