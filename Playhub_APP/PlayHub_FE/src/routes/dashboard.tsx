@@ -17,7 +17,7 @@ import { useCapabilities, useSession } from "@/auth/session";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
 import { SchoolDashboard } from "@/components/dashboard/SchoolDashboard";
-import { ComingSoonTiles, ConsultationCard } from "@/components/dashboard/DashboardExtras";
+import { DashboardSupportRow } from "@/components/dashboard/DashboardExtras";
 import { AskAttuneBar } from "@/features/attune/AskAttuneBar";
 import { LockedOverlay } from "@/components/LockedOverlay";
 import { PlayPlanCard } from "@/components/PlayPlanCard";
@@ -236,7 +236,7 @@ function ChildDashboard() {
         )}
       </section>
 
-      <ComingSoonTiles />
+      <DashboardSupportRow />
 
       {/* Free upsell */}
       {isFreeGated && canManageSubscription && (
@@ -258,8 +258,6 @@ function ChildDashboard() {
           </Link>
         </section>
       )}
-
-      <ConsultationCard />
     </>
   );
 }

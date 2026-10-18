@@ -1,6 +1,7 @@
 """REST API routes consumed by the Play Hub frontend."""
 from __future__ import annotations
 import calendar
+from dataclasses import asdict
 import hashlib
 from datetime import date, datetime, timedelta, timezone
 
@@ -28,12 +29,12 @@ from app.oidc_identity import (
     verify_apple_credential,
     verify_microsoft_credential,
 )
-from app import licenses
+from app import deletion, licenses
 from app.schemas import (
     AdminReferencesRead,
     ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, ProfileUpdate, ChildCreate, ChildRead, ChildUpdate,
     AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
-    LoginRequest, OrganisationCreate, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
+    LoginRequest, OrganisationCreate, OrganisationDeletion, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
     PlayDoseUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
     SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, SiteContentRead,
     ModeratorInvitationUpdate,
@@ -1026,6 +1027,35 @@ def update_organisation(organisation_id: str, payload: OrganisationUpdate, actor
         metadata={"fields": sorted(changes)},
     )
     return licenses.with_usage(db, [updated])[0]
+
+
+@router.get("/organisations/{organisation_id}/deletion-preview", response_model=OrganisationDeletion)
+def preview_organisation_deletion(organisation_id: str, _: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+    """Counts of everything deleting this organisation would remove, shown before confirming."""
+    return asdict(deletion.deletion_summary(db, one_or_404(db, Organisation, organisation_id)))
+
+
+@router.delete("/organisations/{organisation_id}", response_model=OrganisationDeletion)
+def delete_organisation(
+    organisation_id: str,
+    confirm_name: str = Query(min_length=1, max_length=160),
+    actor: User = Depends(require_roles(Role.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+    storage: StorageService = Depends(get_storage),
+):
+    """Permanently delete an organisation with its Admins, Moderators, Members, children and all their
+    data. Only a suspended organisation can be deleted, its name must be typed to confirm, and only a
+    Super Admin can do this (not TTP employees)."""
+    org = one_or_404(db, Organisation, organisation_id)
+    if org.is_active:
+        raise HTTPException(status_code=409, detail="Suspend the organisation before deleting it")
+    if confirm_name.strip().casefold() != org.name.strip().casefold():
+        raise HTTPException(status_code=422, detail="Type the organisation's name exactly to confirm the deletion")
+    summary, avatars = deletion.delete_organisation(db, org, actor)
+    db.commit()
+    for url in avatars:
+        discard_stored_asset(storage, url)
+    return asdict(summary)
 
 
 @router.post("/organisations/{organisation_id}/renewal", response_model=OrganisationRead)

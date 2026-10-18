@@ -78,34 +78,51 @@ export async function createOrg(input: {
   return mapOrganisation(org);
 }
 
-/** Rename an organisation or change whether it is a school or a clinic. */
-export async function updateOrgDetails(
-  orgId: string,
-  input: { name: string; kind: "School" | "Clinic" },
-) {
-  const org = await apiRequest<ApiOrganisation>(`/organisations/${orgId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ name: input.name, kind: input.kind.toLowerCase() }),
-  });
-  return mapOrganisation(org);
+/** What deleting an organisation removes: its people, children and their data. */
+export interface OrgDeletionSummary {
+  organisation: string;
+  admins: number;
+  moderators: number;
+  members: number;
+  children: number;
+  sessions: number;
+  subscriptions: number;
+  attune_conversations: number;
+  invitations: number;
 }
 
-export async function updateOrgLicenses(orgId: string, licenses: number, licenseType: LicenseType) {
-  const org = await apiRequest<ApiOrganisation>(`/organisations/${orgId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ seat_limit: licenses, license_type: licenseType }),
-  });
-  return mapOrganisation(org);
+export function getOrgDeletionPreview(orgId: string) {
+  return apiRequest<OrgDeletionSummary>(`/organisations/${orgId}/deletion-preview`);
 }
 
-/** Change how an organisation is billed: cycle, AED per licence, and the next renewal date. */
-export async function updateOrgBilling(
+/** Super Admin: permanently delete an organisation; its exact name must be typed to confirm. */
+export function deleteOrg(orgId: string, confirmName: string) {
+  return apiRequest<OrgDeletionSummary>(
+    `/organisations/${orgId}?confirm_name=${encodeURIComponent(confirmName)}`,
+    { method: "DELETE" },
+  );
+}
+
+/** Change everything about an organisation in one save: details, licences and billing. */
+export async function updateOrg(
   orgId: string,
-  input: { billingCycle: "Monthly" | "Annual"; licensePrice: number; renewsOn: string | null },
+  input: {
+    name: string;
+    kind: "School" | "Clinic";
+    licenses: number;
+    licenseType: LicenseType;
+    billingCycle: "Monthly" | "Annual";
+    licensePrice: number;
+    renewsOn: string | null;
+  },
 ) {
   const org = await apiRequest<ApiOrganisation>(`/organisations/${orgId}`, {
     method: "PATCH",
     body: JSON.stringify({
+      name: input.name,
+      kind: input.kind.toLowerCase(),
+      seat_limit: input.licenses,
+      license_type: input.licenseType,
       billing_cycle: input.billingCycle.toLowerCase(),
       license_price: Math.round(input.licensePrice * 100),
       ...(input.renewsOn ? { renews_on: input.renewsOn } : {}),

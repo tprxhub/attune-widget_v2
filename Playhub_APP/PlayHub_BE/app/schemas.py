@@ -259,6 +259,19 @@ class OrganisationUpdate(APIModel):
     is_active: bool | None = None
 
 
+class OrganisationDeletion(APIModel):
+    """What deleting an organisation removes (or removed)."""
+    organisation: str
+    admins: int
+    moderators: int
+    members: int
+    children: int
+    sessions: int
+    subscriptions: int
+    attune_conversations: int
+    invitations: int
+
+
 class OrganisationRead(APIModel):
     id: str
     name: str

@@ -18,7 +18,7 @@ import { getProgress, STATUS_META } from "@/api/progress";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
-import { ConsultationCard, ComingSoonTiles } from "@/components/dashboard/DashboardExtras";
+import { DashboardSupportRow } from "@/components/dashboard/DashboardExtras";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { StatusBadge, StatusIcon } from "@/components/StatusBadge";
 import { ALL_CHILDREN, useActiveChild } from "@/lib/active-child";
@@ -235,8 +235,7 @@ export function SchoolDashboard() {
         unassigned={unassigned.length}
       />
 
-      <ComingSoonTiles />
-      <ConsultationCard />
+      <DashboardSupportRow />
     </>
   );
 }

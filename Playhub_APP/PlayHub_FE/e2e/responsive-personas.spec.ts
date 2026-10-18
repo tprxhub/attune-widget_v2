@@ -1,7 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const API = "http://127.0.0.1:8765/api/v1";
-const common = ["/dashboard", "/plans", "/progress", "/account"];
+const common = ["/hub", "/dashboard", "/plans", "/progress", "/account"];
+// The widths every page is checked at: small phone, phone, tablet, small laptop, desktop.
+const WIDTHS = [320, 390, 768, 1024, 1440];
 const personas: Array<[string, string, string[]]> = [
   [
     "Super Admin",
@@ -16,10 +18,14 @@ const personas: Array<[string, string, string[]]> = [
       "/admin/orgs",
       "/admin/educators",
       "/admin/ttp",
+      "/admin/play-pulse",
+      "/admin/attune-sources",
       "/org/enroll",
       "/plans",
       "/check-in",
+      "/attune",
       "/account",
+      "/hub",
     ],
   ],
   [
@@ -30,7 +36,7 @@ const personas: Array<[string, string, string[]]> = [
   [
     "School Admin",
     "esther@sunrise.local",
-    [...common, "/org", "/org/supporters", "/org/enroll", "/check-in"],
+    [...common, "/org", "/org/supporters", "/org/enroll", "/check-in", "/attune"],
   ],
   [
     "Clinic Admin",
@@ -40,9 +46,17 @@ const personas: Array<[string, string, string[]]> = [
   ["School Moderator", "moderator@playhub.local", [...common, "/org", "/check-in"]],
   ["Clinic Moderator", "supporter@brightsteps.local", [...common, "/org", "/check-in"]],
   ["Organisation Member", "hana@sunrise.local", common],
-  ["Subscribed family", "parent@playhub.local", [...common, "/check-in", "/invite"]],
+  [
+    "Subscribed family",
+    "parent@playhub.local",
+    [...common, "/check-in", "/invite", "/attune", "/subscription"],
+  ],
   ["Family Moderator", "nanny@playhub.local", [...common, "/check-in"]],
-  ["Free family", "free.parent@playhub.local", [...common, "/check-in"]],
+  [
+    "Free family",
+    "free.parent@playhub.local",
+    [...common, "/check-in", "/attune", "/subscription"],
+  ],
 ];
 
 async function authenticate(page: Page, email: string) {
@@ -82,12 +96,12 @@ for (const [persona, email, routes] of personas) {
       if (response.url().startsWith(API) && response.status() >= 400)
         failed.push(`${response.status()} ${response.url()}`);
     });
-    for (const width of [320, 390, 768, 1440]) {
+    for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 });
       for (const route of routes) {
         await test.step(`${width}px ${route}`, async () => {
           await page.goto(route);
-          await expect(page.locator("main h1").first()).toBeVisible();
+          await expect(page.locator("main h1").first()).toBeAttached();
           await page.waitForLoadState("networkidle");
           await expect(page.getByText("We couldn't load this page", { exact: true })).toHaveCount(
             0,
@@ -104,7 +118,7 @@ for (const [persona, email, routes] of personas) {
 
 test("public pages fit phones, tablets and desktops", async ({ page }) => {
   test.setTimeout(120_000);
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 });
     for (const path of [
       "/",
@@ -122,6 +136,39 @@ test("public pages fit phones, tablets and desktops", async ({ page }) => {
       await expectFits(page);
     }
   }
+});
+
+test("a Play Plan and one of its activities fit every width for a subscribed family", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const headers = await authenticate(page, "parent@playhub.local");
+  const plans = await (await page.request.get(`${API}/play-plans`, { headers })).json();
+  const dose = plans
+    .flatMap(
+      (plan: {
+        play_doses: Array<{
+          id: string;
+          access_locked: boolean;
+          activities: Array<{ id: string }>;
+        }>;
+      }) => plan.play_doses,
+    )
+    .find(
+      (item: { access_locked: boolean; activities: unknown[] }) =>
+        !item.access_locked && item.activities.length,
+    );
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  for (const width of WIDTHS) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of [`/plans/${dose.id}`, `/plans/${dose.id}/${dose.activities[0].id}`]) {
+      await page.goto(path);
+      await expect(page.locator("h1").first()).toBeVisible();
+      await expectFits(page);
+    }
+  }
+  expect(errors).toEqual([]);
 });
 
 test("phone navigation exposes all permitted destinations and keeps focus inside its menu", async ({

@@ -5,6 +5,8 @@ from app.main import app
 
 EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/billing/plans"),
+    ("GET", "/api/v1/organisations/{organisation_id}/deletion-preview"),
+    ("DELETE", "/api/v1/organisations/{organisation_id}"),
     ("PUT", "/api/v1/billing/plans"),
     ("GET", "/health"),
     ("GET", "/ready"),

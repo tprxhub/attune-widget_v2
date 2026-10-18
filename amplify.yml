@@ -10,6 +10,7 @@ applications:
         build:
           commands:
             - bun run build
+            - node scripts/amplify-cache-headers.mjs
       artifacts:
         baseDirectory: .amplify-hosting
         files:

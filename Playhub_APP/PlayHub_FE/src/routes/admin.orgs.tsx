@@ -11,17 +11,22 @@ import {
   Plus,
   Power,
   Receipt,
+  Trash2,
+  TriangleAlert,
+  X,
 } from "lucide-react";
 import {
   createOrg,
+  deleteOrg,
+  getOrgDeletionPreview,
   listOrgs,
   recordOrgRenewal,
   toggleOrgActive,
-  updateOrgBilling,
-  updateOrgDetails,
-  updateOrgLicenses,
+  updateOrg,
 } from "@/api/admin";
 import { Protected } from "@/auth/guards";
+import { useSession } from "@/auth/session";
+import { ModalPortal } from "@/components/ModalPortal";
 import { PageHeader } from "@/components/AppShell";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
@@ -110,6 +115,12 @@ function AdminOrgs() {
   };
   const [open, setOpen] = useState(false);
   const [view, setView] = useViewMode("admin-orgs");
+  const { session } = useSession();
+  // Deleting an organisation is permanent: only a Super Admin sees the option, and only once the
+  // organisation is suspended.
+  const canDelete = session.role === "super_admin";
+  const [deleting, setDeleting] = useState<Org | null>(null);
+  const [editing, setEditing] = useState<Org | null>(null);
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"School" | "Clinic">("School");
   const [licenses, setLicenses] = useState("25");
@@ -328,8 +339,14 @@ function AdminOrgs() {
               >
                 {org.active ? "Active" : "Suspended"}
               </span>
-              <OrgDetailsEditor org={org} compact />
-              <LicenseEditor org={org} compact />
+              <button
+                type="button"
+                onClick={() => setEditing(org)}
+                aria-label={`Edit ${org.name}`}
+                className="inline-flex shrink-0 items-center gap-1.5 px-2 text-xs font-bold text-blue hover:underline"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
+              </button>
               <ConfirmButton
                 confirmationTitle={`Suspend ${org.name}?`}
                 confirmationMessage="Staff and children will lose access until this organisation is reactivated."
@@ -342,6 +359,16 @@ function AdminOrgs() {
                 <Power className="h-3.5 w-3.5" aria-hidden />{" "}
                 {org.active ? "Suspend" : "Reactivate"}
               </ConfirmButton>
+              {canDelete && !org.active && (
+                <button
+                  type="button"
+                  onClick={() => setDeleting(org)}
+                  aria-label={`Delete ${org.name}`}
+                  className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border-2 border-coral/25 px-4 text-xs font-bold text-coral hover:border-coral"
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -366,7 +393,14 @@ function AdminOrgs() {
                   {org.active ? "Active" : "Suspended"}
                 </span>
               </div>
-              <OrgDetailsEditor org={org} />
+              <button
+                type="button"
+                onClick={() => setEditing(org)}
+                aria-label={`Edit ${org.name}`}
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-blue hover:underline"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
+              </button>
 
               <div className="mt-4 rounded-2xl bg-navy/4 p-3">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
@@ -383,7 +417,6 @@ function AdminOrgs() {
                   ? "Licensed by Moderator: each active or invited Moderator uses a licence. Children are unlimited."
                   : "Licensed by child: each active child uses a licence. Moderators are unlimited."}
               </p>
-              <LicenseEditor org={org} />
               <BillingPanel org={org} />
 
               <ConfirmButton
@@ -397,237 +430,342 @@ function AdminOrgs() {
               >
                 <Power className="h-4 w-4" aria-hidden /> {org.active ? "Suspend" : "Reactivate"}
               </ConfirmButton>
+              {canDelete && !org.active && (
+                <button
+                  type="button"
+                  onClick={() => setDeleting(org)}
+                  aria-label={`Delete ${org.name}`}
+                  className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-bold text-coral hover:bg-coral/8"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden /> Delete organisation
+                </button>
+              )}
             </article>
           ))}
         </div>
       )}
+      {deleting && <DeleteOrgDialog org={deleting} onClose={() => setDeleting(null)} />}
+      {editing && <EditOrgDialog org={editing} onClose={() => setEditing(null)} />}
     </>
   );
 }
 
-/** Rename an organisation or switch it between school and clinic. */
-function OrgDetailsEditor({ org, compact = false }: { org: Org; compact?: boolean }) {
+/** Super Admin: see everything that goes with an organisation, type its name, then delete it all. */
+function DeleteOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
   const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
+  const [typed, setTyped] = useState("");
+  const preview = useQuery({
+    queryKey: ["org-deletion-preview", org.id],
+    queryFn: () => getOrgDeletionPreview(org.id),
+  });
+  const remove = useMutation({
+    mutationFn: () => deleteOrg(org.id, typed.trim()),
+    onSuccess: () => {
+      // People, children, progress and counts all change; refresh everything the admin pages show.
+      void queryClient.invalidateQueries();
+      onClose();
+    },
+  });
+  const matches = typed.trim().toLowerCase() === org.name.trim().toLowerCase();
+  const counts = preview.data;
+  const rows: Array<[string, number]> = counts
+    ? [
+        ["Admins", counts.admins],
+        ["Moderators", counts.moderators],
+        ["Members", counts.members],
+        ["Children", counts.children],
+        ["Sessions logged", counts.sessions],
+        ["Subscriptions", counts.subscriptions],
+        ["Attune chats", counts.attune_conversations],
+        ["Invitations", counts.invitations],
+      ]
+    : [];
+
+  return (
+    <ModalPortal>
+      <div className="fixed inset-0 z-50 grid place-items-end bg-navy/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-label={`Delete ${org.name}`}
+          className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 shadow-xl sm:rounded-3xl"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-coral/12 text-coral">
+              <TriangleAlert className="h-5 w-5" aria-hidden />
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy/6 hover:bg-navy/12"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+          <h2 className="mt-3 text-lg font-bold">Delete {org.name}?</h2>
+          <p className="mt-1 text-sm text-navy/70">
+            This permanently deletes the organisation, everyone in it and every child&apos;s data.
+            It cannot be undone. Play Plans and the audit log are kept.
+          </p>
+          {preview.isLoading ? (
+            <p className="mt-4 flex items-center gap-2 text-sm text-navy/60">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Counting what will be
+              deleted…
+            </p>
+          ) : preview.isError ? (
+            <p role="alert" className="mt-4 text-sm font-semibold text-coral">
+              {preview.error instanceof Error
+                ? preview.error.message
+                : "Could not load the details."}
+            </p>
+          ) : (
+            <dl
+              aria-label="What will be deleted"
+              className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-coral/6 p-3 text-sm"
+            >
+              {rows.map(([label, value]) => (
+                <div key={label} className="flex items-baseline justify-between gap-2">
+                  <dt className="text-navy/65">{label}</dt>
+                  <dd className="font-bold">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          <label className="mt-4 block text-sm font-bold">
+            Type <span className="text-coral">{org.name}</span> to confirm
+            <input
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              autoComplete="off"
+              className="mt-1.5 min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-normal outline-none focus:border-coral focus:ring-2 focus:ring-coral/25"
+            />
+          </label>
+          {remove.isError && (
+            <p role="alert" className="mt-3 text-sm font-semibold text-coral">
+              {remove.error instanceof Error ? remove.error.message : "Could not delete."}
+            </p>
+          )}
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!matches || !counts || remove.isPending}
+              onClick={() => remove.mutate()}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-50"
+            >
+              {remove.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Trash2 className="h-4 w-4" aria-hidden />
+              )}
+              Delete everything
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
+  );
+}
+
+const fieldLabel = "mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase";
+const fieldInput =
+  "min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold outline-none focus:border-blue focus:ring-2 focus:ring-blue/25";
+
+/** Every detail of an organisation in one form: name, type, licences and billing. */
+function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
+  const queryClient = useQueryClient();
   const [name, setName] = useState(org.name);
   const [kind, setKind] = useState<"School" | "Clinic">(
     org.kind === "Clinic" ? "Clinic" : "School",
   );
+  const [licenseType, setLicenseType] = useState<LicenseType>(org.licenseType);
+  const [licenses, setLicenses] = useState(String(org.licenses));
+  const [cycle, setCycle] = useState(org.billingCycle);
+  const [price, setPrice] = useState(String(org.licensePrice || ""));
+  const [renewsOn, setRenewsOn] = useState(org.renewsOn ?? "");
   const [error, setError] = useState("");
   const save = useMutation({
-    mutationFn: () => updateOrgDetails(org.id, { name: name.trim(), kind }),
+    mutationFn: () =>
+      updateOrg(org.id, {
+        name: name.trim(),
+        kind,
+        licenses: Number(licenses),
+        licenseType,
+        billingCycle: cycle,
+        licensePrice: Number(price || 0),
+        renewsOn: renewsOn || null,
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orgs"] });
-      setEditing(false);
-      setError("");
+      void queryClient.invalidateQueries({ queryKey: ["orgs"] });
+      onClose();
     },
     onError: (failure: Error) => setError(failure.message),
   });
-  const invalid = name.trim().length < 2;
+  const count = Number(licenses);
+  const cost = Number(price || 0);
 
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setName(org.name);
-          setKind(org.kind === "Clinic" ? "Clinic" : "School");
-          setError("");
-          setEditing(true);
-        }}
-        aria-label={`Edit details for ${org.name}`}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full text-xs font-bold text-blue hover:underline",
-          compact ? "shrink-0 px-2" : "mt-2",
-        )}
-      >
-        <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit details
-      </button>
-    );
-  }
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!invalid) save.mutate();
-      }}
-      className={cn(
-        "grid gap-2 rounded-2xl border border-navy/10 bg-card p-3",
-        compact ? "w-full basis-full sm:grid-cols-[minmax(0,1fr)_9rem_auto]" : "mt-2",
-      )}
-    >
-      <label className="block min-w-0">
-        <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-          Organisation name
-        </span>
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          aria-label={`Name of ${org.name}`}
-          className="min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold"
-        />
-      </label>
-      <div className="min-w-0">
-        <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-          Type
-        </span>
-        <Select
-          aria-label={`Type of ${org.name}`}
-          value={kind}
-          onChange={(next) => setKind(next as "School" | "Clinic")}
-          options={[
-            { value: "School", label: "School" },
-            { value: "Clinic", label: "Clinic" },
-          ]}
-        />
-      </div>
-      <div className="flex items-end gap-2">
-        <button
-          type="submit"
-          disabled={invalid || save.isPending}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-blue px-4 text-xs font-bold text-white disabled:opacity-50"
+    <ModalPortal>
+      <div className="fixed inset-0 z-50 grid place-items-end bg-navy/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Edit ${org.name}`}
+          className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-card p-5 shadow-xl sm:rounded-3xl"
         >
-          {save.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-          Save
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setEditing(false);
-            setError("");
-          }}
-          className="min-h-11 rounded-full px-3 text-xs font-bold text-navy/65"
-        >
-          Cancel
-        </button>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold">Edit organisation</h2>
+              <p className="truncate text-xs text-navy/55">{org.name}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy/6 hover:bg-navy/12"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+          <form
+            className="mt-4 grid gap-4"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (name.trim().length < 2) return setError("Enter the organisation's name.");
+              if (!Number.isInteger(count) || count < 1)
+                return setError("Licences must be 1 or more.");
+              if (!Number.isFinite(cost) || cost < 0)
+                return setError("Enter a valid price per licence.");
+              setError("");
+              save.mutate();
+            }}
+          >
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
+              <label className="block min-w-0">
+                <span className={fieldLabel}>Organisation name</span>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={fieldInput}
+                />
+              </label>
+              <div className="min-w-0">
+                <span className={fieldLabel}>Type</span>
+                <Select
+                  aria-label="Organisation type"
+                  value={kind}
+                  onChange={(next) => setKind(next as "School" | "Clinic")}
+                  options={[
+                    { value: "School", label: "School" },
+                    { value: "Clinic", label: "Clinic" },
+                  ]}
+                />
+              </div>
+            </div>
+            <fieldset className="grid gap-3 rounded-2xl border border-navy/10 p-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
+              <legend className="px-1 text-xs font-bold">Licences</legend>
+              <div className="min-w-0">
+                <span className={fieldLabel}>Licence type</span>
+                <Select
+                  aria-label="Licence type"
+                  value={licenseType}
+                  onChange={(next) => setLicenseType(next as LicenseType)}
+                  options={LICENSE_OPTIONS}
+                />
+              </div>
+              <label className="block min-w-0">
+                <span className={fieldLabel}>Number of licences</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={licenses}
+                  onChange={(e) => setLicenses(e.target.value)}
+                  className={fieldInput}
+                />
+              </label>
+              {licenseType !== org.licenseType && (
+                <p className="text-xs text-navy/60 sm:col-span-2">
+                  {licenseType === "moderators"
+                    ? "Children will no longer use licences; each active or invited Moderator will."
+                    : "Moderators will no longer use licences; each active child will."}
+                </p>
+              )}
+            </fieldset>
+            <fieldset className="grid gap-3 rounded-2xl border border-navy/10 p-3 sm:grid-cols-2">
+              <legend className="px-1 text-xs font-bold">Billing</legend>
+              <div className="min-w-0">
+                <span className={fieldLabel}>Billing cycle</span>
+                <Select
+                  aria-label="Billing cycle"
+                  value={cycle}
+                  onChange={(next) => setCycle(next as "Monthly" | "Annual")}
+                  options={CYCLE_OPTIONS}
+                />
+              </div>
+              <label className="block min-w-0">
+                <span className={fieldLabel}>Price per licence (AED)</span>
+                <input
+                  inputMode="decimal"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  className={fieldInput}
+                />
+              </label>
+              <label className="block min-w-0 sm:col-span-2">
+                <span className={fieldLabel}>Next renewal</span>
+                <input
+                  type="date"
+                  value={renewsOn}
+                  onChange={(e) => setRenewsOn(e.target.value)}
+                  className={fieldInput}
+                />
+              </label>
+              {cost > 0 && count > 0 && (
+                <p className="text-xs text-navy/60 sm:col-span-2">
+                  {fmtMoney(cost * count)} per {cycle === "Monthly" ? "month" : "year"}
+                </p>
+              )}
+            </fieldset>
+            {error && (
+              <p role="alert" className="text-sm font-semibold text-coral">
+                {error}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={save.isPending}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                Save changes
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-      {error && (
-        <p role="alert" className="text-xs font-semibold text-coral sm:col-span-full">
-          {error}
-        </p>
-      )}
-    </form>
-  );
-}
-
-/** Change an organisation's licence type (children or Moderators) and count. */
-function LicenseEditor({ org, compact = false }: { org: Org; compact?: boolean }) {
-  const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(String(org.licenses));
-  const [type, setType] = useState<LicenseType>(org.licenseType);
-  const [error, setError] = useState("");
-  const save = useMutation({
-    mutationFn: () => updateOrgLicenses(org.id, Number(value), type),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orgs"] });
-      setEditing(false);
-      setError("");
-    },
-    onError: (failure: Error) => setError(failure.message),
-  });
-  const parsed = Number(value);
-  const invalid = !Number.isInteger(parsed) || parsed < 1;
-
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setValue(String(org.licenses));
-          setType(org.licenseType);
-          setError("");
-          setEditing(true);
-        }}
-        aria-label={`Change licences for ${org.name}`}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full text-xs font-bold text-blue hover:underline",
-          compact ? "shrink-0 px-2" : "mt-2",
-        )}
-      >
-        <Pencil className="h-3.5 w-3.5" aria-hidden /> Change licences
-      </button>
-    );
-  }
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (!invalid) save.mutate();
-      }}
-      className={cn(
-        "grid gap-2 rounded-2xl border border-navy/10 bg-card p-3",
-        compact ? "w-full basis-full sm:grid-cols-[minmax(0,1fr)_7rem_auto]" : "mt-2",
-      )}
-    >
-      <div className="min-w-0">
-        <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-          Licence type
-        </span>
-        <Select
-          aria-label={`Licence type for ${org.name}`}
-          value={type}
-          onChange={(next) => setType(next as LicenseType)}
-          options={LICENSE_OPTIONS}
-        />
-      </div>
-      <label className="block min-w-0">
-        <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-          {type === "moderators" ? "Moderator licences" : "Child licences"}
-        </span>
-        <input
-          id={`licenses-${org.id}`}
-          type="number"
-          min={1}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          aria-label={`Number of licences for ${org.name}`}
-          className="min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold"
-        />
-      </label>
-      <div className="flex items-end gap-2">
-        <button
-          type="submit"
-          disabled={invalid || save.isPending}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-blue px-4 text-xs font-bold text-white disabled:opacity-50"
-        >
-          {save.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-          Save
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setEditing(false);
-            setError("");
-          }}
-          className="min-h-11 rounded-full px-3 text-xs font-bold text-navy/65"
-        >
-          Cancel
-        </button>
-      </div>
-      {type !== org.licenseType && (
-        <p className="text-xs text-navy/60 sm:col-span-full">
-          {type === "moderators"
-            ? "Children will no longer use licences; each active or invited Moderator will."
-            : "Moderators will no longer use licences; each active child will."}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-xs font-semibold text-coral sm:col-span-full">
-          {error}
-        </p>
-      )}
-    </form>
+    </ModalPortal>
   );
 }
 
 /** What the organisation pays, when it renews, and the actions to record a renewal or change billing. */
 function BillingPanel({ org }: { org: Org }) {
   const queryClient = useQueryClient();
-  const [editing, setEditing] = useState(false);
-  const [cycle, setCycle] = useState(org.billingCycle);
-  const [price, setPrice] = useState(String(org.licensePrice || ""));
-  const [renewsOn, setRenewsOn] = useState(org.renewsOn ?? "");
   const [error, setError] = useState("");
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["orgs"] });
   const renew = useMutation({
@@ -635,23 +773,8 @@ function BillingPanel({ org }: { org: Org }) {
     onSuccess: refresh,
     onError: (failure: Error) => setError(failure.message),
   });
-  const save = useMutation({
-    mutationFn: () =>
-      updateOrgBilling(org.id, {
-        billingCycle: cycle,
-        licensePrice: Number(price || 0),
-        renewsOn: renewsOn || null,
-      }),
-    onSuccess: () => {
-      refresh();
-      setEditing(false);
-      setError("");
-    },
-    onError: (failure: Error) => setError(failure.message),
-  });
   const unit = org.billingCycle === "Monthly" ? "month" : "year";
   const noun = org.licenseType === "moderators" ? "Moderator" : "child";
-  const priceValid = Number.isFinite(Number(price || 0)) && Number(price || 0) >= 0;
 
   return (
     <div className="mt-3 rounded-2xl border border-navy/10 p-3">
@@ -684,106 +807,25 @@ function BillingPanel({ org }: { org: Org }) {
         <p className="mt-2 text-xs text-navy/60">No price per licence set yet.</p>
       )}
 
-      {editing ? (
-        <form
-          className="mt-3 grid gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (priceValid) save.mutate();
-          }}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <ConfirmButton
+          confirmationTitle={`Record a renewal for ${org.name}?`}
+          confirmationMessage={`Use this once ${org.name} has paid for another ${unit}${
+            org.licensePrice > 0 ? ` (${fmtMoney(org.amountPerCycle)})` : ""
+          }. The renewal date moves on by one ${unit}.`}
+          confirmLabel="Record renewal"
+          type="button"
+          onClick={() => renew.mutateAsync()}
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-navy px-4 text-xs font-bold text-cream disabled:opacity-60"
         >
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="min-w-0">
-              <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-                Cycle
-              </span>
-              <Select
-                aria-label={`Billing cycle for ${org.name}`}
-                value={cycle}
-                onChange={(next) => setCycle(next as "Monthly" | "Annual")}
-                options={CYCLE_OPTIONS}
-              />
-            </div>
-            <label className="block min-w-0">
-              <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-                AED per licence
-              </span>
-              <input
-                inputMode="decimal"
-                value={price}
-                onChange={(event) => setPrice(event.target.value)}
-                aria-label={`Price per licence for ${org.name}`}
-                className="min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold"
-              />
-            </label>
-          </div>
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-              Next renewal
-            </span>
-            <input
-              type="date"
-              value={renewsOn}
-              onChange={(event) => setRenewsOn(event.target.value)}
-              aria-label={`Next renewal for ${org.name}`}
-              className="min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold"
-            />
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={!priceValid || save.isPending}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-blue px-4 text-xs font-bold text-white disabled:opacity-50"
-            >
-              {save.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-              Save billing
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEditing(false);
-                setError("");
-              }}
-              className="min-h-10 rounded-full px-3 text-xs font-bold text-navy/65"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <ConfirmButton
-            confirmationTitle={`Record a renewal for ${org.name}?`}
-            confirmationMessage={`Use this once ${org.name} has paid for another ${unit}${
-              org.licensePrice > 0 ? ` (${fmtMoney(org.amountPerCycle)})` : ""
-            }. The renewal date moves on by one ${unit}.`}
-            confirmLabel="Record renewal"
-            type="button"
-            onClick={() => renew.mutateAsync()}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-navy px-4 text-xs font-bold text-cream disabled:opacity-60"
-          >
-            {renew.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : (
-              <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-            )}
-            Record renewal
-          </ConfirmButton>
-          <button
-            type="button"
-            onClick={() => {
-              setCycle(org.billingCycle);
-              setPrice(String(org.licensePrice || ""));
-              setRenewsOn(org.renewsOn ?? "");
-              setError("");
-              setEditing(true);
-            }}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold text-blue hover:underline"
-          >
-            <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit billing
-          </button>
-        </div>
-      )}
+          {renew.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+          ) : (
+            <CalendarClock className="h-3.5 w-3.5" aria-hidden />
+          )}
+          Record renewal
+        </ConfirmButton>
+      </div>
       {error && (
         <p role="alert" className="mt-2 text-xs font-semibold text-coral">
           {error}

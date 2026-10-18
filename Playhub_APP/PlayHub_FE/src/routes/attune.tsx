@@ -646,7 +646,7 @@ function AttunePage() {
                 }}
               />
             ) : (
-              <p className="truncate text-sm font-bold">{currentTitle}</p>
+              <h1 className="truncate text-sm font-bold">{currentTitle}</h1>
             )}
             <p className="flex items-center gap-1.5 truncate text-[11px] text-navy/55">
               <span

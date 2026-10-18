@@ -52,21 +52,25 @@ test("the Super Admin licenses an organisation by child or by Moderator", async 
   // Sunrise has active children, so child licences can't go below that count.
   const sunrise = page.locator("article").filter({ hasText: "Sunrise Montessori" });
   await expect(sunrise).toContainText(/\d+ \/ 40 child licences/);
-  await sunrise.getByRole("button", { name: /Change licences/ }).click();
-  await sunrise.getByLabel(/Number of licences/).fill("1");
-  await sunrise.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(sunrise.getByRole("alert")).toContainText(/children are active/);
+  await sunrise.getByRole("button", { name: "Edit Sunrise Montessori" }).click();
+  const sunriseEdit = page.getByRole("dialog", { name: "Edit Sunrise Montessori" });
+  await sunriseEdit.getByLabel("Number of licences").fill("1");
+  await sunriseEdit.getByRole("button", { name: "Save changes" }).click();
+  await expect(sunriseEdit.getByRole("alert")).toContainText(/children are active/);
+  await sunriseEdit.getByRole("button", { name: "Cancel" }).click();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/orgs-1440.png`, fullPage: true });
 
   // Switch the new clinic to child licences.
-  await card.getByRole("button", { name: /Change licences/ }).click();
-  await card.getByRole("button", { name: /Licence type for/ }).click();
+  await card.getByRole("button", { name: /^Edit / }).click();
+  const clinicEdit = page.getByRole("dialog", { name: /^Edit / });
+  await clinicEdit.getByRole("button", { name: "Licence type" }).click();
   await page.getByRole("option", { name: /Child licences/ }).click();
-  await expect(card).toContainText(
+  await expect(clinicEdit).toContainText(
     "Children will no longer use licences".replace("Children", "Moderators"),
   );
-  await card.getByLabel(/Number of licences/).fill("10");
-  await card.getByRole("button", { name: "Save", exact: true }).click();
+  await clinicEdit.getByLabel("Number of licences").fill("10");
+  await clinicEdit.getByRole("button", { name: "Save changes" }).click();
+  await expect(clinicEdit).toHaveCount(0);
   await expect(card).toContainText("0 / 10 child licences");
 });
 

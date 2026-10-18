@@ -895,9 +895,11 @@ test("Super Admin can raise an organisation's licenses but not below the childre
   await login(page, "admin@playhub.local");
   await page.goto("/admin/orgs");
   const card = page.locator("article").first();
-  await card.getByRole("button", { name: /Change licences for/ }).click();
-  await card.getByLabel(/Number of licences for/).fill("250");
-  await card.getByRole("button", { name: "Save" }).click();
+  await card.getByRole("button", { name: /^Edit / }).click();
+  const dialog = page.getByRole("dialog", { name: /^Edit / });
+  await dialog.getByLabel("Number of licences").fill("250");
+  await dialog.getByRole("button", { name: "Save changes" }).click();
+  await expect(dialog).toHaveCount(0);
   await expect(card).toContainText(/\/ 250 (child|Moderator) licences/);
 });
 
