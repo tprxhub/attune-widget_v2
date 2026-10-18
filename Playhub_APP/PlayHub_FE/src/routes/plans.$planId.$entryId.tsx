@@ -256,7 +256,7 @@ function PlayDosePage() {
                           TOKEN_SOFT[goal?.color ?? "navy"],
                         )}
                       >
-                        {goal?.short}
+                        {plan.title}
                       </span>
                       <span>{plan.kit}</span>
                     </div>
