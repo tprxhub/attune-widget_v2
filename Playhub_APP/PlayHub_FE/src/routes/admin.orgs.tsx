@@ -578,6 +578,57 @@ const fieldLabel = "mb-1 block text-[11px] font-bold tracking-wide text-navy/55 
 const fieldInput =
   "min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold outline-none focus:border-blue focus:ring-2 focus:ring-blue/25";
 
+/** The billing sum written out: licences × price per licence = amount per cycle (and per year). */
+function BillingBreakdown({
+  count,
+  noun,
+  price,
+  cycle,
+  renewsOn,
+}: {
+  count: number;
+  noun: string;
+  price: number;
+  cycle: "Monthly" | "Annual";
+  renewsOn: string;
+}) {
+  if (!(count > 0) || !(price > 0)) {
+    return (
+      <p className="text-xs text-navy/60 sm:col-span-2">
+        Enter the number of licences and a price per licence to see what the organisation pays.
+      </p>
+    );
+  }
+  const perCycle = Math.round(count * price * 100) / 100;
+  const unit = cycle === "Monthly" ? "month" : "year";
+  return (
+    <div
+      aria-label="Billing calculation"
+      className="grid gap-1 rounded-xl bg-navy/4 p-3 text-sm sm:col-span-2"
+    >
+      <p className="flex flex-wrap justify-between gap-x-3 text-navy/70">
+        <span>
+          {count} {noun} licence{count === 1 ? "" : "s"} × {fmtMoney(price)}
+        </span>
+        <span className="font-bold text-navy">
+          = {fmtMoney(perCycle)} per {unit}
+        </span>
+      </p>
+      {cycle === "Monthly" && (
+        <p className="flex flex-wrap justify-between gap-x-3 text-navy/70">
+          <span>{fmtMoney(perCycle)} × 12 months</span>
+          <span className="font-bold text-navy">= {fmtMoney(perCycle * 12)} per year</span>
+        </p>
+      )}
+      <p className="text-xs text-navy/55">
+        {renewsOn
+          ? `Next payment of ${fmtMoney(perCycle)} due on ${fmtDate(renewsOn)}.`
+          : `Charged every ${unit}; set the next renewal date to track the payment.`}
+      </p>
+    </div>
+  );
+}
+
 /** Every detail of an organisation in one form: name, type, licences and billing. */
 function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -728,11 +779,13 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
                   className={fieldInput}
                 />
               </label>
-              {cost > 0 && count > 0 && (
-                <p className="text-xs text-navy/60 sm:col-span-2">
-                  {fmtMoney(cost * count)} per {cycle === "Monthly" ? "month" : "year"}
-                </p>
-              )}
+              <BillingBreakdown
+                count={count}
+                noun={licenseType === "moderators" ? "Moderator" : "child"}
+                price={cost}
+                cycle={cycle}
+                renewsOn={renewsOn}
+              />
             </fieldset>
             {error && (
               <p role="alert" className="text-sm font-semibold text-coral">
