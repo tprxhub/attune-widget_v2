@@ -142,7 +142,8 @@ class Organisation(TimestampMixin, Base):
     license_type: Mapped[str] = mapped_column(String(16), default="children", server_default="children", nullable=False)
     # "monthly" or "annual": how often the organisation is invoiced for its licences.
     billing_cycle: Mapped[Optional[str]] = mapped_column(String(32))
-    # Price of one licence for one billing cycle, in fils (1 AED = 100 fils). 0 = not set.
+    # Price of one licence for one month, in fils (1 AED = 100 fils), whatever the billing cycle;
+    # annual billing charges 12 months at once. 0 = not set.
     license_price: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     billing_started_on: Mapped[Optional[date]] = mapped_column(Date)
     # When the current paid period ends; recording a renewal moves it on by one cycle.
@@ -154,13 +155,13 @@ class Organisation(TimestampMixin, Base):
 
     @property
     def amount_per_cycle(self) -> int:
-        """What one billing cycle costs, in fils: licences × price per licence."""
-        return (self.seat_limit or 0) * (self.license_price or 0)
+        """What one billing cycle costs, in fils: licences × monthly price, × 12 when billed annually."""
+        return (self.seat_limit or 0) * (self.license_price or 0) * (12 if self.billing_cycle == "annual" else 1)
 
     @property
     def annual_value(self) -> int:
-        """The licence value over a year, in fils."""
-        return self.amount_per_cycle * (12 if self.billing_cycle == "monthly" else 1)
+        """The licence value over a year, in fils: licences × monthly price × 12."""
+        return (self.seat_limit or 0) * (self.license_price or 0) * 12
 
     @property
     def renewal_status(self) -> str:

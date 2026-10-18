@@ -266,7 +266,7 @@ function AdminOrgs() {
           </div>
           <div>
             <label htmlFor="org-price" className="text-sm font-bold">
-              Price per licence (AED)
+              Price per licence per month (AED)
             </label>
             <input
               id="org-price"
@@ -279,7 +279,9 @@ function AdminOrgs() {
           </div>
           <p className="self-center text-xs text-navy/60 sm:col-span-2 lg:col-span-1">
             {Number(price) > 0 && Number(licenses) > 0
-              ? `${fmtMoney(Number(price) * Number(licenses))} per ${billingCycle === "Monthly" ? "month" : "year"} · first renewal one ${billingCycle === "Monthly" ? "month" : "year"} from today`
+              ? billingCycle === "Monthly"
+                ? `${fmtMoney(Number(price) * Number(licenses))} per month · first renewal one month from today`
+                : `${fmtMoney(Number(price) * Number(licenses) * 12)} per year (12 months) · first renewal one year from today`
               : "Billing starts today; the first renewal is one cycle later."}
           </p>
           <button
@@ -578,7 +580,16 @@ const fieldLabel = "mb-1 block text-[11px] font-bold tracking-wide text-navy/55 
 const fieldInput =
   "min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold outline-none focus:border-blue focus:ring-2 focus:ring-blue/25";
 
-/** The billing sum written out: licences × price per licence = amount per cycle (and per year). */
+/** Today plus one billing cycle, as yyyy-mm-dd (the date input's format). */
+function oneCycleFromToday(cycle: "Monthly" | "Annual") {
+  const date = new Date();
+  if (cycle === "Monthly") date.setMonth(date.getMonth() + 1);
+  else date.setFullYear(date.getFullYear() + 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** The billing sum written out: licences × monthly price per licence, × 12 for a year. */
 function BillingBreakdown({
   count,
   noun,
@@ -595,35 +606,38 @@ function BillingBreakdown({
   if (!(count > 0) || !(price > 0)) {
     return (
       <p className="text-xs text-navy/60 sm:col-span-2">
-        Enter the number of licences and a price per licence to see what the organisation pays.
+        Enter the number of licences and the monthly price per licence to see what the organisation
+        pays.
       </p>
     );
   }
-  const perCycle = Math.round(count * price * 100) / 100;
-  const unit = cycle === "Monthly" ? "month" : "year";
+  const perMonth = Math.round(count * price * 100) / 100;
+  const perYear = Math.round(perMonth * 12 * 100) / 100;
+  const charge = cycle === "Monthly" ? perMonth : perYear;
+  const line = "flex flex-wrap justify-between gap-x-3 text-navy/70";
   return (
     <div
       aria-label="Billing calculation"
       className="grid gap-1 rounded-xl bg-navy/4 p-3 text-sm sm:col-span-2"
     >
-      <p className="flex flex-wrap justify-between gap-x-3 text-navy/70">
+      <p className={line}>
         <span>
-          {count} {noun} licence{count === 1 ? "" : "s"} × {fmtMoney(price)}
+          {count} {noun} licence{count === 1 ? "" : "s"} × {fmtMoney(price)} a month
         </span>
-        <span className="font-bold text-navy">
-          = {fmtMoney(perCycle)} per {unit}
+        <span className={cycle === "Monthly" ? "font-bold text-navy" : ""}>
+          = {fmtMoney(perMonth)} per month
         </span>
       </p>
-      {cycle === "Monthly" && (
-        <p className="flex flex-wrap justify-between gap-x-3 text-navy/70">
-          <span>{fmtMoney(perCycle)} × 12 months</span>
-          <span className="font-bold text-navy">= {fmtMoney(perCycle * 12)} per year</span>
-        </p>
-      )}
+      <p className={line}>
+        <span>{fmtMoney(perMonth)} × 12 months</span>
+        <span className={cycle === "Annual" ? "font-bold text-navy" : ""}>
+          = {fmtMoney(perYear)} per year
+        </span>
+      </p>
       <p className="text-xs text-navy/55">
-        {renewsOn
-          ? `Next payment of ${fmtMoney(perCycle)} due on ${fmtDate(renewsOn)}.`
-          : `Charged every ${unit}; set the next renewal date to track the payment.`}
+        {cycle === "Monthly" ? "Billed monthly" : "Billed annually"}: {fmtMoney(charge)} each{" "}
+        {cycle === "Monthly" ? "month" : "year"}
+        {renewsOn ? `, next payment due on ${fmtDate(renewsOn)}.` : "."}
       </p>
     </div>
   );
@@ -757,12 +771,17 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
                 <Select
                   aria-label="Billing cycle"
                   value={cycle}
-                  onChange={(next) => setCycle(next as "Monthly" | "Annual")}
+                  onChange={(next) => {
+                    const nextCycle = next as "Monthly" | "Annual";
+                    setCycle(nextCycle);
+                    // A new cycle starts today: the next renewal is one month or one year away.
+                    setRenewsOn(oneCycleFromToday(nextCycle));
+                  }}
                   options={CYCLE_OPTIONS}
                 />
               </div>
               <label className="block min-w-0">
-                <span className={fieldLabel}>Price per licence (AED)</span>
+                <span className={fieldLabel}>Price per licence per month (AED)</span>
                 <input
                   inputMode="decimal"
                   value={price}
@@ -852,8 +871,10 @@ function BillingPanel({ org }: { org: Org }) {
           </p>
           <p className="text-xs text-navy/60">
             {org.licenses} {noun} licence{org.licenses === 1 ? "" : "s"} ×{" "}
-            {fmtMoney(org.licensePrice)}
-            {org.billingCycle === "Monthly" ? ` · ${fmtMoney(org.annualValue)} a year` : ""}
+            {fmtMoney(org.licensePrice)} a month
+            {org.billingCycle === "Monthly"
+              ? ` · ${fmtMoney(org.annualValue)} a year`
+              : " × 12 months"}
           </p>
         </>
       ) : (

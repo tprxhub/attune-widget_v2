@@ -64,3 +64,12 @@ def test_only_organisation_managers_can_record_renewals(client, platform_admin):
     family = register_family(client, "billing-family@example.com")
     assert client.post(f"/api/v1/organisations/{org['id']}/renewal", headers=family).status_code == 403
     assert client.post(f"/api/v1/organisations/{org['id']}/renewal").status_code == 401
+
+
+def test_the_price_is_per_licence_per_month_and_annual_billing_charges_twelve_months(client, platform_admin):
+    org = make(client, platform_admin, seat_limit=10, license_price=1875, billing_cycle="annual")
+    assert org["amount_per_cycle"] == 10 * 1875 * 12   # AED 2,250 once a year
+    assert org["annual_value"] == 10 * 1875 * 12
+    monthly = client.patch(f"/api/v1/organisations/{org['id']}", headers=platform_admin, json={"billing_cycle": "monthly"}).json()
+    assert monthly["amount_per_cycle"] == 10 * 1875      # AED 187.50 a month
+    assert monthly["annual_value"] == 10 * 1875 * 12

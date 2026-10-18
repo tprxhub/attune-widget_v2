@@ -46,8 +46,9 @@ def organisation(db, *, name: str, kind: str, licenses: int, cycle: str) -> Orga
     item.billing_cycle = cycle
     item.is_active = True
     # Demo prices and dates, set once so recorded renewals survive a re-seed.
-    if not item.license_price:
-        item.license_price = 900 if cycle == "monthly" else 9900  # AED 9 a month, AED 99 a year
+    # Prices are per licence per month (AED 9). Older demo data stored AED 99 as a yearly price.
+    if not item.license_price or item.license_price == 9900:
+        item.license_price = 900
     if not item.billing_started_on:
         item.billing_started_on = date.today().replace(day=1)
         item.renews_on = add_cycle(item.billing_started_on, cycle)

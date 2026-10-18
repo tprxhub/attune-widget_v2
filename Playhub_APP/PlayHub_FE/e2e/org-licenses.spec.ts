@@ -33,7 +33,7 @@ test("the Super Admin licenses an organisation by child or by Moderator", async 
   await page.getByLabel("Moderator licences").fill("3");
   await page.getByRole("button", { name: "Billing cycle", exact: true }).click();
   await page.getByRole("option", { name: /^Monthly/ }).click();
-  await page.getByLabel("Price per licence (AED)").fill("9");
+  await page.getByLabel("Price per licence per month (AED)").fill("9");
   await expect(page.getByText(/AED 27 per month/)).toBeVisible();
   await page.getByRole("button", { name: "Create", exact: true }).click();
 
@@ -42,7 +42,7 @@ test("the Super Admin licenses an organisation by child or by Moderator", async 
   await expect(card).toContainText("Children are unlimited");
   await expect(card).toContainText("Monthly billing");
   await expect(card).toContainText("AED 27");
-  await expect(card).toContainText("3 Moderator licences × AED 9 · AED 324 a year");
+  await expect(card).toContainText("3 Moderator licences × AED 9 a month · AED 324 a year");
   const renewal = card.getByText(/^Renews /);
   const before = await renewal.textContent();
   await card.getByRole("button", { name: /Record renewal/ }).click();
