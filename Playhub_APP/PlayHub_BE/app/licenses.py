@@ -17,7 +17,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Child, Invitation, InvitationStatus, Organisation, Role, User
+from app.models import Child, Invitation, InvitationStatus, Organisation, Role, User, cycle_months
 
 LicenseType = Literal["children", "moderators"]
 
@@ -121,7 +121,7 @@ def with_usage(db: Session, orgs: Iterable[Organisation]) -> list[Organisation]:
 
 def add_cycle(start: date, cycle: str | None, cycles: int = 1) -> date:
     """`start` moved on by whole billing cycles; 31 January plus a month is the last day of February."""
-    months = (12 if cycle != "monthly" else 1) * cycles
+    months = cycle_months(cycle) * cycles
     year, month = divmod(start.month - 1 + months, 12)
     year, month = start.year + year, month + 1
     return date(year, month, min(start.day, monthrange(year, month)[1]))

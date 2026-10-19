@@ -129,6 +129,15 @@ class TimestampMixin:
     )
 
 
+def cycle_months(cycle: str | None) -> int:
+    """Months in one billing cycle: "monthly" 1, "annual" (the default) 12, "10_months" 10."""
+    if cycle == "monthly":
+        return 1
+    if cycle and cycle.endswith("_months") and cycle.split("_", 1)[0].isdigit():
+        return max(1, int(cycle.split("_", 1)[0]))
+    return 12
+
+
 class Organisation(TimestampMixin, Base):
     __tablename__ = "organisations"
 
@@ -140,7 +149,7 @@ class Organisation(TimestampMixin, Base):
     # "children": each active child uses a licence. "moderators": each active Moderator (and each
     # Moderator invitation still waiting to be accepted) uses one. One type at a time.
     license_type: Mapped[str] = mapped_column(String(16), default="children", server_default="children", nullable=False)
-    # "monthly" or "annual": how often the organisation is invoiced for its licences.
+    # How often the organisation is invoiced: "monthly", "annual", or a custom period such as "10_months".
     billing_cycle: Mapped[Optional[str]] = mapped_column(String(32))
     # Price of one licence for one month, in fils (1 AED = 100 fils), whatever the billing cycle;
     # annual billing charges 12 months at once. 0 = not set.
@@ -155,8 +164,8 @@ class Organisation(TimestampMixin, Base):
 
     @property
     def amount_per_cycle(self) -> int:
-        """What one billing cycle costs, in fils: licences × monthly price, × 12 when billed annually."""
-        return (self.seat_limit or 0) * (self.license_price or 0) * (12 if self.billing_cycle == "annual" else 1)
+        """What one billing cycle costs, in fils: licences × monthly price × months in the cycle."""
+        return (self.seat_limit or 0) * (self.license_price or 0) * cycle_months(self.billing_cycle)
 
     @property
     def annual_value(self) -> int:

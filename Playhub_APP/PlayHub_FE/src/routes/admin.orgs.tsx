@@ -35,6 +35,7 @@ import { useOrgScope } from "@/lib/org-scope";
 import type { LicenseType, Org } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
 import { fmtMoney } from "@/lib/money";
+import { cycleLabel, cycleUnit, monthsFromToday, monthsUntil } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 
 const CYCLE_OPTIONS = [
@@ -580,27 +581,18 @@ const fieldLabel = "mb-1 block text-[11px] font-bold tracking-wide text-navy/55 
 const fieldInput =
   "min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-semibold outline-none focus:border-blue focus:ring-2 focus:ring-blue/25";
 
-/** Today plus one billing cycle, as yyyy-mm-dd (the date input's format). */
-function oneCycleFromToday(cycle: "Monthly" | "Annual") {
-  const date = new Date();
-  if (cycle === "Monthly") date.setMonth(date.getMonth() + 1);
-  else date.setFullYear(date.getFullYear() + 1);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-/** The billing sum written out: licences × monthly price per licence, × 12 for a year. */
+/** The billing sum written out: licences × monthly price per licence × months in the cycle. */
 function BillingBreakdown({
   count,
   noun,
   price,
-  cycle,
+  months,
   renewsOn,
 }: {
   count: number;
   noun: string;
   price: number;
-  cycle: "Monthly" | "Annual";
+  months: number;
   renewsOn: string;
 }) {
   if (!(count > 0) || !(price > 0)) {
@@ -612,8 +604,8 @@ function BillingBreakdown({
     );
   }
   const perMonth = Math.round(count * price * 100) / 100;
+  const perCycle = Math.round(perMonth * months * 100) / 100;
   const perYear = Math.round(perMonth * 12 * 100) / 100;
-  const charge = cycle === "Monthly" ? perMonth : perYear;
   const line = "flex flex-wrap justify-between gap-x-3 text-navy/70";
   return (
     <div
@@ -624,19 +616,28 @@ function BillingBreakdown({
         <span>
           {count} {noun} licence{count === 1 ? "" : "s"} × {fmtMoney(price)} a month
         </span>
-        <span className={cycle === "Monthly" ? "font-bold text-navy" : ""}>
+        <span className={months === 1 ? "font-bold text-navy" : ""}>
           = {fmtMoney(perMonth)} per month
         </span>
       </p>
-      <p className={line}>
-        <span>{fmtMoney(perMonth)} × 12 months</span>
-        <span className={cycle === "Annual" ? "font-bold text-navy" : ""}>
-          = {fmtMoney(perYear)} per year
-        </span>
-      </p>
+      {months !== 1 && (
+        <p className={line}>
+          <span>
+            {fmtMoney(perMonth)} × {months} months
+          </span>
+          <span className="font-bold text-navy">
+            = {fmtMoney(perCycle)} per {cycleUnit(months)}
+          </span>
+        </p>
+      )}
+      {months !== 12 && (
+        <p className={line}>
+          <span>{fmtMoney(perMonth)} × 12 months</span>
+          <span>= {fmtMoney(perYear)} per year</span>
+        </p>
+      )}
       <p className="text-xs text-navy/55">
-        {cycle === "Monthly" ? "Billed monthly" : "Billed annually"}: {fmtMoney(charge)} each{" "}
-        {cycle === "Monthly" ? "month" : "year"}
+        Billed every {cycleUnit(months)}: {fmtMoney(perCycle)}
         {renewsOn ? `, next payment due on ${fmtDate(renewsOn)}.` : "."}
       </p>
     </div>
@@ -652,7 +653,7 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
   );
   const [licenseType, setLicenseType] = useState<LicenseType>(org.licenseType);
   const [licenses, setLicenses] = useState(String(org.licenses));
-  const [cycle, setCycle] = useState(org.billingCycle);
+  const [months, setMonths] = useState(org.billingMonths);
   const [price, setPrice] = useState(String(org.licensePrice || ""));
   const [renewsOn, setRenewsOn] = useState(org.renewsOn ?? "");
   const [error, setError] = useState("");
@@ -663,7 +664,7 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
         kind,
         licenses: Number(licenses),
         licenseType,
-        billingCycle: cycle,
+        billingMonths: months,
         licensePrice: Number(price || 0),
         renewsOn: renewsOn || null,
       }),
@@ -770,14 +771,20 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
                 <span className={fieldLabel}>Billing cycle</span>
                 <Select
                   aria-label="Billing cycle"
-                  value={cycle}
+                  value={String(months)}
                   onChange={(next) => {
-                    const nextCycle = next as "Monthly" | "Annual";
-                    setCycle(nextCycle);
-                    // A new cycle starts today: the next renewal is one month or one year away.
-                    setRenewsOn(oneCycleFromToday(nextCycle));
+                    // A new cycle starts today: the next renewal is one cycle away.
+                    setMonths(Number(next));
+                    setRenewsOn(monthsFromToday(Number(next)));
                   }}
-                  options={CYCLE_OPTIONS}
+                  options={[
+                    { value: "1", label: "Monthly" },
+                    { value: "12", label: "Annual" },
+                    // A renewal date set by hand gives a custom period, e.g. 10 months.
+                    ...(months !== 1 && months !== 12
+                      ? [{ value: String(months), label: cycleLabel(months) }]
+                      : []),
+                  ]}
                 />
               </div>
               <label className="block min-w-0">
@@ -794,7 +801,12 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
                 <input
                   type="date"
                   value={renewsOn}
-                  onChange={(e) => setRenewsOn(e.target.value)}
+                  onChange={(e) => {
+                    setRenewsOn(e.target.value);
+                    // The cycle follows the date: 10 months away bills every 10 months.
+                    const until = monthsUntil(e.target.value);
+                    if (until !== null && until <= 60) setMonths(until);
+                  }}
                   className={fieldInput}
                 />
               </label>
@@ -802,7 +814,7 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
                 count={count}
                 noun={licenseType === "moderators" ? "Moderator" : "child"}
                 price={cost}
-                cycle={cycle}
+                months={months}
                 renewsOn={renewsOn}
               />
             </fieldset>
@@ -845,14 +857,20 @@ function BillingPanel({ org }: { org: Org }) {
     onSuccess: refresh,
     onError: (failure: Error) => setError(failure.message),
   });
-  const unit = org.billingCycle === "Monthly" ? "month" : "year";
+  const unit = cycleUnit(org.billingMonths);
   const noun = org.licenseType === "moderators" ? "Moderator" : "child";
 
   return (
     <div className="mt-3 rounded-2xl border border-navy/10 p-3">
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-          <Receipt className="h-3.5 w-3.5" aria-hidden /> {org.billingCycle} billing
+          <Receipt className="h-3.5 w-3.5" aria-hidden />{" "}
+          {org.billingMonths === 1
+            ? "Monthly"
+            : org.billingMonths === 12
+              ? "Annual"
+              : `${org.billingMonths}-month`}{" "}
+          billing
         </p>
         <span
           className={cn(
@@ -872,9 +890,9 @@ function BillingPanel({ org }: { org: Org }) {
           <p className="text-xs text-navy/60">
             {org.licenses} {noun} licence{org.licenses === 1 ? "" : "s"} ×{" "}
             {fmtMoney(org.licensePrice)} a month
-            {org.billingCycle === "Monthly"
+            {org.billingMonths === 1
               ? ` · ${fmtMoney(org.annualValue)} a year`
-              : " × 12 months"}
+              : ` × ${org.billingMonths} months`}
           </p>
         </>
       ) : (

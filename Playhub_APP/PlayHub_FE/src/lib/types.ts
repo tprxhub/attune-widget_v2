@@ -202,8 +202,11 @@ export interface Org {
   password: string;
   active: boolean;
   createdAt: string;
-  billingCycle: "Monthly" | "Annual";
-  /** AED per licence per billing cycle; 0 when no price is set. */
+  /** "Custom" is a period other than 1 or 12 months; billingMonths holds its length. */
+  billingCycle: "Monthly" | "Annual" | "Custom";
+  /** Months in one billing cycle: 1, 12, or a custom period such as 10. */
+  billingMonths: number;
+  /** AED per licence per month (whatever the cycle); 0 when no price is set. */
   licensePrice: number;
   billingStartedOn: string | null;
   renewsOn: string | null;

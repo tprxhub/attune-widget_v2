@@ -235,13 +235,17 @@ class PersonaRead(APIModel):
     organisation_id: str | None
 
 
+# "monthly", "annual", or a custom period of 1-60 months written as "10_months".
+BILLING_CYCLE_PATTERN = r"^(monthly|annual|([1-9]|[1-5][0-9]|60)_months)$"
+
+
 class OrganisationCreate(APIModel):
     name: str = Field(min_length=2, max_length=160)
     kind: str = Field(default="school", min_length=2, max_length=40)
     seat_limit: int = Field(default=0, ge=0)
     license_type: Literal["children", "moderators"] = "children"
-    billing_cycle: Literal["monthly", "annual"] = "annual"
-    # Price of one licence per billing cycle, in fils (AED 1 = 100 fils).
+    billing_cycle: str = Field(default="annual", pattern=BILLING_CYCLE_PATTERN)
+    # Price of one licence per month, in fils (AED 1 = 100 fils), whatever the billing cycle.
     license_price: int = Field(default=0, ge=0, le=10_000_000)
     billing_started_on: date | None = None
     renews_on: date | None = None
@@ -252,7 +256,7 @@ class OrganisationUpdate(APIModel):
     kind: str | None = Field(default=None, min_length=2, max_length=40)
     seat_limit: int | None = Field(default=None, ge=0)
     license_type: Literal["children", "moderators"] | None = None
-    billing_cycle: Literal["monthly", "annual"] | None = None
+    billing_cycle: str | None = Field(default=None, pattern=BILLING_CYCLE_PATTERN)
     license_price: int | None = Field(default=None, ge=0, le=10_000_000)
     billing_started_on: date | None = None
     renews_on: date | None = None

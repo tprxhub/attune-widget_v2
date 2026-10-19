@@ -1,3 +1,4 @@
+import { cycleMonthsFromApi } from "@/lib/billing";
 import type {
   Attempt,
   PermissionKey,
@@ -214,7 +215,13 @@ export function mapOrganisation(org: ApiOrganisation): Org {
     password: "Managed by invitation",
     active: org.is_active,
     createdAt: org.created_at.slice(0, 10),
-    billingCycle: org.billing_cycle?.toLowerCase() === "monthly" ? "Monthly" : "Annual",
+    billingMonths: cycleMonthsFromApi(org.billing_cycle),
+    billingCycle:
+      cycleMonthsFromApi(org.billing_cycle) === 1
+        ? "Monthly"
+        : cycleMonthsFromApi(org.billing_cycle) === 12
+          ? "Annual"
+          : "Custom",
     licensePrice: (org.license_price ?? 0) / 100,
     billingStartedOn: org.billing_started_on ?? null,
     renewsOn: org.renews_on ?? null,

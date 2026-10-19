@@ -73,3 +73,17 @@ def test_the_price_is_per_licence_per_month_and_annual_billing_charges_twelve_mo
     monthly = client.patch(f"/api/v1/organisations/{org['id']}", headers=platform_admin, json={"billing_cycle": "monthly"}).json()
     assert monthly["amount_per_cycle"] == 10 * 1875      # AED 187.50 a month
     assert monthly["annual_value"] == 10 * 1875 * 12
+
+
+def test_a_custom_cycle_of_ten_months_charges_ten_months_and_renews_ten_months_later(client, platform_admin):
+    org = make(client, platform_admin, seat_limit=10, license_price=1875, billing_cycle="10_months",
+               billing_started_on="2026-01-15")
+    assert org["billing_cycle"] == "10_months"
+    assert org["amount_per_cycle"] == 10 * 1875 * 10      # AED 1,875 every 10 months
+    assert org["annual_value"] == 10 * 1875 * 12
+    assert org["renews_on"] == "2026-11-15"
+    renewed = client.post(f"/api/v1/organisations/{org['id']}/renewal", headers=platform_admin).json()
+    assert renewed["renews_on"] == "2027-09-15"
+    for bad in ("0_months", "61_months", "weekly"):
+        response = client.patch(f"/api/v1/organisations/{org['id']}", headers=platform_admin, json={"billing_cycle": bad})
+        assert response.status_code == 422, bad

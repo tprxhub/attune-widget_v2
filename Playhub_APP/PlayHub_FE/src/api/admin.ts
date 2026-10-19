@@ -1,3 +1,4 @@
+import { cycleToApi } from "@/lib/billing";
 import type { LicenseType, Org, PermissionKey, StaffMember } from "@/lib/types";
 import {
   apiRequest,
@@ -111,7 +112,8 @@ export async function updateOrg(
     kind: "School" | "Clinic";
     licenses: number;
     licenseType: LicenseType;
-    billingCycle: "Monthly" | "Annual";
+    /** Months in one billing cycle: 1 (monthly), 12 (annual) or a custom period. */
+    billingMonths: number;
     licensePrice: number;
     renewsOn: string | null;
   },
@@ -123,7 +125,7 @@ export async function updateOrg(
       kind: input.kind.toLowerCase(),
       seat_limit: input.licenses,
       license_type: input.licenseType,
-      billing_cycle: input.billingCycle.toLowerCase(),
+      billing_cycle: cycleToApi(input.billingMonths),
       license_price: Math.round(input.licensePrice * 100),
       ...(input.renewsOn ? { renews_on: input.renewsOn } : {}),
     }),
