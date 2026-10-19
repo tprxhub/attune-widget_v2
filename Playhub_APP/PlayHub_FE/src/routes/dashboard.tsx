@@ -1,14 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  Bot,
-  CalendarCheck,
-  MessagesSquare,
-  PlayCircle,
-  Sparkles,
-  Stethoscope,
-} from "lucide-react";
+import { ArrowRight, CalendarCheck, PlayCircle, Crown } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { goalById, planById } from "@/api/domain";
 import { entryStates, listPlans, nextEntry } from "@/api/plans";
@@ -254,7 +246,7 @@ function ChildDashboard() {
             search={{ checkout: undefined }}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white"
           >
-            <Sparkles className="h-4 w-4" aria-hidden /> See plans
+            <Crown className="h-4 w-4" aria-hidden /> See plans
           </Link>
         </section>
       )}

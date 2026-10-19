@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Lock, Sparkles } from "lucide-react";
+import { Lock, Crown } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCapabilities } from "@/auth/session";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export function LockedOverlay({
               to={ctaTo}
               className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5 active:translate-y-0"
             >
-              <Sparkles className="h-4 w-4" aria-hidden />
+              <Crown className="h-4 w-4" aria-hidden />
               {ctaLabel}
             </Link>
           )}

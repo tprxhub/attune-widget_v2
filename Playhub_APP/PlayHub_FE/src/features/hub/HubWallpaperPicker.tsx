@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ImagePlus } from "lucide-react";
 import { HubPopover } from "./HubPopover";
+import { shrinkImage } from "./shrinkImage";
 
 export function HubWallpaperPicker({
   open,
@@ -26,25 +27,12 @@ export function HubWallpaperPicker({
 
   async function upload(file: File | undefined) {
     if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 15_000_000) {
-      setError("Choose a PNG, JPEG, or WebP image under 15 MB.");
-      return;
-    }
     try {
-      const bitmap = await createImageBitmap(file);
-      const scale = Math.min(1, 1920 / bitmap.width, 1440 / bitmap.height);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Image processing is unavailable.");
-      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      bitmap.close();
+      onCustom(await shrinkImage(file, 1920, 1440));
       setError("");
-      onCustom(canvas.toDataURL("image/jpeg", 0.78));
       onClose();
-    } catch {
-      setError("This image could not be opened. Try another file.");
+    } catch (problem) {
+      setError((problem as Error).message);
     }
   }
 

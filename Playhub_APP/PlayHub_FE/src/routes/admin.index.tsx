@@ -8,7 +8,6 @@ import {
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
-  BadgeCheck,
   Building2,
   CheckCircle2,
   ClipboardList,
@@ -20,6 +19,7 @@ import {
   Users,
   type LucideIcon,
   Sparkles,
+  KeyRound,
 } from "lucide-react";
 import { getAdminOverview, type AdminOverview, type OverviewArea } from "@/api/admin";
 import { STATUS_META } from "@/api/progress";
@@ -426,7 +426,7 @@ function YourAccess({ access }: { access: AdminOverview["access"] }) {
     <section className="ph-card mb-5 p-4" aria-label="Your access">
       <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 inline-flex items-center gap-1.5 text-xs font-bold text-navy/60">
-          <BadgeCheck className="h-4 w-4 text-blue" aria-hidden /> Your access
+          <KeyRound className="h-4 w-4 text-blue" aria-hidden /> Your access
         </span>
         {AREAS.map((area) =>
           access[area.key] ? (
@@ -456,7 +456,7 @@ function NoAccessYet() {
   return (
     <section className="ph-card p-6 sm:p-8">
       <span className="grid h-12 w-12 place-items-center rounded-2xl bg-navy/8 text-navy">
-        <ShieldCheck className="h-5 w-5" aria-hidden />
+        <Lock className="h-5 w-5" aria-hidden />
       </span>
       <h2 className="mt-4 text-xl font-bold">
         Your account is ready. No areas are switched on yet.

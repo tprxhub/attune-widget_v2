@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EditStaffDialog } from "@/components/EditStaffDialog";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,11 +12,11 @@ import {
   Mail,
   Pencil,
   Power,
-  ShieldCheck,
   Trash2,
   UserPlus,
-  Users,
   X,
+  Info,
+  CircleCheck,
 } from "lucide-react";
 import {
   createSupporter,
@@ -75,6 +76,7 @@ function OrgSupporters() {
     null,
   );
   const [editingInvitation, setEditingInvitation] = useState<StaffMember | null>(null);
+  const [editingModerator, setEditingModerator] = useState<StaffMember | null>(null);
   const [view, setView] = useViewMode("supporters");
 
   const supporters = useQuery({
@@ -319,6 +321,7 @@ function OrgSupporters() {
                     setOpen(true);
                   }}
                   onDeleteInvitation={() => setDeletingInvitation(s)}
+                  onEdit={() => setEditingModerator(s)}
                 />
               ))}
             </div>
@@ -380,26 +383,37 @@ function OrgSupporters() {
                         </button>
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => (s.active ? setDisabling(s) : toggle.mutate(s.id))}
-                        disabled={toggle.isPending && toggle.variables === s.id}
-                        className={cn(
-                          "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border-2 px-4 text-xs font-bold disabled:opacity-60",
-                          s.active
-                            ? "border-coral/30 text-coral hover:border-coral"
-                            : "border-blue/30 text-blue hover:border-blue",
-                        )}
-                      >
-                        {toggle.isPending && toggle.variables === s.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                        ) : s.active ? (
-                          <Power className="h-3.5 w-3.5" aria-hidden />
-                        ) : (
-                          <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
-                        )}
-                        {s.active ? "Disable" : "Enable"}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setEditingModerator(s)}
+                          aria-label={`Edit ${s.name}`}
+                          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 px-2 text-xs font-bold text-blue hover:underline"
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => (s.active ? setDisabling(s) : toggle.mutate(s.id))}
+                          disabled={toggle.isPending && toggle.variables === s.id}
+                          className={cn(
+                            "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border-2 px-4 text-xs font-bold disabled:opacity-60",
+                            s.active
+                              ? "border-coral/30 text-coral hover:border-coral"
+                              : "border-blue/30 text-blue hover:border-blue",
+                          )}
+                        >
+                          {toggle.isPending && toggle.variables === s.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                          ) : s.active ? (
+                            <Power className="h-3.5 w-3.5" aria-hidden />
+                          ) : (
+                            <CircleCheck className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                          {s.active ? "Disable" : "Enable"}
+                        </button>
+                      </>
                     )}
                   </li>
                 );
@@ -407,6 +421,19 @@ function OrgSupporters() {
             </ul>
           )}
         </>
+      )}
+
+      {editingModerator && (
+        <EditStaffDialog
+          member={editingModerator}
+          roleLabel="Moderator"
+          onClose={() => setEditingModerator(null)}
+          onSaved={() => {
+            setEditingModerator(null);
+            void queryClient.invalidateQueries({ queryKey: ["supporters"] });
+            void queryClient.invalidateQueries({ queryKey: ["children"] });
+          }}
+        />
       )}
 
       {regenerate.isError && (
@@ -447,6 +474,7 @@ function SupporterCard({
   generatingLink,
   onEditInvitation,
   onDeleteInvitation,
+  onEdit,
 }: {
   member: StaffMember;
   assigned: Child[];
@@ -456,6 +484,7 @@ function SupporterCard({
   generatingLink: boolean;
   onEditInvitation: () => void;
   onDeleteInvitation: () => void;
+  onEdit: () => void;
 }) {
   return (
     <article
@@ -471,6 +500,17 @@ function SupporterCard({
             <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span className="truncate">{member.email}</span>
           </p>
+          {!member.invitationPending && (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label={`Edit ${member.name}`}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-blue hover:underline"
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Edit
+            </button>
+          )}
         </div>
         <span
           className={cn(
@@ -557,7 +597,7 @@ function SupporterCard({
           ) : member.active ? (
             <Power className="h-4 w-4" aria-hidden />
           ) : (
-            <ShieldCheck className="h-4 w-4" aria-hidden />
+            <CircleCheck className="h-4 w-4" aria-hidden />
           )}
           {member.active ? "Disable account" : "Re-enable account"}
         </button>
@@ -1064,7 +1104,7 @@ function AddSupporterModal({
           )}
 
           <p className="mt-4 flex items-start gap-2 rounded-2xl bg-navy/4 p-3 text-xs text-navy/65">
-            <Users className="mt-0.5 h-4 w-4 shrink-0 text-navy/45" aria-hidden />
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-navy/45" aria-hidden />
             Moderators never see billing or enrolment. You can disable their account at any time
             from their card.
           </p>

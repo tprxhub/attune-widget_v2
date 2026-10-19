@@ -61,9 +61,10 @@ for (const width of [375, 768, 1440]) {
     await expect(history).toHaveAttribute("aria-expanded", "false");
     await history.click();
     await expect(history).toHaveAttribute("aria-expanded", "true");
-    await expect(
-      insights.getByRole("link", { name: "What does this mean? Ask Attune", exact: true }),
-    ).toHaveAttribute("href", /\/attune\?mode=progress&q=/);
+    await expect(insights.getByRole("link", { name: "Ask Attune", exact: true })).toHaveAttribute(
+      "href",
+      /\/attune\?mode=progress&q=/,
+    );
     await page.screenshot({ path: `test-results/progress-wireframe-${width}.png`, fullPage: true });
   });
 }

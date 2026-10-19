@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Gift, Lock, Sparkles, X } from "lucide-react";
+import { Gift, Lock, X, Crown } from "lucide-react";
 import { chooseFreePlan } from "@/api/children";
 import { invalidatePlanCatalog } from "@/api/plans";
 import { ModalPortal } from "@/components/ModalPortal";
@@ -143,7 +143,7 @@ export function FreePlanBanner({ goals, plans }: { goals: Goal[]; plans: PlayPla
           search={{ checkout: undefined }}
           className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-coral px-4 text-xs font-bold text-white"
         >
-          <Sparkles className="h-3.5 w-3.5" aria-hidden /> Subscribe
+          <Crown className="h-3.5 w-3.5" aria-hidden /> Subscribe
         </Link>
       )}
     </div>
@@ -189,7 +189,7 @@ export function FreePlanGate({ goal, dose }: { goal: Goal; dose?: PlayPlan }) {
             search={{ checkout: undefined }}
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white"
           >
-            <Sparkles className="h-4 w-4" aria-hidden /> Subscribe
+            <Crown className="h-4 w-4" aria-hidden /> Subscribe
           </Link>
         )}
       </div>

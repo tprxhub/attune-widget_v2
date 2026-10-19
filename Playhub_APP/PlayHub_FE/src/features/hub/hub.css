@@ -11,8 +11,7 @@
   --hub-wave-2: #07115f;
   --hub-wave-3: #0755b3;
   --hub-wave-4: #0869b8;
-  --hub-header-1: #3c4c62;
-  --hub-header-2: #2f2b4b;
+  --hub-header-1: #0f2c63;
   --hub-card-header-1: #2b3e5e;
   --hub-card-header-2: #282e56;
   --hub-card-body-1: #030e20;
@@ -32,7 +31,6 @@
   --hub-wave-3: #bb1b20;
   --hub-wave-4: #a70b10;
   --hub-header-1: #68393b;
-  --hub-header-2: #542629;
   --hub-card-header-1: #603b3d;
   --hub-card-header-2: #522e32;
   --hub-card-body-1: #1e0308;
@@ -52,7 +50,6 @@
   --hub-wave-3: #0a9162;
   --hub-wave-4: #0a7853;
   --hub-header-1: #36594e;
-  --hub-header-2: #2a4842;
   --hub-card-header-1: #31554d;
   --hub-card-header-2: #28463f;
   --hub-card-body-1: #061b18;
@@ -72,7 +69,6 @@
   --hub-wave-3: #8553bd;
   --hub-wave-4: #6940a7;
   --hub-header-1: #514766;
-  --hub-header-2: #3e355c;
   --hub-card-header-1: #4b4265;
   --hub-card-header-2: #3b3159;
   --hub-card-body-1: #180e2b;
@@ -92,7 +88,6 @@
   --hub-wave-3: #ce7118;
   --hub-wave-4: #aa4b0f;
   --hub-header-1: #71513b;
-  --hub-header-2: #594033;
   --hub-card-header-1: #684c3c;
   --hub-card-header-2: #553b32;
   --hub-card-body-1: #291307;
@@ -112,7 +107,6 @@
   --hub-wave-3: #b7951b;
   --hub-wave-4: #987810;
   --hub-header-1: #696041;
-  --hub-header-2: #514b36;
   --hub-card-header-1: #625a40;
   --hub-card-header-2: #4e4935;
   --hub-card-body-1: #24200a;
@@ -1081,9 +1075,14 @@
     0 0 0 4px var(--swatch-color);
 }
 .hub-main-header {
+  /* Frosted glass: the wallpaper shows through, blurred, under a light tint of the theme. */
   border: 0;
-  background: linear-gradient(110deg, var(--hub-header-1), var(--hub-header-2));
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+  background: color-mix(in srgb, var(--hub-header-1) 28%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    0 8px 24px rgb(0 10 40 / 18%);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
 }
 .hub-header-trigger,
 .hub-apps-trigger {
@@ -1470,8 +1469,9 @@
 
 .hub-customize-toolbar {
   min-height: 82px;
-  background: linear-gradient(100deg, var(--hub-header-1), var(--hub-header-2));
-  backdrop-filter: blur(22px) saturate(130%);
+  background: color-mix(in srgb, var(--hub-header-1) 28%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
 }
 .hub-shortcut-list {
   display: flex;
@@ -2017,4 +2017,499 @@
   .hub-launcher .hub-card:hover {
     transform: none;
   }
+}
+
+.hub-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 13px;
+  background: rgb(0 12 44 / 22%);
+}
+.hub-view-switch button {
+  display: inline-flex;
+  min-width: 38px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgb(255 255 255 / 74%);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+.hub-view-switch button svg {
+  width: 16px;
+  height: 16px;
+}
+.hub-view-switch button[aria-pressed="true"],
+.hub-view-switch button:hover {
+  background: rgb(255 255 255 / 17%);
+  color: #fff;
+}
+.hub-view-switch button:focus-visible,
+.hub-simple-grid a:focus-visible,
+.hub-simple-grid button:focus-visible {
+  outline: 3px solid #ffcf78;
+  outline-offset: 3px;
+}
+
+.hub-simple-grid {
+  width: min(100%, 1110px);
+  padding: 136px 20px 0;
+}
+/* While customizing the Customize button is hidden, so the cards keep their own gap above the footer. */
+.hub-simple-grid[data-customizing="true"] {
+  padding-bottom: 88px;
+}
+.hub-launcher[data-view-mode="simple"] .hub-customize-bottom {
+  padding-top: 32px;
+}
+.hub-simple-cards {
+  --hub-simple-profile-width: 300px;
+  /* One service tile's width: what's left beside the profile card, shared by three columns. */
+  --hub-simple-tile-width: calc((100% - var(--hub-simple-profile-width) - 84px) / 3);
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--hub-simple-profile-width) repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(100px, auto);
+  gap: 28px;
+}
+.hub-simple-shortcuts {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  margin-top: 28px;
+}
+.hub-simple-grid[data-has-extra="true"] .hub-simple-shortcuts {
+  /* Two tiles and the gap between them (the content is 1070px wide). */
+  width: min(100%, calc((1070px - 300px - 84px) / 3 * 2 + 28px));
+  margin-right: auto;
+  margin-left: auto;
+}
+.hub-simple-cards[data-extra-remainder="1"] .hub-simple-tile-wrap:last-child,
+.hub-simple-drag-placeholder[data-extra-slot="single"] {
+  grid-column: 1 / -1;
+  width: var(--hub-simple-tile-width);
+  justify-self: center;
+}
+.hub-simple-cards[data-extra-remainder="2"] .hub-simple-tile-wrap:nth-last-child(2),
+.hub-simple-cards[data-extra-remainder="3"] .hub-simple-tile-wrap:nth-last-child(3),
+.hub-simple-drag-placeholder[data-extra-slot="start"] {
+  grid-column: 2;
+}
+.hub-simple-tile-wrap,
+.hub-simple-shortcut-wrap {
+  position: relative;
+  min-width: 0;
+}
+.hub-simple-shortcut-wrap {
+  min-height: 72px;
+}
+.hub-simple-shortcut-wrap .hub-simple-shortcut {
+  height: 100%;
+}
+.hub-simple-tile-wrap[data-drag-over="true"] .hub-simple-tile,
+.hub-simple-shortcut-wrap[data-drag-over="true"] .hub-simple-shortcut {
+  outline: 3px solid #ffc062;
+  outline-offset: 3px;
+}
+.hub-simple-tile-wrap:focus-visible,
+.hub-simple-shortcut-wrap:focus-visible {
+  outline: 3px solid #ffc062;
+  outline-offset: 4px;
+  border-radius: 18px;
+}
+.hub-simple-drag-placeholder {
+  min-height: 72px;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 14%);
+}
+.hub-simple-profile,
+.hub-simple-tile,
+.hub-simple-shortcut {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 18px;
+  box-shadow: var(--hub-card-shadow);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+.hub-simple-profile:hover,
+.hub-simple-tile:hover,
+.hub-simple-shortcut:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--hub-card-hover-shadow);
+}
+.hub-simple-profile {
+  position: relative;
+  display: flex;
+  grid-row: span 2;
+  min-height: 568px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 18px 38px;
+  background: var(--hub-profile-1);
+  color: #fff;
+  text-align: center;
+}
+.hub-simple-profile::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--hub-profile-1) 68%, transparent),
+    color-mix(in srgb, var(--hub-profile-1) 30%, transparent) 43%,
+    color-mix(in srgb, var(--hub-profile-1) 75%, transparent)
+  );
+  content: "";
+}
+.hub-simple-profile-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 42% center;
+}
+.hub-simple-profile-brand,
+.hub-simple-profile-caption {
+  position: relative;
+  z-index: 2;
+}
+.hub-simple-profile-brand img {
+  width: 142px;
+  max-width: none;
+  height: 92px;
+  transform: none;
+  filter: drop-shadow(0 4px 8px rgb(0 0 0 / 25%));
+}
+.hub-simple-profile-caption {
+  display: flex;
+  max-width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-wrap: balance;
+  text-shadow: 0 2px 8px rgb(0 16 52 / 50%);
+}
+.hub-simple-profile-name {
+  font-size: 24px;
+  font-weight: 700;
+}
+.hub-simple-profile-caption strong {
+  font-size: clamp(30px, 3vw, 39px);
+  line-height: 1.04;
+}
+.hub-simple-profile-role {
+  margin-top: 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.hub-simple-tile {
+  display: flex;
+  height: 100%;
+  min-height: 270px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 22px 14px;
+  text-align: center;
+}
+.hub-simple-tile[data-tone="cream"] {
+  background: #ffedd5;
+  color: var(--hub-profile-1);
+}
+.hub-simple-tile[data-tone="navy"] {
+  background: color-mix(in srgb, var(--hub-profile-1) 82%, var(--hub-sky-1));
+  color: #ffc062;
+}
+.hub-simple-tile[data-tone="blue"] {
+  background: color-mix(in srgb, var(--hub-sky-1) 65%, var(--hub-card-header-1));
+  color: #fff0d7;
+}
+.hub-simple-tile > span:last-child {
+  max-width: 190px;
+  font-size: clamp(19px, 2vw, 27px);
+  font-weight: 750;
+  line-height: 1.14;
+  text-wrap: balance;
+}
+.hub-simple-icon {
+  display: grid;
+  width: 108px;
+  height: 108px;
+  flex-shrink: 0;
+  place-items: center;
+}
+.hub-simple-icon svg,
+.hub-simple-icon-image,
+.hub-simple-attune-image {
+  display: block;
+  width: 102px;
+  height: 102px;
+}
+.hub-simple-attune-image {
+  filter: invert(1);
+  mix-blend-mode: screen;
+}
+/* The artwork is navy on white: keep the navy lines on cream tiles, light lines on dark ones. */
+.hub-simple-tile[data-tone="cream"] .hub-simple-attune-image {
+  filter: none;
+  mix-blend-mode: multiply;
+}
+.hub-simple-icon[data-icon="Play Plans"] .hub-simple-icon-image {
+  /* The thin line art reads smaller than the other icons at the same size. */
+  transform: scale(1.2);
+}
+.hub-simple-icon-image {
+  background: currentColor;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+.hub-simple-shortcut {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 30px;
+  background: rgb(225 233 247 / 49%);
+  color: #fff;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: left;
+  backdrop-filter: blur(8px);
+}
+.hub-simple-shortcut span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.hub-simple-remove {
+  position: absolute;
+  z-index: 5;
+  top: -12px;
+  left: -12px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 50%;
+  background: #1c2432;
+  color: #fff;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 35%);
+  cursor: pointer;
+}
+.hub-simple-remove svg {
+  width: 17px;
+  height: 17px;
+}
+.hub-simple-remove:hover {
+  background: #ff375f;
+}
+.hub-simple-shortcut svg {
+  width: 23px;
+  height: 23px;
+  opacity: 0;
+  transition: opacity 180ms;
+}
+.hub-simple-shortcut:hover svg,
+.hub-simple-shortcut:focus-visible svg {
+  opacity: 1;
+}
+
+@media (max-width: 960px) {
+  .hub-simple-grid {
+    padding-top: 96px;
+  }
+  .hub-simple-grid[data-customizing="true"] {
+    padding-bottom: 72px;
+  }
+  .hub-simple-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .hub-simple-shortcuts {
+    gap: 18px;
+    margin-top: 18px;
+  }
+  .hub-simple-cards[data-extra-remainder="1"] .hub-simple-tile-wrap:last-child,
+  .hub-simple-drag-placeholder[data-extra-slot="single"] {
+    width: calc(50% - 9px);
+  }
+  .hub-simple-cards[data-extra-remainder="2"] .hub-simple-tile-wrap:nth-last-child(2),
+  .hub-simple-cards[data-extra-remainder="3"] .hub-simple-tile-wrap:nth-last-child(3),
+  .hub-simple-drag-placeholder[data-extra-slot="start"] {
+    grid-column: auto;
+  }
+  .hub-simple-profile {
+    grid-column: span 2;
+    grid-row: span 1;
+    min-height: 340px;
+  }
+  .hub-simple-tile {
+    min-height: 250px;
+  }
+}
+@media (max-width: 700px) {
+  .hub-view-switch button {
+    padding: 0 8px;
+  }
+  .hub-view-switch button span {
+    display: none;
+  }
+  .hub-simple-grid {
+    padding: 64px 16px 0;
+  }
+  .hub-simple-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .hub-simple-shortcuts {
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .hub-simple-cards[data-extra-remainder="1"] .hub-simple-tile-wrap:last-child,
+  .hub-simple-drag-placeholder[data-extra-slot="single"] {
+    width: calc(50% - 8px);
+  }
+  .hub-simple-profile {
+    grid-column: span 2;
+    grid-row: span 1;
+    min-height: 300px;
+  }
+  .hub-simple-profile-image {
+    object-position: center 40%;
+  }
+  .hub-simple-profile-brand img {
+    height: 70px;
+  }
+  .hub-simple-tile {
+    min-height: 180px;
+    gap: 9px;
+    padding: 14px 7px;
+  }
+  .hub-simple-tile > span:last-child {
+    font-size: clamp(15px, 4.7vw, 21px);
+  }
+  .hub-simple-icon {
+    width: 76px;
+    height: 76px;
+  }
+  .hub-simple-icon svg,
+  .hub-simple-icon-image,
+  .hub-simple-attune-image {
+    width: 70px;
+    height: 70px;
+  }
+  .hub-simple-shortcut {
+    min-height: 68px;
+    padding: 12px 15px;
+    font-size: 15px;
+  }
+}
+@media (max-width: 380px) {
+  .hub-simple-cards,
+  .hub-simple-shortcuts {
+    gap: 9px;
+  }
+  .hub-simple-shortcuts {
+    margin-top: 9px;
+  }
+  .hub-simple-cards[data-extra-remainder="1"] .hub-simple-tile-wrap:last-child,
+  .hub-simple-drag-placeholder[data-extra-slot="single"] {
+    width: calc(50% - 4.5px);
+  }
+  .hub-simple-grid {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+  .hub-view-switch {
+    gap: 0;
+  }
+  .hub-view-switch button {
+    min-width: 31px;
+    min-height: 32px;
+    padding: 0 5px;
+  }
+  .hub-simple-tile {
+    min-height: 154px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub-simple-profile,
+  .hub-simple-tile,
+  .hub-simple-shortcut {
+    transition: none;
+  }
+  .hub-simple-profile:hover,
+  .hub-simple-tile:hover,
+  .hub-simple-shortcut:hover {
+    transform: none;
+  }
+}
+
+/* Simple view: choose a photo for the profile card while customizing. */
+.hub-simple-photo-controls {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  right: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateY(-50%);
+}
+.hub-simple-photo-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 999px;
+  background: rgb(6 30 82 / 78%);
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+}
+.hub-simple-photo-button:hover {
+  background: rgb(6 30 82 / 92%);
+}
+.hub-simple-photo-button:focus-within {
+  outline: 3px solid #ffcf78;
+  outline-offset: 3px;
+}
+.hub-simple-photo-button svg {
+  width: 17px;
+  height: 17px;
+}
+.hub-simple-photo-error {
+  max-width: 220px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #fff1f0;
+  color: #9b1c1c;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
 }

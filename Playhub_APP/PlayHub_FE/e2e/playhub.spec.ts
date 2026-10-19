@@ -293,6 +293,8 @@ test("family can sign up, restore its session, change password and sign in again
   await page.getByRole("checkbox").check({ force: true });
   await page.getByRole("button", { name: "Create Account" }).click();
   await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
+  // The simple Hub doesn't list children; the Dashboard shows the new child.
+  await page.goto("/dashboard");
   await expect(page.getByText("Mia", { exact: true }).first()).toBeVisible();
 
   await page.reload();

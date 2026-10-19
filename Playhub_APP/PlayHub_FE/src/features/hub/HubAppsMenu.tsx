@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { BarChart3, ClipboardList, Sparkles, UserRound } from "lucide-react";
+import { UserRound, LayoutGrid } from "lucide-react";
+import { ProgressIcon } from "@/components/ProgressIcon";
+import { CustomizeIcon } from "./CustomizeIcon";
 import { HubPopover } from "./HubPopover";
 import { HubAppIcon } from "./HubAppIcon";
 import { hubLaunchItemId } from "./hubTiles";
@@ -18,8 +20,8 @@ export function HubAppsMenu({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const more = [
-    { label: "Your Play Plans", to: paths.plans, Icon: ClipboardList },
-    { label: "Your Progress", to: paths.progress, Icon: BarChart3 },
+    { label: "Your Play Plans", to: paths.plans, Icon: LayoutGrid },
+    { label: "Your Progress", to: paths.progress, Icon: ProgressIcon },
     { label: "Account", to: "/account", Icon: UserRound },
   ];
   return (
@@ -77,7 +79,7 @@ export function HubAppsMenu({
               onCustomize();
             }}
           >
-            <Sparkles aria-hidden />
+            <CustomizeIcon aria-hidden />
             Customize Home Page
           </button>
         </div>

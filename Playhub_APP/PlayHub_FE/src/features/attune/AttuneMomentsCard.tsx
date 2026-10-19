@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { HeartHandshake, Sparkles } from "lucide-react";
 import { ATTUNE_MODES, getAttuneStatus } from "@/api/attune";
 import { cn } from "@/lib/utils";
 
@@ -37,14 +36,14 @@ export function AttuneMomentsCard({
             search={{ mode: "idea", ...about }}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-blue/40 px-4 text-sm font-bold text-blue transition hover:bg-blue/10"
           >
-            <Sparkles className="h-4 w-4" aria-hidden /> {ATTUNE_MODES.idea.label}
+            {ATTUNE_MODES.idea.label}
           </Link>
           <Link
             to="/attune"
             search={{ mode: "regulation", ...about }}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-coral/40 px-4 text-sm font-bold text-coral transition hover:bg-coral/10"
           >
-            <HeartHandshake className="h-4 w-4" aria-hidden /> {ATTUNE_MODES.regulation.label}
+            {ATTUNE_MODES.regulation.label}
           </Link>
         </div>
       </div>

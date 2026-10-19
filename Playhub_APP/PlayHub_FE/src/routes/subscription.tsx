@@ -3,7 +3,7 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Lock } from "lucide-react";
 import {
   PLAN_FEATURES,
   checkout,
@@ -321,8 +321,8 @@ function SubscriptionPage() {
                     : `${stage === "ended" ? "Re-subscribe" : "Subscribe"} ${activeChild?.name} — ${chosenPlan.price}`}
               </button>
               <p className="mt-3 inline-flex items-center gap-2 text-xs text-navy/55">
-                <ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Secure card payment via Stripe.
-                Cancel within 7 days for a full refund.
+                <Lock className="h-3.5 w-3.5" aria-hidden /> Secure card payment via Stripe. Cancel
+                within 7 days for a full refund.
               </p>
             </div>
           </section>

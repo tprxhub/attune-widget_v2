@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { hasPermission, isPlatformRole } from "@/lib/roles";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, UserPlus } from "lucide-react";
+import { CheckCircle2, Loader2, ShieldPlus, CirclePlus } from "lucide-react";
 import { createChild } from "@/api/children";
 import { inviteParent } from "@/api/org";
 import { listGoals, listPlans } from "@/api/plans";
@@ -317,7 +317,7 @@ function EnrolPage() {
                 to="/admin/educators"
                 className="mt-3 inline-flex min-h-12 items-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white"
               >
-                <UserPlus className="h-4 w-4" aria-hidden /> Create Admin
+                <ShieldPlus className="h-4 w-4" aria-hidden /> Create Admin
               </Link>
             </div>
           ) : (
@@ -329,7 +329,7 @@ function EnrolPage() {
               {enrol.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               ) : (
-                <UserPlus className="h-4 w-4" aria-hidden />
+                <CirclePlus className="h-4 w-4" aria-hidden />
               )}
               Enrol child
             </button>

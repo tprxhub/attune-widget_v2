@@ -15,9 +15,24 @@ export interface LaunchItem {
   accent: string;
 }
 
+export const SIMPLE_TILE_ORDER = [
+  "Members",
+  "Ask Attune",
+  "Progress",
+  "Play Plans",
+  "Daily Check-In",
+  "Account",
+];
+
 export function hubLaunchItemId(item: Pick<LaunchItem, "to" | "label">) {
   return `${item.to}|${item.label}`;
 }
+
+/** The platform "Children" tile is now "Members"; saved layouts keep pointing at it. */
+const RENAMED_TILE_IDS: Record<string, string> = {
+  "/admin/children|Children": "/admin/children|Members",
+};
+export const migrateHubTileId = (id: string) => RENAMED_TILE_IDS[id] ?? id;
 
 export type HubTileKind = "plans" | "apps" | "check-ins" | "progress" | "attune" | "shortcut";
 

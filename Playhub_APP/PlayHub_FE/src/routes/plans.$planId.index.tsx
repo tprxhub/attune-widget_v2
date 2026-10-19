@@ -145,9 +145,6 @@ function PlanWeek() {
           <div className="flex flex-wrap items-center gap-4">
             <LevelDots level={data.level} />
             <span className="text-sm text-navy/65">Ages {data.age ?? "3+"}</span>
-            <span className={cn("rounded-full px-3 py-1 text-xs font-bold", TOKEN_SOFT[token])}>
-              {data.kit}
-            </span>
           </div>
           <p className="mt-4 text-[15px] leading-relaxed text-navy/85">{data.summary}</p>
           <p className="mt-2 text-sm text-navy/60">
@@ -178,7 +175,7 @@ function PlanWeek() {
                   params={{ planId: sibling.id }}
                   className="inline-flex min-h-12 items-center rounded-full border border-navy/15 px-5 text-sm font-bold hover:border-navy/40"
                 >
-                  Switch to {level} dose
+                  Switch to {level}
                 </Link>
               ) : null;
             })}

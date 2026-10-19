@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BadgeCheck, Check, Copy, Mail, X } from "lucide-react";
+import { Check, Copy, Mail, X, KeyRound } from "lucide-react";
 import { ModalPortal } from "@/components/ModalPortal";
 import { LICENCE_CONTACT_EMAIL } from "@/lib/contact";
 import type { LicenseType, Org } from "@/lib/types";
@@ -28,7 +28,7 @@ export function OrgLicenseNote({ org, kind }: { org: Org | undefined; kind: Lice
           full ? "bg-coral/12 text-coral" : "bg-blue/10 text-blue",
         )}
       >
-        <BadgeCheck className="h-5 w-5" aria-hidden />
+        <KeyRound className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold">
@@ -120,7 +120,7 @@ export function LicenceLimitModal({
             <X className="h-4 w-4" aria-hidden />
           </button>
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-coral/12 text-coral">
-            <BadgeCheck className="h-6 w-6" aria-hidden />
+            <KeyRound className="h-6 w-6" aria-hidden />
           </span>
           <h2 id="licence-limit-title" className="mt-4 text-xl font-bold">
             All {noun} licences are in use

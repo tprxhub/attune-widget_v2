@@ -108,7 +108,6 @@ export interface PlanInput {
   title: string;
   goalId: string;
   level: Level;
-  kit: string;
   summary: string;
   safetyNote?: string | undefined;
   thumbnailUrl?: string | undefined;

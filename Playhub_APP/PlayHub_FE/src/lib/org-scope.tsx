@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hasPermission, isPlatformRole } from "@/lib/roles";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, ChevronDown, Users } from "lucide-react";
+import { Building2, ChevronDown, House } from "lucide-react";
 import { listOrgs } from "@/api/admin";
 import { getAdminReferences } from "@/api/references";
 import { listChildrenForSession } from "@/api/children";
@@ -147,7 +147,7 @@ export function OrgScopeDropdown({ className }: { className?: string }) {
       >
         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-blue/12 text-blue">
           {isIndividualScope ? (
-            <Users className="h-4 w-4" aria-hidden />
+            <House className="h-4 w-4" aria-hidden />
           ) : (
             <Building2 className="h-4 w-4" aria-hidden />
           )}

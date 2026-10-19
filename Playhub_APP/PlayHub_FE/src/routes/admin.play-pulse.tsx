@@ -254,7 +254,11 @@ function PlayPulseLeadsPage() {
           </div>
         ) : (
           <div
-            className={cn("overflow-x-auto", results.isFetching && "opacity-60 transition-opacity")}
+            // `relative` keeps the rows' screen-reader labels inside the scroller on narrow screens.
+            className={cn(
+              "relative overflow-x-auto",
+              results.isFetching && "opacity-60 transition-opacity",
+            )}
           >
             <table className="w-full min-w-[980px] border-collapse text-left text-sm">
               <thead className="bg-navy/[0.04] text-[11px] font-bold tracking-wide text-navy/60 uppercase">

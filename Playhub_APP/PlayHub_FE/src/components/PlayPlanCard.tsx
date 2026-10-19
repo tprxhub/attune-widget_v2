@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Gift, Lock } from "lucide-react";
 import type { FreeAccess } from "@/features/plans/useFreePlan";
 import type { Goal, PlayPlan } from "@/lib/types";
-import { LevelDots, TOKEN_BG } from "@/components/brand";
+import { LevelDots } from "@/components/brand";
 import { GoalIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import thumbGrip from "@/assets/Thumbnails/Thumb1.jpeg";
@@ -97,18 +97,6 @@ export function PlayPlanCard({
           aria-hidden
         />
 
-        <span className="relative flex items-start justify-between">
-          <span className="inline-flex min-w-0 max-w-[calc(100%-5rem)] items-center gap-1.5 rounded-xl border border-white/30 bg-white/20 px-2.5 py-1 text-[10px] leading-tight font-extrabold tracking-wide text-white uppercase backdrop-blur-md">
-            <span className={cn("h-1.5 w-1.5 rounded-full", TOKEN_BG[goal.color])} aria-hidden />
-            <span className="min-w-0 [text-wrap:balance]" title={plan.title}>
-              {plan.title}
-            </span>
-          </span>
-          <span className="shrink-0 rounded-full border border-white/30 bg-white/20 px-2 py-1 text-[9px] font-extrabold tracking-wide whitespace-nowrap text-white uppercase backdrop-blur-md">
-            {plan.level} dose
-          </span>
-        </span>
-
         {locked && (
           <span className="relative inline-flex w-fit items-center gap-1.5 rounded-full bg-amber px-3 py-1.5 text-[10px] font-extrabold tracking-wider text-navy uppercase shadow-sm">
             <Lock className="h-3.5 w-3.5" aria-hidden /> Coming soon
@@ -120,7 +108,7 @@ export function PlayPlanCard({
           </span>
         )}
 
-        <span className="relative grid h-9 w-9 place-items-center self-end bg-white shadow-lg ph-r-md transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+        <span className="relative mt-auto grid h-9 w-9 place-items-center self-end bg-white shadow-lg ph-r-md transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
           <GoalIcon goalId={goal.id} goalName={goal.name} className="h-5 w-5 text-navy" />
         </span>
       </span>
@@ -129,7 +117,7 @@ export function PlayPlanCard({
         <h3 className="text-xl leading-tight font-extrabold text-navy">{plan.title}</h3>
         <span className="mt-2 inline-flex items-center gap-2 text-xs font-bold tracking-wide text-navy">
           <LevelDots level={plan.level} showLabel={false} />
-          {plan.level} dose
+          {plan.level}
         </span>
         <span
           className={cn(

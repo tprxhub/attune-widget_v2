@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { CheckCircle2, Loader2, Mail, ShieldCheck, UserPlus } from "lucide-react";
+import { CheckCircle2, Loader2, Mail, UserPlus, Crown } from "lucide-react";
 import { inviteParent } from "@/api/org";
 import { Protected } from "@/auth/guards";
 import { useCapabilities } from "@/auth/session";
@@ -44,7 +44,7 @@ function InvitePage() {
       <>
         <PageHeader eyebrow="Your circle" title="Invite a Moderator" />
         <div className="ph-card mx-auto max-w-md p-8 text-center">
-          <ShieldCheck className="mx-auto h-8 w-8 text-coral" aria-hidden />
+          <Crown className="mx-auto h-8 w-8 text-coral" aria-hidden />
           <p className="mt-3 text-lg font-bold">Subscribe first</p>
           <p className="mt-2 text-sm text-navy/70">
             Only the subscribed Admin of a child can invite a Moderator.

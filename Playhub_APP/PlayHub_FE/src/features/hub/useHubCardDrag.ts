@@ -39,17 +39,19 @@ export function useHubCardDrag() {
     let previewTarget = id;
 
     const targetAt = () => {
-      if (!grid.contains(document.elementFromPoint(pointer.x, pointer.y))) return undefined;
-      const origin = grid.getBoundingClientRect();
       const slots = Array.from(
         grid.querySelectorAll<HTMLElement>(
           '[data-hub-card-id]:not([data-hub-card-id="profile"]):not([data-dragging="true"]), .hub-drag-placeholder',
         ),
       ).sort((a, b) => Number(a.style.order) - Number(b.style.order));
       const index = slots.findIndex((slot) => {
-        const x = pointer.x - origin.left - slot.offsetLeft;
-        const y = pointer.y - origin.top - slot.offsetTop;
-        return x >= 0 && y >= 0 && x <= slot.offsetWidth && y <= slot.offsetHeight;
+        const bounds = slot.getBoundingClientRect();
+        return (
+          pointer.x >= bounds.left &&
+          pointer.x <= bounds.right &&
+          pointer.y >= bounds.top &&
+          pointer.y <= bounds.bottom
+        );
       });
       return slotIds[index];
     };

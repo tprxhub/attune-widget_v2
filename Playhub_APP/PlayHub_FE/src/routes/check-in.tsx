@@ -13,7 +13,7 @@ import {
   Lock,
   Pencil,
   Repeat2,
-  Sparkles,
+  Gauge,
 } from "lucide-react";
 import { correctAttempt, listAttempts, logAttempt } from "@/api/attempts";
 import { listGoals, listPlans } from "@/api/plans";
@@ -388,7 +388,7 @@ function CheckInPage() {
               </div>
               <div className="ph-card p-4">
                 <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] text-navy/45 uppercase">
-                  <Sparkles className="h-3.5 w-3.5 text-blue" aria-hidden /> Support Score{" "}
+                  <Gauge className="h-3.5 w-3.5 text-blue" aria-hidden /> Support Score{" "}
                   <SupportScoreInfo />
                 </p>
                 <p className="mt-1 text-2xl font-bold text-blue">

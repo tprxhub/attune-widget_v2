@@ -14,7 +14,7 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
 
-  await page.getByRole("link", { name: "TTP Employees" }).first().click();
+  await page.goto("/admin/ttp");
   await page.getByRole("button", { name: "Add TTP employee" }).click();
   const dialog = page.getByRole("dialog", { name: "Add TTP employee" });
   await dialog.getByLabel("Full name").fill("Tara Test");

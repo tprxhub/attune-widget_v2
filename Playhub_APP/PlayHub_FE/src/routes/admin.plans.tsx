@@ -16,8 +16,8 @@ import {
   Plus,
   Search,
   Trash2,
-  UserRound,
   X,
+  PenLine,
 } from "lucide-react";
 import { GOALS, goalById } from "@/api/domain";
 import {
@@ -153,7 +153,6 @@ function AdminPlans() {
       if (!q) return true;
       return (
         p.title.toLowerCase().includes(q) ||
-        p.kit.toLowerCase().includes(q) ||
         (goalById(p.goalId)?.name.toLowerCase().includes(q) ?? false)
       );
     });
@@ -274,7 +273,7 @@ function AdminPlans() {
                         data-testid="plan-creator"
                         className="inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue/8 px-2.5 py-1 font-bold text-navy"
                       >
-                        <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden />
+                        <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden />
                         Created by{" "}
                         <span className="text-blue">{group.createdBy ?? "Super Admin"}</span>
                       </span>
@@ -391,7 +390,7 @@ function AdminPlans() {
                         </p>
                         <p className="mt-1 font-bold">{plan.title}</p>
                         <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-navy/10 bg-navy/[0.035] px-2.5 py-1 text-xs font-semibold text-navy/65">
-                          <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden /> Created by{" "}
+                          <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden /> Created by{" "}
                           <span data-testid="dose-creator" className="font-bold text-navy">
                             {plan.createdBy ?? "Super Admin"}
                           </span>
@@ -614,7 +613,6 @@ function PlanModal({
   const [title, setTitle] = useState(plan?.title ?? "");
   const [goalId, setGoalId] = useState(plan?.goalId ?? initialGoalId ?? GOALS[0]!.id);
   const [level, setLevel] = useState<Level>(plan?.level ?? "Starter");
-  const [kit, setKit] = useState(plan?.kit ?? "Fine Motor Play Kit");
   const [summary, setSummary] = useState(plan?.summary ?? "");
   const [safetyNote, setSafetyNote] = useState(plan?.safetyNote ?? "");
   const [thumbnailUrl, setThumbnailUrl] = useState(plan?.thumbnailUrl ?? "");
@@ -710,7 +708,6 @@ function PlanModal({
         title: title.trim(),
         goalId,
         level,
-        kit: kit.trim(),
         summary: summary.trim(),
         safetyNote: safetyNote.trim() || undefined,
         thumbnailUrl: thumbnailUrl.trim() || undefined,

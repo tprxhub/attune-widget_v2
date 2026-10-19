@@ -1,14 +1,5 @@
 import { useState } from "react";
-import {
-  CalendarClock,
-  Check,
-  Gauge,
-  Loader2,
-  PartyPopper,
-  Share2,
-  Sparkles,
-  Target,
-} from "lucide-react";
+import { CalendarClock, Check, Gauge, Loader2, PartyPopper, Share2, Target } from "lucide-react";
 import { SupportScoreInfo } from "@/components/SupportScoreInfo";
 import progressWordmark from "@/assets/progress-play-wordmark.png";
 import { RingMarker } from "@/features/progress/InteractiveProgressRings";
@@ -114,7 +105,7 @@ export function PulseResultCard({
             <p className="mt-2 break-words text-xl font-bold">{goalName}</p>
             <p className="mt-1 text-sm font-bold text-amber">{ageBand}</p>
             <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold text-cream">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              <Target className="h-3.5 w-3.5" aria-hidden />
               {cheer.onTrack} of {areas} areas on track
             </span>
           </div>

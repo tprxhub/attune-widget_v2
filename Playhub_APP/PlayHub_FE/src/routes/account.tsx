@@ -6,7 +6,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Building2,
-  BadgeCheck,
   CalendarDays,
   Camera,
   Check,
@@ -22,12 +21,13 @@ import {
   HelpCircle,
   ImageUp,
   RotateCcw,
-  ShieldCheck,
   SlidersHorizontal,
   Trash2,
   UserRound,
-  Users,
   X,
+  UserCheck,
+  Briefcase,
+  CircleCheck,
 } from "lucide-react";
 import {
   changePassword,
@@ -299,7 +299,7 @@ function AccountPage() {
                       aria-label={`Manage ${activeChild.subscription.duration ? `${Number.parseInt(activeChild.subscription.duration, 10)}-month` : "active"} subscription`}
                       className="group relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue"
                     >
-                      <BadgeCheck className="h-6 w-6 fill-[#1d9bf0] text-white" aria-hidden />
+                      <CircleCheck className="h-6 w-6 fill-[#1d9bf0] text-white" aria-hidden />
                       <span
                         role="tooltip"
                         className="pointer-events-none absolute top-full left-1/2 z-50 mt-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-navy px-3 py-2 text-xs font-semibold text-white shadow-lg group-hover:block group-focus-visible:block"
@@ -326,12 +326,12 @@ function AccountPage() {
               </p>
               <div className="mt-2.5 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-[11px] font-bold">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+                  <Briefcase className="h-3.5 w-3.5" aria-hidden />
                   {roleLabel(session.role, session.accountType)}
                 </span>
                 {session.guardianName && (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1 text-[11px] font-bold">
-                    <Users className="h-3.5 w-3.5" aria-hidden />
+                    <UserCheck className="h-3.5 w-3.5" aria-hidden />
                     Managed by {session.guardianName}
                   </span>
                 )}

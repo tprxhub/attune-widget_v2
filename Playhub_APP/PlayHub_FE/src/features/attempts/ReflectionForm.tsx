@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from "react";
-import { ChevronDown, Loader2, Sparkles } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { MOOD_ICONS } from "@/components/icons";
 import type { CompletionStatus, HelpLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -274,11 +274,7 @@ export function ReflectionForm({
         disabled={pending || disabled}
         className="sticky bottom-3 flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-coral px-6 text-base font-bold text-white shadow-[var(--shadow-lift)] transition-transform active:scale-[0.98] disabled:opacity-50 lg:static lg:w-auto"
       >
-        {pending ? (
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-        ) : (
-          <Sparkles className="h-5 w-5" aria-hidden />
-        )}
+        {pending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
         {submitLabel}
       </button>
     </form>

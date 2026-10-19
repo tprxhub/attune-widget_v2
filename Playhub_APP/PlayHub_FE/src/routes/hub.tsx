@@ -10,7 +10,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import {
-  ArrowRight,
   BarChart3,
   BookOpen,
   Building2,
@@ -22,11 +21,13 @@ import {
   HeartPulse,
   Home,
   FolderClosed,
+  Rows3,
   ShieldCheck,
   Sparkles,
   Users,
   UserRound,
   Plus,
+  Grid2x2,
 } from "lucide-react";
 import { listRecentCheckIns } from "@/api/attempts";
 import { listPlans } from "@/api/plans";
@@ -41,13 +42,16 @@ import { HubPopover } from "@/features/hub/HubPopover";
 import { HubTilePicker } from "@/features/hub/HubTilePicker";
 import { HubCardControls } from "@/features/hub/HubCardControls";
 import { HubCardContent } from "@/features/hub/HubCardContent";
+import { HubSimpleView } from "@/features/hub/HubSimpleView";
 import { HubFooter } from "@/features/hub/HubFooter";
 import {
   DEFAULT_HUB_CARDS,
   HUB_BACKGROUNDS,
+  SIMPLE_TILE_ORDER,
   hubCardKind,
   hubCardOptionId,
   hubLaunchItemId,
+  migrateHubTileId,
   hubTileOptions,
   type LaunchItem,
   type HubCardSetting,
@@ -56,10 +60,11 @@ import {
 } from "@/features/hub/hubTiles";
 import { useHubLayoutMotion } from "@/features/hub/useHubLayoutMotion";
 import { useHubCardDrag } from "@/features/hub/useHubCardDrag";
-import { moveHubCardToSlot } from "@/features/hub/moveHubCardToSlot";
+import { moveHubCardToSlot, moveIdToSlot } from "@/features/hub/moveHubCardToSlot";
 import "@/features/hub/hub.css";
 import { roleLabel } from "@/lib/roles";
 import { useActiveChild } from "@/lib/active-child";
+import { CustomizeIcon } from "@/features/hub/CustomizeIcon";
 import { useHomepageContent } from "@/features/homepage/useHomepageContent";
 import type { PermissionKey, Session } from "@/lib/types";
 import brandWallpaper from "@/assets/Icon_of_Service/Brand pattern.png";
@@ -80,7 +85,7 @@ function platformLaunchItems(session: Session): LaunchItem[] {
     [
       "children",
       {
-        label: "Children",
+        label: "Members",
         detail: "Find and manage profiles",
         to: "/admin/children",
         icon: Users,
@@ -298,9 +303,12 @@ export const Route = createFileRoute("/hub")({
 });
 
 function useHubPreferences(personaId: string) {
+  const [viewMode, setViewMode] = useState<"simple" | "detailed">("simple");
+  const [simpleTileIds, setSimpleTileIds] = useState<string[] | null>(null);
   const [background, setBackground] = useState("blue");
   const [backgroundMode, setBackgroundMode] = useState<"wallpaper" | "color">("wallpaper");
   const [customWallpaper, setCustomWallpaper] = useState<string | null>(null);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [storageError, setStorageError] = useState("");
   const [hiddenTiles, setHiddenTiles] = useState<string[]>([]);
   const [cardSettings, setCardSettings] = useState(DEFAULT_HUB_CARDS);
@@ -313,9 +321,12 @@ function useHubPreferences(personaId: string) {
       const saved = localStorage.getItem(key);
       if (saved) {
         const parsed = JSON.parse(saved) as {
+          viewMode?: "simple" | "detailed";
+          simpleTileIds?: string[];
           background?: string;
           backgroundMode?: "wallpaper" | "color";
           customWallpaper?: string | null;
+          profilePhoto?: string | null;
           hiddenTiles?: string[];
           cardSettings?: HubCardSetting[];
           customCards?: CustomHubCard[];
@@ -325,6 +336,16 @@ function useHubPreferences(personaId: string) {
           teal: "green",
           slate: "blue",
         };
+        if (parsed.viewMode === "simple" || parsed.viewMode === "detailed") {
+          setViewMode(parsed.viewMode);
+        }
+        if (Array.isArray(parsed.simpleTileIds)) {
+          setSimpleTileIds(
+            parsed.simpleTileIds
+              .filter((id): id is string => typeof id === "string")
+              .map(migrateHubTileId),
+          );
+        }
         const color = legacyColors[parsed.background ?? ""] ?? parsed.background;
         if (HUB_BACKGROUNDS.some((item) => item.id === color)) setBackground(color!);
         if (parsed.backgroundMode === "wallpaper" || parsed.backgroundMode === "color") {
@@ -336,7 +357,15 @@ function useHubPreferences(personaId: string) {
         ) {
           setCustomWallpaper(parsed.customWallpaper);
         }
-        if (Array.isArray(parsed.hiddenTiles)) setHiddenTiles(parsed.hiddenTiles);
+        if (
+          typeof parsed.profilePhoto === "string" &&
+          parsed.profilePhoto.startsWith("data:image/")
+        ) {
+          setProfilePhoto(parsed.profilePhoto);
+        }
+        if (Array.isArray(parsed.hiddenTiles)) {
+          setHiddenTiles(parsed.hiddenTiles.map(migrateHubTileId));
+        }
         if (Array.isArray(parsed.cardSettings)) {
           setCardSettings(
             DEFAULT_HUB_CARDS.map((card) => ({
@@ -352,7 +381,9 @@ function useHubPreferences(personaId: string) {
             parsed.customCards.map((card) =>
               card.title === "Dashboard" && card.to === "/org"
                 ? { ...card, to: "/dashboard" }
-                : card,
+                : card.title === "Children" && card.to === "/admin/children"
+                  ? { ...card, id: migrateHubTileId(card.id), title: "Members" }
+                  : card,
             ),
           );
         }
@@ -369,9 +400,12 @@ function useHubPreferences(personaId: string) {
       localStorage.setItem(
         key,
         JSON.stringify({
+          viewMode,
+          simpleTileIds,
           background,
           backgroundMode,
           customWallpaper,
+          profilePhoto,
           hiddenTiles,
           cardSettings,
           customCards,
@@ -379,12 +413,17 @@ function useHubPreferences(personaId: string) {
       );
       setStorageError("");
     } catch {
-      setStorageError("Your changes could not be saved on this device. Try a smaller wallpaper.");
+      setStorageError(
+        "Your changes could not be saved on this device. Try a smaller wallpaper or photo.",
+      );
     }
   }, [
+    viewMode,
+    simpleTileIds,
     background,
     backgroundMode,
     customWallpaper,
+    profilePhoto,
     hiddenTiles,
     cardSettings,
     customCards,
@@ -393,12 +432,18 @@ function useHubPreferences(personaId: string) {
   ]);
 
   return {
+    viewMode,
+    setViewMode,
+    simpleTileIds,
+    setSimpleTileIds,
     background,
     setBackground,
     backgroundMode,
     setBackgroundMode,
     customWallpaper,
     setCustomWallpaper,
+    profilePhoto,
+    setProfilePhoto,
     storageError,
     hiddenTiles,
     setHiddenTiles,
@@ -431,6 +476,8 @@ function HubLaunch() {
   const home = useHomepageContent();
   const [customizing, setCustomizing] = useState(false);
   const [addTileOpen, setAddTileOpen] = useState(false);
+  /** What the Add picker adds: a tile (toolbar, Create menu) or a shortcut (an empty shortcut slot). */
+  const [addTarget, setAddTarget] = useState<"tile" | "shortcut">("tile");
   const [cardMenuId, setCardMenuId] = useState<string | null>(null);
   const [backgroundPickerOpen, setBackgroundPickerOpen] = useState(false);
   const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
@@ -447,12 +494,18 @@ function HubLaunch() {
   const [newCardTitle, setNewCardTitle] = useState("");
   const [newCardTo, setNewCardTo] = useState("");
   const {
+    viewMode,
+    setViewMode,
+    simpleTileIds,
+    setSimpleTileIds,
     background,
     setBackground,
     backgroundMode,
     setBackgroundMode,
     customWallpaper,
     setCustomWallpaper,
+    profilePhoto,
+    setProfilePhoto,
     storageError,
     hiddenTiles,
     setHiddenTiles,
@@ -480,6 +533,37 @@ function HubLaunch() {
   const visibleItems = items.filter(
     (item) => !hiddenTiles.includes(item.to) && !hiddenTiles.includes(hubLaunchItemId(item)),
   );
+  const simpleCandidates = items.filter(
+    (item) => item.label !== "Dashboard" && item.label !== "Overview",
+  );
+  const defaultSimpleItems = [...simpleCandidates]
+    .sort((a, b) => {
+      const aIndex = SIMPLE_TILE_ORDER.indexOf(a.label);
+      const bIndex = SIMPLE_TILE_ORDER.indexOf(b.label);
+      return (
+        (aIndex < 0 ? SIMPLE_TILE_ORDER.length : aIndex) -
+        (bIndex < 0 ? SIMPLE_TILE_ORDER.length : bIndex)
+      );
+    })
+    .slice(0, 6);
+  const defaultSimpleIds = defaultSimpleItems.map(hubLaunchItemId);
+  const simpleItems = simpleTileIds
+    ? simpleTileIds
+        .map((id) => simpleCandidates.find((item) => hubLaunchItemId(item) === id))
+        .filter((item): item is LaunchItem => Boolean(item))
+    : defaultSimpleItems;
+  const simpleTileOptions: HubTileOption[] = simpleCandidates
+    .filter(
+      (item) =>
+        !simpleItems.some((selected) => hubLaunchItemId(selected) === hubLaunchItemId(item)),
+    )
+    .map((item) => ({
+      ...item,
+      id: hubLaunchItemId(item),
+      title: item.label,
+      kind: "shortcut",
+      width: "narrow",
+    }));
   const hiddenItems = items.filter(
     (item) => hiddenTiles.includes(item.to) || hiddenTiles.includes(hubLaunchItemId(item)),
   );
@@ -496,6 +580,25 @@ function HubLaunch() {
   const visibleCards = availableCards
     .filter((card) => !card.hidden)
     .sort((a, b) => a.order - b.order);
+  // Only Super Admins and TTP employees can switch to the detailed cards; everyone else sees the simple view.
+  const showDetailed = isPlatform && viewMode === "detailed";
+  const simpleShortcuts = visibleCards.filter((card) => hubCardKind(card) === "shortcut");
+  const shortcutOptions: HubTileOption[] = simpleCandidates
+    .filter((item) => !simpleShortcuts.some((card) => card.to === item.to))
+    .map((item) => ({
+      ...item,
+      id: hubLaunchItemId(item),
+      title: item.label,
+      kind: "shortcut",
+      width: "narrow",
+    }));
+  const pickingShortcut = !showDetailed && addTarget === "shortcut";
+  // Admins and Moderators get four shortcut places; Super Admins, TTP employees and Members two.
+  const isAdminOrModerator =
+    session.role === "educator" ||
+    session.role === "supporter" ||
+    (session.role === "parent" && session.accountType === "b2c");
+  const shortcutSlots = isAdminOrModerator ? 4 : 2;
   const cardById = (id: string) => availableCards.find((card) => card.id === id)!;
   const cardWidth = (id: string) =>
     (id === "profile" ? "narrow" : cardById(id).width) === "wide"
@@ -571,7 +674,32 @@ function HubLaunch() {
     );
     setCardMenuId(null);
   };
+  const addShortcut = (option: HubTileOption) => {
+    setCustomCards((current) => [
+      ...current,
+      {
+        id: "custom-" + crypto.randomUUID(),
+        kind: "shortcut",
+        title: option.title,
+        width: "narrow",
+        order: Math.max(-1, ...availableCards.map((card) => card.order)) + 1,
+        to: option.to,
+        detail: option.detail,
+      },
+    ]);
+    setAddTileOpen(false);
+  };
   const addTile = (option: HubTileOption) => {
+    if (!showDetailed && addTarget === "shortcut") return addShortcut(option);
+    if (!showDetailed) {
+      setSimpleTileIds((current) => {
+        const ids = current ?? defaultSimpleIds;
+        return ids.includes(option.id) ? ids : [...ids, option.id];
+      });
+      setAddTileOpen(false);
+      addTileRef.current?.focus({ preventScroll: true });
+      return;
+    }
     const hidden = availableCards.find(
       (card) => card.hidden && hubCardOptionId(card) === option.id,
     );
@@ -676,6 +804,7 @@ function HubLaunch() {
   return (
     <main
       data-customizing={customizing}
+      data-view-mode={showDetailed ? "detailed" : "simple"}
       data-theme={backgroundMode === "color" ? background : "blue"}
       data-background-mode={backgroundMode}
       className="hub-launcher relative isolate min-h-dvh overflow-x-clip bg-[#06285b] text-white"
@@ -723,7 +852,7 @@ function HubLaunch() {
       </div>
 
       {!customizing && (
-        <header className="hub-main-header sticky inset-x-0 top-0 z-50 w-full backdrop-blur-md backdrop-saturate-150">
+        <header className="hub-main-header sticky inset-x-0 top-0 z-50 w-full">
           <div className="hub-main-bar flex min-h-16 w-full items-center justify-between gap-4 px-6 py-2 sm:px-8 lg:px-10">
             <Link
               to="/"
@@ -733,10 +862,35 @@ function HubLaunch() {
               <Logo className="[&_img]:h-11 [&_img]:translate-y-0" />
             </Link>
             <div className="hub-header-actions flex items-center gap-2">
+              {isPlatform && (
+                <div className="hub-view-switch" role="group" aria-label="Hub view">
+                  <button
+                    type="button"
+                    aria-label="Simple view"
+                    aria-pressed={viewMode === "simple"}
+                    title="Simple view"
+                    onClick={() => setViewMode("simple")}
+                  >
+                    <Grid2x2 aria-hidden />
+                    <span>Simple</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Detailed view"
+                    aria-pressed={viewMode === "detailed"}
+                    title="Detailed view"
+                    onClick={() => setViewMode("detailed")}
+                  >
+                    <Rows3 aria-hidden />
+                    <span>Detailed</span>
+                  </button>
+                </div>
+              )}
               <HubCreateMenu
                 items={items}
                 onAddTile={() => {
                   startCustomizing();
+                  setAddTarget("tile");
                   setAddTileOpen(true);
                 }}
               />
@@ -811,7 +965,8 @@ function HubLaunch() {
                 aria-expanded={addTileOpen}
                 className="hub-toolbar-trigger"
                 onClick={() => {
-                  setAddTileOpen((value) => !value);
+                  setAddTarget("tile");
+                  setAddTileOpen((value) => !value || pickingShortcut);
                   setBackgroundPickerOpen(false);
                   setWallpaperPickerOpen(false);
                   setCardMenuId(null);
@@ -826,11 +981,21 @@ function HubLaunch() {
                 open={addTileOpen}
                 onClose={() => setAddTileOpen(false)}
                 anchorRef={addTileRef}
-                label="Add Tile"
+                label={pickingShortcut ? "Add shortcut" : "Add Tile"}
               >
                 <HubTilePicker
-                  title="Which tile do you want to add?"
-                  options={tileOptions}
+                  title={
+                    pickingShortcut
+                      ? "Which shortcut do you want to add?"
+                      : "Which tile do you want to add?"
+                  }
+                  options={
+                    showDetailed
+                      ? tileOptions
+                      : pickingShortcut
+                        ? shortcutOptions
+                        : simpleTileOptions
+                  }
                   onPick={addTile}
                 >
                   <details className="hub-tile-settings">
@@ -866,45 +1031,47 @@ function HubLaunch() {
                       </button>
                     </form>
                   </details>
-                  {(availableCards.some((card) => card.hidden) || hiddenItems.length > 0) && (
-                    <div className="hub-restore-tiles">
-                      {availableCards
-                        .filter((card) => card.hidden && card.id !== "profile")
-                        .map((card) => (
+                  {showDetailed &&
+                    (availableCards.some((card) => card.hidden) || hiddenItems.length > 0) && (
+                      <div className="hub-restore-tiles">
+                        {availableCards
+                          .filter((card) => card.hidden && card.id !== "profile")
+                          .map((card) => (
+                            <button
+                              key={card.id}
+                              type="button"
+                              onClick={() => {
+                                animateLayout(() =>
+                                  updateCard(card.id, {
+                                    hidden: false,
+                                    order:
+                                      Math.max(...availableCards.map((item) => item.order)) + 1,
+                                  }),
+                                );
+                                setAddTileOpen(false);
+                              }}
+                            >
+                              Restore {card.title}
+                            </button>
+                          ))}
+                        {hiddenItems.map((item) => (
                           <button
-                            key={card.id}
+                            key={hubLaunchItemId(item)}
                             type="button"
                             onClick={() => {
-                              animateLayout(() =>
-                                updateCard(card.id, {
-                                  hidden: false,
-                                  order: Math.max(...availableCards.map((item) => item.order)) + 1,
-                                }),
+                              setHiddenTiles((current) =>
+                                current.filter(
+                                  (to) => to !== item.to && to !== hubLaunchItemId(item),
+                                ),
                               );
                               setAddTileOpen(false);
                             }}
                           >
-                            Restore {card.title}
+                            Restore {item.label} app
                           </button>
                         ))}
-                      {hiddenItems.map((item) => (
-                        <button
-                          key={hubLaunchItemId(item)}
-                          type="button"
-                          onClick={() => {
-                            setHiddenTiles((current) =>
-                              current.filter(
-                                (to) => to !== item.to && to !== hubLaunchItemId(item),
-                              ),
-                            );
-                            setAddTileOpen(false);
-                          }}
-                        >
-                          Restore {item.label} app
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    )}
                 </HubTilePicker>
               </HubPopover>
             </div>
@@ -917,98 +1084,135 @@ function HubLaunch() {
         </p>
       )}
 
-      <section
-        ref={gridRef}
-        aria-label="Play Hub launchpad"
-        className="hub-grid relative z-10 mx-auto grid max-w-[1115px] grid-cols-1 gap-6 px-6 pb-8 pt-12 sm:grid-cols-3 sm:gap-[30px] sm:px-10 sm:pb-10 sm:pt-16 lg:pb-12 lg:pt-16"
-      >
-        {draggingCardId && dragOrigin && (
-          <div
-            aria-hidden
-            className={"hub-drag-placeholder " + cardWidth(draggingCardId)}
-            style={{ order: cardOrder(draggingCardId), minHeight: dragOrigin.height }}
-          />
-        )}
-        <article
-          {...cardDragProps("profile")}
-          style={cardStyle("profile", { order: cardOrder("profile") })}
-          className={`hub-card hub-profile ${cardWidth("profile")}`}
+      {!showDetailed ? (
+        <HubSimpleView
+          session={session}
+          home={items.find((item) => item.label === "Dashboard" || item.label === "Overview")}
+          items={simpleItems}
+          shortcuts={simpleShortcuts}
+          shortcutSlots={shortcutSlots}
+          profilePhoto={profilePhoto}
+          onProfilePhoto={setProfilePhoto}
+          customizing={customizing}
+          onRemoveTile={(item) =>
+            setSimpleTileIds((current) =>
+              (current ?? defaultSimpleIds).filter((id) => id !== hubLaunchItemId(item)),
+            )
+          }
+          onRemoveShortcut={(id) => updateCard(id, { hidden: true })}
+          onReorderTile={(sourceId, targetId) =>
+            setSimpleTileIds((current) =>
+              moveIdToSlot(current ?? defaultSimpleIds, sourceId, targetId),
+            )
+          }
+          onReorderShortcut={reorderCard}
+          onAddShortcut={() => {
+            startCustomizing();
+            setAddTarget("shortcut");
+            setAddTileOpen(true);
+          }}
+        />
+      ) : (
+        <section
+          ref={gridRef}
+          aria-label="Play Hub launchpad"
+          className="hub-grid relative z-10 mx-auto grid max-w-[1115px] grid-cols-1 gap-6 px-6 pb-8 pt-12 sm:grid-cols-3 sm:gap-[30px] sm:px-10 sm:pb-10 sm:pt-16 lg:pb-12 lg:pt-16"
         >
-          <svg aria-hidden className="hub-profile-cloud" viewBox="0 0 210 185" fill="currentColor">
-            <defs>
-              <filter
-                id="hub-cloud-inset"
-                x="-15%"
-                y="-15%"
-                width="130%"
-                height="130%"
-                colorInterpolationFilters="sRGB"
-              >
-                <feGaussianBlur in="SourceAlpha" stdDeviation="4" />
-                <feOffset dx="-2" dy="5" result="shifted" />
-                <feComposite in="SourceAlpha" in2="shifted" operator="out" result="inner-edge" />
-                <feFlood floodColor="#000714" floodOpacity="0.95" />
-                <feComposite in2="inner-edge" operator="in" result="inner-shadow" />
-                <feMerge>
-                  <feMergeNode in="SourceGraphic" />
-                  <feMergeNode in="inner-shadow" />
-                </feMerge>
-              </filter>
-            </defs>
-            <path
-              filter="url(#hub-cloud-inset)"
-              d="M-10 64c12-13 25-17 43-12C43 19 68 4 98 5c39 1 66 30 67 71 22 8 34 28 34 48 0 31-23 54-56 54H-10Z"
+          {draggingCardId && dragOrigin && (
+            <div
+              aria-hidden
+              className={"hub-drag-placeholder " + cardWidth(draggingCardId)}
+              style={{ order: cardOrder(draggingCardId), minHeight: dragOrigin.height }}
             />
-          </svg>
-          <ProfileAvatar
-            name={session.name}
-            photoUrl={session.avatarUrl}
-            sticker={session.avatarSticker}
-            className="hub-profile-avatar"
-          />
-          <h1 id="hub-welcome">{session.name.split(" ")[0]}</h1>
-          <p className="hub-profile-role">{roleLabel(session.role, session.accountType)}</p>
-        </article>
-
-        {visibleCards
-          .filter((card) => card.id !== "profile")
-          .map((card) => (
-            <article
-              key={card.id}
-              {...cardDragProps(card.id)}
-              style={cardStyle(card.id, { order: card.order })}
-              className={
-                "hub-card " + (hubCardKind(card) === "apps" ? "hub-apps " : "") + cardWidth(card.id)
-              }
+          )}
+          <article
+            {...cardDragProps("profile")}
+            style={cardStyle("profile", { order: cardOrder("profile") })}
+            className={`hub-card hub-profile ${cardWidth("profile")}`}
+          >
+            <svg
+              aria-hidden
+              className="hub-profile-cloud"
+              viewBox="0 0 210 185"
+              fill="currentColor"
             >
-              {editControls(card.id)}
-              <HubCardContent
-                card={card}
-                context={{
-                  apps: visibleItems,
-                  customizing,
-                  plans: {
-                    items: plansQuery.data ?? [],
-                    loading: plansQuery.isLoading,
-                    to: plansPath,
-                  },
-                  checkIns: {
-                    items: progressQuery.data ?? [],
-                    loading: progressQuery.isLoading,
-                    names: childNames,
-                    canLog: canLogAttempts,
-                  },
-                  progressPath,
-                  options: tileOptions,
-                  session,
-                  children,
-                  childrenLoading,
-                }}
-                onHideApp={(to) => setHiddenTiles((current) => [...current, to])}
+              <defs>
+                <filter
+                  id="hub-cloud-inset"
+                  x="-15%"
+                  y="-15%"
+                  width="130%"
+                  height="130%"
+                  colorInterpolationFilters="sRGB"
+                >
+                  <feGaussianBlur in="SourceAlpha" stdDeviation="4" />
+                  <feOffset dx="-2" dy="5" result="shifted" />
+                  <feComposite in="SourceAlpha" in2="shifted" operator="out" result="inner-edge" />
+                  <feFlood floodColor="#000714" floodOpacity="0.95" />
+                  <feComposite in2="inner-edge" operator="in" result="inner-shadow" />
+                  <feMerge>
+                    <feMergeNode in="SourceGraphic" />
+                    <feMergeNode in="inner-shadow" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <path
+                filter="url(#hub-cloud-inset)"
+                d="M-10 64c12-13 25-17 43-12C43 19 68 4 98 5c39 1 66 30 67 71 22 8 34 28 34 48 0 31-23 54-56 54H-10Z"
               />
-            </article>
-          ))}
-      </section>
+            </svg>
+            <ProfileAvatar
+              name={session.name}
+              photoUrl={session.avatarUrl}
+              sticker={session.avatarSticker}
+              className="hub-profile-avatar"
+            />
+            <h1 id="hub-welcome">{session.name.split(" ")[0]}</h1>
+            <p className="hub-profile-role">{roleLabel(session.role, session.accountType)}</p>
+          </article>
+
+          {visibleCards
+            .filter((card) => card.id !== "profile")
+            .map((card) => (
+              <article
+                key={card.id}
+                {...cardDragProps(card.id)}
+                style={cardStyle(card.id, { order: card.order })}
+                className={
+                  "hub-card " +
+                  (hubCardKind(card) === "apps" ? "hub-apps " : "") +
+                  cardWidth(card.id)
+                }
+              >
+                {editControls(card.id)}
+                <HubCardContent
+                  card={card}
+                  context={{
+                    apps: visibleItems,
+                    customizing,
+                    plans: {
+                      items: plansQuery.data ?? [],
+                      loading: plansQuery.isLoading,
+                      to: plansPath,
+                    },
+                    checkIns: {
+                      items: progressQuery.data ?? [],
+                      loading: progressQuery.isLoading,
+                      names: childNames,
+                      canLog: canLogAttempts,
+                    },
+                    progressPath,
+                    options: tileOptions,
+                    session,
+                    children,
+                    childrenLoading,
+                  }}
+                  onHideApp={(to) => setHiddenTiles((current) => [...current, to])}
+                />
+              </article>
+            ))}
+        </section>
+      )}
 
       {!customizing && (
         <div className="hub-customize-bottom relative z-10">
@@ -1017,7 +1221,7 @@ function HubLaunch() {
             onClick={startCustomizing}
             className="focus-visible:outline-offset-4"
           >
-            <Sparkles className="h-4 w-4" aria-hidden />
+            <CustomizeIcon className="h-[18px] w-[18px]" aria-hidden />
             Customize
           </button>
         </div>

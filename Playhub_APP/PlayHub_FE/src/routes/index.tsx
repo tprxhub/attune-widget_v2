@@ -3,15 +3,7 @@ import { PricingSection } from "@/components/landing/PricingSection";
 import { ApplicationFooter } from "@/components/landing/ApplicationFooter";
 import { PillLink } from "@/components/landing/PillLink";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  GraduationCap,
-  HeartHandshake,
-  Menu,
-  Quote,
-  X,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, GraduationCap, Menu, Quote, X, Heart } from "lucide-react";
 import { GOALS } from "@/api/domain";
 import { loadPricingForRoute } from "@/api/pricing";
 import { apiAssetUrl } from "@/api/client";
@@ -793,7 +785,7 @@ function Landing() {
         <section className="mx-auto max-w-7xl px-2 pb-16 sm:px-4 lg:pb-20">
           <div className="grid gap-5 md:grid-cols-2">
             <div className="ph-r-xl bg-card p-8 shadow-card sm:p-10">
-              <HeartHandshake className="h-7 w-7 text-coral" aria-hidden />
+              <Heart className="h-7 w-7 text-coral" aria-hidden />
               <h3 className="ph-display mt-5 text-3xl text-navy">{home.families.title}</h3>
               <p className="mt-4 text-base leading-relaxed text-navy/70">{home.families.body}</p>
               <div className="mt-8">

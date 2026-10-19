@@ -56,7 +56,6 @@ const plan: PlayPlan = {
   level: "Starter",
   title: "Tracked Dose",
   summary: "Test summary",
-  kit: "Test kit",
   entries: [
     {
       id: "activity-1",

@@ -58,7 +58,6 @@ export interface Goal {
   short: string;
   icon: string;
   color: "coral" | "blue" | "amber";
-  kit: string;
   blurb: string;
   /** Full name of the person who created this Play Plan; absent for built-in plans. */
   createdBy?: string | undefined;
@@ -110,7 +109,6 @@ export interface PlayPlan {
   level: Level;
   title: string;
   summary: string;
-  kit: string;
   /** Suggested age range, e.g. "3+". */
   age?: string | undefined;
   /** Image shown on this Play Dose card. */

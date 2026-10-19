@@ -18,7 +18,6 @@ import {
   Brain,
   Check,
   Hand,
-  Heart,
   Loader2,
   LockKeyhole,
   Mail,
@@ -26,9 +25,8 @@ import {
   PersonStanding,
   Play,
   RotateCcw,
-  ShieldCheck,
-  Sparkles,
-  UserRound,
+  Lock,
+  PenLine,
 } from "lucide-react";
 import { useApplicationLogo } from "@/api/branding";
 import { savePlayPulseResult, type PulseCheck, type PulseContact } from "@/api/playPulse";
@@ -203,7 +201,7 @@ function PlayPulsePage() {
             />
           </Link>
           <span className="inline-flex items-center gap-2 rounded-full bg-navy/5 px-3 py-2 text-xs font-bold text-navy/65">
-            <ShieldCheck className="h-4 w-4 text-blue" aria-hidden />
+            <Lock className="h-4 w-4 text-blue" aria-hidden />
             <span className="sm:hidden">Private</span>
             <span className="hidden sm:inline">Private on this device</span>
           </span>
@@ -554,7 +552,7 @@ function ResultGate({
           <ContactField
             id="pulse-contact-name"
             label="Your name"
-            icon={UserRound}
+            icon={PenLine}
             value={form.name}
             onChange={set("name")}
             error={errors.name}

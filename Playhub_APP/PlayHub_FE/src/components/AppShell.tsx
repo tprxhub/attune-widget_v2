@@ -3,7 +3,6 @@ import { isPlatformRole } from "@/lib/roles";
 import type { PermissionKey, Session } from "@/lib/types";
 import {
   BadgeCheck,
-  BarChart3,
   HeartPulse,
   Building2,
   CalendarCheck,
@@ -35,11 +34,37 @@ import { RenewalNotice } from "./RenewalNotice";
 import { AccountMenu } from "./AccountMenu";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { DashboardIcon } from "./DashboardIcon";
-import { ServiceIcon } from "./ServiceIcon";
+import { ProgressIcon } from "./ProgressIcon";
+import attuneIcon from "@/assets/Icon_of_Service/Attune_icon.png";
 import { ModalPortal } from "./ModalPortal";
 import { QueryStatusBoundary } from "./QueryStatusBoundary";
 import { SignOutButton } from "./SignOutButton";
 import { useNavigationPreferences } from "@/lib/navigation-preferences";
+
+/** A navigation icon; Ask Attune uses its own artwork (navy on white), lightened on dark rows. */
+function NavIcon({
+  icon: Icon,
+  className,
+  onDark = false,
+}: {
+  icon: NavItem["icon"];
+  className: string;
+  onDark?: boolean;
+}) {
+  if (Icon !== Sparkles) return <Icon className={className} aria-hidden />;
+  return (
+    <img
+      src={attuneIcon}
+      alt=""
+      aria-hidden
+      className={cn(
+        className,
+        "scale-125 object-contain",
+        onDark ? "mix-blend-screen grayscale invert" : "mix-blend-multiply",
+      )}
+    />
+  );
+}
 
 interface NavItem {
   to: string;
@@ -59,7 +84,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     to: "/progress",
     label: "Progress",
     short: "Progress",
-    icon: BarChart3,
+    icon: ProgressIcon,
   };
   const checkIn: NavItem = {
     to: "/check-in",
@@ -86,7 +111,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
         to: "/admin/progress",
         label: "Progress",
         short: "Progress",
-        icon: BarChart3,
+        icon: ProgressIcon,
       },
       role === "super_admin" && {
         to: "/admin/play-pulse",
@@ -242,7 +267,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   : "text-white/70 hover:bg-white/10 hover:text-white",
               )}
             >
-              <ServiceIcon icon={item.icon} />
+              <NavIcon
+                icon={item.icon}
+                className="h-4.5 w-4.5 shrink-0"
+                onDark={!isActive(item.to)}
+              />
               <span className="truncate">{item.label}</span>
             </Link>
           ))}
@@ -329,7 +358,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       isActive(item.to) ? "bg-amber text-navy" : "text-white/70 hover:bg-white/10",
                     )}
                   >
-                    <item.icon className="h-4 w-4" aria-hidden />
+                    <NavIcon icon={item.icon} className="h-4 w-4" onDark={!isActive(item.to)} />
                     {item.label}
                   </Link>
                 </li>
@@ -648,7 +677,7 @@ function NavigatorResult({
           active ? "bg-amber text-navy" : "bg-blue/8 text-blue",
         )}
       >
-        <item.icon className="h-5 w-5" aria-hidden />
+        <NavIcon icon={item.icon} className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-bold">{item.label}</span>
@@ -752,7 +781,7 @@ function MobileNavigation({
                   activePath === item.to ? "text-coral" : "text-navy/55",
                 )}
               >
-                <item.icon className="h-5 w-5 shrink-0" aria-hidden />
+                <NavIcon icon={item.icon} className="h-5 w-5 shrink-0" />
                 <span className="w-full truncate text-center">{item.short}</span>
               </Link>
             </li>
@@ -835,7 +864,7 @@ function MobileNavigation({
                         : "text-navy/75 hover:bg-navy/5",
                     )}
                   >
-                    <ServiceIcon icon={item.icon} className="h-8 w-8" />
+                    <NavIcon icon={item.icon} className="h-5 w-5 shrink-0" />
                     {item.label}
                   </Link>
                 ))}

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { HeartHandshake } from "lucide-react";
 import { ATTUNE_MODES, getAttuneStatus } from "@/api/attune";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +35,6 @@ export function AttuneStruggleLink({
         className,
       )}
     >
-      <HeartHandshake className="h-4 w-4" aria-hidden />
       Was it a hard one? {ATTUNE_MODES.regulation.label}
     </Link>
   );

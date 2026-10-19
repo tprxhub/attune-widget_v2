@@ -258,7 +258,6 @@ function PlayDosePage() {
                       >
                         {plan.title}
                       </span>
-                      <span>{plan.kit}</span>
                     </div>
 
                     {act.instructionsHtml ? (

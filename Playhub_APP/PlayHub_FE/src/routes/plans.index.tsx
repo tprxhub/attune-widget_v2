@@ -10,7 +10,7 @@ import { PlayPlanCard } from "@/components/PlayPlanCard";
 import { ListSkeleton } from "@/components/Skeletons";
 import { TOKEN_BG } from "@/components/brand";
 import { cn } from "@/lib/utils";
-import { Gift, Lock, UserRound } from "lucide-react";
+import { Gift, Lock, PenLine } from "lucide-react";
 import { ChooseFreePlanDialog, FreePlanBanner } from "@/features/plans/freePlan";
 import { useFreePlan } from "@/features/plans/useFreePlan";
 import type { Goal } from "@/lib/types";
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/plans/")({
       {
         name: "description",
         content:
-          "Choose a Play Plan and its Rookie, Starter or Pro dose. Each dose is a week-long programme for the Fine Motor Play Kit.",
+          "Choose a Play Plan and its Rookie, Starter or Pro dose. Each dose is a week-long programme.",
       },
       { property: "og:title", content: "Play Plans — Play Hub" },
       {
@@ -51,7 +51,7 @@ function PlansPage() {
       <PageHeader
         eyebrow="Play plans"
         title="Choose a Play Plan and its dose."
-        description={`Each Play Plan has three Play Doses: Rookie, Starter and Pro, each with its own activities. Begin with Starter. If your child finds it difficult, try Rookie. If they complete it successfully, move to Pro. You’ll use the Fine Motor Play Kit for every plan.`}
+        description={`Each Play Plan has three Play Doses: Rookie, Starter and Pro, each with its own activities. Begin with Starter. If your child finds it difficult, try Rookie. If they complete it successfully, move to Pro.`}
       />
 
       <FreePlanBanner goals={goals.data ?? []} plans={plans.data ?? []} />
@@ -69,10 +69,10 @@ function PlansPage() {
                     className={cn("h-2.5 w-2.5 rounded-[3px]", TOKEN_BG[goal.color])}
                     aria-hidden
                   />
-                  <h2 className="text-lg font-bold">{goalPlans[0]?.title ?? goal.name}</h2>
+                  <h2 className="text-lg font-bold">{goal.name}</h2>
                 </div>
                 <span className="inline-flex items-center gap-2 rounded-full border border-navy/10 bg-white/70 px-3 py-1.5 text-xs text-navy/60">
-                  <UserRound className="h-3.5 w-3.5 text-blue" aria-hidden />
+                  <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden />
                   <span>Created by</span>
                   <span className="font-semibold text-navy">{goal.createdBy ?? "Super Admin"}</span>
                 </span>

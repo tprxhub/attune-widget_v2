@@ -10,15 +10,13 @@ import {
   CalendarDays,
   ChevronDown,
   CircleCheck,
-  ClipboardList,
   CreditCard,
   FilePenLine,
   History,
   Search,
-  ShieldCheck,
   UserCog,
-  UserPlus,
-  Users,
+  Server,
+  FileText,
 } from "lucide-react";
 import { getAuditLog, type AuditEvent, type AuditLogData } from "@/api/audit";
 import { Protected } from "@/auth/guards";
@@ -54,7 +52,7 @@ const CATEGORY_META: Record<
   content: { label: "Play content", icon: FilePenLine, styles: "bg-amber/25 text-navy" },
   billing: { label: "Billing", icon: CreditCard, styles: "bg-coral/10 text-coral" },
   organisation: { label: "Organisations", icon: Building2, styles: "bg-blue/10 text-blue" },
-  system: { label: "System", icon: ShieldCheck, styles: "bg-navy/8 text-navy" },
+  system: { label: "System", icon: Server, styles: "bg-navy/8 text-navy" },
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -397,7 +395,7 @@ function AuditPage() {
           {
             label: "Account events",
             value: accountCount,
-            icon: Users,
+            icon: UserCog,
             styles: "bg-amber text-navy",
           },
           {
@@ -546,7 +544,7 @@ function AuditPage() {
                               </span>
                               {target && (
                                 <span className="inline-flex items-center gap-1">
-                                  <ClipboardList className="h-3 w-3" aria-hidden /> {target}
+                                  <FileText className="h-3 w-3" aria-hidden /> {target}
                                 </span>
                               )}
                             </span>

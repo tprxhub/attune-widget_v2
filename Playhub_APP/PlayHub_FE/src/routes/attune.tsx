@@ -18,7 +18,6 @@ import {
   Lock,
   MoreHorizontal,
   Pencil,
-  ShieldCheck,
   ThumbsDown,
   ThumbsUp,
   ArrowUp,
@@ -699,7 +698,7 @@ function AttunePage() {
                       ? `Knows ${activeChild.name}’s Play Plan`
                       : "Knows the Play Plan",
                   },
-                  { icon: ShieldCheck, text: "Chats are private to you" },
+                  { icon: Lock, text: "Chats are private to you" },
                   { icon: Languages, text: "Ask in any language" },
                 ].map(({ icon: Icon, text }) => (
                   <li

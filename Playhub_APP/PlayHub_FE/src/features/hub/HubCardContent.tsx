@@ -13,7 +13,6 @@ import {
   LayoutGrid,
   Minus,
   Sparkles,
-  UserRound,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -364,7 +363,7 @@ function HubModeratorsSummary({ session }: { session: Session }) {
           .map((person) => (
             <HubSummaryRow
               key={person.id}
-              icon={UserRound}
+              icon={HeartHandshake}
               name={person.name}
               detail={
                 person.invitationPending

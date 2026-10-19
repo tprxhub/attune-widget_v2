@@ -13,7 +13,6 @@ export const GOALS: Goal[] = [
     short: "Pinch & Grip",
     icon: "pinch",
     color: "coral",
-    kit: "Fine Motor Play Kit",
     blurb: "Builds the small-muscle strength behind a comfortable, controlled pencil grip.",
   },
   {
@@ -22,7 +21,6 @@ export const GOALS: Goal[] = [
     short: "Bilateral Coordination",
     icon: "bilateral",
     color: "blue",
-    kit: "Fine Motor Play Kit",
     blurb: "Teaches both hands to work as a team and to cross the body's midline with ease.",
   },
   {
@@ -31,7 +29,6 @@ export const GOALS: Goal[] = [
     short: "Visual-Motor",
     icon: "visual",
     color: "amber",
-    kit: "Fine Motor Play Kit",
     blurb: "Links what the eyes see to what the hands do — copying, tracing and aiming.",
   },
   {
@@ -40,7 +37,6 @@ export const GOALS: Goal[] = [
     short: "Tool Use",
     icon: "tool",
     color: "coral",
-    kit: "Fine Motor Play Kit",
     blurb: "Builds the strength and control needed to pick up and use everyday tools.",
   },
   {
@@ -49,7 +45,6 @@ export const GOALS: Goal[] = [
     short: "Pre-Handwriting",
     icon: "prewrite",
     color: "blue",
-    kit: "Fine Motor Play Kit",
     blurb: "Lays down the line patterns that underpin all early handwriting.",
   },
   {
@@ -58,7 +53,6 @@ export const GOALS: Goal[] = [
     short: "Visual Scanning",
     icon: "scanning",
     color: "amber",
-    kit: "Fine Motor Play Kit",
     blurb: "Trains the eyes to follow, match and locate quickly and accurately.",
   },
   {
@@ -67,7 +61,6 @@ export const GOALS: Goal[] = [
     short: "Letter Readiness",
     icon: "letters",
     color: "coral",
-    kit: "Fine Motor Play Kit",
     blurb: "Bridges the gap between drawing shapes and forming real letters.",
   },
 ];
@@ -363,7 +356,7 @@ function makeEntries(goalId: string, level: Level): PlanEntry[] {
       minutes: 3,
       instructions: [
         "Watch the short introduction on your own first.",
-        "Lay out the Fine Motor Play Kit pieces you will need this week.",
+        "Lay out the pieces you will need this week.",
         "Pick a 10-minute slot in the day you can repeat.",
       ],
       videoLabel: "Play Plan introduction",
@@ -434,7 +427,6 @@ export const PLAY_PLANS: PlayPlan[] = GOALS.flatMap((goal) =>
     level,
     title: PLAN_TITLE[goal.id]!,
     summary: PLAN_BLURB[goal.id]![level],
-    kit: goal.kit,
     age: PLAN_AGE[goal.id]![level],
     entries: makeEntries(goal.id, level),
   })),

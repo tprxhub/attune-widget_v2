@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Sparkles } from "lucide-react";
+import { Sprout } from "lucide-react";
 import type { HelpLevel, Level, ProgressPoint } from "@/lib/types";
 import { Select, type SelectOption } from "@/components/Select";
 import { LockedOverlay } from "@/components/LockedOverlay";
@@ -702,7 +702,7 @@ export function PlayProgress({
         <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-navy/20 bg-navy/[0.02] px-6 text-center">
           <div>
             <span className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-blue/10 text-blue">
-              <Sparkles className="h-5 w-5" aria-hidden />
+              <Sprout className="h-5 w-5" aria-hidden />
             </span>
             <p className="mt-3 text-sm font-bold text-navy">Your progress graph starts here</p>
             <p className="mt-1 max-w-sm text-xs leading-relaxed text-navy/55">

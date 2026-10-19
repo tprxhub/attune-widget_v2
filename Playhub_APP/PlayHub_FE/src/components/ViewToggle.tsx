@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, Grid2x2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type ViewMode = "card" | "list";
@@ -44,7 +44,7 @@ export function ViewToggle({
         className,
       )}
     >
-      <Option mode={mode} value="card" label="Card view" onChange={onChange} icon={LayoutGrid} />
+      <Option mode={mode} value="card" label="Card view" onChange={onChange} icon={Grid2x2} />
       <Option mode={mode} value="list" label="List view" onChange={onChange} icon={List} />
     </div>
   );

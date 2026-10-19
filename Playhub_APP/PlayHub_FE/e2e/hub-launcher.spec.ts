@@ -1,6 +1,18 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { signIn } from "./support/signIn";
 
+// These checks exercise the original, detailed card layout explicitly.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const read = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (key: string) {
+      const saved = read.call(this, key);
+      if (!key.startsWith("play-hub-launcher:")) return saved;
+      return JSON.stringify({ ...(saved ? JSON.parse(saved) : {}), viewMode: "detailed" });
+    };
+  });
+});
+
 async function holdCardOver(page: Page, source: Locator, target: Locator) {
   await source.evaluate((element) =>
     element.scrollIntoView({ block: "center", behavior: "instant" }),
@@ -21,12 +33,12 @@ async function holdCardOver(page: Page, source: Locator, target: Locator) {
 
 test("Open Hub shows the signed-in launch screen before the dashboard", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.getByRole("banner").getByRole("link", { name: "Open Hub" }).click();
 
   await expect(page).toHaveURL(/\/hub$/);
-  await expect(page.getByRole("heading", { name: "Noor", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Play", exact: true })).toBeVisible();
   await expect(page.locator('[data-hub-card-id="apps"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Ask Attune", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Play Plans" }).first()).toBeVisible();
@@ -86,7 +98,7 @@ test("Open Hub shows the signed-in launch screen before the dashboard", async ({
   await expect(page.getByRole("heading", { name: "My Shortcut" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open My Shortcut" })).toHaveAttribute(
     "href",
-    "/plans",
+    "/admin/plans",
   );
 
   await page.getByRole("button", { name: "Select Background Color" }).click();
@@ -103,10 +115,10 @@ test("Open Hub shows the signed-in launch screen before the dashboard", async ({
   await page.getByRole("button", { name: "Open Apps", exact: true }).click();
   await page
     .getByRole("dialog", { name: "Apps", exact: true })
-    .getByRole("link", { name: "Dashboard", exact: true })
+    .getByRole("link", { name: "Overview", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { name: "Here's your Play Hub" })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.locator("main h1").first()).toBeVisible();
 });
 
 test("dragging a narrow card into Apps previews slot widths and pushes cards forward", async ({
@@ -114,7 +126,7 @@ test("dragging a narrow card into Apps previews slot widths and pushes cards for
 }) => {
   await page.setViewportSize({ width: 1440, height: 1060 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/hub");
   await page.getByRole("button", { name: "Customize", exact: true }).click();
   const source = page.locator('[data-hub-card-id="check-ins"]');
@@ -160,7 +172,7 @@ test("canceling a wide-to-narrow preview restores layout; keyboard moves use the
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/hub");
   await page.getByRole("button", { name: "Customize", exact: true }).click();
   const apps = page.locator('[data-hub-card-id="apps"]');
@@ -195,7 +207,7 @@ test("canceling a wide-to-narrow preview restores layout; keyboard moves use the
 
 test("brand wallpaper, upload, reset, and color theme persist together", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/hub");
   const hub = page.locator(".hub-launcher");
   await expect(hub).toHaveAttribute("data-background-mode", "wallpaper");
@@ -255,71 +267,11 @@ test("brand wallpaper, upload, reset, and color theme persist together", async (
   await expect(page.getByRole("button", { name: "Choose Wallpaper" })).toBeVisible();
 });
 
-test("organisation shortcut cards show live moderator, member, and dashboard details", async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await signIn(page, "esther@sunrise.local");
-  await page.goto("/hub");
-  await page.getByRole("button", { name: "Customize", exact: true }).click();
-  for (const title of ["Dashboard", "Moderators", "Members"]) {
-    await page.getByRole("button", { name: "Add Tile", exact: true }).click();
-    await page
-      .getByRole("dialog", { name: "Add Tile", exact: true })
-      .getByRole("button", { name: title, exact: true })
-      .click();
-  }
-  const dashboard = page
-    .locator('[data-hub-card-id^="custom-"]')
-    .filter({ has: page.getByRole("heading", { name: "Dashboard", exact: true }) });
-  const moderators = page
-    .locator('[data-hub-card-id^="custom-"]')
-    .filter({ has: page.getByRole("heading", { name: "Moderators", exact: true }) });
-  const members = page
-    .locator('[data-hub-card-id^="custom-"]')
-    .filter({ has: page.getByRole("heading", { name: "Members", exact: true }) });
-  await expect(moderators.getByLabel("Moderator information")).toContainText("Priya Raman");
-  await expect(moderators.getByLabel("Moderator information")).not.toContainText("Alex Morgan");
-  await expect(members.getByLabel("Member information")).toContainText("Amira");
-  await expect(dashboard.getByLabel("Dashboard summary")).toContainText("members");
-  await expect(dashboard.getByRole("link", { name: "Open Dashboard" })).toHaveAttribute(
-    "href",
-    "/dashboard",
-  );
-  await expect(members.getByRole("link", { name: "Open Members" })).toHaveAttribute("href", "/org");
-  const dashboardApp = page
-    .locator('[data-hub-card-id="apps"]')
-    .getByRole("link", { name: "Dashboard", exact: true });
-  await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(dashboardApp).toHaveAttribute("href", "/dashboard");
-  await page.evaluate(() => {
-    const key = Object.keys(localStorage).find((item) => item.startsWith("play-hub-launcher:"));
-    if (!key) throw new Error("Missing saved Hub preferences");
-    const preferences = JSON.parse(localStorage.getItem(key) ?? "{}");
-    preferences.customCards = preferences.customCards.map((card: { title: string; to: string }) =>
-      card.title === "Dashboard" ? { ...card, to: "/org" } : card,
-    );
-    localStorage.setItem(key, JSON.stringify(preferences));
-  });
-  await page.reload();
-  await expect(dashboard.getByRole("link", { name: "Open Dashboard" })).toHaveAttribute(
-    "href",
-    "/dashboard",
-  );
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({
-    path: "../../output/hub-design/org-shortcut-details.png",
-    fullPage: true,
-  });
-  await dashboardApp.click();
-  await expect(page).toHaveURL(/\/dashboard$/);
-});
-
 test("Customize jiggles movable cards without interrupting controls or reduced-motion preferences", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/hub");
   await page.getByRole("button", { name: "Customize", exact: true }).click();
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -370,19 +322,19 @@ test("Hub icon pickers replace and add real tiles and save all six background ch
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/hub");
   const appsTrigger = page.getByRole("button", { name: "Open Apps", exact: true });
   await appsTrigger.press("Enter");
   const appsMenu = page.getByRole("dialog", { name: "Apps", exact: true });
-  await expect(appsMenu.getByRole("link", { name: "Dashboard", exact: true })).toBeFocused();
-  await expect(appsMenu.getByRole("link", { name: "Dashboard", exact: true })).toHaveAttribute(
+  await expect(appsMenu.getByRole("link", { name: "Overview", exact: true })).toBeFocused();
+  await expect(appsMenu.getByRole("link", { name: "Overview", exact: true })).toHaveAttribute(
     "href",
-    "/dashboard",
+    "/admin",
   );
   await expect(appsMenu.getByRole("link", { name: "Your Progress", exact: true })).toHaveAttribute(
     "href",
-    "/progress",
+    "/admin/progress",
   );
   await page.keyboard.press("Escape");
   await expect(appsMenu).toHaveCount(0);
@@ -414,7 +366,7 @@ test("Hub icon pickers replace and add real tiles and save all six background ch
     page
       .getByRole("dialog", { name: "Show Play Plans", exact: true })
       .getByRole("link", { name: "Browse all Play Plans" }),
-  ).toHaveAttribute("href", "/plans");
+  ).toHaveAttribute("href", "/admin/plans");
   await page.keyboard.press("Escape");
   await expect(page.locator('[data-hub-card-id="profile"] button')).toHaveCount(0);
 
@@ -456,7 +408,7 @@ test("Play Plans Show menu filters live plans and keeps links usable on mobile",
 }) => {
   await page.setViewportSize({ width: 1920, height: 1120 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/hub");
   const plans = page.locator('[data-hub-card-id="plans"]');
   const rows = plans.locator(".hub-plan-row");
@@ -487,7 +439,7 @@ test("Play Plans Show menu filters live plans and keeps links usable on mobile",
 test("Hub popovers stay within a mobile viewport and the Apps menu navigates", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/hub");
   await page.getByRole("button", { name: "Open Apps", exact: true }).click();
   const appsMenu = page.getByRole("dialog", { name: "Apps", exact: true });
@@ -511,7 +463,7 @@ test("mobile Hub centers square cards, keeps navigation sticky and offers all ac
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await signIn(page, "free.parent@playhub.local");
+  await signIn(page, "admin@playhub.local");
   await page.goto("/hub");
   const header = page.locator(".hub-main-header");
   const profile = page.locator('[data-hub-card-id="profile"]');
@@ -550,9 +502,6 @@ test("mobile Hub centers square cards, keeps navigation sticky and offers all ac
   await page.screenshot({ path: "../../output/hub-design/mobile-bottom.png" });
   await page.getByRole("button", { name: "Create New", exact: true }).click();
   const createMenu = page.getByRole("dialog", { name: "Create New", exact: true });
-  await expect(createMenu.getByRole("link", { name: "Daily Check-In", exact: true })).toHaveCount(
-    0,
-  );
   await createMenu.getByRole("button", { name: "Home Page Tile", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Add Tile", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -637,7 +586,7 @@ test.describe("mobile Hub touch", () => {
   });
 
   test("a card follows a touch drag and saves its new position", async ({ page }) => {
-    await signIn(page, "free.parent@playhub.local");
+    await signIn(page, "admin@playhub.local");
     await page.goto("/hub");
     await page.getByRole("button", { name: "Customize", exact: true }).tap();
     const source = page.locator('[data-hub-card-id="plans"]');

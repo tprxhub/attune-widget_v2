@@ -5,7 +5,6 @@ import {
   CirclePlus,
   CircleUserRound,
   CircleX,
-  HeartHandshake,
   Layers,
   Settings,
   UserPlus,
@@ -38,7 +37,7 @@ export function HubCreateMenu({
       label: "Child Profile",
       detail: "",
       to: "/org/enroll",
-      icon: UserPlus,
+      icon: CirclePlus,
       accent: "from-sky-300 to-cyan-500",
     });
   if (canInviteSupporter)
@@ -46,7 +45,7 @@ export function HubCreateMenu({
       label: "Moderator Invitation",
       detail: "",
       to: "/invite",
-      icon: HeartHandshake,
+      icon: UserPlus,
       accent: "from-rose-300 to-pink-500",
     });
 

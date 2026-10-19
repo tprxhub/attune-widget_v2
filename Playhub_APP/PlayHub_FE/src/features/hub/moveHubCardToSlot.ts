@@ -1,5 +1,14 @@
 import type { HubCardSetting } from "./hubTiles";
 
+export function moveIdToSlot(ids: string[], sourceId: string, targetId: string) {
+  const from = ids.indexOf(sourceId);
+  const to = ids.indexOf(targetId);
+  if (from < 0 || to < 0 || from === to) return ids;
+  const moved = [...ids];
+  moved.splice(to, 0, ...moved.splice(from, 1));
+  return moved;
+}
+
 /** Move card contents through the layout while each position keeps its width. */
 export function moveHubCardToSlot(cards: HubCardSetting[], sourceId: string, targetId: string) {
   const slots = cards

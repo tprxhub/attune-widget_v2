@@ -126,7 +126,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   skills: {
     title: "Seven skill areas, one Play Kit",
     description:
-      "Choose a skill area, then find the right Rookie, Starter or Pro plan for your child. Every plan uses the same Fine Motor Play Kit.",
+      "Choose a skill area, then find the right Rookie, Starter or Pro plan for your child.",
     button_label: "Browse Play Plans",
     all_plans_label: "View all Play Plans",
   },
@@ -142,7 +142,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       {
         when: "Start here",
         title: "Introduction",
-        body: "See what the goal builds and how to set up the Fine Motor Play Kit.",
+        body: "See what the goal builds and how to get set up.",
       },
       {
         when: "Activities 1–5",

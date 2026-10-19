@@ -13,7 +13,7 @@ import {
   MessageSquareHeart,
   Sparkles,
   Stethoscope,
-  ChartColumn,
+  Trophy,
 } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { listGoals, listPlans } from "@/api/plans";
@@ -37,6 +37,8 @@ import { CONSULT_BOOKING_URL } from "@/lib/contact";
 import { cn } from "@/lib/utils";
 import { printReport } from "@/lib/print-report";
 import { playPlanName } from "@/lib/planNames";
+import { ProgressIcon } from "@/components/ProgressIcon";
+import attuneIcon from "@/assets/Icon_of_Service/Attune_icon.png";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
@@ -424,7 +426,7 @@ export function ProgressPage() {
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-amber text-navy shadow-[0_10px_24px_-12px_rgba(255,183,77,0.9)]">
-            <ChartColumn className="h-5 w-5" aria-hidden />
+            <ProgressIcon className="h-6 w-6" />
           </span>
           <div className="min-w-0">
             <p className="eyebrow text-amber">Your next steps</p>
@@ -460,8 +462,13 @@ export function ProgressPage() {
         }}
         className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-coral px-4 text-sm font-bold text-white hover:bg-coral/90"
       >
-        <Sparkles className="h-4 w-4" aria-hidden />
-        What does this mean? Ask Attune
+        <img
+          src={attuneIcon}
+          alt=""
+          aria-hidden
+          className="h-6 w-6 scale-125 object-contain mix-blend-screen brightness-150 grayscale invert"
+        />
+        Ask Attune
       </Link>
     </section>
   ) : null;
@@ -571,7 +578,7 @@ export function ProgressPage() {
                           : "text-cream",
                     )}
                   >
-                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                    <Trophy className="h-3.5 w-3.5" aria-hidden />
                     {dosesTally.total
                       ? `${dosesTally.passed} of ${dosesTally.total} doses passed in this plan`
                       : "First Play Dose in progress"}
