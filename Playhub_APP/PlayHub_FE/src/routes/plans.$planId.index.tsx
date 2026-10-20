@@ -305,7 +305,7 @@ function PlanWeek() {
         <div className="min-w-[180px] flex-1">
           <p className="text-sm font-bold">Want a professional eye on this week?</p>
           <p className="mt-0.5 text-sm text-navy/60">
-            A 1:1 Play Consultation tailors the plan to your child.
+            A 1:1 Play Consultation tailors the plan to your member.
           </p>
         </div>
         <a

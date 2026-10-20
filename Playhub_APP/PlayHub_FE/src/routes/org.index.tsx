@@ -378,7 +378,7 @@ function ChildName({
       setError("");
     },
     onError: (reason) =>
-      setError(reason instanceof Error ? reason.message : "Could not rename this child."),
+      setError(reason instanceof Error ? reason.message : "Could not rename this member."),
   });
   const Name = heading ? "h2" : "span";
   const inputId = `child-name-${child.id}`;

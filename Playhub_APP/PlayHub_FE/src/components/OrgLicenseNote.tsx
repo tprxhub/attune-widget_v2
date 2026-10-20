@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 
 /**
  * How many of the organisation's licences are in use, shown where they get used up: the
- * Moderators page for Moderator licences, the children pages for child licences.
+ * Moderators page for Moderator licences, the members pages for member licences.
  */
 export function OrgLicenseNote({ org, kind }: { org: Org | undefined; kind: LicenseType }) {
   if (!org || org.licenseType !== kind || !org.licenses) return null;
-  const noun = kind === "moderators" ? "Moderator" : "child";
+  const noun = kind === "moderators" ? "Moderator" : "member";
   const full = org.licensesUsed >= org.licenses;
   const share = Math.min(100, (org.licensesUsed / org.licenses) * 100);
   return (
@@ -74,7 +74,7 @@ export function LicenceLimitModal({
 }) {
   const close = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState(false);
-  const noun = kind === "moderators" ? "Moderator" : "child";
+  const noun = kind === "moderators" ? "Moderator" : "member";
   const adding = kind === "moderators" ? "add another Moderator" : "enrol another member";
   const subject = `Licence increase for ${org.name}`;
   const body = `Hello Play Hub team,\n\n${org.name} is using all ${org.licenses} ${noun} licences. We'd like to increase our licences to: \n\nThank you.`;

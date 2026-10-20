@@ -904,7 +904,7 @@ test("Super Admin can raise an organisation's licenses but not below the members
   await dialog.getByLabel("Number of licences").fill("250");
   await dialog.getByRole("button", { name: "Save changes" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(card).toContainText(/\/ 250 (child|Moderator) licences/);
+  await expect(card).toContainText(/\/ 250 (member|Moderator) licences/);
 });
 
 test("enrolling for an organisation fills in its Admin, or offers to create one", async ({

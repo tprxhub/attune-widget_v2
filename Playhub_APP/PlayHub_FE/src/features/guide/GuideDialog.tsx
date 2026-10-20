@@ -147,7 +147,7 @@ export function GuideSheet({ onClose }: { onClose: () => void }) {
                 <div className="rounded-2xl border border-blue/30 bg-blue/6 p-4">
                   <p className="text-sm font-bold text-blue">Subscribed (per member)</p>
                   <p className="mt-1 text-sm text-navy/90">
-                    Access all Play Doses, videos, sessions and progress charts for your child.
+                    Access all Play Doses, videos, sessions and progress charts for your member.
                     Cancel within 7 days for a refund.
                   </p>
                 </div>

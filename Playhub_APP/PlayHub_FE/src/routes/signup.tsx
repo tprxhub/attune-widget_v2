@@ -18,7 +18,7 @@ export const Route = createFileRoute("/signup")({
       {
         name: "description",
         content:
-          "Sign up free to browse every Play Plan and try the first Play Dose for your child.",
+          "Sign up free to browse every Play Plan and try the first Play Dose for your member.",
       },
       { property: "og:title", content: "Create a free family account — Play Hub" },
       {

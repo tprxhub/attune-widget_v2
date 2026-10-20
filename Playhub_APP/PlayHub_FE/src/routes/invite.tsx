@@ -20,7 +20,7 @@ export const Route = createFileRoute("/invite")({
       { property: "og:title", content: "Invite a Moderator — Play Hub" },
       {
         property: "og:description",
-        content: "Invite a Moderator to log Play Doses for your child.",
+        content: "Invite a Moderator to log Play Doses for your member.",
       },
     ],
   }),

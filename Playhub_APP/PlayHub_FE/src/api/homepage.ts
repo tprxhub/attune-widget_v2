@@ -108,7 +108,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
     steps: [
       {
         title: "Pick a Play Plan",
-        body: "Choose a skill area and a level. Rookie, Starter or Pro — Starter suits most children.",
+        body: "Choose a skill area and a level. Rookie, Starter or Pro — Starter suits most members.",
         image_url: "",
       },
       {
@@ -126,7 +126,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
   skills: {
     title: "Seven skill areas, one Play Kit",
     description:
-      "Choose a skill area, then find the right Rookie, Starter or Pro plan for your child.",
+      "Choose a skill area, then find the right Rookie, Starter or Pro plan for your member.",
     button_label: "Browse Play Plans",
     all_plans_label: "View all Play Plans",
   },
@@ -172,7 +172,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
     title: LEVEL_GUIDANCE,
     descriptions: [
       "Simple — the gentlest version of every Activity.",
-      "Medium and the default. Start here for most children.",
+      "Medium and the default. Start here for most members.",
       "Complex — step up when the week feels easy.",
     ],
   },

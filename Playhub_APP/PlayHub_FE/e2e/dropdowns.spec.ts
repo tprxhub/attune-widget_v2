@@ -42,7 +42,7 @@ test("card dropdown, member switcher and progress filter are not clipped", async
   await page.keyboard.press("Escape");
 
   // Child switcher in the top bar, with Add a Member.
-  await page.getByRole("button", { name: /Selected child/ }).click();
+  await page.getByRole("button", { name: /Selected member/ }).click();
   await fullyVisible(page, "child-switcher");
   await page.getByRole("link", { name: "Add a Member" }).click();
   await expect(page).toHaveURL(/\/org\/enroll/);
@@ -59,7 +59,7 @@ test("card dropdown, member switcher and progress filter are not clipped", async
 test("a parent does not get Add a Member", async ({ page }) => {
   await login(page, "parent@playhub.local");
   await page.goto("/dashboard");
-  const switcher = page.getByRole("button", { name: /Selected child/ });
+  const switcher = page.getByRole("button", { name: /Selected member/ });
   if (await switcher.count()) {
     await switcher.click();
     await expect(page.getByRole("link", { name: "Add a Member" })).toHaveCount(0);

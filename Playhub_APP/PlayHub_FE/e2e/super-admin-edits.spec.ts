@@ -87,7 +87,7 @@ test("Super Admin deletes an organisation with everything in it after typing its
   await card.getByRole("button", { name: `Delete ${name}` }).click();
   const dialog = page.getByRole("alertdialog", { name: `Delete ${name}` });
   const counts = dialog.getByRole("definition");
-  await expect(dialog.getByLabel("What will be deleted")).toContainText("Children1");
+  await expect(dialog.getByLabel("What will be deleted")).toContainText("Members1");
   await expect(counts.first()).toBeVisible();
   const confirm = dialog.getByRole("button", { name: "Delete everything" });
   await expect(confirm).toBeDisabled();

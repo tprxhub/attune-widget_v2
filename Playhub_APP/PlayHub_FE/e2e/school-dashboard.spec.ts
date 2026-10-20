@@ -18,7 +18,7 @@ test("school Admin sees every member on the dashboard and can open one", async (
   await expect(page.getByRole("heading", { name: "Amira" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Omar" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Sara" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Selected child: All children/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Selected member: All members/ })).toBeVisible();
 
   // The status donut and the "needs your eye" card are gone; graphs start collapsed.
   await expect(page.getByText("How the members are doing")).toHaveCount(0);
@@ -34,13 +34,13 @@ test("school Admin sees every member on the dashboard and can open one", async (
   await expect(page.getByRole("heading", { name: "Omar" })).toHaveCount(0);
   await filters.getByRole("button", { name: /^All/ }).click();
 
-  await page.getByRole("button", { name: /Selected child/ }).click();
+  await page.getByRole("button", { name: /Selected member/ }).click();
   await page.getByRole("option", { name: /Omar/ }).click();
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Omar", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Play Progress" })).toBeVisible();
 
-  await page.getByRole("button", { name: /Selected child: Omar/ }).click();
+  await page.getByRole("button", { name: /Selected member: Omar/ }).click();
   await page.getByRole("option", { name: "All members" }).click();
   await expect(page.getByText("Members enrolled")).toBeVisible();
 });

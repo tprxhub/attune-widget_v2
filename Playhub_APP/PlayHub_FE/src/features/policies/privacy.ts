@@ -46,7 +46,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
   {
     heading: "Minors",
     paragraphs: [
-      "The Site is not intended for individuals under the age of 18. We do not intentionally collect Personal Information from children. If you are the parent or guardian and believe your member has provided us with Personal Information, please contact us at the address above to request deletion.",
+      "The Site is not intended for individuals under the age of 18. We do not intentionally collect Personal Information from members. If you are the parent or guardian and believe your member has provided us with Personal Information, please contact us at the address above to request deletion.",
     ],
   },
   {

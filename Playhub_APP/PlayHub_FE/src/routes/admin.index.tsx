@@ -554,7 +554,7 @@ function KeyFigures({ data, compact = false }: { data: AdminOverview; compact?: 
     });
   const visibleTiles = compact
     ? tiles.filter((tile) =>
-        ["Children", "Sessions (30 days)", "Active subscriptions", "Organisations"].includes(
+        ["Members", "Sessions (30 days)", "Active subscriptions", "Organisations"].includes(
           tile.label,
         ),
       )
@@ -612,7 +612,7 @@ function NeedsAttention({ data }: { data: AdminOverview }) {
   for (const org of data.organisations?.near_capacity ?? [])
     items.push({
       label: `${org.name} is at ${org.used} of ${org.limit} licences`,
-      detail: "Raise the licence count before they need to enrol more children.",
+      detail: "Raise the licence count before they need to enrol more members.",
       to: "/admin/orgs",
       tone: org.used >= org.limit ? "coral" : "amber",
     });

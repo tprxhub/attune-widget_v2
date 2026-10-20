@@ -83,7 +83,7 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   await expect(card).toContainText("Active");
   await card.getByRole("button", { name: "Edit", exact: true }).click();
   const edit = page.getByRole("dialog", { name: "Edit employee" });
-  await edit.getByLabel(/^Children/).check();
+  await edit.getByLabel(/^Members/).check();
   await edit.getByRole("button", { name: "Save changes" }).click();
   await expect(card).toContainText("Members");
   await employee.reload();

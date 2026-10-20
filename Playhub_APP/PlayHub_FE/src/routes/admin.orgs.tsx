@@ -67,9 +67,9 @@ const LICENSE_OPTIONS = [
   },
 ];
 
-/** "12 / 25 child licences", or "4 Moderators · no limit" when the count is 0. */
+/** "12 / 25 member licences", or "4 Moderators · no limit" when the count is 0. */
 function licenseSummary(org: Pick<Org, "licenses" | "licensesUsed" | "licenseType">) {
-  const noun = org.licenseType === "moderators" ? "Moderator" : "child";
+  const noun = org.licenseType === "moderators" ? "Moderator" : "member";
   if (!org.licenses) {
     const counted = org.licenseType === "moderators" ? "Moderators" : "children";
     return `${org.licensesUsed} ${counted} · no limit`;
@@ -475,7 +475,7 @@ function DeleteOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
     ? [
         ["Admins", counts.admins],
         ["Moderators", counts.moderators],
-        ["Members", counts.members],
+        ["Member accounts", counts.members],
         ["Members", counts.children],
         ["Sessions logged", counts.sessions],
         ["Subscriptions", counts.subscriptions],
@@ -812,7 +812,7 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
               </label>
               <BillingBreakdown
                 count={count}
-                noun={licenseType === "moderators" ? "Moderator" : "child"}
+                noun={licenseType === "moderators" ? "Moderator" : "member"}
                 price={cost}
                 months={months}
                 renewsOn={renewsOn}
@@ -858,7 +858,7 @@ function BillingPanel({ org }: { org: Org }) {
     onError: (failure: Error) => setError(failure.message),
   });
   const unit = cycleUnit(org.billingMonths);
-  const noun = org.licenseType === "moderators" ? "Moderator" : "child";
+  const noun = org.licenseType === "moderators" ? "Moderator" : "member";
 
   return (
     <div className="mt-3 rounded-2xl border border-navy/10 p-3">

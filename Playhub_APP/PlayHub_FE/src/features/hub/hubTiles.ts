@@ -29,10 +29,14 @@ export function hubLaunchItemId(item: Pick<LaunchItem, "to" | "label">) {
 }
 
 /** The platform "Children" tile is now "Members"; saved layouts keep pointing at it. */
+const LEGACY_PLATFORM_TILE = "/admin/children|Children";
 const RENAMED_TILE_IDS: Record<string, string> = {
-  "/admin/children|Children": "/admin/children|Members",
+  [LEGACY_PLATFORM_TILE]: "/admin/children|Members",
 };
 export const migrateHubTileId = (id: string) => RENAMED_TILE_IDS[id] ?? id;
+/** A saved card for the old platform tile, by its id or (for added shortcuts) route and title. */
+export const isLegacyPlatformCard = (card: { id: string; to: string; title: string }) =>
+  migrateHubTileId(card.id) !== card.id || `${card.to}|${card.title}` === LEGACY_PLATFORM_TILE;
 
 export type HubTileKind = "plans" | "apps" | "check-ins" | "progress" | "attune" | "shortcut";
 

@@ -138,7 +138,7 @@ function SubscriptionPage() {
       <PageHeader
         eyebrow="Billing"
         title="Subscription"
-        description="Each subscription unlocks one child. A shared family login still needs a subscription per child."
+        description="Each subscription unlocks one member. A shared family login still needs a subscription per member."
         actions={
           <Link
             to="/account"

@@ -25,12 +25,12 @@ export const Route = createFileRoute("/dashboard")({
       { title: "Dashboard — Play Hub" },
       {
         name: "description",
-        content: "Your Play Hub Summary and Today's Play Dose for each child.",
+        content: "Your Play Hub Summary and Today's Play Dose for each member.",
       },
       { property: "og:title", content: "Dashboard — Play Hub" },
       {
         property: "og:description",
-        content: "Your Play Hub Summary and Today's Play Dose for each child.",
+        content: "Your Play Hub Summary and Today's Play Dose for each member.",
       },
     ],
   }),

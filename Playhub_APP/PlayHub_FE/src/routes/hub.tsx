@@ -52,6 +52,7 @@ import {
   hubCardOptionId,
   hubLaunchItemId,
   migrateHubTileId,
+  isLegacyPlatformCard,
   hubTileOptions,
   type LaunchItem,
   type HubCardSetting,
@@ -381,7 +382,7 @@ function useHubPreferences(personaId: string) {
             parsed.customCards.map((card) =>
               card.title === "Dashboard" && card.to === "/org"
                 ? { ...card, to: "/dashboard" }
-                : card.title === "Children" && card.to === "/admin/children"
+                : isLegacyPlatformCard(card)
                   ? { ...card, id: migrateHubTileId(card.id), title: "Members" }
                   : card,
             ),

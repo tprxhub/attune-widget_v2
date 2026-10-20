@@ -119,7 +119,7 @@ test("Account shows members in a dropdown and puts account actions in Preference
   await page.goto("/account");
   const children = page
     .locator("details")
-    .filter({ has: page.locator("summary", { hasText: /^Children/ }) });
+    .filter({ has: page.locator("summary", { hasText: /^Members/ }) });
   await expect(children).not.toHaveAttribute("open", "");
   await children.locator("summary").click();
   await expect(children.locator("li").first()).toBeVisible();

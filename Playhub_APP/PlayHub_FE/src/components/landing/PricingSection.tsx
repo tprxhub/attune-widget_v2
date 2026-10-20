@@ -105,7 +105,7 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
           <div>
             <h3 className="text-lg font-bold">Schools &amp; clinics</h3>
             <p className="mt-1 text-sm text-navy/70">
-              Billed by license for your organisation, not per child. Organisation accounts are set
+              Billed by license for your organisation, not per member. Organisation accounts are set
               up by The Toy Pharmacy.
             </p>
           </div>

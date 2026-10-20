@@ -208,7 +208,7 @@ function OrgSupporters() {
                 Disable {disabling.name}?
               </h2>
               <p className="mt-3 text-sm text-navy/70">
-                They will lose access to Play Hub and their assigned children. Their session history
+                They will lose access to Play Hub and their assigned members. Their session history
                 will remain. You can re-enable the account later.
               </p>
               {toggle.isError && (

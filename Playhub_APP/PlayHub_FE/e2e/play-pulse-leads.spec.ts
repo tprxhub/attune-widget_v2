@@ -75,7 +75,7 @@ test("a guest fills the form once, sees the Progress-style result, and is saved"
   const form = page.locator("form").filter({ hasText: "Show My Member’s Score" });
   await expect(form).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign in with Google/ })).toHaveCount(0);
-  await form.getByRole("button", { name: /Unlock My Child’s Score/ }).click();
+  await form.getByRole("button", { name: /Unlock My Member’s Score/ }).click();
   await expect(form.getByText("Please enter your name.")).toBeVisible();
   await expect(form.getByText(/valid phone number/)).toBeVisible();
   await expect(form.getByText(/valid email address/)).toBeVisible();
@@ -83,7 +83,7 @@ test("a guest fills the form once, sees the Progress-style result, and is saved"
   await form.getByLabel(/Your name/).fill("Guest Parent");
   await form.getByLabel(/Phone number/).fill("+971 50 765 4321");
   await form.getByLabel(/Email/).fill(email);
-  await form.getByRole("button", { name: /Unlock My Child’s Score/ }).click();
+  await form.getByRole("button", { name: /Unlock My Member’s Score/ }).click();
 
   await expect(page.getByText("Play Pulse result", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Noor", exact: true })).toBeVisible();

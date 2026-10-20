@@ -51,7 +51,7 @@ test("the Super Admin licenses an organisation by member or by Moderator", async
 
   // Sunrise has active children, so child licences can't go below that count.
   const sunrise = page.locator("article").filter({ hasText: "Sunrise Montessori" });
-  await expect(sunrise).toContainText(/\d+ \/ 40 child licences/);
+  await expect(sunrise).toContainText(/\d+ \/ 40 member licences/);
   await sunrise.getByRole("button", { name: "Edit Sunrise Montessori" }).click();
   const sunriseEdit = page.getByRole("dialog", { name: "Edit Sunrise Montessori" });
   await sunriseEdit.getByLabel("Number of licences").fill("1");
@@ -64,7 +64,7 @@ test("the Super Admin licenses an organisation by member or by Moderator", async
   await card.getByRole("button", { name: /^Edit / }).click();
   const clinicEdit = page.getByRole("dialog", { name: /^Edit / });
   await clinicEdit.getByRole("button", { name: "Licence type" }).click();
-  await page.getByRole("option", { name: /Child licences/ }).click();
+  await page.getByRole("option", { name: /Member licences/ }).click();
   await expect(clinicEdit).toContainText(
     "Members will no longer use licences".replace("Members", "Moderators"),
   );
@@ -135,7 +135,7 @@ test("a full organisation is told to contact Play Hub when adding past its licen
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/org");
     if (sunrise.licenses_used) {
-      await page.getByRole("link", { name: /Enrol a child/ }).click();
+      await page.getByRole("link", { name: /Enrol a member/ }).click();
       const dialog = page.getByRole("dialog", { name: "All member licences are in use" });
       await expect(dialog).toContainText("Contact the Play Hub team");
       await expect(dialog.getByRole("link", { name: "esther@thetoypharmacy.com" })).toHaveAttribute(

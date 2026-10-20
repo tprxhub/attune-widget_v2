@@ -442,7 +442,7 @@ function ModeratorPanel({
       </div>
       {supporters.length === 0 ? (
         <p className="mt-3 text-sm text-navy/65">
-          No moderators yet. Add one so check-ins can be logged for their children.
+          No moderators yet. Add one so check-ins can be logged for their members.
         </p>
       ) : (
         <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
