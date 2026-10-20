@@ -229,6 +229,9 @@ function ChildRow({
       <div className="min-w-0 flex-1">
         <ChildName child={child} canRename={canRename} className="text-sm text-navy" />
         <span className="block text-xs text-navy/55">Age {child.age}</span>
+        <span className="block truncate text-xs text-navy/55">
+          {child.parentEmail ?? "No email linked yet"}
+        </span>
       </div>
       <span className="hidden min-w-0 flex-1 truncate text-xs text-navy/60 lg:block">
         {planTitle}
@@ -291,6 +294,9 @@ function ChildCard({
           <div className="min-w-0">
             <ChildName child={child} canRename={canAssign} heading className="text-lg" />
             <p className="truncate text-xs text-navy/55">Age {child.age}</p>
+            <p className="truncate text-xs text-navy/55" title={child.parentEmail}>
+              {child.parentEmail ?? "No email linked yet"}
+            </p>
             {report.data && (
               <div className="mt-1.5">
                 <StatusBadge status={report.data.status} size="sm" />

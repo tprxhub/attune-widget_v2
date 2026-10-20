@@ -138,6 +138,9 @@ def validate_invitation_child(db: Session, payload: InvitationCreate) -> Child |
     return child
 
 
+ONE_MEMBER_PER_ACCOUNT = "An individual account can have one member. You can still add Moderators."
+
+
 def validate_child_values(db: Session, values: dict, child_id: str | None = None) -> None:
     scope = values.get("account_scope")
     organisation_id = values.get("organisation_id")
@@ -1444,6 +1447,13 @@ def create_child(payload: ChildCreate, user: User = Depends(require_permission("
             data["organisation_id"] = None
             data["owner_id"] = user.id
             data["admin_id"] = user.id
+    # An individual (family) account has one member; it can still add as many Moderators as it likes.
+    if data.get("account_scope") == AccountScope.INDIVIDUAL and data.get("owner_id") and db.scalar(
+        select(func.count()).select_from(Child).where(
+            Child.owner_id == data["owner_id"], Child.account_scope == AccountScope.INDIVIDUAL
+        )
+    ):
+        raise HTTPException(status_code=409, detail=ONE_MEMBER_PER_ACCOUNT)
     if not data.get("current_play_dose_id"):
         starter = default_starter_dose(db)
         if starter:

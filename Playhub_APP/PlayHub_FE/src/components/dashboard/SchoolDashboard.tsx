@@ -353,6 +353,9 @@ function ChildTile({
         <div className="min-w-0">
           <h3 className="break-words text-xl leading-tight font-bold">{child.name}</h3>
           <p className="mt-1 text-xs text-navy/55">Age {child.age}</p>
+          <p className="truncate text-xs text-navy/55" title={child.parentEmail}>
+            {child.parentEmail ?? "No email linked yet"}
+          </p>
         </div>
         <button
           type="button"

@@ -259,6 +259,9 @@ function AdminChildren() {
                       ? (orgName(child.orgId) ?? "Organisation")
                       : "Family account"}
                   </p>
+                  <p className="truncate text-xs text-navy/55" title={child.parentEmail}>
+                    {child.parentEmail ?? "No email linked yet"}
+                  </p>
                 </div>
               </div>
 
