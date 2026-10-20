@@ -76,6 +76,8 @@ export function mapChild(child: ApiChild): Child {
     age: ageFromDate(child.date_of_birth),
     ownerUserId: child.owner_id ?? child.admin_id ?? "",
     parentEmail: child.owner_email ?? undefined,
+    memberUserId: child.owner_id ?? undefined,
+    invitedEmail: child.invited_member_email ?? undefined,
     accountType: child.account_scope === "organisation" ? "b2b" : "b2c",
     orgId: child.organisation_id ?? undefined,
     educatorId: child.admin_id ?? undefined,

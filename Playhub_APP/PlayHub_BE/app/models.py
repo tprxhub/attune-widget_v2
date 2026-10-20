@@ -342,10 +342,20 @@ class Child(TimestampMixin, Base):
     current_play_dose: Mapped[Optional[PlayDose]] = relationship(back_populates="children")
     attempts: Mapped[list[Attempt]] = relationship(back_populates="child", cascade="all, delete-orphan")
     subscription: Mapped[Optional[Subscription]] = relationship(back_populates="child", cascade="all, delete-orphan", uselist=False)
+    invitations: Mapped[list["Invitation"]] = relationship(viewonly=True, order_by="Invitation.created_at")
 
     @property
     def owner_email(self) -> str | None:
         return self.owner.email if self.owner else None
+
+    @property
+    def invited_member_email(self) -> str | None:
+        """The email of the newest Member invitation still waiting to be accepted."""
+        pending = [
+            item for item in self.invitations
+            if item.role == Role.MEMBER and item.status == InvitationStatus.PENDING
+        ]
+        return pending[-1].email if pending else None
 
     @property
     def has_full_access(self) -> bool:

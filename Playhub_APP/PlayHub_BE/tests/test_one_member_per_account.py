@@ -31,3 +31,21 @@ def test_organisations_still_enrol_many_members(client, platform_admin):
             "name": name, "account_scope": "organisation", "organisation_id": org["id"],
         })
         assert created.status_code == 201
+
+
+def test_an_invited_member_email_shows_until_they_accept(client, platform_admin):
+    org = client.post(f"{API}/organisations", headers=platform_admin, json={"name": "Invite School", "seat_limit": 5}).json()
+    child = client.post(f"{API}/children", headers=platform_admin, json={
+        "name": "Ivy", "account_scope": "organisation", "organisation_id": org["id"],
+    }).json()
+    assert child["invited_member_email"] is None
+    invited = client.post(f"{API}/invitations", headers=platform_admin, json={
+        "email": "ivy.parent@example.com", "role": "member", "account_scope": "organisation",
+        "organisation_id": org["id"], "child_id": child["id"],
+    }).json()
+    listed = next(c for c in client.get(f"{API}/children", headers=platform_admin).json() if c["id"] == child["id"])
+    assert listed["invited_member_email"] == "ivy.parent@example.com" and listed["owner_email"] is None
+    accepted = client.post(f"{API}/invitations/accept", json={"token": invited["acceptance_token"], "password": "A-secure-password"})
+    assert accepted.status_code == 200
+    listed = next(c for c in client.get(f"{API}/children", headers=platform_admin).json() if c["id"] == child["id"])
+    assert listed["invited_member_email"] is None and listed["owner_email"] == "ivy.parent@example.com"

@@ -205,6 +205,7 @@ export interface ApiChild {
   organisation_id: string | null;
   owner_id: string | null;
   owner_email: string | null;
+  invited_member_email?: string | null;
   admin_id: string | null;
   moderator_id: string | null;
   current_play_dose_id: string | null;

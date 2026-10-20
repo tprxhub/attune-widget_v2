@@ -1,4 +1,5 @@
 import { usePricePlans } from "@/api/pricing";
+import { memberEmailLabel } from "@/lib/memberEmail";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -17,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { assignSupporter, listChildrenForSession, updateChild } from "@/api/children";
-import { listOrgs, listStaff, listActiveStaff } from "@/api/admin";
+import { listOrgs, listStaff, listActiveStaff, updateAccountEmail } from "@/api/admin";
 import { getProgressForChildren } from "@/api/progress";
 import { inviteParent } from "@/api/org";
 import { getAdminReferences, referenceDoses } from "@/api/references";
@@ -144,6 +145,20 @@ function AdminChildren() {
     progress.data?.find((report) => report.childId === childId);
   const orgName = (orgId?: string) => orgs.data?.find((o) => o.id === orgId)?.name;
   const supporters = (staff.data ?? []).filter((s) => s.role === "supporter");
+  // The Moderators a member can be given: their organisation's, or for a family member that
+  // family's own. The one already assigned always stays in the list.
+  const moderatorsFor = (child: Child) => {
+    const familyMemberIds = (kids.data ?? [])
+      .filter((other) => other.ownerUserId === child.ownerUserId)
+      .map((other) => other.id);
+    return supporters.filter(
+      (s) =>
+        s.id === child.supporterId ||
+        (child.accountType === "b2b"
+          ? Boolean(child.orgId) && s.orgId === child.orgId
+          : !s.orgId && familyMemberIds.some((id) => s.childIds?.includes(id))),
+    );
+  };
 
   // Organisation children are on a license, not a subscription, so only families count here.
   const familyIds = new Set(list.filter((c) => c.accountType === "b2c").map((c) => c.id));
@@ -259,8 +274,8 @@ function AdminChildren() {
                       ? (orgName(child.orgId) ?? "Organisation")
                       : "Family account"}
                   </p>
-                  <p className="truncate text-xs text-navy/55" title={child.parentEmail}>
-                    {child.parentEmail ?? "No email linked yet"}
+                  <p className="truncate text-xs text-navy/55" title={memberEmailLabel(child)}>
+                    {memberEmailLabel(child)}
                   </p>
                 </div>
               </div>
@@ -305,7 +320,7 @@ function AdminChildren() {
                   }}
                   options={[
                     { value: "", label: "Not assigned" },
-                    ...supporters.map((s) => ({ value: s.id, label: s.name })),
+                    ...moderatorsFor(child).map((s) => ({ value: s.id, label: s.name })),
                   ]}
                   className="mt-1.5 min-h-11 rounded-xl border-2 border-navy/12"
                 />
@@ -461,7 +476,12 @@ function EditChildModal({
   const [orgId, setOrgId] = useState(child.orgId ?? "");
   const [educatorId, setEducatorId] = useState(child.educatorId ?? "");
   const [note, setNote] = useState(child.note ?? "");
+  const shownEmail = child.parentEmail ?? child.invitedEmail ?? "";
+  const [memberEmail, setMemberEmail] = useState(shownEmail);
   const [error, setError] = useState("");
+  // A linked Member account has its sign-in email changed; otherwise the email gets an invitation.
+  const linked = Boolean(child.memberUserId && child.parentEmail);
+  const emailChanged = memberEmail.trim().toLowerCase() !== shownEmail.toLowerCase();
 
   const educators = staff.filter(
     (staffMember) =>
@@ -469,8 +489,13 @@ function EditChildModal({
   );
 
   const save = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const scopeChanged = orgId !== (child.orgId ?? "");
+      const email = memberEmail.trim();
+      if (email && emailChanged) {
+        if (linked) await updateAccountEmail(child.memberUserId!, email);
+        else await inviteParent(child.id, email);
+      }
       return updateChild(child.id, {
         name: name.trim(),
         age: Number(age),
@@ -495,6 +520,8 @@ function EditChildModal({
           if (name.trim().length < 2) return setError("Enter the member's name.");
           if (!Number.isFinite(n) || n < 1 || n > 18) return setError("Age must be 1–18.");
           if (!educatorId) return setError("Choose the Account Admin.");
+          if (memberEmail.trim() && !/^\S+@\S+\.\S+$/.test(memberEmail.trim()))
+            return setError("Enter a valid member email.");
           setError("");
           save.mutate();
         }}
@@ -574,9 +601,25 @@ function EditChildModal({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-navy/4 p-3 text-sm text-navy/70">
-          Member: <strong>{child.parentEmail ?? "not linked"}</strong>. Use “Invite Member” on the
-          member card to link or replace a Member account.
+        <div>
+          <label htmlFor="ec-email" className="text-sm font-bold">
+            Member email
+          </label>
+          <input
+            id="ec-email"
+            type="email"
+            value={memberEmail}
+            onChange={(e) => setMemberEmail(e.target.value)}
+            placeholder="name@example.com"
+            className={inputCls}
+          />
+          <p className="mt-1.5 text-xs text-navy/55">
+            {linked
+              ? "This is the Member account's sign-in email; changing it changes how they log in."
+              : child.invitedEmail && !emailChanged
+                ? "An invitation to this email is waiting to be accepted. Change it to invite someone else."
+                : "Saving sends an invitation to this email and links the Member account once accepted."}
+          </p>
         </div>
 
         <div>
@@ -593,6 +636,11 @@ function EditChildModal({
         </div>
 
         {error && <p className="text-xs font-semibold text-coral">{error}</p>}
+        {save.isError && (
+          <p role="alert" className="text-xs font-semibold text-coral">
+            {save.error.message}
+          </p>
+        )}
 
         <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
           <button

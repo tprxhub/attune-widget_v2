@@ -1425,7 +1425,7 @@ def delete_activity(activity_id: str, actor: User = Depends(require_roles(Role.S
 @router.get("/children", response_model=list[ChildRead])
 def list_children(_: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user = _
-    query = select(Child).options(selectinload(Child.subscription), selectinload(Child.owner)).order_by(Child.name)
+    query = select(Child).options(selectinload(Child.subscription), selectinload(Child.owner), selectinload(Child.invitations)).order_by(Child.name)
     if not user.can("children", "progress"):
         if user.organisation_id and user.role == Role.ADMIN:
             query = query.where(Child.organisation_id == user.organisation_id)

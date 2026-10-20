@@ -138,6 +138,10 @@ export interface Child {
   educatorId?: string | undefined;
   supporterId?: string | undefined;
   parentEmail?: string | undefined;
+  /** An email invited to become this member's Member account, not accepted yet. */
+  invitedEmail?: string | undefined;
+  /** The Member account linked to this member (the family login for individual accounts). */
+  memberUserId?: string | undefined;
   currentPlanId: string;
   planStartedAt: string;
   /** On the free tier: the one Play Plan (goal) this child has chosen to open. */

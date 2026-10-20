@@ -363,6 +363,14 @@ export async function updateAccountDetails(userId: string, input: { name: string
   });
 }
 
+/** Super Admin: change only an account's sign-in email. */
+export async function updateAccountEmail(userId: string, email: string) {
+  return apiRequest<ApiUser>(`/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function updateTtpEmployee(
   userId: string,
   input: { name: string; email: string; permissions: PermissionKey[] },

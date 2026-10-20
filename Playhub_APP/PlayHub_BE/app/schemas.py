@@ -581,6 +581,8 @@ class ChildRead(APIModel):
     organisation_id: str | None
     owner_id: str | None
     owner_email: str | None
+    # A Member invited by email who hasn't accepted yet.
+    invited_member_email: str | None = None
     admin_id: str | None
     moderator_id: str | None
     current_play_dose_id: str | None
