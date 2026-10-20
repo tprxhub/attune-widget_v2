@@ -1,10 +1,11 @@
+from dataclasses import replace
 from io import BytesIO
 
 import pytest
 from fastapi import UploadFile
 from starlette.datastructures import Headers
 
-from app.storage import LocalObjectStorage, S3ObjectStorage, StorageService, UploadRejected
+from app.storage import POLICIES, LocalObjectStorage, S3ObjectStorage, StorageService, UploadRejected
 
 
 PNG = b"\x89PNG\r\n\x1a\nvalid-test-image"
@@ -44,9 +45,21 @@ def test_upload_validation_rejects_unsafe_or_invalid_media(tmp_path, name, conte
 def test_upload_limit_is_enforced_before_object_is_written(tmp_path):
     service = StorageService(LocalObjectStorage(tmp_path), max_bytes=12)
     with pytest.raises(UploadRejected) as error:
-        service.upload(upload("video.mp4", MP4, "video/mp4"), "videos")
+        service.upload(upload("thumb.png", PNG, "image/png"), "thumbnails")
     assert error.value.status_code == 413
-    assert list(tmp_path.rglob("*.mp4")) == []
+    assert list(tmp_path.rglob("*.png")) == []
+
+
+def test_videos_have_their_own_250_mb_limit(tmp_path, monkeypatch):
+    assert POLICIES["videos"].max_bytes == 250 * 1024 * 1024
+    # A video larger than the general upload limit is still accepted.
+    service = StorageService(LocalObjectStorage(tmp_path), max_bytes=12)
+    assert service.upload(upload("video.mp4", MP4, "video/mp4"), "videos")
+    # Past the video limit it is refused before anything is written.
+    monkeypatch.setitem(POLICIES, "videos", replace(POLICIES["videos"], max_bytes=12))
+    with pytest.raises(UploadRejected) as error:
+        service.upload(upload("big.mp4", MP4, "video/mp4"), "videos")
+    assert error.value.status_code == 413
 
 
 class FakeS3:

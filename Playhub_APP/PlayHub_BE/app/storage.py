@@ -29,9 +29,13 @@ class StorageUnavailable(RuntimeError):
     pass
 
 
+VIDEO_MAX_BYTES = 250 * 1024 * 1024
+
+
 @dataclass(frozen=True)
 class MediaPolicy:
     extensions: dict[str, str]
+    # This kind of file's own size limit; None uses the general upload limit.
     max_bytes: int | None = None
 
 
@@ -51,8 +55,10 @@ POLICIES = {
         extensions={".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"},
         max_bytes=10 * 1024 * 1024,
     ),
+    # Activity videos have their own limit, whatever the general upload limit is.
     "videos": MediaPolicy(
-        extensions={".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"}
+        extensions={".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime"},
+        max_bytes=VIDEO_MAX_BYTES,
     ),
 }
 
@@ -243,10 +249,10 @@ class StorageService:
         if declared_type != expected_type:
             raise UploadRejected(f"File extension and content type do not match; expected {expected_type}", 415)
 
-        staged = SpooledTemporaryFile(max_size=min(self.max_bytes, 8 * 1024 * 1024), mode="w+b")
+        max_bytes = policy.max_bytes or self.max_bytes
+        staged = SpooledTemporaryFile(max_size=min(max_bytes, 8 * 1024 * 1024), mode="w+b")
         try:
             size = 0
-            max_bytes = min(self.max_bytes, policy.max_bytes or self.max_bytes)
             while chunk := upload.file.read(1024 * 1024):
                 size += len(chunk)
                 if size > max_bytes:

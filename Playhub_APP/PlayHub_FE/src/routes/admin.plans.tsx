@@ -601,6 +601,10 @@ const ENTRY_KIND_OPTIONS: Array<{
 
 type ApiActivityLike = Pick<ApiActivity, "id" | "video_url">;
 
+/** Video files the API accepts, and their size limit (it matches the server's). */
+const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const VIDEO_MAX_BYTES = 250 * 1024 * 1024;
+
 /** What an activity row looks like, to tell whether it changed since it was last saved. */
 function entrySnapshot(entry: PlanEntry) {
   return JSON.stringify([
@@ -1366,12 +1370,19 @@ function PlanModal({
                             <input
                               id={`af-${first.id}`}
                               type="file"
-                              accept="video/*"
+                              accept={VIDEO_TYPES.join(",")}
                               onChange={(event) => {
                                 const file = event.target.files?.[0];
                                 if (!file) return;
-                                if (!file.type.startsWith("video/")) {
-                                  setError("Choose a video file to upload.");
+                                if (!VIDEO_TYPES.includes(file.type)) {
+                                  setError("Choose an MP4, WebM or MOV video.");
+                                  event.target.value = "";
+                                  return;
+                                }
+                                if (file.size > VIDEO_MAX_BYTES) {
+                                  setError(
+                                    `This video is ${Math.ceil(file.size / 1024 / 1024)} MB; videos can be up to 250 MB.`,
+                                  );
                                   event.target.value = "";
                                   return;
                                 }
@@ -1383,6 +1394,9 @@ function PlanModal({
                               }}
                               className="text-xs file:mr-2 file:rounded-full file:border-0 file:bg-navy file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"
                             />
+                            <span className="font-normal text-navy/50">
+                              MP4, WebM or MOV, up to 250 MB
+                            </span>
                           </label>
                         </>
                       )}
