@@ -1,6 +1,6 @@
 import { IMAGE_DIMENSIONS } from "@/components/ImageDimensionsGuide";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,10 +20,15 @@ import {
   PenLine,
 } from "lucide-react";
 import { GOALS, goalById } from "@/api/domain";
+import { apiAssetUrl, type ApiActivity } from "@/api/client";
 import {
   blankPlanEntries,
-  createPlan,
+  createDose,
   createPlayPlan,
+  saveDoseContent,
+  saveOneActivity,
+  type DoseSaveResult,
+  type UploadProblem,
   updatePlayPlanCredit,
   updatePlayPlanDetails,
   updatePlayPlanStatus,
@@ -32,7 +37,6 @@ import {
   listAllGoals,
   listPlanUsage,
   listPlans,
-  updatePlan,
   type PlanInput,
   reorderPlayDoses,
   reorderPlayPlans,
@@ -595,6 +599,25 @@ const ENTRY_KIND_OPTIONS: Array<{
   },
 ];
 
+type ApiActivityLike = Pick<ApiActivity, "id" | "video_url">;
+
+/** What an activity row looks like, to tell whether it changed since it was last saved. */
+function entrySnapshot(entry: PlanEntry) {
+  return JSON.stringify([
+    entry.kind,
+    entry.day,
+    entry.loggable,
+    Boolean(entry.isRealLifeTry),
+    entry.title.trim(),
+    entryActivities(entry).map((a) => [
+      a.name.trim(),
+      a.instructions.map((line) => line.trim()).filter(Boolean),
+      a.instructionsHtml ?? "",
+      a.videoUrl?.trim() ?? "",
+    ]),
+  ]);
+}
+
 function PlanModal({
   plan,
   createNewPlayPlan = false,
@@ -631,6 +654,42 @@ function PlanModal({
   );
   const [error, setError] = useState("");
   const [openEntry, setOpenEntry] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  // The Play Dose once it exists on the server; a new one is created by its first save.
+  const doseId = useRef<string | undefined>(plan?.id);
+  const doseSnapshot = () =>
+    JSON.stringify([
+      title,
+      goalId,
+      level,
+      summary,
+      safetyNote,
+      thumbnailUrl,
+      createdBy,
+      playPlanName,
+      playPlanSummary,
+    ]) + (thumbnailFile ? `:${thumbnailFile.name}:${thumbnailFile.size}` : "");
+  // What the dose and each activity looked like when last saved, to spot unsaved changes.
+  const [savedDose, setSavedDose] = useState(doseSnapshot);
+  const [savedEntries, setSavedEntries] = useState<Record<string, string>>(() =>
+    Object.fromEntries(entries.map((e) => [e.id, entrySnapshot(e)])),
+  );
+  const [entryStatus, setEntryStatus] = useState<
+    Record<string, { saving?: boolean; saved?: boolean; error?: string }>
+  >({});
+  const [problems, setProblems] = useState<UploadProblem[]>([]);
+  // In a saved Play Dose, an activity not on the server yet always counts as unsaved.
+  const isDirty = (entry: PlanEntry) =>
+    entryActivities(entry).some((a) => (doseId.current && !a.persisted) || a.videoFile) ||
+    savedEntries[entry.id] !== entrySnapshot(entry);
+  const hasUnsaved =
+    doseSnapshot() !== savedDose ||
+    entries.some(isDirty) ||
+    Object.keys(savedEntries).some((id) => !entries.some((e) => e.id === id));
+  const closeEditor = () => {
+    if (!hasUnsaved || window.confirm("You have unsaved changes. Close without saving them?"))
+      onClose();
+  };
 
   const patch = (id: string, next: Partial<PlanEntry>) =>
     setEntries((list) => list.map((e) => (e.id === id ? { ...e, ...next } : e)));
@@ -702,48 +761,146 @@ function PlanModal({
       },
     ]);
 
-  const save = useMutation<unknown, Error, void>({
-    mutationFn: () => {
-      const input: PlanInput = {
-        title: title.trim(),
-        goalId,
-        level,
-        summary: summary.trim(),
-        safetyNote: safetyNote.trim() || undefined,
-        thumbnailUrl: thumbnailUrl.trim() || undefined,
-        thumbnailFile,
-        createdBy: createdBy.trim() || undefined,
-        entries: entries.map((e) => {
-          const activities = (e.activities ?? []).map((a) => ({
-            ...a,
-            name: a.name.trim(),
-            // The video is titled after the activity unless someone chose another title earlier.
-            videoLabel: a.videoLabel.trim() || a.name.trim(),
-            videoUrl: a.videoUrl?.trim() ? a.videoUrl.trim() : undefined,
-            instructions: a.instructions.map((i) => i.trim()).filter(Boolean),
-          }));
-          const first = activities[0]!;
-          return {
-            ...e,
-            title: e.title.trim(),
-            activities,
-            // keep the single-activity fields in sync for the rest of the app
-            activity: activities.map((a) => a.name).join(" · "),
-            minutes: activities.reduce((sum, a) => sum + (Number(a.minutes) || 0), 0),
-            instructions: first.instructions,
-            videoLabel: first.videoLabel,
-            videoUrl: first.videoUrl,
-          };
-        }),
-      };
-      return plan
-        ? updatePlan(plan.id, input)
-        : createNewPlayPlan
-          ? createPlayPlan({ name: playPlanName, summary: playPlanSummary, createdBy })
-          : createPlan(input);
-    },
-    onSuccess: onSaved,
+  // Tidy one activity row the way it is saved: trimmed text, the video titled after the activity.
+  const tidyEntry = (e: PlanEntry): PlanEntry => {
+    const activities = (e.activities ?? []).map((a) => ({
+      ...a,
+      name: a.name.trim(),
+      // The video is titled after the activity unless someone chose another title earlier.
+      videoLabel: a.videoLabel.trim() || a.name.trim(),
+      videoUrl: a.videoUrl?.trim() ? a.videoUrl.trim() : undefined,
+      instructions: a.instructions.map((i) => i.trim()).filter(Boolean),
+    }));
+    const first = activities[0]!;
+    return {
+      ...e,
+      title: e.title.trim(),
+      activities,
+      // keep the single-activity fields in sync for the rest of the app
+      activity: activities.map((a) => a.name).join(" · "),
+      minutes: activities.reduce((sum, a) => sum + (Number(a.minutes) || 0), 0),
+      instructions: first.instructions,
+      videoLabel: first.videoLabel,
+      videoUrl: first.videoUrl,
+    };
+  };
+
+  const buildInput = (): PlanInput => ({
+    title: title.trim(),
+    goalId,
+    level,
+    summary: summary.trim(),
+    safetyNote: safetyNote.trim() || undefined,
+    thumbnailUrl: thumbnailUrl.trim() || undefined,
+    thumbnailFile,
+    createdBy: createdBy.trim() || undefined,
+    entries: entries.map(tidyEntry),
   });
+
+  // An activity as saved: its server id, stored video, and any file that still has to upload.
+  const savedActivity = (
+    activity: PlanActivity,
+    stored: ApiActivityLike,
+    uploadFailed: boolean,
+  ): PlanActivity => ({
+    ...activity,
+    id: stored.id,
+    persisted: true,
+    videoPath: stored.video_url ?? undefined,
+    videoUrl: uploadFailed ? activity.videoUrl : apiAssetUrl(stored.video_url),
+    videoFile: uploadFailed ? activity.videoFile : undefined,
+  });
+
+  const applySaved = (tidied: PlanEntry[], result: DoseSaveResult) => {
+    let index = 0;
+    const renamed = new Map<string, string>();
+    const next = tidied.map((entry) => {
+      const activities = entryActivities(entry).map((activity) => {
+        const stored = result.activities[index];
+        const failed = result.problems.some((p) => p.index === index);
+        index += 1;
+        return stored ? savedActivity(activity, stored, failed) : activity;
+      });
+      const id = activities[0]?.id ?? entry.id;
+      renamed.set(entry.id, id);
+      return { ...entry, id, activities };
+    });
+    setEntries(next);
+    setSavedEntries(Object.fromEntries(next.map((e) => [e.id, entrySnapshot(e)])));
+    setOpenEntry((open) => (open ? (renamed.get(open) ?? open) : open));
+    setEntryStatus({});
+    if (!result.problems.some((p) => p.index === undefined)) {
+      setThumbnailFile(undefined);
+      setThumbnailUrl(result.thumbnailUrl ?? "");
+    }
+    setProblems(result.problems);
+  };
+
+  const save = useMutation<DoseSaveResult | undefined, Error, void>({
+    mutationFn: async () => {
+      if (createNewPlayPlan) {
+        await createPlayPlan({ name: playPlanName, summary: playPlanSummary, createdBy });
+        return undefined;
+      }
+      const input = buildInput();
+      // A dose created by an earlier attempt is reused, so a retry never makes a second one.
+      doseId.current ??= await createDose(input);
+      const result = await saveDoseContent(doseId.current, input);
+      applySaved(input.entries, result);
+      return result;
+    },
+    onSuccess: (result) => {
+      if (!result || result.problems.length === 0) return onSaved();
+      // Everything else is saved; the dialog stays open to retry the files that didn't upload.
+      setSavedDose(doseSnapshot());
+      void queryClient.invalidateQueries({ queryKey: ["plans"] });
+    },
+  });
+
+  /** Save one activity on its own; the Play Dose's Save still saves everything. */
+  const saveEntry = async (entry: PlanEntry) => {
+    const id = doseId.current;
+    if (!id) return;
+    const tidied = tidyEntry(entry);
+    const first = tidied.activities?.[0];
+    const fail = (message: string) =>
+      setEntryStatus((all) => ({ ...all, [entry.id]: { error: message } }));
+    if (!first || !first.name) return fail("Give the activity a name.");
+    if (!Number.isFinite(tidied.day) || tidied.day < 0 || tidied.day > 7)
+      return fail("Days must be between 0 and 7.");
+    if (first.videoUrl && !/^(https?:\/\/\S+|blob:\S+)$/i.test(first.videoUrl))
+      return fail("Video links must start with http:// or https://.");
+    setEntryStatus((all) => ({ ...all, [entry.id]: { saving: true } }));
+    try {
+      const { activity: stored, problem } = await saveOneActivity(id, tidied, first);
+      const activity = savedActivity(first, stored, Boolean(problem));
+      const next = {
+        ...tidied,
+        id: stored.id,
+        activities: [activity, ...(tidied.activities ?? []).slice(1)],
+      };
+      setEntries((list) => list.map((e) => (e.id === entry.id ? next : e)));
+      setSavedEntries((all) => {
+        const copy = { ...all };
+        delete copy[entry.id];
+        return { ...copy, [stored.id]: entrySnapshot(next) };
+      });
+      setOpenEntry((open) => (open === entry.id ? stored.id : open));
+      setEntryStatus((all) => {
+        const copy = { ...all };
+        delete copy[entry.id];
+        return {
+          ...copy,
+          [stored.id]: problem
+            ? { error: `Saved, but the video didn't upload: ${problem}` }
+            : { saved: true },
+        };
+      });
+      void queryClient.invalidateQueries({ queryKey: ["plans"] });
+    } catch (reason) {
+      fail(reason instanceof Error ? reason.message : "This activity couldn't be saved.");
+    }
+  };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -779,7 +936,7 @@ function PlanModal({
       <Shell
         title="New Play Plan"
         subtitle="Create the top-level Play Plan. Play Doses and activities are added separately."
-        onClose={onClose}
+        onClose={closeEditor}
       >
         <form className="space-y-4" onSubmit={submit}>
           <div>
@@ -831,7 +988,7 @@ function PlanModal({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={closeEditor}
               className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
             >
               Cancel
@@ -852,7 +1009,7 @@ function PlanModal({
             ? "Create the Play Plan, its first Play Dose, and the activities inside it"
             : "Choose a Play Plan, then add its Play Dose and activities"
       }
-      onClose={onClose}
+      onClose={closeEditor}
     >
       <form className="space-y-5" onSubmit={submit}>
         <div className="space-y-4 rounded-2xl border border-navy/10 bg-card p-4">
@@ -1056,6 +1213,17 @@ function PlanModal({
                     <p className="text-xs text-navy/55">
                       Day {entry.day} · {steps} step{steps === 1 ? "" : "s"} ·{" "}
                       {hasVideo ? "video" : "no video"}
+                      {plan || doseId.current ? (
+                        isDirty(entry) ? (
+                          <span className="ml-2 rounded-full bg-amber/25 px-2 py-0.5 font-bold text-navy">
+                            Unsaved changes
+                          </span>
+                        ) : entryStatus[entry.id]?.saved ? (
+                          <span className="ml-2 rounded-full bg-blue/12 px-2 py-0.5 font-bold text-blue">
+                            Saved
+                          </span>
+                        ) : null
+                      ) : null}
                     </p>
                   </button>
                   <button
@@ -1251,6 +1419,33 @@ function PlanModal({
                         </label>
                       </div>
                     </details>
+
+                    {doseId.current && (
+                      <div className="flex flex-wrap items-center gap-3 border-t border-navy/8 pt-4">
+                        <button
+                          type="button"
+                          onClick={() => void saveEntry(entry)}
+                          disabled={Boolean(entryStatus[entry.id]?.saving) || !isDirty(entry)}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-blue px-4 text-sm font-bold text-white disabled:opacity-50"
+                        >
+                          {entryStatus[entry.id]?.saving && (
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                          )}
+                          Save activity
+                        </button>
+                        {entryStatus[entry.id]?.error ? (
+                          <p role="alert" className="text-sm font-semibold text-coral">
+                            {entryStatus[entry.id]?.error}
+                          </p>
+                        ) : !isDirty(entry) && entryStatus[entry.id]?.saved ? (
+                          <p className="text-sm font-semibold text-blue">Activity saved</p>
+                        ) : (
+                          <p className="text-xs text-navy/55">
+                            Saves just this activity. Save changes below saves everything.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1259,6 +1454,26 @@ function PlanModal({
         </div>
 
         {error && <p className="text-sm font-semibold text-coral">{error}</p>}
+        {save.isError && (
+          <p role="alert" className="text-sm font-semibold text-coral">
+            Nothing was saved: {save.error.message}
+          </p>
+        )}
+        {problems.length > 0 && !save.isPending && (
+          <div role="alert" className="rounded-xl bg-coral/8 p-3 text-sm text-coral">
+            <p className="font-bold">
+              Your changes are saved, but {problems.length === 1 ? "this file" : "these files"}{" "}
+              didn't upload. Press Save changes to try again.
+            </p>
+            <ul className="mt-1 list-disc pl-5">
+              {problems.map((problem) => (
+                <li key={`${problem.name}-${problem.index ?? "thumb"}`}>
+                  {problem.name}: {problem.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <button
@@ -1267,11 +1482,15 @@ function PlanModal({
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white disabled:opacity-60"
           >
             {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-            {plan ? "Save changes" : createNewPlayPlan ? "Create Play Plan" : "Create Play Dose"}
+            {plan || doseId.current
+              ? "Save changes"
+              : createNewPlayPlan
+                ? "Create Play Plan"
+                : "Create Play Dose"}
           </button>
           <button
             type="button"
-            onClick={onClose}
+            onClick={closeEditor}
             className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
           >
             Cancel

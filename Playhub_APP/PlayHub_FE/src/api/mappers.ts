@@ -143,6 +143,8 @@ export function flattenPlans(plans: ApiPlan[]): PlayPlan[] {
             instructionsHtml: activity.instructions_html ?? undefined,
             videoLabel: activity.title,
             videoUrl: apiAssetUrl(activity.video_url),
+            videoPath: activity.video_url ?? undefined,
+            persisted: true,
           },
         ],
       }));

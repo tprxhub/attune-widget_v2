@@ -35,7 +35,7 @@ from app.schemas import (
     ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, ProfileUpdate, ChildCreate, ChildRead, ChildUpdate,
     AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
     LoginRequest, OrganisationCreate, OrganisationDeletion, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
-    PlayDoseUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
+    PlayDoseUpdate, DoseContentUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
     SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, SiteContentRead,
     ModeratorInvitationUpdate,
 )
@@ -1276,6 +1276,71 @@ def update_dose(dose_id: str, payload: PlayDoseUpdate, actor: User = Depends(req
     return updated
 
 
+@router.put("/play-doses/{dose_id}/content", response_model=PlayDoseRead)
+def save_dose_content(dose_id: str, payload: DoseContentUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
+    """Save a Play Dose's details and its whole activity list in one transaction.
+
+    Activities are kept in the order sent; ones left out are removed (Super Admin only, and never
+    once a session was logged against them). Stored videos that are no longer used are discarded
+    after the commit.
+    """
+    dose = one_or_404(db, PlayDose, dose_id)
+    changes = payload.dose.model_dump(exclude_unset=True)
+    if "level" in changes and db.scalar(
+        select(PlayDose).where(
+            PlayDose.play_plan_id == dose.play_plan_id,
+            PlayDose.level == changes["level"],
+            PlayDose.id != dose.id,
+        )
+    ):
+        raise HTTPException(status_code=409, detail="This Play Plan already has a Play Dose at this level")
+    existing = {activity.id: activity for activity in dose.activities}
+    sent_ids = [item.id for item in payload.activities if item.id]
+    if len(sent_ids) != len(set(sent_ids)):
+        raise HTTPException(status_code=422, detail="An activity appears more than once")
+    unknown = [activity_id for activity_id in sent_ids if activity_id not in existing]
+    if unknown:
+        raise HTTPException(status_code=422, detail="An activity belongs to another Play Dose or no longer exists")
+    removed = [activity for activity_id, activity in existing.items() if activity_id not in set(sent_ids)]
+    if removed and actor.role != Role.SUPER_ADMIN:
+        raise HTTPException(status_code=403, detail="Only a Super Admin can remove activities")
+    if any(activity.attempts for activity in removed):
+        raise HTTPException(status_code=409, detail="Activities with attempt history cannot be deleted")
+
+    old_assets = {dose.thumbnail_url, *(activity.video_url for activity in existing.values())}
+    if "created_by_name" in changes:
+        dose.created_by_label = (changes.pop("created_by_name") or "").strip() or None
+    for key, value in changes.items():
+        setattr(dose, key, value)
+    for activity in removed:
+        db.delete(activity)
+    # Move the kept activities out of the way first, so the new order never clashes on sequence.
+    for offset, activity in enumerate(a for a in existing.values() if a not in removed):
+        activity.sequence = 100_000 + offset
+    db.flush()
+    for sequence, item in enumerate(payload.activities):
+        values = item.model_dump(exclude={"id", "keep_video"})
+        if item.keep_video:
+            values.pop("video_source_type")
+            values.pop("video_url")
+        activity = existing[item.id] if item.id else Activity(play_dose_id=dose.id)
+        for key, value in values.items():
+            setattr(activity, key, value)
+        activity.sequence = sequence
+        db.add(activity)
+    db.flush()
+    audit(db, actor.id, "play_dose.content_saved", "play_dose", dose.id, {
+        "activities": len(payload.activities), "removed": len(removed), "fields": sorted(changes),
+    })
+    db.commit()
+    db.refresh(dose)
+    in_use = {dose.thumbnail_url, *(activity.video_url for activity in dose.activities)}
+    storage = get_storage()
+    for url in old_assets - in_use:
+        discard_stored_asset(storage, url)
+    return dose
+
+
 @router.delete("/play-doses/{dose_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_dose(dose_id: str, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
     item = one_or_404(db, PlayDose, dose_id)
@@ -1293,6 +1358,9 @@ def delete_dose(dose_id: str, actor: User = Depends(require_roles(Role.SUPER_ADM
 @router.post("/play-doses/{dose_id}/activities", response_model=ActivityRead, status_code=201)
 def create_activity(dose_id: str, payload: ActivityCreate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     one_or_404(db, PlayDose, dose_id)
+    if payload.sequence is None:
+        last = db.scalar(select(func.max(Activity.sequence)).where(Activity.play_dose_id == dose_id))
+        payload = payload.model_copy(update={"sequence": 0 if last is None else last + 1})
     if db.scalar(
         select(Activity).where(Activity.play_dose_id == dose_id, Activity.sequence == payload.sequence)
     ):

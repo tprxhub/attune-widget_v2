@@ -783,16 +783,18 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
     (request) =>
       /\/play-plans\/[^/]+\/play-doses$/.test(request.url()) && request.method() === "POST",
   );
-  const activityRequest = page.waitForRequest(
-    (request) =>
-      /\/play-doses\/[^/]+\/activities$/.test(request.url()) && request.method() === "POST",
+  const contentRequest = page.waitForRequest(
+    (request) => /\/play-doses\/[^/]+\/content$/.test(request.url()) && request.method() === "PUT",
   );
   await create.getByRole("button", { name: "Create Play Dose" }).click();
 
   const doseBody = (await doseRequest).postDataJSON() as Record<string, unknown>;
   expect(doseBody).toMatchObject({ title: "Browser test dose", level: "starter" });
   for (const key of retiredKeys) expect(doseBody).not.toHaveProperty(key);
-  const activityBody = (await activityRequest).postDataJSON() as Record<string, unknown>;
+  const contentBody = (await contentRequest).postDataJSON() as {
+    activities: Record<string, unknown>[];
+  };
+  const activityBody = contentBody.activities[0]!;
   expect(activityBody["title"]).toBe("Squeeze the sponge");
   expect(activityBody["instructions"]).toEqual([
     "Goal",
@@ -815,10 +817,10 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   for (const label of retiredLabels) await expect(edit.getByLabel(label)).toHaveCount(0);
   await edit.getByLabel("Safety note").fill("Supervise small parts.");
   const patch = page.waitForRequest(
-    (request) => /\/play-doses\/[^/]+$/.test(request.url()) && request.method() === "PATCH",
+    (request) => /\/play-doses\/[^/]+\/content$/.test(request.url()) && request.method() === "PUT",
   );
   await edit.getByRole("button", { name: "Save changes" }).click();
-  const patchBody = (await patch).postDataJSON() as Record<string, unknown>;
+  const patchBody = ((await patch).postDataJSON() as { dose: Record<string, unknown> }).dose;
   expect(patchBody["safety_note"]).toBe("Supervise small parts.");
   for (const key of retiredKeys) expect(patchBody).not.toHaveProperty(key);
   await expect(edit).toBeHidden();

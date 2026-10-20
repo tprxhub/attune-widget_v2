@@ -73,6 +73,7 @@ EXPECTED_OPERATIONS = {
     ("PUT", "/api/v1/play-plans/order"),
     ("PUT", "/api/v1/play-plans/{plan_id}/play-doses/order"),
     ("PATCH", "/api/v1/play-doses/{dose_id}"),
+    ("PUT", "/api/v1/play-doses/{dose_id}/content"),
     ("DELETE", "/api/v1/play-doses/{dose_id}"),
     ("POST", "/api/v1/play-doses/{dose_id}/activities"),
     ("PATCH", "/api/v1/activities/{activity_id}"),

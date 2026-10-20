@@ -296,7 +296,8 @@ class OrganisationRead(APIModel):
 
 
 class ActivityCreate(APIModel):
-    sequence: int = Field(ge=0)
+    # Leave out to add the activity after the dose's last one.
+    sequence: int | None = Field(default=None, ge=0)
     day: int | None = Field(default=None, ge=0, le=31)
     kind: ActivityKind = ActivityKind.ACTIVITY
     title: str = Field(min_length=1, max_length=200)
@@ -377,6 +378,42 @@ class PlayDoseUpdate(APIModel):
     sort_order: int | None = Field(default=None, ge=0)
     is_active: bool | None = None
     created_by_name: str | None = Field(default=None, max_length=120)
+
+
+class DoseContentActivity(APIModel):
+    """One activity in a whole-dose save, in display order. A missing id adds a new activity."""
+
+    id: str | None = None
+    day: int | None = Field(default=None, ge=0, le=31)
+    kind: ActivityKind = ActivityKind.ACTIVITY
+    title: str = Field(min_length=1, max_length=200)
+    instructions: list[str] = Field(default_factory=list)
+    instructions_html: str | None = Field(default=None, max_length=MAX_RICH_TEXT)
+    # True leaves the stored video exactly as it is (the editor didn't change it).
+    keep_video: bool = False
+    video_source_type: VideoSourceType | None = None
+    video_url: str | None = Field(default=None, max_length=1000)
+    duration_minutes: int | None = Field(default=None, ge=0, le=1440)
+    is_loggable: bool = True
+    is_real_life_try: bool = False
+
+    @field_validator("instructions_html")
+    @classmethod
+    def clean_html(cls, value: str | None) -> str | None:
+        return clean_rich_text(value)
+
+    @model_validator(mode="after")
+    def validate_video(self) -> "DoseContentActivity":
+        if not self.keep_video and bool(self.video_source_type) != bool(self.video_url):
+            raise ValueError("video_source_type and video_url must be supplied together")
+        return self
+
+
+class DoseContentUpdate(APIModel):
+    """Save a Play Dose and its whole activity list at once: all of it is saved, or none of it."""
+
+    dose: PlayDoseUpdate = Field(default_factory=PlayDoseUpdate)
+    activities: list[DoseContentActivity] = Field(max_length=200)
 
 
 class PlayDoseRead(APIModel):

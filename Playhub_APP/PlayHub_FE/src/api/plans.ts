@@ -1,6 +1,6 @@
 import type { Goal, Level, PlanActivity, PlanEntry, PlayPlan, Session } from "@/lib/types";
 import { GOALS, PLAY_PLANS, goalById, planById } from "./domain";
-import { apiRequest, type ApiActivity, type ApiDose, type ApiPlan } from "./client";
+import { apiAssetUrl, apiRequest, type ApiActivity, type ApiDose, type ApiPlan } from "./client";
 import { flattenPlans, mapGoal } from "./mappers";
 
 export interface EntryState {
@@ -148,71 +148,197 @@ function remoteVideo(url?: string) {
 }
 
 function activityRows(input: PlanInput) {
-  let sequence = 0;
   return input.entries.flatMap((entry) =>
-    entryActivities(entry).map((activity) => ({ entry, activity, sequence: sequence++ })),
+    entryActivities(entry).map((activity) => ({ entry, activity })),
   );
 }
 
-async function saveActivity(
-  doseId: string,
-  row: ReturnType<typeof activityRows>[number],
-  existing?: ApiActivity,
-) {
-  const payload = {
-    sequence: row.sequence,
-    day: row.entry.day,
-    kind: kindValues[row.entry.kind],
-    title: row.activity.name,
-    instructions: row.activity.instructions,
-    instructions_html: row.activity.instructionsHtml || null,
-    video_source_type: remoteVideo(row.activity.videoUrl) ? "link" : null,
-    video_url: remoteVideo(row.activity.videoUrl),
-    is_loggable: row.entry.loggable,
-    is_real_life_try: Boolean(row.entry.isRealLifeTry),
+type ActivityRow = ReturnType<typeof activityRows>[number];
+
+/**
+ * The video part of a save. An untouched video is kept exactly as stored (so an uploaded file is
+ * never re-sent as a link and deleted); a file waiting to upload keeps the old video until it
+ * replaces it.
+ */
+function videoFields(activity: PlanActivity) {
+  if (activity.videoFile) return { keep_video: true };
+  const url = activity.videoUrl?.trim() || undefined;
+  if (url === (apiAssetUrl(activity.videoPath) || undefined)) return { keep_video: true };
+  const link = remoteVideo(url);
+  return {
+    keep_video: false,
+    video_source_type: link ? "link" : null,
+    video_url: link,
   };
-  const saved = existing
-    ? await apiRequest<ApiActivity>(`/activities/${existing.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      })
-    : await apiRequest<ApiActivity>(`/play-doses/${doseId}/activities`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-  if (row.activity.videoFile) {
-    const form = new FormData();
-    form.set("file", row.activity.videoFile);
-    return apiRequest<ApiActivity>(`/activities/${saved.id}/video`, { method: "POST", body: form });
-  }
-  return saved;
 }
 
-async function uploadThumbnail(doseId: string, file?: File) {
-  if (!file) return;
+function activityFields({ entry, activity }: ActivityRow) {
+  return {
+    day: entry.day,
+    kind: kindValues[entry.kind],
+    title: activity.name,
+    instructions: activity.instructions,
+    instructions_html: activity.instructionsHtml || null,
+    is_loggable: entry.loggable,
+    is_real_life_try: Boolean(entry.isRealLifeTry),
+  };
+}
+
+function doseFields(input: PlanInput) {
+  return {
+    level: levelValues[input.level],
+    title: input.title,
+    summary: input.summary,
+    safety_note: input.safetyNote || null,
+    // A new thumbnail file replaces the current one after the save.
+    ...(input.thumbnailFile ? {} : { thumbnail_url: remoteVideo(input.thumbnailUrl) }),
+    created_by_name: input.createdBy?.trim() || null,
+  };
+}
+
+async function uploadVideo(activityId: string, file: File) {
   const form = new FormData();
   form.set("file", file);
-  await apiRequest<ApiDose>(`/play-doses/${doseId}/thumbnail`, { method: "POST", body: form });
+  return apiRequest<ApiActivity>(`/activities/${activityId}/video`, { method: "POST", body: form });
 }
 
-export async function createPlan(input: PlanInput): Promise<PlayPlan> {
+async function uploadThumbnail(doseId: string, file: File) {
+  const form = new FormData();
+  form.set("file", file);
+  return apiRequest<ApiDose>(`/play-doses/${doseId}/thumbnail`, { method: "POST", body: form });
+}
+
+/** A file that couldn't upload after the rest of the Play Dose was saved. */
+export interface UploadProblem {
+  /** The activity's position in the saved list; undefined for the thumbnail. */
+  index?: number;
+  name: string;
+  message: string;
+}
+
+export interface DoseSaveResult {
+  doseId: string;
+  /** The saved activities in editor order, with their server ids and stored videos. */
+  activities: ApiActivity[];
+  /** The thumbnail as now stored. */
+  thumbnailUrl?: string | undefined;
+  problems: UploadProblem[];
+}
+
+const problemMessage = (error: unknown) =>
+  error instanceof Error ? error.message : "The upload didn't finish.";
+
+/** Upload files one at a time so a slow connection isn't split across several large uploads. */
+async function uploadFiles(
+  doseId: string,
+  rows: ActivityRow[],
+  saved: ApiActivity[],
+  thumbnail?: File,
+) {
+  const problems: UploadProblem[] = [];
+  for (const [index, row] of rows.entries()) {
+    const file = row.activity.videoFile;
+    const target = saved[index];
+    if (!file || !target) continue;
+    try {
+      saved[index] = await uploadVideo(target.id, file);
+    } catch (error) {
+      problems.push({
+        index,
+        name: row.activity.name || `Activity ${index + 1}`,
+        message: problemMessage(error),
+      });
+    }
+  }
+  let thumbnailUrl: string | null | undefined;
+  if (thumbnail) {
+    try {
+      thumbnailUrl = (await uploadThumbnail(doseId, thumbnail)).thumbnail_url;
+    } catch (error) {
+      problems.push({ name: "Thumbnail", message: problemMessage(error) });
+    }
+  }
+  return { problems, thumbnailUrl };
+}
+
+/**
+ * Save a Play Dose's details and its whole activity list in one request (all of it is saved, or
+ * none of it), then upload any new video or thumbnail files.
+ */
+export async function saveDoseContent(doseId: string, input: PlanInput): Promise<DoseSaveResult> {
+  const rows = activityRows(input);
+  const dose = await apiRequest<ApiDose>(`/play-doses/${doseId}/content`, {
+    method: "PUT",
+    body: JSON.stringify({
+      dose: doseFields(input),
+      activities: rows.map((row) => ({
+        ...(row.activity.persisted ? { id: row.activity.id } : {}),
+        ...activityFields(row),
+        ...videoFields(row.activity),
+      })),
+    }),
+  });
+  const activities = [...dose.activities];
+  const uploaded = await uploadFiles(doseId, rows, activities, input.thumbnailFile);
+  invalidatePlanCatalog();
+  return {
+    doseId,
+    activities,
+    thumbnailUrl: apiAssetUrl(uploaded.thumbnailUrl ?? dose.thumbnail_url),
+    problems: uploaded.problems,
+  };
+}
+
+/** Create an empty Play Dose; its activities are then saved with saveDoseContent. */
+export async function createDose(input: PlanInput): Promise<string> {
   const dose = await apiRequest<ApiDose>(`/play-plans/${input.goalId}/play-doses`, {
     method: "POST",
     body: JSON.stringify({
-      level: levelValues[input.level],
-      title: input.title,
-      summary: input.summary,
-      safety_note: input.safetyNote || null,
+      ...doseFields(input),
       thumbnail_url: remoteVideo(input.thumbnailUrl),
-      created_by_name: input.createdBy?.trim() || null,
       sort_order:
         levelValues[input.level] === "rookie" ? 0 : levelValues[input.level] === "starter" ? 1 : 2,
     }),
   });
-  await Promise.all(activityRows(input).map((row) => saveActivity(dose.id, row)));
-  await uploadThumbnail(dose.id, input.thumbnailFile);
+  return dose.id;
+}
+
+/**
+ * Save one activity of an existing Play Dose on its own. A new activity is added after the last
+ * one; the Play Dose's Save puts everything in its final order.
+ */
+export async function saveOneActivity(
+  doseId: string,
+  entry: PlanEntry,
+  activity: PlanActivity,
+): Promise<{ activity: ApiActivity; problem?: string | undefined }> {
+  const row = { entry, activity };
+  const video = videoFields(activity);
+  const body = {
+    ...activityFields(row),
+    ...(video.keep_video
+      ? {}
+      : { video_source_type: video.video_source_type, video_url: video.video_url }),
+  };
+  let saved = activity.persisted
+    ? await apiRequest<ApiActivity>(`/activities/${activity.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      })
+    : await apiRequest<ApiActivity>(`/play-doses/${doseId}/activities`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+  let problem: string | undefined;
+  if (activity.videoFile) {
+    try {
+      saved = await uploadVideo(saved.id, activity.videoFile);
+    } catch (error) {
+      problem = problemMessage(error);
+    }
+  }
   invalidatePlanCatalog();
-  return (await getPlan(dose.id))!;
+  return { activity: saved, problem };
 }
 
 function slugify(value: string) {
@@ -279,48 +405,6 @@ export async function updatePlayPlanStatus(
     body: JSON.stringify({ publication_status: publicationStatus }),
   });
   invalidatePlanCatalog();
-}
-
-export async function updatePlan(planId: string, input: PlanInput): Promise<PlayPlan | undefined> {
-  const catalog = await getApiPlanCatalog(true);
-  const existing = catalog.flatMap((plan) => plan.play_doses).find((dose) => dose.id === planId);
-  if (!existing) return undefined;
-  await apiRequest<ApiDose>(`/play-doses/${planId}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      level: levelValues[input.level],
-      title: input.title,
-      summary: input.summary,
-      safety_note: input.safetyNote || null,
-      thumbnail_url: input.thumbnailFile ? existing.thumbnail_url : remoteVideo(input.thumbnailUrl),
-      created_by_name: input.createdBy?.trim() || null,
-    }),
-  });
-
-  const rows = activityRows(input);
-  // Free the dose's unique sequence slots before applying a reorder.
-  await Promise.all(
-    existing.activities.map((activity, index) =>
-      apiRequest<ApiActivity>(`/activities/${activity.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ sequence: 10_000 + index }),
-      }),
-    ),
-  );
-  const retained = new Set<string>();
-  for (const row of rows) {
-    const current = existing.activities.find((activity) => activity.id === row.activity.id);
-    const saved = await saveActivity(planId, row, current);
-    retained.add(saved.id);
-  }
-  await Promise.all(
-    existing.activities
-      .filter((activity) => !retained.has(activity.id))
-      .map((activity) => apiRequest<void>(`/activities/${activity.id}`, { method: "DELETE" })),
-  );
-  await uploadThumbnail(planId, input.thumbnailFile);
-  invalidatePlanCatalog();
-  return getPlan(planId);
 }
 
 export interface DeletePlanResult {
