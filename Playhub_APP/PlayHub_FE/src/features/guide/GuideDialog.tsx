@@ -73,7 +73,7 @@ export function GuideSheet({ onClose }: { onClose: () => void }) {
               {[
                 [
                   "Play Hub",
-                  "Your home for guided play that helps your child build everyday skills.",
+                  "Your home for guided play that helps your member build everyday skills.",
                 ],
                 [
                   "Play Plan",
@@ -81,11 +81,11 @@ export function GuideSheet({ onClose }: { onClose: () => void }) {
                 ],
                 [
                   "Play Dose",
-                  "A set of activities matched to your child’s level. Complete each dose to progress through Rookie, Starter and Pro.",
+                  "A set of activities matched to your member’s level. Complete each dose to progress through Rookie, Starter and Pro.",
                 ],
                 [
                   "Activity",
-                  "Small, guided tasks that help your child practise and build towards the main skill.",
+                  "Small, guided tasks that help your member practise and build towards the main skill.",
                 ],
               ].map(([term, desc], i) => (
                 <li key={term} className="flex gap-3 rounded-2xl bg-navy/4 p-3">
@@ -145,7 +145,7 @@ export function GuideSheet({ onClose }: { onClose: () => void }) {
                   </p>
                 </div>
                 <div className="rounded-2xl border border-blue/30 bg-blue/6 p-4">
-                  <p className="text-sm font-bold text-blue">Subscribed (per child)</p>
+                  <p className="text-sm font-bold text-blue">Subscribed (per member)</p>
                   <p className="mt-1 text-sm text-navy/90">
                     Access all Play Doses, videos, sessions and progress charts for your child.
                     Cancel within 7 days for a refund.

@@ -117,7 +117,7 @@ test("Super Admin can operate platform controls and complete staff activation", 
   await page.goto("/admin/orgs");
   await page.getByRole("button", { name: "New organisation" }).click();
   await page.getByLabel("Name").fill("Browser Test School");
-  await page.getByLabel("Child licences").fill("12");
+  await page.getByLabel("Member licences").fill("12");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByText("Browser Test School")).toBeVisible();
 
@@ -185,7 +185,7 @@ test("Super Admin can operate platform controls and complete staff activation", 
   await invitePage.getByRole("button", { name: "Activate account" }).click();
   await expect(invitePage).toHaveURL(/\/hub(?:[/?#]|$)/);
   await invitePage.goto("/org");
-  await expect(invitePage.getByRole("heading", { name: "Children", exact: true })).toBeVisible();
+  await expect(invitePage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
   await inviteContext.close();
 });
 
@@ -200,7 +200,7 @@ test("organisation Admin can create, track and activate a Moderator", async ({ p
   const modal = page.getByRole("dialog");
   await modal.getByLabel("Full name").fill("Browser Test Moderator");
   await modal.getByLabel("Email").fill(moderatorEmail);
-  await chooseOption(modal, "Assign a child", "Amira · Age 5");
+  await chooseOption(modal, "Assign a member", "Amira · Age 5");
   await modal.getByRole("button", { name: "Add Moderator" }).click();
 
   await expect(modal.getByRole("heading", { name: "Moderator login ready" })).toBeVisible();
@@ -236,7 +236,7 @@ test("organisation Admin can create, track and activate a Moderator", async ({ p
   await invitePage.getByRole("button", { name: "Activate account" }).click();
   await expect(invitePage).toHaveURL(/\/hub(?:[/?#]|$)/);
   await invitePage.goto("/org");
-  await expect(invitePage.getByRole("heading", { name: "Children", exact: true })).toBeVisible();
+  await expect(invitePage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
   await expect(invitePage.getByText("Amira", { exact: true })).toBeVisible();
   await expect(invitePage.getByText("Omar", { exact: true })).toHaveCount(0);
   await inviteContext.close();
@@ -244,7 +244,7 @@ test("organisation Admin can create, track and activate a Moderator", async ({ p
   await page.reload();
   moderatorCard = page.locator("article").filter({ hasText: "Browser Test Moderator" });
   await expect(moderatorCard.getByText("Active", { exact: true })).toBeVisible();
-  await expect(moderatorCard.getByText("Children: Amira")).toBeVisible();
+  await expect(moderatorCard.getByText("Members: Amira")).toBeVisible();
 });
 
 test("Super Admin can view a pending staff activation link", async ({ page }) => {
@@ -284,8 +284,8 @@ test("family can sign up, restore its session, change password and sign in again
 
   await page.goto("/signup");
   await expect(page.getByRole("button", { name: "Create Account" })).toBeEnabled();
-  await page.getByLabel("Child's First Name").fill("Mia");
-  await page.getByLabel("Child's Age").fill("6");
+  await page.getByLabel("Member's First Name").fill("Mia");
+  await page.getByLabel("Member's Age").fill("6");
   await page.getByLabel("First Name", { exact: true }).fill("Demo");
   await page.getByLabel("Last Name").fill("Family");
   await page.getByLabel("Email Address").fill(email);
@@ -333,7 +333,7 @@ test("organisation roles receive the correct writable and read-only experiences"
   const adminPage = await adminContext.newPage();
   await login(adminPage, "esther@sunrise.local", true);
   await adminPage.goto("/org");
-  await expect(adminPage.getByRole("heading", { name: "Children", exact: true })).toBeVisible();
+  await expect(adminPage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
   await adminPage.goto("/check-in");
   await expect(adminPage.getByText("Logging a Session for Amira", { exact: false })).toBeVisible();
   await adminPage.goto("/admin");
@@ -526,7 +526,7 @@ test("every seeded persona can open its permitted screens and privileged screens
       email: "admin@playhub.local",
       screens: [
         ["/admin", "Platform overview"],
-        ["/admin/children", "Children"],
+        ["/admin/children", "Members"],
         ["/check-in", "Daily Check-In"],
         ["/admin/progress", "Progress"],
         ["/admin/audit", "Audit log"],
@@ -546,7 +546,7 @@ test("every seeded persona can open its permitted screens and privileged screens
         ["/plans", "Choose a Play Plan and its dose."],
         ["/check-in", "Daily Check-In"],
         ["/progress", "Progress"],
-        ["/org", "Children"],
+        ["/org", "Members"],
         ["/org/supporters", "Moderators"],
         ["/account", "My account"],
       ],
@@ -560,7 +560,7 @@ test("every seeded persona can open its permitted screens and privileged screens
         ["/plans", "Choose a Play Plan and its dose."],
         ["/check-in", "Daily Check-In"],
         ["/progress", "Progress"],
-        ["/org", "Children"],
+        ["/org", "Members"],
         ["/account", "My account"],
       ],
       blocked: "/org/supporters",
@@ -834,7 +834,7 @@ test("Super Admin gets a scannable progress overview with filters and details", 
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
   // One-line facts up top, and no retired GAS wording anywhere.
-  for (const label of ["Children", "Sessions", "Need attention"]) {
+  for (const label of ["Members", "Sessions", "Need attention"]) {
     await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
   }
   await expect(page.getByText("Support Score", { exact: true })).toHaveCount(0);
@@ -861,7 +861,7 @@ test("Super Admin gets a scannable progress overview with filters and details", 
   await expect(page.getByText("Daily check-ins")).toBeVisible();
 });
 
-test("Progress shows an empty state, not an endless skeleton, when the account has no children", async ({
+test("Progress shows an empty state, not an endless skeleton, when the account has no members", async ({
   page,
 }) => {
   await login(page, "esther@sunrise.local", true);
@@ -870,8 +870,8 @@ test("Progress shows an empty state, not an endless skeleton, when the account h
   );
   await page.goto("/progress");
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
-  await expect(page.getByText("No children to show yet")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Go to Children" })).toBeVisible();
+  await expect(page.getByText("No members to show yet")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Go to Members" })).toBeVisible();
 });
 
 test("Super Admin can reorder Play Plans from the library", async ({ page }) => {
@@ -893,7 +893,7 @@ test("Super Admin can reorder Play Plans from the library", async ({ page }) => 
   await expect(titles.first()).toHaveText(first);
 });
 
-test("Super Admin can raise an organisation's licenses but not below the children in use", async ({
+test("Super Admin can raise an organisation's licenses but not below the members in use", async ({
   page,
 }) => {
   await login(page, "admin@playhub.local");
@@ -921,11 +921,11 @@ test("enrolling for an organisation fills in its Admin, or offers to create one"
   await page.getByLabel("Organisation", { exact: true }).click();
   await page.getByRole("option", { name: "Sunrise Montessori" }).click();
   await expect(page.getByLabel("Organisation Admin")).toContainText("Esther Mwangi");
-  await expect(page.getByRole("button", { name: "Enrol child" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enrol member" })).toBeVisible();
 
   await page.getByLabel("Organisation", { exact: true }).click();
   await page.getByRole("option", { name: "Admin-less School" }).click();
   await expect(page.getByText("This organisation has no Admin yet")).toBeVisible();
   await expect(page.getByRole("link", { name: "Create Admin" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Enrol child" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Enrol member" })).toHaveCount(0);
 });

@@ -101,8 +101,8 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
       { to: "/admin", label: "Overview", short: "Overview", icon: DashboardIcon },
       allowed("children") && {
         to: "/admin/children",
-        label: "Children",
-        short: "Children",
+        label: "Members",
+        short: "Members",
         icon: Users,
       },
       role === "super_admin" && checkIn,

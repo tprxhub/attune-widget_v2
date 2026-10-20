@@ -9,7 +9,7 @@ async function signIn(page: Page, email: string) {
   await expect(page).toHaveURL(/\/(dashboard|org|hub)(?:[/?#]|$)/);
 }
 
-test("an organisation admin renames a child from the Children page", async ({ page }) => {
+test("an organisation admin renames a member from the Members page", async ({ page }) => {
   await signIn(page, "esther@sunrise.local");
   await page.goto("/org");
   const card = page.locator("article").first();
@@ -20,17 +20,17 @@ test("an organisation admin renames a child from the Children page", async ({ pa
 
   // Escape leaves the name as it was.
   await card.getByRole("button", { name: `Edit ${original}'s name` }).click();
-  await card.getByLabel("Child's name").fill("Something else");
-  await card.getByLabel("Child's name").press("Escape");
+  await card.getByLabel("Member's name").fill("Something else");
+  await card.getByLabel("Member's name").press("Escape");
   await expect(heading).toHaveText(original);
 
   // An empty name is refused.
   await card.getByRole("button", { name: `Edit ${original}'s name` }).click();
-  await card.getByLabel("Child's name").fill("   ");
+  await card.getByLabel("Member's name").fill("   ");
   await card.getByRole("button", { name: "Save name" }).click();
-  await expect(card.getByRole("alert")).toHaveText("Please enter the child's name.");
+  await expect(card.getByRole("alert")).toHaveText("Please enter the member's name.");
 
-  await card.getByLabel("Child's name").fill(`  ${renamed} `);
+  await card.getByLabel("Member's name").fill(`  ${renamed} `);
   await card.getByRole("button", { name: "Save name" }).click();
   await expect(card.getByRole("heading", { level: 2 })).toHaveText(renamed);
   await page.reload();
@@ -41,8 +41,8 @@ test("an organisation admin renames a child from the Children page", async ({ pa
   const row = page.getByRole("listitem").filter({ hasText: renamed });
   await row.getByRole("button", { name: `Edit ${renamed}'s name` }).click();
   // Only one name is being edited, and the row no longer shows the old text while it is.
-  await page.getByLabel("Child's name").fill(original);
-  await page.getByLabel("Child's name").press("Enter");
+  await page.getByLabel("Member's name").fill(original);
+  await page.getByLabel("Member's name").press("Enter");
   await expect(
     page.getByRole("listitem").getByText(original, { exact: true }).first(),
   ).toBeVisible();
@@ -50,7 +50,7 @@ test("an organisation admin renames a child from the Children page", async ({ pa
   await page.getByRole("button", { name: "Cards" }).click();
 });
 
-test("a Moderator can't rename children", async ({ page }) => {
+test("a Moderator can't rename members", async ({ page }) => {
   await signIn(page, "moderator@playhub.local");
   await page.goto("/org");
   await expect(page.locator("article").first()).toBeVisible();

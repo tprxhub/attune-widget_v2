@@ -59,7 +59,7 @@ export const Route = createFileRoute("/account")({
       {
         name: "description",
         content:
-          "See your Play Hub profile, role, organisation and children, and change your password.",
+          "See your Play Hub profile, role, organisation and members, and change your password.",
       },
       { property: "og:title", content: "My account — Play Hub" },
       {
@@ -321,7 +321,7 @@ function AccountPage() {
               </div>
               <p className="mt-1 truncate text-sm text-cream/70">
                 {session.guardianName
-                  ? `Child account · run by ${session.guardianName}`
+                  ? `Member account · run by ${session.guardianName}`
                   : accountLabel(session)}
               </p>
               <div className="mt-2.5 flex flex-wrap gap-2">
@@ -453,7 +453,7 @@ function AccountPage() {
                 />
                 <details className="py-3">
                   <summary className="cursor-pointer text-sm font-bold">
-                    Children ({children.length})
+                    Members ({children.length})
                   </summary>
                   {children.length ? (
                     <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto pl-4 text-sm text-navy/75">
@@ -462,7 +462,7 @@ function AccountPage() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-2 text-sm text-navy/60">No children linked yet.</p>
+                    <p className="mt-2 text-sm text-navy/60">No members linked yet.</p>
                   )}
                 </details>
                 {data.memberSince && (

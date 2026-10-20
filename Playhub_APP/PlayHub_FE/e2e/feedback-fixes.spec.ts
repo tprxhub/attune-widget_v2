@@ -112,7 +112,7 @@ test("Progress exports the displayed graphs and insights as a printable PDF repo
   await report.close();
 });
 
-test("Account shows children in a dropdown and puts account actions in Preferences", async ({
+test("Account shows members in a dropdown and puts account actions in Preferences", async ({
   page,
 }) => {
   await login(page, "esther@sunrise.local", true);

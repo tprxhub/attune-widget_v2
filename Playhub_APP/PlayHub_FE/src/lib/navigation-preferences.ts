@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 export const ADMIN_NAVIGATION_OPTIONS = [
   { path: "/dashboard", label: "Dashboard", description: "Today’s overview and quick actions" },
   { path: "/plans", label: "Play Plans", description: "Browse and start Play Doses" },
-  { path: "/check-in", label: "Daily Check-In", description: "Log a child’s session" },
+  { path: "/check-in", label: "Daily Check-In", description: "Log a member’s session" },
   { path: "/progress", label: "Progress", description: "Charts, trends and next steps" },
-  { path: "/org", label: "Members", description: "Children and member accounts" },
+  { path: "/org", label: "Members", description: "Members and their accounts" },
   { path: "/org/supporters", label: "Moderators", description: "Your organisation’s support team" },
 ] as const;
 

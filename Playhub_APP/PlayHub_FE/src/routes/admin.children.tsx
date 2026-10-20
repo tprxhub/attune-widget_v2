@@ -46,16 +46,16 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/admin/children")({
   head: () => ({
     meta: [
-      { title: "Children — Play Hub admin" },
+      { title: "Members — Play Hub admin" },
       {
         name: "description",
         content:
-          "Every child on Play Hub: maintain their profile, assign a Moderator, invite the Member and manage their subscription.",
+          "Every member on Play Hub: maintain their profile, assign a Moderator, invite the Member and manage their subscription.",
       },
-      { property: "og:title", content: "Children — Play Hub admin" },
+      { property: "og:title", content: "Members — Play Hub admin" },
       {
         property: "og:description",
-        content: "Maintain child profiles, Moderators and subscriptions across Play Hub.",
+        content: "Maintain member profiles, Moderators and subscriptions across Play Hub.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -155,10 +155,10 @@ function AdminChildren() {
     <>
       <PageHeader
         eyebrow="Platform"
-        title="Children"
+        title="Members"
         description={
           scopeId === "all"
-            ? "Every child on the platform — profiles, Moderators, Member invites and subscriptions."
+            ? "Every member on the platform — profiles, Moderators, Member invites and subscriptions."
             : `${scopeLabel} — profiles, Moderators, Member invites and subscriptions.`
         }
         actions={
@@ -166,13 +166,13 @@ function AdminChildren() {
             to="/org/enroll"
             className="inline-flex min-h-12 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
           >
-            <Plus className="h-4 w-4" aria-hidden /> Enrol a child in a Play Plan
+            <Plus className="h-4 w-4" aria-hidden /> Enrol a member in a Play Plan
           </Link>
         }
       />
 
       <section className="grid grid-cols-2 gap-3 rounded-3xl bg-navy p-5 text-cream lg:grid-cols-4">
-        <Stat label="Children" value={list.length} />
+        <Stat label="Members" value={list.length} />
         <Stat label="Family accounts" value={list.filter((c) => c.accountType === "b2c").length} />
         <Stat label="Organisation" value={list.filter((c) => c.accountType === "b2b").length} />
         <Stat label="Active subscriptions" value={subs.isLoading ? "—" : activeSubs} />
@@ -213,8 +213,8 @@ function AdminChildren() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search children"
-            aria-label="Search children"
+            placeholder="Search members"
+            aria-label="Search members"
             className="min-h-10 w-full rounded-full border border-navy/15 bg-card pr-4 pl-9 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/25"
           />
         </div>
@@ -233,7 +233,7 @@ function AdminChildren() {
       ) : filtered.length === 0 ? (
         <div className="ph-card mt-4 p-10 text-center">
           <Users className="mx-auto h-9 w-9 text-navy/35" aria-hidden />
-          <p className="mt-3 text-lg font-bold">No children match</p>
+          <p className="mt-3 text-lg font-bold">No members match</p>
           <p className="mt-2 text-sm text-navy/65">Try a different filter or search.</p>
         </div>
       ) : (
@@ -483,13 +483,13 @@ function EditChildModal({
   });
 
   return (
-    <Shell title="Maintain child profile" subtitle={child.name} onClose={onClose}>
+    <Shell title="Maintain member profile" subtitle={child.name} onClose={onClose}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           const n = Number(age);
-          if (name.trim().length < 2) return setError("Enter the child's name.");
+          if (name.trim().length < 2) return setError("Enter the member's name.");
           if (!Number.isFinite(n) || n < 1 || n > 18) return setError("Age must be 1–18.");
           if (!educatorId) return setError("Choose the Account Admin.");
           setError("");
@@ -499,7 +499,7 @@ function EditChildModal({
         <div className="grid gap-4 sm:grid-cols-[1.6fr_0.6fr]">
           <div>
             <label htmlFor="ec-name" className="text-sm font-bold">
-              Child's name
+              Member's name
             </label>
             <input
               id="ec-name"
@@ -573,7 +573,7 @@ function EditChildModal({
 
         <div className="rounded-2xl bg-navy/4 p-3 text-sm text-navy/70">
           Member: <strong>{child.parentEmail ?? "not linked"}</strong>. Use “Invite Member” on the
-          child card to link or replace a Member account.
+          member card to link or replace a Member account.
         </div>
 
         <div>
@@ -737,7 +737,7 @@ function SubscriptionModal({
         {current?.status === "active" && (
           <ConfirmButton
             confirmationTitle="Cancel subscription?"
-            confirmationMessage="This will cancel the child’s active subscription."
+            confirmationMessage="This will cancel the member’s active subscription."
             confirmLabel="Cancel subscription"
             type="button"
             onClick={() => cancel.mutateAsync()}
@@ -779,7 +779,7 @@ function InviteParentModal({ child, onClose }: { child: Child; onClose: () => vo
         }}
       >
         <p className="text-sm text-navy/70">
-          The Member gets read-only access to this child's Play Plan and Progress.
+          The Member gets read-only access to this member's Play Plan and Progress.
         </p>
         <div>
           <label htmlFor="inv-email" className="text-sm font-bold">

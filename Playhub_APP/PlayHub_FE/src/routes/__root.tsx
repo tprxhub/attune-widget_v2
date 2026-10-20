@@ -83,13 +83,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Play Hub by The Toy Pharmacy" },
       {
         name: "description",
-        content: "Play Plans, Play Doses and progress tracking for children's fine motor skills.",
+        content: "Play Plans, Play Doses and progress tracking for members' fine motor skills.",
       },
       { name: "author", content: "The Toy Pharmacy" },
       { property: "og:title", content: "Play Hub by The Toy Pharmacy" },
       {
         property: "og:description",
-        content: "Play Plans, Play Doses and progress tracking for children's fine motor skills.",
+        content: "Play Plans, Play Doses and progress tracking for members' fine motor skills.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

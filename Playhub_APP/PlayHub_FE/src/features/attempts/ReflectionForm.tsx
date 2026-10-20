@@ -119,7 +119,7 @@ export function ReflectionForm({
 
       <fieldset>
         <legend className="text-sm font-bold">
-          Did the child complete the task once within 15 minutes?
+          Did the member complete the task once within 15 minutes?
         </legend>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {(

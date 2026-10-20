@@ -257,7 +257,7 @@ function accountLaunchItems(session: Session): LaunchItem[] {
   if (orgStaff) {
     items.push({
       label: "Members",
-      detail: "View children in your setting",
+      detail: "View members in your setting",
       to: "/org",
       icon: Users,
       accent: "from-sky-300 to-blue-500",

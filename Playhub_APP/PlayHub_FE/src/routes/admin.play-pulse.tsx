@@ -276,7 +276,7 @@ function PlayPulseLeadsPage() {
                     Source
                   </th>
                   <th scope="col" className="px-4 py-3">
-                    Child
+                    Member
                   </th>
                   <th scope="col" className="px-4 py-3">
                     Goal

@@ -406,7 +406,7 @@ function AdminPlans() {
                             {vids} with video · {acts - vids} instructions only
                           </span>
                           <span>
-                            {used} {used === 1 ? "child" : "children"} on this plan
+                            {used} {used === 1 ? "member" : "members"} on this plan
                           </span>
                         </p>
                       </div>
@@ -1585,7 +1585,7 @@ function DeletePlanModal({
         <div className="space-y-4">
           <p className="flex items-start gap-3 rounded-2xl bg-coral/10 p-4 text-sm font-semibold text-coral">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-            {blocked} {blocked === 1 ? "child is" : "children are"} following this plan right now.
+            {blocked} {blocked === 1 ? "member is" : "members are"} following this plan right now.
             Move them onto another plan first, then delete it.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -1593,7 +1593,7 @@ function DeletePlanModal({
               to="/admin/children"
               className="inline-flex min-h-11 items-center rounded-full bg-navy px-5 text-sm font-bold text-white"
             >
-              Go to Children
+              Go to Members
             </Link>
             <button
               type="button"
@@ -1608,7 +1608,7 @@ function DeletePlanModal({
         <div className="space-y-4">
           <p className="text-sm text-navy/75">
             This removes “{plan.title}” and its {plan.entries.length} Play Doses from the library.
-            No child is using it.
+            No member is using it.
           </p>
           <div className="flex flex-wrap gap-2">
             <button

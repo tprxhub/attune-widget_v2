@@ -85,9 +85,9 @@ function ChildDashboard() {
       <>
         <PageHeader eyebrow="Play Hub" title={`Hello, ${session.name.split(" ")[0]}`} />
         <div className="ph-card p-8 text-center">
-          <p className="text-lg font-bold">No child on your account yet</p>
+          <p className="text-lg font-bold">No member on your account yet</p>
           <p className="mt-2 text-sm text-navy/70">
-            Add a child to start a Play Plan and log Sessions.
+            Add a member to start a Play Plan and log Sessions.
           </p>
           <Link
             to="/plans"
@@ -119,7 +119,7 @@ function ChildDashboard() {
         title="Here's your Play Hub"
         description={
           isReadOnlyParent
-            ? "A read-only view of your child's Play Plan, shared by their setting."
+            ? "A read-only view of your member's Play Plan, shared by their setting."
             : undefined
         }
         actions={
@@ -237,7 +237,7 @@ function ChildDashboard() {
             <p className="eyebrow text-coral">Free plan</p>
             <h2 className="mt-1 text-lg font-bold">Unlock the whole week for {activeChild.name}</h2>
             <p className="mt-1 text-sm text-navy/70">
-              You have the Introduction and first Activity. Subscribe per child to unlock all five
+              You have the Introduction and first Activity. Subscribe per member to unlock all five
               Activities, the Real Life Try, Level-Up Prompt and Session logging.
             </p>
           </div>

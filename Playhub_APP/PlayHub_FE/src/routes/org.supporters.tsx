@@ -341,7 +341,7 @@ function OrgSupporters() {
                     <span className="hidden min-w-0 flex-1 truncate text-xs text-navy/60 lg:block">
                       {assigned.length
                         ? assigned.map((c) => c.name).join(", ")
-                        : "No children assigned"}
+                        : "No members assigned"}
                     </span>
                     <span className="shrink-0 rounded-full bg-navy/6 px-2.5 py-1 text-[11px] font-bold text-navy/70">
                       {assigned.length} assigned
@@ -540,11 +540,11 @@ function SupporterCard({
       <p className="mt-3 text-xs text-navy/60">
         {assigned.length ? (
           <>
-            Children:{" "}
+            Members:{" "}
             <span className="font-bold text-navy">{assigned.map((c) => c.name).join(", ")}</span>
           </>
         ) : (
-          "No children assigned yet — assign them on the Children page."
+          "No members assigned yet — assign them on the Members page."
         )}
       </p>
 
@@ -823,14 +823,14 @@ function EditModeratorInvitationForm({
       </div>
       <div>
         <label htmlFor="sup-edit-child" className="text-sm font-bold">
-          Assign a child <span className="font-normal text-navy/50">(optional)</span>
+          Assign a member <span className="font-normal text-navy/50">(optional)</span>
         </label>
         <Select
           id="sup-edit-child"
           value={childId}
           onChange={setChildId}
           options={[
-            { value: "", label: "No child for now" },
+            { value: "", label: "No member for now" },
             ...kids.map((child) => ({
               value: child.id,
               label: `${child.name} · Age ${child.age}`,
@@ -1051,17 +1051,17 @@ function AddSupporterModal({
               </div>
               <div>
                 <label htmlFor="sup-child" className="text-sm font-bold">
-                  Assign a child <span className="font-normal text-navy/50">(optional)</span>
+                  Assign a member <span className="font-normal text-navy/50">(optional)</span>
                 </label>
                 <p className="text-xs text-navy/60">
-                  You can also assign children later on the Children page.
+                  You can also assign members later on the Members page.
                 </p>
                 <Select
                   id="sup-child"
                   value={childId}
                   onChange={setChildId}
                   options={[
-                    { value: "", label: "No child for now" },
+                    { value: "", label: "No member for now" },
                     ...kids.map((c) => ({ value: c.id, label: `${c.name} · Age ${c.age}` })),
                   ]}
                   className="mt-2"

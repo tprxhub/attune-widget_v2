@@ -18,7 +18,7 @@ export function AuthLayout({ children, artImage }: AuthLayoutProps) {
           <div className="sticky top-0 h-screen w-full overflow-hidden bg-navy">
             <img
               src={artUrl}
-              alt="A child playing with colourful wooden toys"
+              alt="A member playing with colourful wooden toys"
               width={1024}
               height={1408}
               className="h-full w-full object-cover"

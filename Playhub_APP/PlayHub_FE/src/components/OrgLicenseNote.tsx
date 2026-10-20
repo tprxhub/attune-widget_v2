@@ -39,7 +39,7 @@ export function OrgLicenseNote({ org, kind }: { org: Org | undefined; kind: Lice
             ? `All ${noun} licences are in use. To add more, email ${LICENCE_CONTACT_EMAIL}.`
             : kind === "moderators"
               ? "Each active or invited Moderator uses a licence."
-              : "Each active child uses a licence."}
+              : "Each active member uses a licence."}
         </p>
       </div>
       <div
@@ -75,7 +75,7 @@ export function LicenceLimitModal({
   const close = useRef<HTMLButtonElement>(null);
   const [copied, setCopied] = useState(false);
   const noun = kind === "moderators" ? "Moderator" : "child";
-  const adding = kind === "moderators" ? "add another Moderator" : "enrol another child";
+  const adding = kind === "moderators" ? "add another Moderator" : "enrol another member";
   const subject = `Licence increase for ${org.name}`;
   const body = `Hello Play Hub team,\n\n${org.name} is using all ${org.licenses} ${noun} licences. We'd like to increase our licences to: \n\nThank you.`;
   const mailto = `mailto:${LICENCE_CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

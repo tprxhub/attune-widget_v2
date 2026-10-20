@@ -139,8 +139,8 @@ function CheckInPage() {
       <>
         <PageHeader eyebrow="Session logging" title="Daily Check-In" />
         <div className="ph-card p-8 text-center">
-          <p className="text-lg font-bold">No child is available</p>
-          <p className="mt-2 text-sm text-navy/65">Enrol a child before logging an Session.</p>
+          <p className="text-lg font-bold">No member is available</p>
+          <p className="mt-2 text-sm text-navy/65">Enrol a member before logging an Session.</p>
         </div>
       </>
     );
@@ -167,8 +167,8 @@ function CheckInPage() {
           </p>
           <p className="mt-2 text-sm text-navy/70">
             {isReadOnlyParent
-              ? "Your child's organisation Admin records the attempts. You'll see every one of them in Progress."
-              : "Subscribe for this child to log Sessions and keep a full history."}
+              ? "Your member's organisation Admin records the attempts. You'll see every one of them in Progress."
+              : "Subscribe for this member to log Sessions and keep a full history."}
           </p>
           {isFreeGated && canManageSubscription && (
             <Link

@@ -34,7 +34,7 @@ export function HubCreateMenu({
     }));
   if (canEnrollChildren)
     actions.push({
-      label: "Child Profile",
+      label: "Member Profile",
       detail: "",
       to: "/org/enroll",
       icon: CirclePlus,

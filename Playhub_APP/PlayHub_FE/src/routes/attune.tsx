@@ -97,7 +97,7 @@ export const Route = createFileRoute("/attune")({
       {
         name: "description",
         content:
-          "Attune™, your 24/7 Play Partner: OT-informed play ideas and support for hard moments, built around your child's Play Plan.",
+          "Attune™, your 24/7 Play Partner: OT-informed play ideas and support for hard moments, built around your member's Play Plan.",
       },
     ],
   }),
@@ -114,7 +114,7 @@ function suggestionsFor(
   latest?: Pick<Attempt, "activity" | "completionStatus">,
   mode?: AttuneMode,
 ) {
-  const child = name ?? "my child";
+  const child = name ?? "my member";
   if (mode === "regulation") {
     return [
       {
@@ -791,18 +791,18 @@ function emptyHeading(
     return `Let’s make sense of ${childName ? `${childName}’s` : "the"} progress`;
   if (about) return `Questions about “${about}”?`;
   if (mode === "idea") return `Let’s find the right idea${childName ? ` for ${childName}` : ""}`;
-  return `Hello, How Can I Help ${childName ?? "Your Child"} Today?`;
+  return `Hello, How Can I Help ${childName ?? "Your Member"} Today?`;
 }
 
 function emptyIntro(mode: AttuneMode | undefined, childName: string | undefined) {
-  const child = childName ? `${childName}’s` : "your child’s";
+  const child = childName ? `${childName}’s` : "your member’s";
   if (mode === "regulation")
     return "Tell me what’s happening right now. If anyone may be in danger, call 999 (police) or 998 (ambulance) first.";
   if (mode === "progress")
     return `I’ll explain ${child} Support Score, mood and level in plain words, and what might come next.`;
   if (mode === "idea")
     return "Tell me what you’d like to practise. I’ll suggest one Activity and how to make it easier or harder.";
-  return "From choosing the next Play Plan to understanding your child’s progress, I’m here to guide you and answer your questions along the way.";
+  return "From choosing the next Play Plan to understanding your member’s progress, I’m here to guide you and answer your questions along the way.";
 }
 
 /** Save the open chat as a text file the adult can keep or share with a therapist. */
@@ -977,7 +977,7 @@ function ChatMenu({
 }
 
 const DISCLAIMER =
-  "Attune™ is an OT-informed tool created by a licensed occupational therapist. It gives play ideas, not medical advice. For worries about development, talk to your child’s clinician.";
+  "Attune™ is an OT-informed tool created by a licensed occupational therapist. It gives play ideas, not medical advice. For worries about development, talk to your member’s clinician.";
 
 function Disclaimer() {
   return <p className="mt-2 text-center text-[11px] text-navy/45">{DISCLAIMER}</p>;

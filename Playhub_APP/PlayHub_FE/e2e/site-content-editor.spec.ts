@@ -89,7 +89,7 @@ test("editor publishes phone wallpaper, separate auth images and policy pages", 
     ["/signup", "Signup"],
   ] as const) {
     await visitor.goto(route);
-    const art = visitor.getByAltText("A child playing with colourful wooden toys");
+    const art = visitor.getByAltText("A member playing with colourful wooden toys");
     await expect(art).toHaveAttribute(
       "src",
       new RegExp(authUrls[name]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),

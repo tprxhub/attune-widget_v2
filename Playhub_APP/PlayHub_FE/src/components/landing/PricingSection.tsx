@@ -17,10 +17,10 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
       <div className="mx-auto max-w-2xl text-center">
         <p className="text-[11px] font-semibold tracking-[0.2em] text-navy/50 uppercase">Pricing</p>
         <h2 id="pricing-title" className="ph-display mt-3 text-4xl leading-tight sm:text-5xl">
-          Simple pricing, per child
+          Simple pricing, per member
         </h2>
         <p className="mt-4 text-base leading-relaxed text-navy/70">
-          Start free. Subscribe for a child when you want the full week, every video and unlimited
+          Start free. Subscribe for a member when you want the full week, every video and unlimited
           Session logging. One payment, no auto-renewal.
         </p>
       </div>
@@ -51,7 +51,7 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
               </h3>
               <p className="ph-display mt-3 text-4xl">{plan.price}</p>
               <p className={cn("text-xs font-semibold", best ? "text-cream/65" : "text-navy/55")}>
-                {plan.per} · per child
+                {plan.per} · per member
               </p>
               <p className={cn("mt-3 text-sm", best ? "text-cream/80" : "text-navy/70")}>
                 {plan.note}

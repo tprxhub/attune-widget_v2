@@ -16,7 +16,7 @@ export type AttuneMode = "idea" | "regulation" | "progress";
 
 export const ATTUNE_MODES: Record<AttuneMode, { label: string; short: string }> = {
   idea: { label: "Get an idea", short: "Idea" },
-  regulation: { label: "My child is struggling", short: "Struggling" },
+  regulation: { label: "My member is struggling", short: "Struggling" },
   progress: { label: "What does this mean?", short: "Progress" },
 };
 

@@ -40,7 +40,7 @@ export const Route = createFileRoute("/org/")({
           "Every enrolled member, their Play Plan, status and assigned Moderator in one view.",
       },
       { property: "og:title", content: "Caseload — Play Hub for schools & clinics" },
-      { property: "og:description", content: "Every enrolled child, their Play Plan and status." },
+      { property: "og:description", content: "Every enrolled member, their Play Plan and status." },
     ],
   }),
   component: () => (
@@ -79,8 +79,8 @@ function OrgChildren() {
     <>
       <PageHeader
         eyebrow={org.data ? `${org.data.name} · ${org.data.kind}` : "Caseload"}
-        title="Children"
-        description="Every child enrolled under your organisation, with their current Play Plan and status."
+        title="Members"
+        description="Every member enrolled under your organisation, with their current Play Plan and status."
         actions={
           session.role === "educator" ? (
             <div className="flex flex-wrap gap-2">
@@ -104,7 +104,7 @@ function OrgChildren() {
                 }}
                 className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
               >
-                <Plus className="h-4 w-4" aria-hidden /> Enrol a child in a Play Plan
+                <Plus className="h-4 w-4" aria-hidden /> Enrol a member in a Play Plan
               </Link>
             </div>
           ) : undefined
@@ -125,7 +125,7 @@ function OrgChildren() {
             aria-hidden
           />
           <div className="relative grid gap-4 sm:grid-cols-3">
-            <SummaryStat label="Children enrolled" value={list.length} />
+            <SummaryStat label="Members enrolled" value={list.length} />
             <SummaryStat label="With a Moderator" value={`${assigned} / ${list.length}`} />
             <SummaryStat
               label="Skill areas in play"
@@ -153,16 +153,16 @@ function OrgChildren() {
       ) : list.length === 0 ? (
         <div className="ph-card mt-5 p-10 text-center">
           <Users className="mx-auto h-9 w-9 text-navy/35" aria-hidden />
-          <p className="mt-3 text-lg font-bold">No children enrolled yet</p>
+          <p className="mt-3 text-lg font-bold">No members enrolled yet</p>
           <p className="mt-2 text-sm text-navy/65">
-            Enrol your first child to start assigning Play Plans.
+            Enrol your first member to start assigning Play Plans.
           </p>
         </div>
       ) : view === "list" ? (
         <>
           <div className="mt-5 flex items-center justify-between gap-3">
             <p className="text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
-              {list.length} child{list.length === 1 ? "" : "ren"}
+              {list.length} member{list.length === 1 ? "" : "ren"}
             </p>
             <ViewToggle mode={view} onChange={setView} />
           </div>
@@ -186,7 +186,7 @@ function OrgChildren() {
         <>
           <div className="mt-5 flex items-center justify-between gap-3">
             <p className="text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
-              {list.length} child{list.length === 1 ? "" : "ren"}
+              {list.length} member{list.length === 1 ? "" : "ren"}
             </p>
             <ViewToggle mode={view} onChange={setView} />
           </div>
@@ -409,7 +409,7 @@ function ChildName({
 
   const save = () => {
     const name = draft.trim().replace(/\s+/g, " ");
-    if (!name) return setError("Please enter the child's name.");
+    if (!name) return setError("Please enter the member's name.");
     if (name === child.name) return setDraft(null);
     rename.mutate(name);
   };
@@ -422,7 +422,7 @@ function ChildName({
       }}
     >
       <label htmlFor={inputId} className="sr-only">
-        Child's name
+        Member's name
       </label>
       <div className="flex min-w-0 items-center gap-1">
         <input

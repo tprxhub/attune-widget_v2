@@ -100,14 +100,14 @@ test("the dashboard offers Attune's three moments, and a struggling parent gets 
   const bar = page.getByRole("region", { name: "Ask Attune" });
   await expect(bar.getByRole("link", { name: "Get an idea" })).toBeVisible();
   await expect(bar.getByRole("link", { name: "What does this mean?" })).toBeVisible();
-  await bar.getByRole("link", { name: "My child is struggling" }).click();
+  await bar.getByRole("link", { name: "My member is struggling" }).click();
 
   await expect(page).toHaveURL(/\/attune\?mode=regulation/);
   await expect(
     page.getByRole("heading", { name: "Take a breath. Let’s work through this together." }),
   ).toBeVisible();
   await expect(page.getByText(/call 999 \(police\) or 998 \(ambulance\) first/)).toBeVisible();
-  await expect(page.getByText("My child is struggling", { exact: true })).toBeVisible();
+  await expect(page.getByText("My member is struggling", { exact: true })).toBeVisible();
   await expect(
     page.getByText(/OT-informed tool created by a licensed occupational therapist/),
   ).toBeVisible();
@@ -138,7 +138,7 @@ test("the dashboard offers Attune's three moments, and a struggling parent gets 
   expect(state.summaries).toBe(1);
 
   // Clearing the moment goes back to ordinary questions.
-  await page.getByRole("button", { name: "Stop: My child is struggling" }).click();
+  await page.getByRole("button", { name: "Stop: My member is struggling" }).click();
   await expect(page).not.toHaveURL(/mode=/);
 });
 
@@ -167,7 +167,7 @@ test("Progress asks Attune what the chart means", async ({ page }) => {
   expect(String(state.bodies[0]?.["message"])).toMatch(/progress chart mean/);
 });
 
-test("Activity and Play Dose pages offer Get an idea and My child is struggling", async ({
+test("Activity and Play Dose pages offer Get an idea and My member is struggling", async ({
   page,
 }) => {
   await mockAttune(page, { content: "An idea." });
@@ -180,7 +180,7 @@ test("Activity and Play Dose pages offer Get an idea and My child is struggling"
     "href",
     /mode=idea/,
   );
-  await expect(card.getByRole("link", { name: "My child is struggling" })).toHaveAttribute(
+  await expect(card.getByRole("link", { name: "My member is struggling" })).toHaveAttribute(
     "href",
     /mode=regulation/,
   );

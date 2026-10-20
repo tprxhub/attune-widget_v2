@@ -20,7 +20,7 @@ export function LockedOverlay({
   locked,
   children,
   title = "Locked on the free plan",
-  message = "Subscribe for this child to unlock every Play Dose, video and Session logging.",
+  message = "Subscribe for this member to unlock every Play Dose, video and Session logging.",
   ctaLabel = "Upgrade to unlock",
   ctaTo = "/subscription",
   className,

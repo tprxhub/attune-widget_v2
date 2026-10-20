@@ -15,7 +15,7 @@ export const Route = createFileRoute("/invite")({
       {
         name: "description",
         content:
-          "Invite a Moderator to log Play Doses for your child without sharing your own login.",
+          "Invite a Moderator to log Play Doses for your member without sharing your own login.",
       },
       { property: "og:title", content: "Invite a Moderator — Play Hub" },
       {
@@ -47,7 +47,7 @@ function InvitePage() {
           <Crown className="mx-auto h-8 w-8 text-coral" aria-hidden />
           <p className="mt-3 text-lg font-bold">Subscribe first</p>
           <p className="mt-2 text-sm text-navy/70">
-            Only the subscribed Admin of a child can invite a Moderator.
+            Only the subscribed Admin of a member can invite a Moderator.
           </p>
         </div>
       </>

@@ -37,7 +37,7 @@ export function AttuneInsightsCard() {
           </h3>
           <p className="text-xs text-navy/55">
             How families and staff use the 24/7 Play Partner, across {data.children30Days}{" "}
-            {data.children30Days === 1 ? "child" : "children"} this month.
+            {data.children30Days === 1 ? "member" : "members"} this month.
           </p>
         </div>
         <Link

@@ -91,7 +91,7 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`Selected child: ${showingAll ? "All children" : activeChild.name}`}
+        aria-label={`Selected member: ${showingAll ? "All members" : activeChild.name}`}
         className={cn(
           "inline-flex min-h-10 max-w-[13rem] items-center gap-2 rounded-full border border-navy/10 bg-card/80 py-1 pr-3 pl-1 text-sm font-bold text-navy shadow-[0_1px_0_rgba(16,42,74,0.04)] transition-colors hover:border-coral/40 hover:text-coral",
         )}
@@ -103,7 +103,7 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
         ) : (
           <ChildProgressIcon childId={activeChild.id} size={28} />
         )}
-        <span className="truncate">{showingAll ? "All children" : activeChild.name}</span>
+        <span className="truncate">{showingAll ? "All members" : activeChild.name}</span>
         <ChevronDown
           className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")}
           aria-hidden
@@ -117,7 +117,7 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
           align="right"
           className="w-56 rounded-2xl border border-navy/10 bg-card p-1.5 shadow-[0_16px_40px_-12px_rgba(15,42,74,0.35)]"
         >
-          <ul role="listbox" aria-label="Choose a child">
+          <ul role="listbox" aria-label="Choose a member">
             {allowAll && (
               <li>
                 <button
@@ -141,7 +141,7 @@ export function ChildSwitcherDropdown({ className }: { className?: string }) {
                   >
                     <Users className="h-4 w-4" aria-hidden />
                   </span>
-                  <span className="min-w-0 flex-1 truncate">All children</span>
+                  <span className="min-w-0 flex-1 truncate">All members</span>
                   {showingAll && <Check className="h-4 w-4 shrink-0" aria-hidden />}
                 </button>
               </li>

@@ -35,12 +35,12 @@ export const Route = createFileRoute("/admin/progress")({
       {
         name: "description",
         content:
-          "Super Admin view of progress and Mood trends for every child, by organisation or individual family, with CSV export.",
+          "Super Admin view of progress and Mood trends for every member, by organisation or individual family, with CSV export.",
       },
       { property: "og:title", content: "Progress across the platform — Play Hub admin" },
       {
         property: "og:description",
-        content: "Progress and Mood trends for every child, by organisation or family.",
+        content: "Progress and Mood trends for every member, by organisation or family.",
       },
     ],
   }),
@@ -212,7 +212,7 @@ function AdminProgress() {
       <PageHeader
         eyebrow="Platform"
         title="Progress"
-        description="See who is practising and who needs a follow-up. Select a child for details."
+        description="See who is practising and who needs a follow-up. Select a member for details."
         actions={
           <button
             type="button"
@@ -232,7 +232,7 @@ function AdminProgress() {
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <Tile
           icon={Users}
-          label="Children"
+          label="Members"
           value={String(rows.length)}
           sub={`${scoped.length} ${scoped.length === 1 ? "account" : "accounts"}`}
         />
@@ -286,11 +286,11 @@ function AdminProgress() {
               className="pointer-events-none absolute left-3 h-4 w-4 text-navy/40"
               aria-hidden
             />
-            <span className="sr-only">Search children by name</span>
+            <span className="sr-only">Search members by name</span>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search a child"
+              placeholder="Search a member"
               className="min-h-11 w-full rounded-full border-2 border-navy/12 bg-card pr-4 pl-9 text-sm font-semibold outline-none focus:border-blue"
             />
           </label>
@@ -320,7 +320,7 @@ function AdminProgress() {
         ))}
         {visible.length === 0 && (
           <div className="ph-card grid place-items-center gap-3 p-10 text-center text-sm text-navy/60">
-            <p>No children match.</p>
+            <p>No members match.</p>
             {(status !== "all" || query) && (
               <button
                 type="button"
@@ -437,7 +437,7 @@ function GroupCard({
             <h2 className="truncate text-base font-bold">{group.label}</h2>
             <p className="text-xs text-navy/55">
               {group.org ? group.org.kind : "Families"} · {group.rows.length}{" "}
-              {group.rows.length === 1 ? "child" : "children"}
+              {group.rows.length === 1 ? "member" : "members"}
             </p>
           </div>
         </div>
@@ -469,7 +469,7 @@ function GroupCard({
           COLUMNS,
         )}
       >
-        <span>Child</span>
+        <span>Member</span>
         <span>Current plan</span>
         <span>Progress / follow-up</span>
         <span>Last check-in</span>

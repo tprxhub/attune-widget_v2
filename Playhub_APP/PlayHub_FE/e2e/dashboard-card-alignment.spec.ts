@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("school child cards keep icons and View aligned and status labels on one line", async ({
+test("school member cards keep icons and View aligned and status labels on one line", async ({
   page,
 }) => {
   const response = await page.request.post("http://127.0.0.1:8765/api/v1/auth/login", {
@@ -17,7 +17,7 @@ test("school child cards keep icons and View aligned and status labels on one li
   for (const width of [320, 375, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/dashboard");
-    const cards = page.getByRole("region", { name: "Children", exact: true }).locator("article");
+    const cards = page.getByRole("region", { name: "Members", exact: true }).locator("article");
     await expect(cards.first()).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     for (const card of await cards.all()) {

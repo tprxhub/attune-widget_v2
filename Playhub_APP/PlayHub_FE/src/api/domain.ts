@@ -99,12 +99,12 @@ const PLAN_BLURB: Record<string, Record<Level, string>> = {
   tool: {
     Rookie: "Build the hand strength and control needed to pick up and use everyday tools.",
     Starter: "Step-by-step activities for building a confident functional grasp on everyday tools.",
-    Pro: "Precision tool-use activities for children ready for more complex functional tasks.",
+    Pro: "Precision tool-use activities for members ready for more complex functional tasks.",
   },
   prewrite: {
     Rookie: "Build the foundational line patterns that underpin all early handwriting.",
     Starter: "Structured line and pattern tracing activities to build pre-writing readiness.",
-    Pro: "Complex pattern and line activities for children approaching letter formation.",
+    Pro: "Complex pattern and line activities for members approaching letter formation.",
   },
   scanning: {
     Rookie: "Early scanning and tracking games that train the eye to follow, match and locate.",
@@ -112,9 +112,9 @@ const PLAN_BLURB: Record<string, Record<Level, string>> = {
     Pro: "Advanced visual tracking and decode activities for strong visual-motor precision.",
   },
   letters: {
-    Rookie: "Foundational shape and line activities that prepare children for letter formation.",
+    Rookie: "Foundational shape and line activities that prepare members for letter formation.",
     Starter: "Shape and pattern activities that bridge between drawing and early letter writing.",
-    Pro: "Advanced letter-readiness activities for children on the threshold of writing.",
+    Pro: "Advanced letter-readiness activities for members on the threshold of writing.",
   },
 };
 
@@ -294,14 +294,14 @@ const ACTIVITIES: Record<string, Record<Level, string[]>> = {
 
 const INSTRUCTIONS: string[][] = [
   [
-    "Sit your child at a table with feet flat and elbows supported.",
+    "Sit your member at a table with feet flat and elbows supported.",
     "Set out the kit pieces for this Activity within easy reach.",
     "Demonstrate once slowly, then hand over — let them try without help.",
     "Play for about 10 minutes, then stop while it is still fun.",
   ],
   [
     "Clear a calm space and put away other toys.",
-    "Name the Activity out loud so your child knows what is coming.",
+    "Name the Activity out loud so your member knows what is coming.",
     "Prompt with words before you prompt with hands.",
     "Finish with a high five and note the one thing that went well.",
   ],
@@ -369,12 +369,12 @@ function makeEntries(goalId: string, level: Level): PlanEntry[] {
       kind: "redo",
       day: 3,
       label: "Redo Day!",
-      title: "Redo Day! – run your child's favourite again",
+      title: "Redo Day! – run your member's favourite again",
       activity: "Repeat any Play Dose from days 0–2",
       loggable: true,
       minutes: 10,
       instructions: [
-        "Ask your child which Activity they want to do again.",
+        "Ask your member which Activity they want to do again.",
         "Run it exactly as before — repetition is where the skill sticks.",
         "Log the Session as a Redo Day.",
       ],
@@ -437,4 +437,4 @@ export const planByGoalAndLevel = (goalId: string, level: Level) =>
   PLAY_PLANS.find((plan) => plan.goalId === goalId && plan.level === level);
 
 export const LEVEL_GUIDANCE =
-  "Begin with the Starter Play Dose. If your child finds it difficult, try Rookie. If they complete it successfully, skip Rookie and move to Pro.";
+  "Begin with the Starter Play Dose. If your member finds it difficult, try Rookie. If they complete it successfully, skip Rookie and move to Pro.";

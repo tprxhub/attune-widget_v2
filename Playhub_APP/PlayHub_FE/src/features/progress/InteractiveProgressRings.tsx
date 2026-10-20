@@ -78,7 +78,7 @@ export function InteractiveProgressRings({
   const description =
     shown === "support"
       ? score === null
-        ? "Log a finished Session to see how independently your child is playing."
+        ? "Log a finished Session to see how independently your member is playing."
         : `${score}% independence = 100% minus ${supportScore}% support needed. A higher independence score means less help. The latest Play Dose’s finished Sessions are averaged; unfinished Sessions are excluded.`
       : average === null
         ? "Log a Session’s mood to see how play has been feeling."

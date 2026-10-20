@@ -117,7 +117,7 @@ export function PulseResultCard({
               value={`${supportScore}%`}
               label="Support Score"
               sub={`${TIER_COPY[tier].label} · lower means less help needed`}
-              info="A lower score is better, meaning your child needs less support."
+              info="A lower score is better, meaning your member needs less support."
             />
             <MiniStat
               icon={Target}
@@ -213,7 +213,7 @@ export function PulseResultCard({
               Independence Score: {independent}%
               <SupportScoreInfo
                 label="What Independence Score means"
-                description="Shows how independently your child can play and complete activities."
+                description="Shows how independently your member can play and complete activities."
               />
             </li>
             <li className="flex items-center gap-2">

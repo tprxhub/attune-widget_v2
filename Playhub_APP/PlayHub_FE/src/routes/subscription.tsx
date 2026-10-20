@@ -42,12 +42,12 @@ export const Route = createFileRoute("/subscription")({
       {
         name: "description",
         content:
-          "Subscribe per child for a choice of month durations to unlock every Play Dose and Session logging.",
+          "Subscribe per member for a choice of month durations to unlock every Play Dose and Session logging.",
       },
       { property: "og:title", content: "Subscription — Play Hub" },
       {
         property: "og:description",
-        content: "Subscribe per child for a choice of month durations.",
+        content: "Subscribe per member for a choice of month durations.",
       },
     ],
   }),
@@ -118,9 +118,9 @@ function SubscriptionPage() {
           }
         />
         <div className="ph-card mx-auto max-w-md p-8 text-center">
-          <p className="text-lg font-bold">Add a child first</p>
+          <p className="text-lg font-bold">Add a member first</p>
           <p className="mt-2 text-sm text-navy/70">
-            Play Hub subscriptions are per child, so there's nothing to check out until a child is
+            Play Hub subscriptions are per member, so there's nothing to check out until a member is
             on your account.
           </p>
         </div>
@@ -216,7 +216,7 @@ function SubscriptionPage() {
             {stage === "ending" && (
               <p className="mt-4 rounded-2xl bg-amber/15 px-4 py-3 text-sm text-navy/80">
                 {canRenew
-                  ? `Renew now to keep ${activeChild?.name ?? "your child"}’s Play Plan going. The new plan starts the day after ${fmtDate(lastDay!)}, so no days are lost.`
+                  ? `Renew now to keep ${activeChild?.name ?? "your member"}’s Play Plan going. The new plan starts the day after ${fmtDate(lastDay!)}, so no days are lost.`
                   : `Renewing opens in the last days of the subscription.`}
               </p>
             )}

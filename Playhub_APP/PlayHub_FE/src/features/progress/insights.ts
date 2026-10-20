@@ -62,10 +62,10 @@ export function insightFor(doses: ProgressPoint[], index: number): Insight | nul
       return {
         scenario,
         title: "First dose at this level",
-        seeing: `This is your child’s first completed dose at ${level}. They needed ${effortWord(firstFinished?.score)} support on the dose days, and ${tryWords("they passed", "they didn’t quite pass")} the Real-Life Try. Through it all, they seemed ${mood}.`,
+        seeing: `This is your member’s first completed dose at ${level}. They needed ${effortWord(firstFinished?.score)} support on the dose days, and ${tryWords("they passed", "they didn’t quite pass")} the Real-Life Try. Through it all, they seemed ${mood}.`,
         next:
           tryPassed && passed
-            ? "Wonderful progress — your child is ready to move up to the next level."
+            ? "Wonderful progress — your member is ready to move up to the next level."
             : tryPassed
               ? "The Real-Life Try went well, even though the dose days weren’t quite enough on their own. Let’s redo this level with fast track on, to build on what’s already working. And if you’d ever like a bit of extra support along the way, a Play Consult is always there for you — whenever it feels right, not just when things get hard."
               : "Let’s redo this level together — a little more practice here will make a real difference. If you’d like some extra support at any point, booking a Play Consult is always an option, entirely up to you.",
@@ -74,32 +74,32 @@ export function insightFor(doses: ProgressPoint[], index: number): Insight | nul
       return {
         scenario,
         title: "Progressing",
-        seeing: `Your child is needing less support than they did on the first day of this dose — real progress. ${tryWords("They passed", "They didn’t quite pass")} the Real-Life Try, and seemed ${mood} along the way.`,
+        seeing: `Your member is needing less support than they did on the first day of this dose — real progress. ${tryWords("They passed", "They didn’t quite pass")} the Real-Life Try, and seemed ${mood} along the way.`,
         next: passed
-          ? "Great work — your child is ready to move up to the next level."
+          ? "Great work — your member is ready to move up to the next level."
           : "So close. Let’s redo this level with fast track on to help it click. And remember, a Play Consult is always available too, whenever you’d like a little extra support.",
       };
     case "steady":
       return {
         scenario,
         title: "Holding steady",
-        seeing: `Your child is needing about the same amount of support as they did on the first day of this dose. They seemed ${mood} throughout.`,
+        seeing: `Your member is needing about the same amount of support as they did on the first day of this dose. They seemed ${mood} throughout.`,
         next: "Let’s give it one more dose. If things stay the same, it may be worth booking a Play Consult to look at this together.",
       };
     case "settling":
       return {
         scenario,
         title: "Settling in",
-        seeing: `Your child has just moved up to ${level} — a new level, so it’s completely natural that they’re needing a bit more support than they did on the last day of the level before. They seemed ${mood} while settling in.`,
+        seeing: `Your member has just moved up to ${level} — a new level, so it’s completely natural that they’re needing a bit more support than they did on the last day of the level before. They seemed ${mood} while settling in.`,
         next: passed
-          ? "A strong week — your child is already moving up to the next level."
+          ? "A strong week — your member is already moving up to the next level."
           : "Let’s give it the next dose. Support should ease as they settle into this new level. If you’d ever like extra support along the way, a Play Consult is always there — no need to wait until things feel stuck.",
       };
     case "consult":
       return {
         scenario,
         title: "Book a Play Consult",
-        seeing: `Your child is needing more support than they did on the first day of this dose, and the Real-Life Try hasn’t been passed for two doses in a row now. Through it, they seemed ${mood}.`,
+        seeing: `Your member is needing more support than they did on the first day of this dose, and the Real-Life Try hasn’t been passed for two doses in a row now. Through it, they seemed ${mood}.`,
         next: "It’s a good time to book a Play Consult, so we can look at this together and find the right next step.",
       };
   }

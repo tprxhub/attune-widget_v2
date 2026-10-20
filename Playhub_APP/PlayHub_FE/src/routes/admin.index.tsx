@@ -40,7 +40,7 @@ export const Route = createFileRoute("/admin/")({
       { title: "Platform overview — Play Hub admin" },
       {
         name: "description",
-        content: "Children, progress, organisations, subscriptions and content across Play Hub.",
+        content: "Members, progress, organisations, subscriptions and content across Play Hub.",
       },
     ],
   }),
@@ -55,7 +55,7 @@ export const Route = createFileRoute("/admin/")({
 const AREAS: { key: OverviewArea; label: string; to: string; icon: LucideIcon; hint: string }[] = [
   {
     key: "children",
-    label: "Children",
+    label: "Members",
     to: "/admin/children",
     icon: Users,
     hint: "Profiles, plans and Moderators",
@@ -233,7 +233,7 @@ function ExploreTabs({ data }: { data: AdminOverview }) {
   if (data.children)
     tabs.push({
       id: "children",
-      title: "Children",
+      title: "Members",
       icon: Users,
       content: <ChildrenCard children={data.children} />,
     });
@@ -490,7 +490,7 @@ function KeyFigures({ data, compact = false }: { data: AdminOverview; compact?: 
   }[] = [];
   if (data.children)
     tiles.push({
-      label: "Children",
+      label: "Members",
       value: data.children.total,
       hint: `${data.children.new_30d} new in the last 30 days`,
       icon: Users,
@@ -502,7 +502,7 @@ function KeyFigures({ data, compact = false }: { data: AdminOverview; compact?: 
       value: data.children.active_14d,
       hint: data.children.total
         ? `${Math.round((data.children.active_14d / data.children.total) * 100)}% logged a session in 14 days`
-        : "No children yet",
+        : "No members yet",
       icon: CheckCircle2,
       tone: "bg-blue/12 text-blue",
     });
@@ -583,14 +583,14 @@ function NeedsAttention({ data }: { data: AdminOverview }) {
   const consult = data.progress?.statuses["needs_check_in"] ?? 0;
   if (consult)
     items.push({
-      label: `${consult} ${consult === 1 ? "child needs" : "children need"} a Play Consult`,
+      label: `${consult} ${consult === 1 ? "member needs" : "members need"} a Play Consult`,
       detail: "The Real-Life Try wasn’t passed for two doses in a row.",
       to: "/admin/progress",
       tone: "coral",
     });
   if (data.children?.inactive_14d)
     items.push({
-      label: `${data.children.inactive_14d} ${data.children.inactive_14d === 1 ? "child has" : "children have"} gone quiet`,
+      label: `${data.children.inactive_14d} ${data.children.inactive_14d === 1 ? "member has" : "members have"} gone quiet`,
       detail: "No session logged in the last 14 days.",
       to: "/admin/children",
       tone: "amber",
@@ -736,7 +736,7 @@ function ProgressCard({ progress }: { progress: NonNullable<AdminOverview["progr
 
       {total > 0 && (
         <>
-          <p className="mt-5 text-xs font-bold text-navy/55">Where children are now</p>
+          <p className="mt-5 text-xs font-bold text-navy/55">Where members are now</p>
           <div className="mt-2 flex h-3 overflow-hidden rounded-full bg-navy/8">
             {statuses.map((row) => (
               <div
@@ -797,7 +797,7 @@ function ProgressCard({ progress }: { progress: NonNullable<AdminOverview["progr
 
 function ChildrenCard({ children }: { children: NonNullable<AdminOverview["children"]> }) {
   return (
-    <Card eyebrow="Children" title="Engagement" to="/admin/children" linkLabel="Children">
+    <Card eyebrow="Members" title="Engagement" to="/admin/children" linkLabel="Members">
       <div className="grid grid-cols-2 gap-2">
         <Figure label="Family accounts" value={children.individual} />
         <Figure label="Organisations" value={children.organisation} />
@@ -925,7 +925,7 @@ function OrganisationsCard({ orgs }: { orgs: NonNullable<AdminOverview["organisa
                 </span>
                 <span className="shrink-0 text-xs text-navy/55">
                   {org.used}
-                  {org.limit ? ` / ${org.limit}` : ""} children
+                  {org.limit ? ` / ${org.limit}` : ""} members
                 </span>
               </li>
             ))}
@@ -957,7 +957,7 @@ function TeamCard({ team }: { team: NonNullable<AdminOverview["team"]> }) {
                 <div className="flex justify-between text-xs">
                   <span className="text-navy/65">{row.name}</span>
                   <span className="font-bold">
-                    {row.children} {row.children === 1 ? "child" : "children"}
+                    {row.children} {row.children === 1 ? "member" : "members"}
                   </span>
                 </div>
                 <div className="mt-1">

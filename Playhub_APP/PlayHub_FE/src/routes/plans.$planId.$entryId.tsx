@@ -367,14 +367,14 @@ function PlayDosePage() {
               </p>
             ) : isReadOnlyParent ? (
               <p className="mt-4 rounded-2xl bg-navy/5 p-4 text-sm text-navy/70">
-                You have a read-only view. Your child's organisation Admin logs the attempts.
+                You have a read-only view. Your member's organisation Admin logs the attempts.
               </p>
             ) : !canLogAttempts ? (
               <div className="mt-4 rounded-2xl bg-navy/5 p-4 text-center">
                 <Lock className="mx-auto h-5 w-5 text-navy/60" aria-hidden />
                 <p className="mt-2 text-sm font-bold">Logging is locked on the free plan</p>
                 <p className="mt-1 text-xs text-navy/65">
-                  Subscribe for this child to log Sessions, track support and record Big Wins.
+                  Subscribe for this member to log Sessions, track support and record Big Wins.
                 </p>
                 {isFreeGated && canManageSubscription && (
                   <Link
@@ -387,7 +387,7 @@ function PlayDosePage() {
                 )}
               </div>
             ) : !activeChild ? (
-              <p className="mt-4 text-sm text-navy/70">Add a child before logging an Session.</p>
+              <p className="mt-4 text-sm text-navy/70">Add a member before logging an Session.</p>
             ) : (
               <div className="mt-4">
                 <ReflectionForm
@@ -471,7 +471,7 @@ function DoseRail({
           const open = entitled;
           const active = entry.id === currentId;
           const logged = loggedEntryIds.includes(entry.id);
-          const reason = "Locked on the free plan — subscribe for this child to unlock it.";
+          const reason = "Locked on the free plan — subscribe for this member to unlock it.";
 
           const inner = (
             <>

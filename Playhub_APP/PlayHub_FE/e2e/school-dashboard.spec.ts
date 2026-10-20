@@ -9,11 +9,11 @@ async function login(page: Page, email: string) {
   await expect(page).toHaveURL(/\/(hub|dashboard|org|admin)(?:[/?#]|$)/);
 }
 
-test("school Admin sees every child on the dashboard and can open one", async ({ page }) => {
+test("school Admin sees every member on the dashboard and can open one", async ({ page }) => {
   await login(page, "esther@sunrise.local");
   await page.goto("/dashboard");
 
-  await expect(page.getByText("Children enrolled")).toBeVisible();
+  await expect(page.getByText("Members enrolled")).toBeVisible();
   await expect(page.getByText("With a moderator")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Amira" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Omar" })).toBeVisible();
@@ -21,7 +21,7 @@ test("school Admin sees every child on the dashboard and can open one", async ({
   await expect(page.getByRole("button", { name: /Selected child: All children/ })).toBeVisible();
 
   // The status donut and the "needs your eye" card are gone; graphs start collapsed.
-  await expect(page.getByText("How the children are doing")).toHaveCount(0);
+  await expect(page.getByText("How the members are doing")).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Within a Play Plan" })).toHaveCount(0);
   await page.getByRole("button", { name: "Show progress graph" }).first().click();
   await expect(page.getByRole("region", { name: "Within a Play Plan" }).first()).toBeVisible();
@@ -41,13 +41,13 @@ test("school Admin sees every child on the dashboard and can open one", async ({
   await expect(page.getByRole("heading", { name: "Play Progress" })).toBeVisible();
 
   await page.getByRole("button", { name: /Selected child: Omar/ }).click();
-  await page.getByRole("option", { name: "All children" }).click();
-  await expect(page.getByText("Children enrolled")).toBeVisible();
+  await page.getByRole("option", { name: "All members" }).click();
+  await expect(page.getByText("Members enrolled")).toBeVisible();
 });
 
 test("a Moderator keeps the single-child dashboard", async ({ page }) => {
   await login(page, "moderator@playhub.local");
   await page.goto("/dashboard");
   await expect(page.getByText("Today's Play Dose")).toBeVisible();
-  await expect(page.getByText("Children enrolled")).toHaveCount(0);
+  await expect(page.getByText("Members enrolled")).toHaveCount(0);
 });

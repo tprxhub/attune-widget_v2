@@ -39,13 +39,13 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "Play Hub — Play Plans for children's fine motor skills" },
+      { title: "Play Hub — Play Plans for members' fine motor skills" },
       {
         name: "description",
         content:
           "Play Hub by The Toy Pharmacy turns therapy goals into weekly Play Plans of short, loggable Play Doses — for families, schools and clinics.",
       },
-      { property: "og:title", content: "Play Hub — Play Plans for children's fine motor skills" },
+      { property: "og:title", content: "Play Hub — Play Plans for members' fine motor skills" },
       {
         property: "og:description",
         content:
@@ -101,7 +101,7 @@ function SampleProgress() {
 
       <div className="ph-r-xl relative mt-8 bg-card p-4 shadow-card sm:p-6">
         <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber/25 px-3 py-1 text-xs font-bold text-navy">
-          Example only · sample data, not a real child
+          Example only · sample data, not a real member
         </p>
         <ProgressChart
           points={points}
@@ -388,7 +388,7 @@ function Landing() {
             />
             <img
               src={apiAssetUrl(home.hero.image_url) || HERO_IMAGE}
-              alt="A child and parent playing with colourful toys"
+              alt="A member and parent playing with colourful toys"
               fetchPriority="high"
               decoding="async"
               className="h-full w-full object-cover"

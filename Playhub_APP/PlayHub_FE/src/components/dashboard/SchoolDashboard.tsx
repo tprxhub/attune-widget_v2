@@ -111,7 +111,7 @@ export function SchoolDashboard() {
         to="/org/enroll"
         className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white shadow-[var(--shadow-card)]"
       >
-        <Plus className="h-4 w-4" aria-hidden /> Enrol a child in a Play Plan
+        <Plus className="h-4 w-4" aria-hidden /> Enrol a member in a Play Plan
       </Link>
     </div>
   );
@@ -122,9 +122,9 @@ export function SchoolDashboard() {
         <PageHeader eyebrow="Welcome back" title={`Hello, ${firstName}`} actions={actions} />
         <div className="ph-card p-10 text-center">
           <Users className="mx-auto h-9 w-9 text-navy/35" aria-hidden />
-          <p className="mt-3 text-lg font-bold">No children enrolled yet</p>
+          <p className="mt-3 text-lg font-bold">No members enrolled yet</p>
           <p className="mt-2 text-sm text-navy/65">
-            Enrol your first child to see progress, moderators and check-ins here.
+            Enrol your first member to see progress, moderators and check-ins here.
           </p>
         </div>
       </>
@@ -139,7 +139,7 @@ export function SchoolDashboard() {
           onClick={() => setActiveChildId(ALL_CHILDREN)}
           className="mb-4 inline-flex min-h-10 w-fit items-center gap-2 rounded-full border border-navy/15 bg-card px-4 text-sm font-bold text-navy hover:border-navy/40"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden /> All children
+          <ArrowLeft className="h-4 w-4" aria-hidden /> All members
         </button>
         <ProgressPage />
       </>
@@ -170,7 +170,7 @@ export function SchoolDashboard() {
         aria-label="Overview"
         className="grid grid-cols-2 items-stretch gap-2.5 xl:grid-cols-4"
       >
-        <Stat icon={Users} tone="blue" label="Children enrolled" value={rows.length} />
+        <Stat icon={Users} tone="blue" label="Members enrolled" value={rows.length} />
         <Stat
           icon={HeartHandshake}
           tone="coral"
@@ -189,9 +189,9 @@ export function SchoolDashboard() {
         />
       </section>
 
-      <section aria-label="Children" className="mt-6">
+      <section aria-label="Members" className="mt-6">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="eyebrow text-blue">Children</p>
+          <p className="eyebrow text-blue">Members</p>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
             <Chip active={filter === "all"} onClick={() => setFilter("all")}>
               All <span className="opacity-60">{rows.length}</span>
@@ -213,7 +213,7 @@ export function SchoolDashboard() {
 
         {visible.length === 0 ? (
           <div className="ph-card mt-4 p-8 text-center text-sm text-navy/65">
-            No children match this filter.
+            No members match this filter.
           </div>
         ) : (
           <div className="mt-4 grid grid-cols-1 items-start gap-4 2xl:grid-cols-2">
@@ -463,7 +463,7 @@ function ModeratorPanel({
                 </span>
               </span>
               <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-xs font-bold text-navy">
-                {member.childCount} {member.childCount === 1 ? "child" : "children"}
+                {member.childCount} {member.childCount === 1 ? "member" : "members"}
               </span>
             </li>
           ))}
@@ -473,7 +473,7 @@ function ModeratorPanel({
         <div className="mt-4 flex items-start gap-2.5 rounded-2xl border-l-4 border-amber bg-amber/15 p-3 text-xs text-navy/80">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <p>
-            <strong>{unassigned}</strong> {unassigned === 1 ? "child has" : "children have"} no
+            <strong>{unassigned}</strong> {unassigned === 1 ? "member has" : "members have"} no
             moderator, so nobody is logging their check-ins.{" "}
             <Link to="/org" className="font-bold text-coral hover:underline">
               Assign now

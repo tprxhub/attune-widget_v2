@@ -51,7 +51,7 @@ function PlansPage() {
       <PageHeader
         eyebrow="Play plans"
         title="Choose a Play Plan and its dose."
-        description={`Each Play Plan has three Play Doses: Rookie, Starter and Pro, each with its own activities. Begin with Starter. If your child finds it difficult, try Rookie. If they complete it successfully, move to Pro.`}
+        description={`Each Play Plan has three Play Doses: Rookie, Starter and Pro, each with its own activities. Begin with Starter. If your member finds it difficult, try Rookie. If they complete it successfully, move to Pro.`}
       />
 
       <FreePlanBanner goals={goals.data ?? []} plans={plans.data ?? []} />

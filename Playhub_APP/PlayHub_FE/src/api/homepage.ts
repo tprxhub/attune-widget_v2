@@ -188,7 +188,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       },
       {
         quote:
-          "I run the same Play Plan across six children and log every Session in the clinic. The Progress narrative writes my notes for me.",
+          "I run the same Play Plan across six members and log every Session in the clinic. The Progress narrative writes my notes for me.",
         name: "Esther M.",
         role: "Paediatric therapist",
       },
@@ -214,7 +214,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
     title: "Start this week's Play Plan",
     description: "A little play each day, one Real Life Try and a clear next step.",
     button_label: "Get started free",
-    blurb: "Play Plans, Play Doses and honest progress tracking for children's fine motor skills.",
+    blurb: "Play Plans, Play Doses and honest progress tracking for members' fine motor skills.",
     copyright: "The Toy Pharmacy · Play Hub",
   },
 };
@@ -283,7 +283,7 @@ export function mergeHomepageContent(stored: unknown): HomepageContent {
       DEFAULT_HOMEPAGE_CONTENT.stories.quotes[2]!.quote,
     ],
     [
-      "Sign up free with email or Google and browse every Play Plan. The Introduction and the Day 0 Play Dose are unlocked. Subscribe per child for 3, 6 or 12 months to unlock the full week, log Sessions and invite your nanny.",
+      "Sign up free with email or Google and browse every Play Plan. The Introduction and the Day 0 Play Dose are unlocked. Subscribe per member for 3, 6 or 12 months to unlock the full week, log Sessions and invite your nanny.",
       DEFAULT_HOMEPAGE_CONTENT.families.body,
     ],
     [

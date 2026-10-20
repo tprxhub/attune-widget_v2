@@ -187,7 +187,7 @@ function describeEvent(event: AuditEvent, data: AuditLogData) {
     return `A replacement activation link was generated${role ? ` for a ${humanize(role).toLowerCase()}` : ""}.`;
   }
   if (event.action === "family.registered")
-    return "A family completed registration and created a child profile.";
+    return "A family completed registration and created a member profile.";
   if (event.action === "user.password_changed")
     return `${target ?? "A user"} changed their account password.`;
   if (event.action === "user.google_linked")
@@ -425,7 +425,7 @@ function AuditPage() {
             <div>
               <p className="text-sm font-bold text-navy">Activity history</p>
               <p className="mt-0.5 text-xs text-navy/55">
-                Search by person, child, Play Plan or event. Select an entry for technical details.
+                Search by person, member, Play Plan or event. Select an entry for technical details.
               </p>
             </div>
             <div className="grid gap-2 sm:grid-cols-[minmax(15rem,1fr)_12rem]">

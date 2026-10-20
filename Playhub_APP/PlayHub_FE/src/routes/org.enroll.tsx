@@ -23,16 +23,16 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/org/enroll")({
   head: () => ({
     meta: [
-      { title: "Enrol a child in a Play Plan — Play Hub" },
+      { title: "Enrol a member in a Play Plan — Play Hub" },
       {
         name: "description",
         content:
-          "Add a child to your caseload, pick their skill area and level, and invite their parent.",
+          "Add a member to your caseload, pick their skill area and level, and invite their parent.",
       },
-      { property: "og:title", content: "Enrol a child in a Play Plan — Play Hub" },
+      { property: "og:title", content: "Enrol a member in a Play Plan — Play Hub" },
       {
         property: "og:description",
-        content: "Add a child to your caseload and pick their Play Plan.",
+        content: "Add a member to your caseload and pick their Play Plan.",
       },
     ],
   }),
@@ -142,7 +142,7 @@ function EnrolPage() {
       return;
     }
     const next: Record<string, string> = {};
-    if (name.trim().length < 2) next["name"] = "Enter the child's name.";
+    if (name.trim().length < 2) next["name"] = "Enter the member's name.";
     const n = Number(age);
     if (!Number.isFinite(n) || n < 1 || n > 18) next["age"] = "Age must be between 1 and 18.";
     if (parentEmail && !/^\S+@\S+\.\S+$/.test(parentEmail))
@@ -156,7 +156,7 @@ function EnrolPage() {
     <>
       <PageHeader
         eyebrow={isAdmin ? "Super Admin" : org.data ? `${org.data.name} · Caseload` : "Caseload"}
-        title="Enrol a child in a Play Plan"
+        title="Enrol a member in a Play Plan"
         description="Licenses come from your organisation's plan — no card needed here."
       />
       <OrgLicenseNote org={org.data} kind="children" />
@@ -169,7 +169,7 @@ function EnrolPage() {
           <div className="grid gap-4 sm:grid-cols-[1.6fr_0.6fr]">
             <div>
               <label htmlFor="child-name" className="text-sm font-bold">
-                Child's name
+                Member's name
               </label>
               <input
                 id="child-name"
@@ -287,7 +287,7 @@ function EnrolPage() {
           {(!isAdmin || canInvite) && (
             <div>
               <label htmlFor="parent-email" className="text-sm font-bold">
-                Child's account email <span className="font-normal text-navy/50">(optional)</span>
+                Member's account email <span className="font-normal text-navy/50">(optional)</span>
               </label>
               <p className="text-xs text-navy/60">
                 The account belongs to the member — their Member account manages it on their behalf,
@@ -311,7 +311,7 @@ function EnrolPage() {
             <div role="status" className="rounded-2xl border border-amber/60 bg-amber/15 p-4">
               <p className="text-sm font-bold">This organisation has no Admin yet</p>
               <p className="mt-1 text-xs text-navy/70">
-                Create its Admin first. Children are enrolled by an organisation&apos;s Admin.
+                Create its Admin first. Members are enrolled by an organisation&apos;s Admin.
               </p>
               <Link
                 to="/admin/educators"
@@ -331,7 +331,7 @@ function EnrolPage() {
               ) : (
                 <CirclePlus className="h-4 w-4" aria-hidden />
               )}
-              Enrol child
+              Enrol member
             </button>
           )}
 

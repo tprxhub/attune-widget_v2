@@ -16,7 +16,7 @@ export function AskAttuneBar({ childName, className }: { childName?: string; cla
   const status = useDashboardAttuneStatus();
   if (!status.data?.enabled) return null;
   if (status.data.freePlan) return <AttuneUpgradeCard className={className} />;
-  const child = childName ?? "my child";
+  const child = childName ?? "my member";
   // The three moments Attune is built for (Product Reasoning Blueprint): each opens Attune in that mode.
   const quick: { mode: AttuneMode; q?: string }[] = [
     { mode: "idea", q: `Give me one play idea for ${child} today from the Play Plan.` },

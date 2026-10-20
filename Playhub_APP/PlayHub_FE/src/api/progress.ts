@@ -10,32 +10,32 @@ export const STATUS_META: Record<
   first_dose: {
     label: "First dose at this level",
     token: "amber",
-    hint: "Your child has completed their first Play Dose at this level.",
+    hint: "Your member has completed their first Play Dose at this level.",
   },
   settling_in: {
     label: "Settling in",
     token: "navy",
-    hint: "Your child has moved to a new level and is getting familiar with the activities.",
+    hint: "Your member has moved to a new level and is getting familiar with the activities.",
   },
   progressing: {
     label: "Progressing",
     token: "blue",
-    hint: "Your child needed less help at the end of the Play Dose than at the beginning.",
+    hint: "Your member needed less help at the end of the Play Dose than at the beginning.",
   },
   holding_steady: {
     label: "Holding steady",
     token: "amber",
-    hint: "Your child needed a similar amount of help throughout the Play Dose.",
+    hint: "Your member needed a similar amount of help throughout the Play Dose.",
   },
   needs_check_in: {
     label: "Book a Play Consult",
     token: "coral",
-    hint: "Your child found the Real-Life Try difficult in two consecutive Play Doses. Book a consult for guidance.",
+    hint: "Your member found the Real-Life Try difficult in two consecutive Play Doses. Book a consult for guidance.",
   },
   no_data: {
     label: "Dose in progress",
     token: "navy",
-    hint: "Log your child’s progress across five practice days and the Real-Life Try to complete this Play Dose.",
+    hint: "Log your member’s progress across five practice days and the Real-Life Try to complete this Play Dose.",
   },
 };
 

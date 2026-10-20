@@ -33,7 +33,7 @@ test("header links scroll to their section on the home page", async ({ page }) =
   // The Pricing section shows the real prices, not just links.
   await page.goto("/#pricing");
   const pricing = page.locator("#pricing");
-  await expect(pricing.getByRole("heading", { name: "Simple pricing, per child" })).toBeVisible();
+  await expect(pricing.getByRole("heading", { name: "Simple pricing, per member" })).toBeVisible();
   for (const price of ["AED 63", "AED 189", "AED 339"]) await expect(pricing).toContainText(price);
   await expect(pricing.getByRole("link", { name: /Choose 6-month/ })).toBeVisible();
 

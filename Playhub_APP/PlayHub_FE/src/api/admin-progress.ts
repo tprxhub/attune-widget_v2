@@ -117,7 +117,7 @@ export function progressCsv(groups: AdminProgressGroup[]): string {
   const header = [
     "Account",
     "Account type",
-    "Child",
+    "Member",
     "Age",
     "Play Plan",
     "Status",

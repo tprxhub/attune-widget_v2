@@ -116,9 +116,9 @@ function LoginPage() {
     e.preventDefault();
     if (!newSocial) return;
     const age = Number(childAge);
-    if (!childName.trim()) return setError("Enter your child's name.");
+    if (!childName.trim()) return setError("Enter your member's name.");
     if (!childAge || Number.isNaN(age) || age < 1 || age > 12)
-      return setError("Enter your child's age (1–12).");
+      return setError("Enter your member's age (1–12).");
     setPending(true);
     setError(null);
     try {
@@ -284,10 +284,10 @@ function LoginPage() {
               <p className="mt-1 text-xs text-navy/65">
                 We'll create a free family account with your{" "}
                 {{ google: "Google", apple: "Apple", microsoft: "Microsoft" }[newSocial.provider]}{" "}
-                email. Tell us about your child to get started.
+                email. Tell us about your member to get started.
               </p>
               <label htmlFor="google-child-name" className={cn(authLabel, "mt-3")}>
-                Child's name
+                Member's name
               </label>
               <input
                 id="google-child-name"
@@ -296,7 +296,7 @@ function LoginPage() {
                 className={authInput}
               />
               <label htmlFor="google-child-age" className={cn(authLabel, "mt-3")}>
-                Child's age
+                Member's age
               </label>
               <input
                 id="google-child-age"

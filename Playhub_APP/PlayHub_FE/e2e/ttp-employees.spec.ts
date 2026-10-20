@@ -50,7 +50,7 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   const nav = employee.getByRole("navigation").first();
   await expect(employee.getByRole("link", { name: "Audit log" }).first()).toBeVisible();
   await expect(employee.getByRole("link", { name: "Plans library" }).first()).toBeVisible();
-  for (const hidden of ["Children", "Organisations", "Home page", "TTP Employees"]) {
+  for (const hidden of ["Members", "Organisations", "Home page", "TTP Employees"]) {
     await expect(employee.getByRole("link", { name: hidden, exact: true })).toHaveCount(0);
   }
   void nav;
@@ -85,10 +85,10 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   const edit = page.getByRole("dialog", { name: "Edit employee" });
   await edit.getByLabel(/^Children/).check();
   await edit.getByRole("button", { name: "Save changes" }).click();
-  await expect(card).toContainText("Children");
+  await expect(card).toContainText("Members");
   await employee.reload();
-  await expect(employee.getByRole("link", { name: "Children", exact: true }).first()).toBeVisible();
+  await expect(employee.getByRole("link", { name: "Members", exact: true }).first()).toBeVisible();
   await employee.goto("/admin/children");
-  await expect(employee.getByRole("heading", { name: "Children", exact: true })).toBeVisible();
+  await expect(employee.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
   await context.close();
 });

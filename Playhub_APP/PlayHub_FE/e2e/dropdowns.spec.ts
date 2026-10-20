@@ -29,7 +29,7 @@ async function fullyVisible(page: Page, name: string) {
   expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
 }
 
-test("card dropdown, child switcher and progress filter are not clipped", async ({ page }) => {
+test("card dropdown, member switcher and progress filter are not clipped", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await login(page, "esther@sunrise.local", true);
   await page.goto("/org");

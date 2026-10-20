@@ -32,7 +32,7 @@ test("Super Admin sees every area of the Overview", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Needs attention" })).toBeVisible();
   for (const [title, region] of [
     ["Progress", "Sessions and outcomes"],
-    ["Children", "Engagement"],
+    ["Members", "Engagement"],
     ["Subscriptions", "Families and revenue"],
     ["Organisations", "Schools and clinics"],
     ["Team", "Organisation staff"],
@@ -49,8 +49,8 @@ test("Super Admin sees every area of the Overview", async ({ page }) => {
   }
   await page.getByRole("tab", { name: "Progress", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("tab", { name: "Children", exact: true })).toBeFocused();
-  await expect(page.getByRole("tabpanel", { name: "Children", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Members", exact: true })).toBeFocused();
+  await expect(page.getByRole("tabpanel", { name: "Members", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Your access" })).toHaveCount(0);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/overview-admin.png`, fullPage: true });
 });
@@ -58,7 +58,7 @@ test("Super Admin sees every area of the Overview", async ({ page }) => {
 test("a TTP employee sees only the areas they were given", async ({ page }) => {
   await login(page, "ttp@playhub.local");
   const access = page.getByRole("region", { name: "Your access" });
-  await expect(access.getByRole("link", { name: "Children" })).toBeVisible();
+  await expect(access.getByRole("link", { name: "Members" })).toBeVisible();
   await expect(access.getByRole("link", { name: "Subscriptions" })).toBeVisible();
   await expect(access.getByRole("link", { name: "Organisations" })).toHaveCount(0);
   await expect(access.getByText("Organisations")).toBeVisible();

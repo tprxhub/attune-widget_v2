@@ -83,7 +83,7 @@ export const Route = createFileRoute("/play-pulse")({
       {
         name: "description",
         content:
-          "A two-minute check-in that shows how much support your child may need for a developmental goal.",
+          "A two-minute check-in that shows how much support your member may need for a developmental goal.",
       },
       { property: "og:title", content: "Play Pulse — Play Hub" },
       {
@@ -267,7 +267,7 @@ function IntroScreen() {
 
       <div className="mt-8">
         <label htmlFor="pulse-child-name" className="eyebrow text-blue">
-          Child’s name
+          Member’s name
         </label>
         <input
           id="pulse-child-name"
@@ -314,7 +314,7 @@ function GoalScreen() {
         What are you working on together right now?
       </h1>
       <p className="mt-3 text-base leading-relaxed font-medium text-blue">
-        Pick the goal closest to what you and {childName || "your child"} are focused on.
+        Pick the goal closest to what you and {childName || "your member"} are focused on.
       </p>
 
       <div className="mt-7 grid gap-3">
@@ -457,7 +457,7 @@ function useFinishedCheck(goal: PlayPulseGoal, band: AgeBandId) {
     const result = computePlayPulseResult(goal, band, answers);
     const tiers = Object.values(result.domainTiers);
     const check: PulseCheck = {
-      childName: childName.trim() || "Your child",
+      childName: childName.trim() || "Your member",
       ageBand: band,
       goalId: goal.id,
       supportScore: result.supportScore,
@@ -526,10 +526,10 @@ function ResultGate({
     <section>
       <Eyebrow>Your Play Pulse is ready</Eyebrow>
       <h1 className="mt-3 text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
-        Your child’s score is ready!
+        Your member’s score is ready!
       </h1>
       <p className="mt-4 text-base leading-relaxed font-medium text-blue">
-        Enter your name, email and phone number to receive your child’s score and personalised
+        Enter your name, email and phone number to receive your member’s score and personalised
         guidance on their next steps. Your details stay private and secure
       </p>
 
@@ -543,7 +543,7 @@ function ResultGate({
             <LockKeyhole className="h-6 w-6" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-2xl font-bold">Show My Child’s Score</h2>
+            <h2 className="text-2xl font-bold">Show My Member’s Score</h2>
             <p className="mt-1 text-sm text-navy/60">All fields are required.</p>
           </div>
         </div>
@@ -613,7 +613,7 @@ function ResultGate({
             </>
           ) : (
             <>
-              Unlock My Child’s Score <ArrowRight className="h-5 w-5" aria-hidden />
+              Unlock My Member’s Score <ArrowRight className="h-5 w-5" aria-hidden />
             </>
           )}
         </button>
@@ -975,7 +975,7 @@ function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 function personalize(text: string, childName: string) {
-  return text.replace(/your child/gi, childName.trim() || "your child");
+  return text.replace(/your child/gi, childName.trim() || "your member");
 }
 
 function resultCopy(tier: ScoreTier) {

@@ -55,7 +55,7 @@ export function ApplicationFooter({
               "Organisations",
               [
                 ["Log in", "/login"],
-                ["Enrol a child in a Play Plan", signedIn ? "/org/enroll" : "/login"],
+                ["Enrol a member in a Play Plan", signedIn ? "/org/enroll" : "/login"],
               ],
             ],
           ].map(([title, links]) => (

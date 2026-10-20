@@ -39,7 +39,7 @@ export function HubFooter({ footer }: { footer: HomepageContent["footer"] }) {
               "Organisations",
               [
                 ["Log in", "/login"],
-                ["Enrol a child in a Play Plan", "/org/enroll"],
+                ["Enrol a member in a Play Plan", "/org/enroll"],
               ],
             ],
           ].map(([title, links]) => (

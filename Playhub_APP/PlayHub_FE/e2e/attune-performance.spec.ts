@@ -41,7 +41,7 @@ test("long Attune history stays responsive while typing", async ({ page }) => {
   const answer = Array.from(
     { length: 8 },
     (_, index) =>
-      `### Play idea ${index + 1}\n\nTry **large wooden pegs** together. Offer one small choice, give time to respond, and celebrate the effort. ${"A calm short session keeps play comfortable. ".repeat(5)}\n\n- Set up the toys\n- Let the child explore\n- Stop on a win`,
+      `### Play idea ${index + 1}\n\nTry **large wooden pegs** together. Offer one small choice, give time to respond, and celebrate the effort. ${"A calm short session keeps play comfortable. ".repeat(5)}\n\n- Set up the toys\n- Let the member explore\n- Stop on a win`,
   ).join("\n\n");
   const messages = Array.from({ length: 60 }, (_, index) => [
     {

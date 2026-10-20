@@ -376,17 +376,17 @@ export function ProgressPage() {
       <>
         <PageHeader eyebrow="Tracking" title="Progress" />
         <div className="ph-card p-8 text-center">
-          <p className="text-lg font-bold">No children to show yet</p>
+          <p className="text-lg font-bold">No members to show yet</p>
           <p className="mt-2 text-sm text-navy/70">
             {canEnrol
-              ? "Progress appears here once a child is enrolled and their first Session is logged."
-              : "Add a child and log a first Session to see progress here."}
+              ? "Progress appears here once a member is enrolled and their first Session is logged."
+              : "Add a member and log a first Session to see progress here."}
           </p>
           <Link
             to={canEnrol ? "/org" : "/plans"}
             className="mt-5 inline-flex min-h-12 items-center rounded-full bg-coral px-6 text-sm font-bold text-white"
           >
-            {canEnrol ? "Go to Children" : "Browse Play Plans"}
+            {canEnrol ? "Go to Members" : "Browse Play Plans"}
           </Link>
         </div>
       </>
@@ -630,8 +630,8 @@ export function ProgressPage() {
                 <h2 className="mt-2 text-lg font-bold">Book a 1:1 Play Consultation</h2>
                 <p className="mt-2 text-sm text-navy/70">
                   {needsConsult
-                    ? `${data.status === "needs_check_in" ? "The Real-Life Try hasn’t been passed for two doses in a row." : "Support has stayed about the same through this dose."} A paid one-to-one session with a child psychologist can rework the Play Plan around what's actually getting in the way.`
-                    : "A paid one-to-one session with a child psychologist, whenever you want a second opinion on the Play Plan — available to you as a subscribed Admin."}
+                    ? `${data.status === "needs_check_in" ? "The Real-Life Try hasn’t been passed for two doses in a row." : "Support has stayed about the same through this dose."} A paid one-to-one session with a member psychologist can rework the Play Plan around what's actually getting in the way.`
+                    : "A paid one-to-one session with a member psychologist, whenever you want a second opinion on the Play Plan — available to you as a subscribed Admin."}
                 </p>
                 <a
                   href={CONSULT_BOOKING_URL}

@@ -72,7 +72,7 @@ test("a guest fills the form once, sees the Progress-style result, and is saved"
   await page.setViewportSize({ width: 1440, height: 900 });
   await takeCheck(page, "Noor");
 
-  const form = page.locator("form").filter({ hasText: "Show My Child’s Score" });
+  const form = page.locator("form").filter({ hasText: "Show My Member’s Score" });
   await expect(form).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign in with Google/ })).toHaveCount(0);
   await form.getByRole("button", { name: /Unlock My Child’s Score/ }).click();
@@ -136,7 +136,7 @@ test("signed-in people skip the form and appear with their role", async ({ page 
   await page.setViewportSize({ width: 1280, height: 900 });
   const before = (await adminRows(page, "parent@playhub.local")).length;
   await takeCheck(page, "Kai");
-  await expect(page.locator("form").filter({ hasText: "Show My Child’s Score" })).toHaveCount(0);
+  await expect(page.locator("form").filter({ hasText: "Show My Member’s Score" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Kai", exact: true })).toBeVisible();
   await expect
     .poll(async () => (await adminRows(page, "parent@playhub.local")).length)
@@ -157,7 +157,7 @@ test("the Super Admin searches, filters, pages and exports the leads", async ({ 
           email: `lead-${i}-${Date.now()}@example.com`,
           phone: `+971 55 000 00${String(i).padStart(2, "0")}`,
         },
-        child_name: `Child ${i}`,
+        child_name: `Member ${i}`,
         age_band: i % 2 ? "toddler" : "school",
         goal_id: i % 3 ? "reading" : "scissors",
         support_score: 30,
@@ -198,7 +198,7 @@ test("the Super Admin searches, filters, pages and exports the leads", async ({ 
 
   await page.getByPlaceholder("Search name, email or phone").fill("Lead 7");
   await expect(table.locator("tbody tr")).toHaveCount(1);
-  await expect(table).toContainText("Child 7");
+  await expect(table).toContainText("Member 7");
   await page.getByPlaceholder("Search name, email or phone").fill("55 000 0007");
   await expect(table.locator("tbody tr")).toHaveCount(1);
 

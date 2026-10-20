@@ -195,7 +195,7 @@ function HubCheckInsContent({ card, context }: CardContentProps) {
             <Check aria-hidden />
             <div className="min-w-0 flex-1">
               <p>
-                {context.checkIns.names.get(attempt.childId) ?? "Child"} · {attempt.activity}
+                {context.checkIns.names.get(attempt.childId) ?? "Member"} · {attempt.activity}
               </p>
               <small>{fmtDate(attempt.date)}</small>
             </div>
@@ -240,7 +240,7 @@ function HubAttuneContent({ card, context }: CardContentProps) {
       <div className="hub-attune-content">
         <Link to="/attune" className="hub-attune-link">
           <span>
-            Get support for your child <ArrowRight className="mt-3 h-5 w-5" aria-hidden />
+            Get support for your member <ArrowRight className="mt-3 h-5 w-5" aria-hidden />
           </span>
         </Link>
         <div className="hub-attune-wide">
@@ -261,7 +261,7 @@ function HubAttuneContent({ card, context }: CardContentProps) {
               value={question}
               maxLength={500}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="Ask about your child's play…"
+              placeholder="Ask about your member's play…"
               disabled={context.customizing}
             />
             <button
@@ -276,14 +276,14 @@ function HubAttuneContent({ card, context }: CardContentProps) {
             <button
               type="button"
               disabled={context.customizing}
-              onClick={() => ask("Give me one play idea for my child today.")}
+              onClick={() => ask("Give me one play idea for my member today.")}
             >
               Play idea
             </button>
             <button
               type="button"
               disabled={context.customizing}
-              onClick={() => ask("What can I do when my child is having a hard moment?")}
+              onClick={() => ask("What can I do when my member is having a hard moment?")}
             >
               Hard moment
             </button>

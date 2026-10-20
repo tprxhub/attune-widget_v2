@@ -48,7 +48,7 @@ export function daysLeftLabel(daysLeft: number): string {
 
 export async function getSubscription(childId: string): Promise<Subscription> {
   const child = (await getApiChildren()).find((item) => item.id === childId);
-  if (!child) throw new Error("Child not found");
+  if (!child) throw new Error("Member not found");
   return mapSubscription(child);
 }
 

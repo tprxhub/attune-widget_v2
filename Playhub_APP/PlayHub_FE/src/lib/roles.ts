@@ -21,7 +21,7 @@ export const AUDIT_PERMISSION_OPTIONS: {
     key: "audit_activity",
     category: "activity",
     label: "Check-ins",
-    hint: "Sessions logged for children",
+    hint: "Sessions logged for members",
   },
   {
     key: "audit_accounts",
@@ -46,8 +46,8 @@ export const AUDIT_PERMISSION_OPTIONS: {
   {
     key: "audit_organisations",
     category: "organisations",
-    label: "Organisations & children",
-    hint: "Schools, clinics and enrolled children",
+    label: "Organisations & members",
+    hint: "Schools, clinics and enrolled members",
   },
   {
     key: "audit_system",
@@ -70,7 +70,7 @@ export const PERMISSION_OPTIONS: {
   hint: string;
   sensitive?: boolean;
 }[] = [
-  { key: "children", label: "Children", hint: "View, enrol and edit children and their plans" },
+  { key: "children", label: "Members", hint: "View, enrol and edit members and their plans" },
   { key: "progress", label: "Progress", hint: "Platform-wide progress and CSV export" },
   {
     key: "billing",

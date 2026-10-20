@@ -59,7 +59,7 @@ function renewalLabel(org: Org) {
 }
 
 const LICENSE_OPTIONS = [
-  { value: "children", label: "Child licences", description: "Each active child uses one" },
+  { value: "children", label: "Member licences", description: "Each active member uses one" },
   {
     value: "moderators",
     label: "Moderator licences",
@@ -242,7 +242,7 @@ function AdminOrgs() {
           </div>
           <div>
             <label htmlFor="org-licenses" className="text-sm font-bold">
-              {licenseType === "moderators" ? "Moderator licences" : "Child licences"}
+              {licenseType === "moderators" ? "Moderator licences" : "Member licences"}
             </label>
             <input
               id="org-licenses"
@@ -352,7 +352,7 @@ function AdminOrgs() {
               </button>
               <ConfirmButton
                 confirmationTitle={`Suspend ${org.name}?`}
-                confirmationMessage="Staff and children will lose access until this organisation is reactivated."
+                confirmationMessage="Staff and members will lose access until this organisation is reactivated."
                 confirmLabel="Suspend organisation"
                 requireConfirmation={org.active}
                 type="button"
@@ -417,14 +417,14 @@ function AdminOrgs() {
               <p className="mt-3 text-xs text-navy/60">{licenseSummary(org)}</p>
               <p className="mt-1 text-[11px] text-navy/50">
                 {org.licenseType === "moderators"
-                  ? "Licensed by Moderator: each active or invited Moderator uses a licence. Children are unlimited."
-                  : "Licensed by child: each active child uses a licence. Moderators are unlimited."}
+                  ? "Licensed by Moderator: each active or invited Moderator uses a licence. Members are unlimited."
+                  : "Licensed by member: each active member uses a licence. Moderators are unlimited."}
               </p>
               <BillingPanel org={org} />
 
               <ConfirmButton
                 confirmationTitle={`Suspend ${org.name}?`}
-                confirmationMessage="Staff and children will lose access until this organisation is reactivated."
+                confirmationMessage="Staff and members will lose access until this organisation is reactivated."
                 confirmLabel="Suspend organisation"
                 requireConfirmation={org.active}
                 type="button"
@@ -476,7 +476,7 @@ function DeleteOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
         ["Admins", counts.admins],
         ["Moderators", counts.moderators],
         ["Members", counts.members],
-        ["Children", counts.children],
+        ["Members", counts.children],
         ["Sessions logged", counts.sessions],
         ["Subscriptions", counts.subscriptions],
         ["Attune chats", counts.attune_conversations],
@@ -508,7 +508,7 @@ function DeleteOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
           </div>
           <h2 className="mt-3 text-lg font-bold">Delete {org.name}?</h2>
           <p className="mt-1 text-sm text-navy/70">
-            This permanently deletes the organisation, everyone in it and every child&apos;s data.
+            This permanently deletes the organisation, everyone in it and every member&apos;s data.
             It cannot be undone. Play Plans and the audit log are kept.
           </p>
           {preview.isLoading ? (
@@ -760,8 +760,8 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
               {licenseType !== org.licenseType && (
                 <p className="text-xs text-navy/60 sm:col-span-2">
                   {licenseType === "moderators"
-                    ? "Children will no longer use licences; each active or invited Moderator will."
-                    : "Moderators will no longer use licences; each active child will."}
+                    ? "Members will no longer use licences; each active or invited Moderator will."
+                    : "Moderators will no longer use licences; each active member will."}
                 </p>
               )}
             </fieldset>

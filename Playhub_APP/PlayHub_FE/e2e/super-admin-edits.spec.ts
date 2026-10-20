@@ -37,7 +37,7 @@ test("Super Admin renames an organisation and changes its type", async ({ page }
   const card = page.locator("article").filter({ hasText: `${name} Clinic` });
   await expect(card).toBeVisible();
   await expect(card.getByText("Clinic", { exact: true })).toBeVisible();
-  await expect(card).toContainText("0 / 7 child licences");
+  await expect(card).toContainText("0 / 7 member licences");
 });
 
 test("Super Admin edits a Moderator's name and email, then puts them back", async ({ page }) => {

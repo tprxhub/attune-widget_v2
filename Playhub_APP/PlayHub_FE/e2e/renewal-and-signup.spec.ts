@@ -42,7 +42,7 @@ test("sign up buttons open the sign up page, and signed-in people skip log in an
 test("the home page shows the real progress chart with sample data", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Every Play Dose, in one/ })).toBeVisible();
-  await expect(page.getByText("Example only · sample data, not a real child")).toBeVisible();
+  await expect(page.getByText("Example only · sample data, not a real member")).toBeVisible();
   await expect(page.getByRole("region", { name: "Within a Play Plan" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Within a Play Dose" })).toBeVisible();
 });

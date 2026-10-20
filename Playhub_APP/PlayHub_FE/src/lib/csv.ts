@@ -33,7 +33,7 @@ export function slug(value: string) {
 export function childProgressCsv(child: Child, report: ProgressReport, attempts: Attempt[]) {
   const summary: (string | number)[][] = [
     ["Play Hub progress export"],
-    ["Child", child.name],
+    ["Member", child.name],
     ["Exported", fmtDate(new Date().toISOString().slice(0, 10))],
     ["Status", report.status],
     ["Headline", report.headline],

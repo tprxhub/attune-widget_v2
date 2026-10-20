@@ -161,7 +161,7 @@ function AdminEducators() {
         <SummaryStat label="Admins" value={totals.educators} />
         <SummaryStat label="Moderators" value={totals.supporters} />
         <SummaryStat label="Organisations" value={totals.orgs} />
-        <SummaryStat label="Children carried" value={totals.children} />
+        <SummaryStat label="Members carried" value={totals.children} />
       </section>
 
       <section className="mt-5 space-y-5">
@@ -490,7 +490,7 @@ function StaffCard({
           {member.role === "educator" ? "Admin" : "Moderator"}
         </span>
         <span className="rounded-full bg-navy/6 px-2.5 py-1 text-[11px] font-bold">
-          {member.childCount} children
+          {member.childCount} members
         </span>
         <span
           className={cn(

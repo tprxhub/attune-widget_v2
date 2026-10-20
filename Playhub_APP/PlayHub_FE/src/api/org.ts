@@ -45,7 +45,7 @@ export async function deleteSupporterInvitation(supporterId: string) {
 
 export async function inviteParent(childId: string, email: string) {
   const child = (await getApiChildren()).find((item) => item.id === childId);
-  if (!child) throw new Error("Child not found");
+  if (!child) throw new Error("Member not found");
   const invitation = await apiRequest<{ created_at: string }>("/invitations", {
     method: "POST",
     body: JSON.stringify({

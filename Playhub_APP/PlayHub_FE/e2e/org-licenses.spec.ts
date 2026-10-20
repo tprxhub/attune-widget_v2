@@ -21,7 +21,7 @@ async function signIn(page: Page, email: string) {
   }, access);
 }
 
-test("the Super Admin licenses an organisation by child or by Moderator", async ({ page }) => {
+test("the Super Admin licenses an organisation by member or by Moderator", async ({ page }) => {
   await signIn(page, "admin@playhub.local");
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/admin/orgs");
@@ -39,7 +39,7 @@ test("the Super Admin licenses an organisation by child or by Moderator", async 
 
   const card = page.locator("article").filter({ hasText: "Licence Test Clinic" });
   await expect(card).toContainText("0 / 3 Moderator licences");
-  await expect(card).toContainText("Children are unlimited");
+  await expect(card).toContainText("Members are unlimited");
   await expect(card).toContainText("Monthly billing");
   await expect(card).toContainText("AED 27");
   await expect(card).toContainText("3 Moderator licences × AED 9 a month · AED 324 a year");
@@ -66,12 +66,12 @@ test("the Super Admin licenses an organisation by child or by Moderator", async 
   await clinicEdit.getByRole("button", { name: "Licence type" }).click();
   await page.getByRole("option", { name: /Child licences/ }).click();
   await expect(clinicEdit).toContainText(
-    "Children will no longer use licences".replace("Children", "Moderators"),
+    "Members will no longer use licences".replace("Members", "Moderators"),
   );
   await clinicEdit.getByLabel("Number of licences").fill("10");
   await clinicEdit.getByRole("button", { name: "Save changes" }).click();
   await expect(clinicEdit).toHaveCount(0);
-  await expect(card).toContainText("0 / 10 child licences");
+  await expect(card).toContainText("0 / 10 member licences");
 });
 
 test("organisation admins see Moderator licence use on the Moderators page", async ({ page }) => {
@@ -136,7 +136,7 @@ test("a full organisation is told to contact Play Hub when adding past its licen
     await page.goto("/org");
     if (sunrise.licenses_used) {
       await page.getByRole("link", { name: /Enrol a child/ }).click();
-      const dialog = page.getByRole("dialog", { name: "All child licences are in use" });
+      const dialog = page.getByRole("dialog", { name: "All member licences are in use" });
       await expect(dialog).toContainText("Contact the Play Hub team");
       await expect(dialog.getByRole("link", { name: "esther@thetoypharmacy.com" })).toHaveAttribute(
         "href",

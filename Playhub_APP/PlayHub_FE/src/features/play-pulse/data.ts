@@ -87,7 +87,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       toddler: {
         Sensory: [
           {
-            text: "When your child holds a crayon, spoon or chunky toy, how do they handle different textures and weights in their hand?",
+            text: "When your member holds a crayon, spoon or chunky toy, how do they handle different textures and weights in their hand?",
             options: [
               {
                 label: "Handles a range of textures and weights comfortably",
@@ -108,7 +108,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child notice or fuss about the size or shape of the crayon or utensil they're holding?",
+            text: "Does your member notice or fuss about the size or shape of the crayon or utensil they're holding?",
             options: [
               {
                 label: "No, picks up any size or shape without fuss",
@@ -131,7 +131,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "How does your child currently hold a crayon or chunky marker?",
+            text: "How does your member currently hold a crayon or chunky marker?",
             options: [
               {
                 label: "Whole-hand (fisted/palmar) grasp",
@@ -152,7 +152,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child stack blocks or manipulate small chunky toys using thumb and fingers, not just a whole-hand grab?",
+            text: "Can your member stack blocks or manipulate small chunky toys using thumb and fingers, not just a whole-hand grab?",
             options: [
               {
                 label: "Yes, uses thumb and fingers with control",
@@ -174,12 +174,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child imitate you making a scribble or mark right after watching you do it?",
-          "Does your child repeat an action with a crayon, like tapping or dragging, to see the same mark appear again?",
+          "Does your member imitate you making a scribble or mark right after watching you do it?",
+          "Does your member repeat an action with a crayon, like tapping or dragging, to see the same mark appear again?",
         ],
         Engagement: [
           {
-            text: "When you point to a crayon or hold one up, does your child look where you're pointing or reach for it in response?",
+            text: "When you point to a crayon or hold one up, does your member look where you're pointing or reach for it in response?",
             options: [
               {
                 label: "Yes, follows my point or reach right away",
@@ -200,7 +200,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child follow a simple one-step direction like 'give me the crayon' or point to ask for a specific color?",
+            text: "Can your member follow a simple one-step direction like 'give me the crayon' or point to ask for a specific color?",
             options: [
               {
                 label: "Yes, follows the direction or points to ask, reliably",
@@ -225,7 +225,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       preschool: {
         Sensory: [
           {
-            text: "When your child picks up a pencil or crayon, how well do they sense how tightly to hold it?",
+            text: "When your member picks up a pencil or crayon, how well do they sense how tightly to hold it?",
             options: [
               {
                 label: "Grips with just the right amount of pressure",
@@ -246,7 +246,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child notice when a pencil feels awkward in their hand and try to reposition it?",
+            text: "Does your member notice when a pencil feels awkward in their hand and try to reposition it?",
             options: [
               {
                 label: "Yes, notices and repositions on their own",
@@ -269,7 +269,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "How does your child hold a pencil or crayon most of the time?",
+            text: "How does your member hold a pencil or crayon most of the time?",
             options: [
               {
                 label: "Mature tripod grasp (thumb, index and middle finger)",
@@ -290,7 +290,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child use a pincer grasp — thumb and index finger — to pick up small objects like beads or crayons?",
+            text: "Can your member use a pincer grasp — thumb and index finger — to pick up small objects like beads or crayons?",
             options: [
               {
                 label: "Yes, uses a precise pincer grasp",
@@ -312,12 +312,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child copy a simple shape, like a straight line or circle, after watching you draw it?",
-          "Does your child correct their own crayon grip after you remind them, without you physically adjusting it?",
+          "Does your member copy a simple shape, like a straight line or circle, after watching you draw it?",
+          "Does your member correct their own crayon grip after you remind them, without you physically adjusting it?",
         ],
         Engagement: [
           {
-            text: "Does your child watch your hand closely and copy your grip when you show them how to hold a pencil?",
+            text: "Does your member watch your hand closely and copy your grip when you show them how to hold a pencil?",
             options: [
               {
                 label: "Yes, watches closely and copies straight away",
@@ -338,7 +338,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child tell you, in words or gestures, which color or crayon they want before starting to draw?",
+            text: "Can your member tell you, in words or gestures, which color or crayon they want before starting to draw?",
             options: [
               {
                 label: "Yes, tells or shows me clearly what they want",
@@ -363,7 +363,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       school: {
         Sensory: [
           {
-            text: "When writing, does your child adjust their pencil grip pressure appropriately — not pressing too hard or too soft?",
+            text: "When writing, does your member adjust their pencil grip pressure appropriately — not pressing too hard or too soft?",
             options: [
               {
                 label: "Yes, uses appropriate pressure consistently",
@@ -385,7 +385,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child's hand tire or cramp quickly during short writing tasks, or can they sustain a comfortable grip?",
+            text: "Does your member's hand tire or cramp quickly during short writing tasks, or can they sustain a comfortable grip?",
             options: [
               {
                 label: "Sustains a comfortable grip through a full task",
@@ -408,7 +408,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child hold a pencil in a mature tripod grip for writing tasks?",
+            text: "Can your member hold a pencil in a mature tripod grip for writing tasks?",
             options: [
               {
                 label: "Yes, uses a mature tripod grip consistently",
@@ -429,7 +429,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child sustain a tripod grip for an extended writing task without switching to a fisted grip?",
+            text: "Can your member sustain a tripod grip for an extended writing task without switching to a fisted grip?",
             options: [
               {
                 label: "Yes, sustains it for the full task",
@@ -451,12 +451,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child copy a specific letter or shape accurately from a printed model?",
-          "Does your child know the difference between upper case and lower case letters when writing?",
+          "Does your member copy a specific letter or shape accurately from a printed model?",
+          "Does your member know the difference between upper case and lower case letters when writing?",
         ],
         Engagement: [
           {
-            text: "Does your child pick up on non-verbal feedback, like a nod or a puzzled look, when you're helping with handwriting?",
+            text: "Does your member pick up on non-verbal feedback, like a nod or a puzzled look, when you're helping with handwriting?",
             options: [
               {
                 label: "Yes, notices and adjusts based on my expression",
@@ -477,7 +477,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child ask for help with a written task using clear words, like 'I don't know how to make this letter'?",
+            text: "Can your member ask for help with a written task using clear words, like 'I don't know how to make this letter'?",
             options: [
               {
                 label: "Yes, explains clearly what they're stuck on",
@@ -529,7 +529,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       toddler: {
         Sensory: [
           {
-            text: "When your child plays with buttons, snaps or zippers, how do they respond to the small parts and textures?",
+            text: "When your member plays with buttons, snaps or zippers, how do they respond to the small parts and textures?",
             options: [
               {
                 label: "Handles small parts and textures comfortably",
@@ -550,7 +550,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child avoid or get frustrated by clothing with fasteners during dressing?",
+            text: "Does your member avoid or get frustrated by clothing with fasteners during dressing?",
             options: [
               {
                 label: "No, dressing with fasteners doesn't bother them",
@@ -573,7 +573,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Does your child use both hands together during play, like holding one toy while manipulating another?",
+            text: "Does your member use both hands together during play, like holding one toy while manipulating another?",
             options: [
               {
                 label: "Yes, coordinates both hands together well",
@@ -594,7 +594,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child pull off loose clothing items like socks or a hat by themselves?",
+            text: "Can your member pull off loose clothing items like socks or a hat by themselves?",
             options: [
               {
                 label: "Yes, pulls these off independently",
@@ -616,12 +616,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child imitate a simple two-step action, like opening then closing a lid?",
-          "Does your child know which arm or leg goes where when getting dressed, like offering the correct arm for a sleeve?",
+          "Does your member imitate a simple two-step action, like opening then closing a lid?",
+          "Does your member know which arm or leg goes where when getting dressed, like offering the correct arm for a sleeve?",
         ],
         Engagement: [
           {
-            text: "Does your child look at your hands or face when you're helping them get dressed, following what you're doing?",
+            text: "Does your member look at your hands or face when you're helping them get dressed, following what you're doing?",
             options: [
               {
                 label: "Yes, watches closely and follows along",
@@ -642,7 +642,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child respond to simple dressing instructions like 'lift your arms' or 'put your arm in'?",
+            text: "Does your member respond to simple dressing instructions like 'lift your arms' or 'put your arm in'?",
             options: [
               {
                 label: "Yes, responds to the instruction right away",
@@ -667,7 +667,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       preschool: {
         Sensory: [
           {
-            text: "How aware does your child seem of where their fingers are when handling small fasteners like buttons?",
+            text: "How aware does your member seem of where their fingers are when handling small fasteners like buttons?",
             options: [
               {
                 label: "Very aware — finds and positions fingers precisely",
@@ -688,7 +688,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "How does your child react to the resistance of pushing a button through a tight buttonhole?",
+            text: "How does your member react to the resistance of pushing a button through a tight buttonhole?",
             options: [
               {
                 label: "Pushes through calmly, adjusts pressure as needed",
@@ -711,7 +711,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child hold fabric steady with one hand while attempting to push a button through with the other?",
+            text: "Can your member hold fabric steady with one hand while attempting to push a button through with the other?",
             options: [
               {
                 label: "Yes, holds fabric steady while the other hand works",
@@ -732,7 +732,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child manage large buttons or snaps, like on a coat, even if small shirt buttons are still tricky?",
+            text: "Can your member manage large buttons or snaps, like on a coat, even if small shirt buttons are still tricky?",
             options: [
               {
                 label: "Yes, manages large fasteners independently",
@@ -754,12 +754,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child understand the order needed to fasten something — line up the hole, then push the button through?",
-          "Does your child know which side of a shirt the buttons go on, or that a shirt has a front and back?",
+          "Does your member understand the order needed to fasten something — line up the hole, then push the button through?",
+          "Does your member know which side of a shirt the buttons go on, or that a shirt has a front and back?",
         ],
         Engagement: [
           {
-            text: "Does your child watch closely and imitate your hand movements when you demonstrate buttoning slowly?",
+            text: "Does your member watch closely and imitate your hand movements when you demonstrate buttoning slowly?",
             options: [
               {
                 label: "Yes, watches and imitates the movement",
@@ -780,7 +780,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child tell you or show you which step of dressing they're stuck on?",
+            text: "Can your member tell you or show you which step of dressing they're stuck on?",
             options: [
               {
                 label: "Yes, points to or explains exactly where they're stuck",
@@ -805,7 +805,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       school: {
         Sensory: [
           {
-            text: "Can your child adjust their finger positioning to line up a button and buttonhole without looking closely?",
+            text: "Can your member adjust their finger positioning to line up a button and buttonhole without looking closely?",
             options: [
               {
                 label: "Yes, positions fingers accurately by feel",
@@ -826,7 +826,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child tolerate working with small, fiddly buttons for a full task without frustration?",
+            text: "Does your member tolerate working with small, fiddly buttons for a full task without frustration?",
             options: [
               {
                 label: "Yes, stays calm through the whole task",
@@ -849,7 +849,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child button and unbutton a shirt using both hands in a coordinated way?",
+            text: "Can your member button and unbutton a shirt using both hands in a coordinated way?",
             options: [
               {
                 label: "Yes, does this smoothly with both hands",
@@ -870,7 +870,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child manage a full row of shirt buttons top to bottom without losing their place?",
+            text: "Can your member manage a full row of shirt buttons top to bottom without losing their place?",
             options: [
               {
                 label: "Yes, completes the full row without losing their place",
@@ -892,12 +892,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child solve it themselves when a button gets stuck or misaligned, without asking for help right away?",
-          "Does your child notice on their own when a button is done up wrong, like a skipped hole, and fix it?",
+          "Does your member solve it themselves when a button gets stuck or misaligned, without asking for help right away?",
+          "Does your member notice on their own when a button is done up wrong, like a skipped hole, and fix it?",
         ],
         Engagement: [
           {
-            text: "Does your child notice your facial cues, like frustration or encouragement, while practicing buttoning together?",
+            text: "Does your member notice your facial cues, like frustration or encouragement, while practicing buttoning together?",
             options: [
               {
                 label: "Yes, picks up on my expression and reacts to it",
@@ -918,7 +918,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child explain in words what's going wrong when a button won't fasten?",
+            text: "Can your member explain in words what's going wrong when a button won't fasten?",
             options: [
               {
                 label: "Yes, describes the problem clearly",
@@ -970,7 +970,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       toddler: {
         Sensory: [
           {
-            text: "How does your child respond to picture books — do they look at and follow pictures or movement on the page?",
+            text: "How does your member respond to picture books — do they look at and follow pictures or movement on the page?",
             options: [
               {
                 label: "Looks at and follows pictures closely",
@@ -991,7 +991,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "How does your child respond to sitting still for a story — do they seem restless or settled?",
+            text: "How does your member respond to sitting still for a story — do they seem restless or settled?",
             options: [
               {
                 label: "Settles easily and sits through a story",
@@ -1014,7 +1014,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child turn board book pages, even clumsily, or point to pictures?",
+            text: "Can your member turn board book pages, even clumsily, or point to pictures?",
             options: [
               {
                 label: "Yes, turns pages and points independently",
@@ -1035,7 +1035,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child hold a book the right way up and open it from the front?",
+            text: "Can your member hold a book the right way up and open it from the front?",
             options: [
               {
                 label: "Yes, holds and opens it correctly",
@@ -1057,12 +1057,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child recognize a familiar picture or object in a book and react to it?",
-          "Does your child understand a simple story sequence, like turning the page to see what happens next?",
+          "Does your member recognize a familiar picture or object in a book and react to it?",
+          "Does your member understand a simple story sequence, like turning the page to see what happens next?",
         ],
         Engagement: [
           {
-            text: "Does your child follow your gaze or pointing finger to look at a picture you're both looking at?",
+            text: "Does your member follow your gaze or pointing finger to look at a picture you're both looking at?",
             options: [
               {
                 label: "Yes, follows my gaze or point every time",
@@ -1083,7 +1083,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child babble, point, or use single words to react to a picture in a book?",
+            text: "Does your member babble, point, or use single words to react to a picture in a book?",
             options: [
               {
                 label: "Yes, reacts with sounds, points or words",
@@ -1108,7 +1108,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       preschool: {
         Sensory: [
           {
-            text: "Can your child's eyes follow a moving object, or a finger tracing left to right?",
+            text: "Can your member's eyes follow a moving object, or a finger tracing left to right?",
             options: [
               {
                 label: "Yes, tracks smoothly left to right",
@@ -1129,7 +1129,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child seem to lose their visual place easily on a page with a lot going on?",
+            text: "Does your member seem to lose their visual place easily on a page with a lot going on?",
             options: [
               {
                 label: "No, stays oriented even on busy pages",
@@ -1152,7 +1152,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child point to and follow along with words or pictures as you read?",
+            text: "Can your member point to and follow along with words or pictures as you read?",
             options: [
               {
                 label: "Yes, points and follows along consistently",
@@ -1173,7 +1173,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child point to individual words as they're read aloud, roughly keeping pace?",
+            text: "Can your member point to individual words as they're read aloud, roughly keeping pace?",
             options: [
               {
                 label: "Yes, keeps pace reasonably well",
@@ -1195,12 +1195,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child match two identical pictures, letters, or shapes when looking at a page?",
-          "Does your child answer a simple question about a story you just read, like 'who was in it?'",
+          "Does your member match two identical pictures, letters, or shapes when looking at a page?",
+          "Does your member answer a simple question about a story you just read, like 'who was in it?'",
         ],
         Engagement: [
           {
-            text: "Does your child share attention with you during a book — looking between the page and your face — rather than only looking at the book alone?",
+            text: "Does your member share attention with you during a book — looking between the page and your face — rather than only looking at the book alone?",
             options: [
               {
                 label: "Yes, checks in with me regularly while we read",
@@ -1221,7 +1221,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child answer a simple 'what' or 'where' question about a picture using words?",
+            text: "Can your member answer a simple 'what' or 'where' question about a picture using words?",
             options: [
               {
                 label: "Yes, answers clearly in words",
@@ -1246,7 +1246,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       school: {
         Sensory: [
           {
-            text: "Does your child's gaze track smoothly along a line of text without losing their place?",
+            text: "Does your member's gaze track smoothly along a line of text without losing their place?",
             options: [
               {
                 label: "Yes, tracks smoothly along the line",
@@ -1267,7 +1267,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child complain of tired eyes, or lose their place, during longer reading sessions?",
+            text: "Does your member complain of tired eyes, or lose their place, during longer reading sessions?",
             options: [
               {
                 label: "No, reads for a good stretch without issue",
@@ -1290,7 +1290,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child use a finger or a bookmark to track their place while reading?",
+            text: "Can your member use a finger or a bookmark to track their place while reading?",
             options: [
               {
                 label: "Yes, uses a finger or bookmark effectively",
@@ -1311,7 +1311,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child hold a book and turn pages while maintaining their place, without help?",
+            text: "Can your member hold a book and turn pages while maintaining their place, without help?",
             options: [
               {
                 label: "Yes, manages this independently",
@@ -1333,12 +1333,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child recognize familiar letters or sight words and connect them to their sounds?",
-          "Does your child sound out an unfamiliar word using letter sounds, rather than guessing from the picture?",
+          "Does your member recognize familiar letters or sight words and connect them to their sounds?",
+          "Does your member sound out an unfamiliar word using letter sounds, rather than guessing from the picture?",
         ],
         Engagement: [
           {
-            text: "Does your child pick up on your tone of voice or expression to understand a story's mood?",
+            text: "Does your member pick up on your tone of voice or expression to understand a story's mood?",
             options: [
               {
                 label: "Yes, picks up on tone and reacts to the mood",
@@ -1359,7 +1359,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child retell part of a story in their own words, or ask a relevant question about it?",
+            text: "Can your member retell part of a story in their own words, or ask a relevant question about it?",
             options: [
               {
                 label: "Yes, retells or asks a relevant question easily",
@@ -1411,7 +1411,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       toddler: {
         Sensory: [
           {
-            text: "How does your child respond to squeezing textured toys, playdough, or tearing paper?",
+            text: "How does your member respond to squeezing textured toys, playdough, or tearing paper?",
             options: [
               {
                 label: "Enjoys and engages comfortably with these textures",
@@ -1432,7 +1432,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "How does your child react to the sound or resistance of paper tearing near their hands?",
+            text: "How does your member react to the sound or resistance of paper tearing near their hands?",
             options: [
               {
                 label: "Unbothered by the sound or resistance",
@@ -1455,7 +1455,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child use two hands together, like pulling apart playdough or tearing paper?",
+            text: "Can your member use two hands together, like pulling apart playdough or tearing paper?",
             options: [
               {
                 label: "Yes, coordinates both hands well",
@@ -1476,7 +1476,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child snip with safety scissors even once or twice, with hand-over-hand help?",
+            text: "Can your member snip with safety scissors even once or twice, with hand-over-hand help?",
             options: [
               {
                 label: "Yes, manages a snip or two with help",
@@ -1498,12 +1498,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child imitate a simple tool action, like pretending to cut or stir?",
-          "Does your child understand that scissors are for cutting, different from other toys or tools?",
+          "Does your member imitate a simple tool action, like pretending to cut or stir?",
+          "Does your member understand that scissors are for cutting, different from other toys or tools?",
         ],
         Engagement: [
           {
-            text: "Does your child watch your hands closely when you demonstrate tearing or squeezing something?",
+            text: "Does your member watch your hands closely when you demonstrate tearing or squeezing something?",
             options: [
               {
                 label: "Yes, watches closely every time",
@@ -1524,7 +1524,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child respond to a simple instruction like 'give it to me' or 'like this' during play with tools?",
+            text: "Does your member respond to a simple instruction like 'give it to me' or 'like this' during play with tools?",
             options: [
               {
                 label: "Yes, responds to the instruction right away",
@@ -1549,7 +1549,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       preschool: {
         Sensory: [
           {
-            text: "How does your child react to the feel and resistance of paper when tearing or attempting to cut it?",
+            text: "How does your member react to the feel and resistance of paper when tearing or attempting to cut it?",
             options: [
               {
                 label: "Comfortable with the resistance, adjusts easily",
@@ -1570,7 +1570,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child avoid activities involving cutting or tearing textured materials?",
+            text: "Does your member avoid activities involving cutting or tearing textured materials?",
             options: [
               {
                 label: "No, joins in without hesitation",
@@ -1593,7 +1593,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child open and close child-safe scissors with one hand while the other holds the paper?",
+            text: "Can your member open and close child-safe scissors with one hand while the other holds the paper?",
             options: [
               {
                 label: "Yes, coordinates both hands well",
@@ -1614,7 +1614,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child make small snips into the edge of a piece of paper independently?",
+            text: "Can your member make small snips into the edge of a piece of paper independently?",
             options: [
               {
                 label: "Yes, makes clean snips independently",
@@ -1636,12 +1636,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child understand how to hold paper so the scissors can cut it, not just hold the scissors?",
-          "Does your child turn the paper, rather than just the scissors, to follow a curved line?",
+          "Does your member understand how to hold paper so the scissors can cut it, not just hold the scissors?",
+          "Does your member turn the paper, rather than just the scissors, to follow a curved line?",
         ],
         Engagement: [
           {
-            text: "Does your child look to you for guidance — checking your face or hands — before attempting to cut?",
+            text: "Does your member look to you for guidance — checking your face or hands — before attempting to cut?",
             options: [
               {
                 label: "Yes, checks in with me before trying",
@@ -1662,7 +1662,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child tell you which part they want to cut, or ask for help when scissors won't work?",
+            text: "Can your member tell you which part they want to cut, or ask for help when scissors won't work?",
             options: [
               {
                 label: "Yes, tells me clearly what they need",
@@ -1687,7 +1687,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       school: {
         Sensory: [
           {
-            text: "Does your child sense how much pressure to apply when cutting different types of paper?",
+            text: "Does your member sense how much pressure to apply when cutting different types of paper?",
             options: [
               {
                 label: "Yes, adjusts pressure appropriately for the material",
@@ -1708,7 +1708,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child tolerate the resistance of scissors cutting thicker materials like cardstock?",
+            text: "Does your member tolerate the resistance of scissors cutting thicker materials like cardstock?",
             options: [
               {
                 label: "Yes, cuts through thicker materials without issue",
@@ -1731,7 +1731,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child cut along a straight or curved line with scissors?",
+            text: "Can your member cut along a straight or curved line with scissors?",
             options: [
               {
                 label: "Yes, cuts accurately along the line",
@@ -1752,7 +1752,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child cut out complex shapes with curves and corners with control?",
+            text: "Can your member cut out complex shapes with curves and corners with control?",
             options: [
               {
                 label: "Yes, manages complex shapes with control",
@@ -1774,12 +1774,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child follow a printed line accurately when cutting out a shape?",
-          "Does your child plan the order to cut a shape out so pieces don't fall or get lost?",
+          "Does your member follow a printed line accurately when cutting out a shape?",
+          "Does your member plan the order to cut a shape out so pieces don't fall or get lost?",
         ],
         Engagement: [
           {
-            text: "Does your child notice non-verbal safety cues, like you moving their hand away from the blade?",
+            text: "Does your member notice non-verbal safety cues, like you moving their hand away from the blade?",
             options: [
               {
                 label: "Yes, notices and adjusts right away",
@@ -1800,7 +1800,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child explain in words what went wrong if a cut doesn't come out right?",
+            text: "Can your member explain in words what went wrong if a cut doesn't come out right?",
             options: [
               {
                 label: "Yes, explains clearly what happened",
@@ -1852,7 +1852,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       toddler: {
         Sensory: [
           {
-            text: "Does your child notice edges or boundaries on a page during scribbling, like the page edge?",
+            text: "Does your member notice edges or boundaries on a page during scribbling, like the page edge?",
             options: [
               {
                 label: "Yes, notices and stays within the page",
@@ -1873,7 +1873,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child show a strong preference or aversion to certain crayon or marker textures?",
+            text: "Does your member show a strong preference or aversion to certain crayon or marker textures?",
             options: [
               {
                 label: "No, comfortable with a range of textures",
@@ -1896,7 +1896,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "How controlled are your child's scribbles — can they make back-and-forth or circular motions?",
+            text: "How controlled are your member's scribbles — can they make back-and-forth or circular motions?",
             options: [
               {
                 label: "Makes controlled back-and-forth and circular motions",
@@ -1917,7 +1917,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child hold a crayon with a whole-hand grasp and make a variety of scribble patterns?",
+            text: "Can your member hold a crayon with a whole-hand grasp and make a variety of scribble patterns?",
             options: [
               {
                 label: "Yes, makes a variety of patterns",
@@ -1939,12 +1939,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child understand a simple instruction like 'color the ball'?",
-          "Does your child point out or name colors while coloring, even roughly?",
+          "Does your member understand a simple instruction like 'color the ball'?",
+          "Does your member point out or name colors while coloring, even roughly?",
         ],
         Engagement: [
           {
-            text: "Does your child look at you for reactions, like smiling or pointing, while scribbling together?",
+            text: "Does your member look at you for reactions, like smiling or pointing, while scribbling together?",
             options: [
               {
                 label: "Yes, checks in with me regularly",
@@ -1965,7 +1965,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child respond to simple requests like 'color the ball' with a gesture or attempt?",
+            text: "Does your member respond to simple requests like 'color the ball' with a gesture or attempt?",
             options: [
               {
                 label: "Yes, responds with an attempt right away",
@@ -1990,7 +1990,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       preschool: {
         Sensory: [
           {
-            text: "Does your child seem to notice when their coloring goes outside a shape's outline?",
+            text: "Does your member seem to notice when their coloring goes outside a shape's outline?",
             options: [
               {
                 label: "Yes, notices and tries to correct it",
@@ -2011,7 +2011,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child notice or react to the pressure needed to make a mark show up on the page?",
+            text: "Does your member notice or react to the pressure needed to make a mark show up on the page?",
             options: [
               {
                 label: "Yes, adjusts pressure appropriately",
@@ -2034,7 +2034,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child color with some control, staying mostly within a large shape?",
+            text: "Can your member color with some control, staying mostly within a large shape?",
             options: [
               {
                 label: "Yes, stays mostly within the shape",
@@ -2055,7 +2055,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child stay on a large picture for more than a minute without wandering off the page?",
+            text: "Can your member stay on a large picture for more than a minute without wandering off the page?",
             options: [
               {
                 label: "Yes, stays focused on the picture for a while",
@@ -2077,12 +2077,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child understand the goal of staying inside a shape's lines when coloring?",
-          "Does your child pick colors that make sense for the picture, like blue for the sky?",
+          "Does your member understand the goal of staying inside a shape's lines when coloring?",
+          "Does your member pick colors that make sense for the picture, like blue for the sky?",
         ],
         Engagement: [
           {
-            text: "Does your child check your face for approval or reaction while coloring a picture?",
+            text: "Does your member check your face for approval or reaction while coloring a picture?",
             options: [
               {
                 label: "Yes, checks my reaction regularly",
@@ -2103,7 +2103,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child tell you what they're coloring or ask which color to use?",
+            text: "Can your member tell you what they're coloring or ask which color to use?",
             options: [
               {
                 label: "Yes, tells me or asks clearly",
@@ -2128,7 +2128,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       school: {
         Sensory: [
           {
-            text: "Can your child sense, without much looking, how close their crayon is to a line's edge?",
+            text: "Can your member sense, without much looking, how close their crayon is to a line's edge?",
             options: [
               {
                 label: "Yes, senses this well without looking closely",
@@ -2149,7 +2149,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child regulate the pressure needed for a light sketch vs a solid fill?",
+            text: "Can your member regulate the pressure needed for a light sketch vs a solid fill?",
             options: [
               {
                 label: "Yes, adjusts pressure for each purpose",
@@ -2172,7 +2172,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child color within the lines of a smaller, more detailed shape consistently?",
+            text: "Can your member color within the lines of a smaller, more detailed shape consistently?",
             options: [
               {
                 label: "Yes, stays within detailed shapes consistently",
@@ -2193,7 +2193,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child switch between filling large areas and outlining small details with equal control?",
+            text: "Can your member switch between filling large areas and outlining small details with equal control?",
             options: [
               {
                 label: "Yes, switches between both with equal control",
@@ -2215,12 +2215,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child plan which direction to stroke the crayon to fill a shape neatly?",
-          "Does your child decide which section of a picture to color first to avoid smudging?",
+          "Does your member plan which direction to stroke the crayon to fill a shape neatly?",
+          "Does your member decide which section of a picture to color first to avoid smudging?",
         ],
         Engagement: [
           {
-            text: "Does your child notice if you seem impressed or concerned about their coloring, without you saying so directly?",
+            text: "Does your member notice if you seem impressed or concerned about their coloring, without you saying so directly?",
             options: [
               {
                 label: "Yes, picks up on my reaction without me saying anything",
@@ -2241,7 +2241,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child describe their finished picture or explain a choice they made while coloring?",
+            text: "Can your member describe their finished picture or explain a choice they made while coloring?",
             options: [
               {
                 label: "Yes, describes it or explains their choices clearly",
@@ -2293,7 +2293,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       toddler: {
         Sensory: [
           {
-            text: "Does your child notice differences between similar objects or pictures — big vs small, same vs different?",
+            text: "Does your member notice differences between similar objects or pictures — big vs small, same vs different?",
             options: [
               {
                 label: "Yes, notices these differences reliably",
@@ -2314,7 +2314,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child seem overwhelmed by busy visual pages with lots of small pictures or text?",
+            text: "Does your member seem overwhelmed by busy visual pages with lots of small pictures or text?",
             options: [
               {
                 label: "No, engages with busy pages just fine",
@@ -2337,7 +2337,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child make purposeful marks that resemble what they're looking at, even roughly?",
+            text: "Can your member make purposeful marks that resemble what they're looking at, even roughly?",
             options: [
               {
                 label: "Yes, makes marks that clearly relate to what they see",
@@ -2358,7 +2358,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child imitate a simple gesture or hand motion right after seeing it?",
+            text: "Can your member imitate a simple gesture or hand motion right after seeing it?",
             options: [
               {
                 label: "Yes, imitates the motion right away",
@@ -2380,12 +2380,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child notice when two pictures or objects are different from each other?",
-          "Does your child scan across a row of pictures with their eyes, from one side to the other?",
+          "Does your member notice when two pictures or objects are different from each other?",
+          "Does your member scan across a row of pictures with their eyes, from one side to the other?",
         ],
         Engagement: [
           {
-            text: "Does your child look between you and an object when you point something out for them to notice?",
+            text: "Does your member look between you and an object when you point something out for them to notice?",
             options: [
               {
                 label: "Yes, looks back and forth to check",
@@ -2406,7 +2406,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child use a word or gesture to show you they've spotted something the same or different?",
+            text: "Does your member use a word or gesture to show you they've spotted something the same or different?",
             options: [
               {
                 label: "Yes, points or says something to show me",
@@ -2431,7 +2431,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       preschool: {
         Sensory: [
           {
-            text: "Can your child spot the difference between two similar shapes or letters placed side by side?",
+            text: "Can your member spot the difference between two similar shapes or letters placed side by side?",
             options: [
               {
                 label: "Yes, spots the difference reliably",
@@ -2452,7 +2452,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child squint, tilt their head, or get frustrated looking at small print or shapes?",
+            text: "Does your member squint, tilt their head, or get frustrated looking at small print or shapes?",
             options: [
               {
                 label: "No, looks at small print or shapes comfortably",
@@ -2475,7 +2475,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child copy a simple shape, like a circle or cross, with reasonable accuracy?",
+            text: "Can your member copy a simple shape, like a circle or cross, with reasonable accuracy?",
             options: [
               {
                 label: "Yes, copies the shape accurately",
@@ -2496,7 +2496,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child trace over a dotted shape or letter, staying mostly on the line?",
+            text: "Can your member trace over a dotted shape or letter, staying mostly on the line?",
             options: [
               {
                 label: "Yes, stays mostly on the line",
@@ -2518,12 +2518,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child find a matching shape or letter among a group of similar-looking ones?",
-          "Does your child scan left to right in a consistent way when looking at a row of items?",
+          "Does your member find a matching shape or letter among a group of similar-looking ones?",
+          "Does your member scan left to right in a consistent way when looking at a row of items?",
         ],
         Engagement: [
           {
-            text: "Does your child glance at you to check they're copying correctly?",
+            text: "Does your member glance at you to check they're copying correctly?",
             options: [
               {
                 label: "Yes, checks in with me regularly",
@@ -2544,7 +2544,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child tell you when they think a copied shape or letter doesn't look right?",
+            text: "Can your member tell you when they think a copied shape or letter doesn't look right?",
             options: [
               {
                 label: "Yes, tells me clearly when something's off",
@@ -2569,7 +2569,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       school: {
         Sensory: [
           {
-            text: "Can your child visually tell apart similar-looking letters, like b/d or p/q?",
+            text: "Can your member visually tell apart similar-looking letters, like b/d or p/q?",
             options: [
               {
                 label: "Yes, tells these apart reliably",
@@ -2590,7 +2590,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child lose their place easily when copying from a book or the board?",
+            text: "Does your member lose their place easily when copying from a book or the board?",
             options: [
               {
                 label: "No, keeps their place well when copying",
@@ -2613,7 +2613,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child copy individual letters or short words with reasonably accurate formation?",
+            text: "Can your member copy individual letters or short words with reasonably accurate formation?",
             options: [
               {
                 label: "Yes, forms letters and words accurately",
@@ -2634,7 +2634,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child write a full short word without the letters drifting in size or spacing?",
+            text: "Can your member write a full short word without the letters drifting in size or spacing?",
             options: [
               {
                 label: "Yes, keeps size and spacing consistent",
@@ -2656,12 +2656,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child reproduce the letters of a model word in the correct order when copying it?",
-          "Does your child notice and correct their own mistake if a copied letter is wrong?",
+          "Does your member reproduce the letters of a model word in the correct order when copying it?",
+          "Does your member notice and correct their own mistake if a copied letter is wrong?",
         ],
         Engagement: [
           {
-            text: "Does your child pick up on subtle hints, like you tapping the model, to notice their own mistake?",
+            text: "Does your member pick up on subtle hints, like you tapping the model, to notice their own mistake?",
             options: [
               {
                 label: "Yes, picks up on the hint and self-corrects",
@@ -2682,7 +2682,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child ask a clarifying question, like 'is this a capital or small letter?'",
+            text: "Can your member ask a clarifying question, like 'is this a capital or small letter?'",
             options: [
               {
                 label: "Yes, asks specific questions like this",
@@ -2734,7 +2734,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       toddler: {
         Sensory: [
           {
-            text: "How does your child respond to hand-over-hand guidance when making marks on paper?",
+            text: "How does your member respond to hand-over-hand guidance when making marks on paper?",
             options: [
               {
                 label: "Accepts hand-over-hand guidance comfortably",
@@ -2755,7 +2755,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child tolerate having their hand guided to help form letters, or pull away?",
+            text: "Does your member tolerate having their hand guided to help form letters, or pull away?",
             options: [
               {
                 label: "Yes, tolerates it well",
@@ -2778,7 +2778,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child make vertical, horizontal or circular strokes when scribbling?",
+            text: "Can your member make vertical, horizontal or circular strokes when scribbling?",
             options: [
               {
                 label: "Yes, makes a range of these strokes",
@@ -2799,7 +2799,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child imitate you drawing a simple shape immediately after watching?",
+            text: "Can your member imitate you drawing a simple shape immediately after watching?",
             options: [
               {
                 label: "Yes, imitates the shape right after watching",
@@ -2821,12 +2821,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child recognize their own name when you say it or point to it?",
-          "Does your child point to their own name tag or cubby among several others?",
+          "Does your member recognize their own name when you say it or point to it?",
+          "Does your member point to their own name tag or cubby among several others?",
         ],
         Engagement: [
           {
-            text: "Does your child look at you or the name card when you point to it and say their name?",
+            text: "Does your member look at you or the name card when you point to it and say their name?",
             options: [
               {
                 label: "Yes, looks at it right away",
@@ -2847,7 +2847,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child respond in some way — a sound or gesture — when asked 'where's your name?'",
+            text: "Does your member respond in some way — a sound or gesture — when asked 'where's your name?'",
             options: [
               {
                 label: "Yes, responds with a sound or gesture",
@@ -2872,7 +2872,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       preschool: {
         Sensory: [
           {
-            text: "Does your child seem to sense stroke direction — up, down, across — when making marks?",
+            text: "Does your member seem to sense stroke direction — up, down, across — when making marks?",
             options: [
               {
                 label: "Yes, seems to sense direction well",
@@ -2893,7 +2893,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child show frustration with the physical effort of forming letter shapes?",
+            text: "Does your member show frustration with the physical effort of forming letter shapes?",
             options: [
               {
                 label: "No, forms letter shapes without noticeable effort or frustration",
@@ -2916,7 +2916,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child copy basic pre-writing shapes, like a line, circle, cross or X?",
+            text: "Can your member copy basic pre-writing shapes, like a line, circle, cross or X?",
             options: [
               {
                 label: "Yes, copies these shapes accurately",
@@ -2937,7 +2937,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child draw a recognizable circle and cross unprompted?",
+            text: "Can your member draw a recognizable circle and cross unprompted?",
             options: [
               {
                 label: "Yes, draws both shapes clearly, unprompted",
@@ -2959,12 +2959,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child recognize the first letter of their name when they see it?",
-          "Does your child name most or all of the letters in their name when you point to each one?",
+          "Does your member recognize the first letter of their name when they see it?",
+          "Does your member name most or all of the letters in their name when you point to each one?",
         ],
         Engagement: [
           {
-            text: "Does your child watch your hand and try to imitate when you write the first letter of their name?",
+            text: "Does your member watch your hand and try to imitate when you write the first letter of their name?",
             options: [
               {
                 label: "Yes, watches and attempts to copy",
@@ -2985,7 +2985,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child tell you the letters of their name when asked, or ask 'how do you spell my name?'",
+            text: "Can your member tell you the letters of their name when asked, or ask 'how do you spell my name?'",
             options: [
               {
                 label: "Yes, tells me the letters or asks how to spell it",
@@ -3010,7 +3010,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
       school: {
         Sensory: [
           {
-            text: "Does your child sense correct starting points and direction when forming letters, without heavy verbal reminders?",
+            text: "Does your member sense correct starting points and direction when forming letters, without heavy verbal reminders?",
             options: [
               {
                 label: "Yes, starts letters correctly without reminders",
@@ -3031,7 +3031,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Does your child sense when a letter 'feels' wrong — too big, wrong shape — without you pointing it out?",
+            text: "Does your member sense when a letter 'feels' wrong — too big, wrong shape — without you pointing it out?",
             options: [
               {
                 label: "Yes, notices this on their own",
@@ -3054,7 +3054,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
         ],
         Motor: [
           {
-            text: "Can your child write the letters of their name with reasonably correct formation?",
+            text: "Can your member write the letters of their name with reasonably correct formation?",
             options: [
               {
                 label: "Yes, forms the letters correctly",
@@ -3075,7 +3075,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child keep letters a consistent size when writing their full name?",
+            text: "Can your member keep letters a consistent size when writing their full name?",
             options: [
               {
                 label: "Yes, keeps letter size consistent throughout",
@@ -3097,12 +3097,12 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
           },
         ],
         Cognition: [
-          "Does your child recall and write the letters of their name in the correct order from memory?",
-          "Does your child write their name without needing a model to copy from?",
+          "Does your member recall and write the letters of their name in the correct order from memory?",
+          "Does your member write their name without needing a model to copy from?",
         ],
         Engagement: [
           {
-            text: "Does your child notice when you gesture or point out a mistake without you saying anything?",
+            text: "Does your member notice when you gesture or point out a mistake without you saying anything?",
             options: [
               {
                 label: "Yes, notices and self-corrects",
@@ -3123,7 +3123,7 @@ export const PLAY_PULSE_GOALS: PlayPulseGoal[] = [
             ],
           },
           {
-            text: "Can your child explain, in their own words, how to spell or write their name to someone else?",
+            text: "Can your member explain, in their own words, how to spell or write their name to someone else?",
             options: [
               {
                 label: "Yes, explains it clearly to someone else",

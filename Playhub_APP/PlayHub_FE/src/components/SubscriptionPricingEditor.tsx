@@ -165,7 +165,7 @@ function PricingEditor() {
         Subscription pricing
       </h2>
       <p className="mt-1 text-sm text-navy/65">
-        Offer up to 5 paid plans. Set the month duration and total price per child in AED. Save
+        Offer up to 5 paid plans. Set the month duration and total price per member in AED. Save
         pricing separately to publish the same options on the homepage and Subscription page.
       </p>
       {query.isPending ? (
