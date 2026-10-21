@@ -100,7 +100,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     const items: (NavItem | false)[] = [
       { to: "/admin", label: "Overview", short: "Overview", icon: DashboardIcon },
       allowed("children") && {
-        to: "/admin/children",
+        to: "/admin/members",
         label: "Members",
         short: "Members",
         icon: Users,

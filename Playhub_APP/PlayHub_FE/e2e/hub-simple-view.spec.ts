@@ -173,7 +173,7 @@ test("simple service cards can be dragged and keep their order", async ({ page }
   await page.goto("/hub");
   await page.getByRole("button", { name: "Customize", exact: true }).click();
 
-  const children = page.locator('[data-simple-destination="/admin/children"]');
+  const children = page.locator('[data-simple-destination="/admin/members"]');
   const progress = page.locator('[data-simple-destination="/admin/progress"]');
   await children.evaluate((element) =>
     element.scrollIntoView({ block: "center", behavior: "instant" }),
@@ -191,14 +191,14 @@ test("simple service cards can be dragged and keep their order", async ({ page }
   await page.mouse.up();
   await expect(page.locator("[data-simple-destination]").nth(2)).toHaveAttribute(
     "data-simple-destination",
-    "/admin/children",
+    "/admin/members",
   );
 
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.reload();
   await expect(page.locator("[data-simple-destination]").nth(2)).toHaveAttribute(
     "data-simple-destination",
-    "/admin/children",
+    "/admin/members",
   );
 });
 
@@ -250,9 +250,7 @@ test("the profile tile and service links keep platform routes", async ({ page })
   await expect(page.getByRole("button", { name: "Add shortcut 2" })).toBeVisible();
   await expect(page.locator('[data-simple-destination="/admin/audit"]')).toHaveCount(0);
   await expect(page.locator("[data-simple-profile]")).toHaveAttribute("href", "/admin");
-  await expect(page.locator('[data-simple-destination="/admin/children"]')).toContainText(
-    "Members",
-  );
+  await expect(page.locator('[data-simple-destination="/admin/members"]')).toContainText("Members");
   await expect(page.locator('[data-simple-destination="/admin/progress"]')).toContainText(
     "Progress",
   );

@@ -82,6 +82,8 @@ export interface PlanActivity {
   videoUrl?: string | undefined;
   /** Browser-only file waiting to be uploaded when an admin saves the Play Dose. */
   videoFile?: File | undefined;
+  /** Where videoFile was stored by an upload that finished before the save. */
+  uploadedVideoUrl?: string | undefined;
   /** The video as the API stores it (a link or an uploaded file's path), to tell if it changed. */
   videoPath?: string | undefined;
   /** True once the activity exists on the server (false for one added in the editor). */

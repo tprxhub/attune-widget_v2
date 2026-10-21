@@ -56,7 +56,7 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   void nav;
 
   // Pages that were not ticked are blocked, ticked pages work, and Excel export downloads.
-  await employee.goto("/admin/children");
+  await employee.goto("/admin/members");
   await expect(
     employee.getByRole("heading", { name: "You don't have access to this page" }),
   ).toBeVisible();
@@ -88,7 +88,7 @@ test("Super Admin adds a TTP employee with chosen access, who then sees only tho
   await expect(card).toContainText("Members");
   await employee.reload();
   await expect(employee.getByRole("link", { name: "Members", exact: true }).first()).toBeVisible();
-  await employee.goto("/admin/children");
+  await employee.goto("/admin/members");
   await expect(employee.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
   await context.close();
 });

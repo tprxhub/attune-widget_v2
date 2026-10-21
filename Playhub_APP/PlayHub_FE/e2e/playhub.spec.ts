@@ -121,7 +121,7 @@ test("Super Admin can operate platform controls and complete staff activation", 
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await expect(page.getByText("Browser Test School")).toBeVisible();
 
-  await page.goto("/admin/children");
+  await page.goto("/admin/members");
   const noah = page.locator("article").filter({ hasText: "Noah" });
   await expect(noah).toBeVisible();
   await noah.getByRole("link", { name: "Check-in" }).click();
@@ -526,7 +526,7 @@ test("every seeded persona can open its permitted screens and privileged screens
       email: "admin@playhub.local",
       screens: [
         ["/admin", "Platform overview"],
-        ["/admin/children", "Members"],
+        ["/admin/members", "Members"],
         ["/check-in", "Daily Check-In"],
         ["/admin/progress", "Progress"],
         ["/admin/audit", "Audit log"],

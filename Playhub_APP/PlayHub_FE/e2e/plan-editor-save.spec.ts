@@ -60,8 +60,11 @@ test("editing every activity and its video saves all of it in one go", async ({ 
     await steps.click();
     await page.keyboard.press("ControlOrMeta+End");
     await steps.pressSequentially(` and more ${index + 1}`);
-    if (index === 0) await edit.getByLabel(/upload a video file/i).setInputFiles(VIDEO);
-    else await edit.getByLabel("Video link").fill(`https://videos.example.com/${index + 1}.mp4`);
+    if (index === 0) {
+      await edit.getByLabel(/upload a video file/i).setInputFiles(VIDEO);
+      // The video starts uploading as soon as it is picked.
+      await expect(edit.getByText("uploaded", { exact: true })).toBeVisible();
+    } else await edit.getByLabel("Video link").fill(`https://videos.example.com/${index + 1}.mp4`);
   }
   const requests: string[] = [];
   page.on("request", (request) => {
@@ -71,11 +74,8 @@ test("editing every activity and its video saves all of it in one go", async ({ 
   });
   await edit.getByRole("button", { name: "Save changes" }).click();
   await expect(edit).toBeHidden();
-  // One save for the dose and every activity, then the one new video file.
-  expect(requests).toEqual([
-    `PUT /api/v1/play-doses/${doseId}/content`,
-    expect.stringMatching(/^POST \/api\/v1\/activities\/[^/]+\/video$/),
-  ]);
+  // The video was already uploaded, so saving is one request for the dose and every activity.
+  expect(requests).toEqual([`PUT /api/v1/play-doses/${doseId}/content`]);
 
   const stored = async () => {
     const catalog = await (
@@ -170,4 +170,31 @@ test("closing with unsaved changes asks first, and a failed save says so", async
   await edit.getByRole("button", { name: "Save changes" }).click();
   await expect(edit.getByRole("alert")).toContainText("Nothing was saved");
   await expect(edit.getByLabel("Activity name")).toHaveValue("Not saved yet");
+});
+
+test("saving waits for a video still uploading, then attaches it", async ({ page }) => {
+  const { section, headers, doseId } = await setUp(page, "Slow upload plan");
+  // Hold the upload until the test lets it go, as a large file on a slow connection would.
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/media/videos", async (route) => {
+    await held;
+    await route.continue();
+  });
+  const edit = await openEditor(page, section);
+  await edit.getByRole("button", { name: "Edit activity" }).first().click();
+  await edit.getByLabel(/upload a video file/i).setInputFiles(VIDEO);
+  await expect(edit.getByText(/uploading \d+%/)).toBeVisible();
+  await edit.getByRole("button", { name: "Save changes" }).click();
+  await expect(edit.getByRole("button", { name: /Uploading videos…/ })).toBeVisible();
+  release();
+  await expect(edit).toBeHidden();
+  const catalog = await (
+    await page.request.get(`${API}/play-plans?include_inactive=true`, { headers })
+  ).json();
+  const dose = catalog
+    .flatMap((plan: { play_doses: unknown[] }) => plan.play_doses)
+    .find((item: { id: string }) => item.id === doseId);
+  expect(dose.activities[0].video_source_type).toBe("upload");
+  expect(dose.activities[0].video_url).toBeTruthy();
 });

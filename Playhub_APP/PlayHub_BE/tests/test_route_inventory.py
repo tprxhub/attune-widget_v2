@@ -92,6 +92,7 @@ EXPECTED_OPERATIONS = {
     ("GET", "/api/v1/children/{child_id}/progress"),
     ("POST", "/api/v1/play-doses/{dose_id}/thumbnail"),
     ("POST", "/api/v1/activities/{activity_id}/video"),
+    ("POST", "/api/v1/media/videos"),
     ("GET", "/api/v1/developer/personas"),
     ("POST", "/api/v1/developer/personas/{persona_id}/switch"),
 }

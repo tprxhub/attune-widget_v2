@@ -1,6 +1,6 @@
 import { IMAGE_DIMENSIONS } from "@/components/ImageDimensionsGuide";
 import { ConfirmButton } from "@/components/ConfirmButton";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -27,6 +27,7 @@ import {
   createPlayPlan,
   saveDoseContent,
   saveOneActivity,
+  startVideoUpload,
   type DoseSaveResult,
   type UploadProblem,
   updatePlayPlanCredit,
@@ -605,6 +606,27 @@ type ApiActivityLike = Pick<ApiActivity, "id" | "video_url">;
 const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const VIDEO_MAX_BYTES = 250 * 1024 * 1024;
 
+/** How far a picked video's upload has got: a percentage, done, or why it failed. */
+function UploadState({
+  fraction,
+  error,
+}: {
+  fraction: number | undefined;
+  error?: string | undefined;
+}) {
+  if (error || fraction === -1)
+    return <span className="text-coral">upload failed ({error}); Save tries again</span>;
+  if (fraction === 1) return <span className="text-blue">uploaded</span>;
+  return <span>uploading {Math.round((fraction ?? 0) * 100)}%</span>;
+}
+
+/** The average upload progress of these files, as a whole percentage. */
+function overallProgress(progress: Map<File, number>, files: File[]) {
+  if (!files.length) return 0;
+  const sum = files.reduce((total, file) => total + Math.max(0, progress.get(file) ?? 0), 0);
+  return Math.round((sum / files.length) * 100);
+}
+
 /** What an activity row looks like, to tell whether it changed since it was last saved. */
 function entrySnapshot(entry: PlanEntry) {
   return JSON.stringify([
@@ -682,6 +704,68 @@ function PlanModal({
     Record<string, { saving?: boolean; saved?: boolean; error?: string }>
   >({});
   const [problems, setProblems] = useState<UploadProblem[]>([]);
+  // Videos upload in the background as soon as they are picked, so saving is quick.
+  const uploads = useRef(
+    new Map<
+      File,
+      { done: Promise<string | undefined>; cancel: () => void; url?: string; error?: string }
+    >(),
+  );
+  const [uploadProgress, setUploadProgress] = useState<Map<File, number>>(() => new Map());
+  const [waitingForUploads, setWaitingForUploads] = useState(false);
+  const setProgress = (file: File, fraction: number) =>
+    setUploadProgress((current) => new Map(current).set(file, fraction));
+  const beginUpload = (file: File) => {
+    const job = startVideoUpload(file, (fraction) => setProgress(file, Math.min(fraction, 0.99)));
+    const record: {
+      done: Promise<string | undefined>;
+      cancel: () => void;
+      url?: string;
+      error?: string;
+    } = {
+      cancel: job.cancel,
+      done: job.done.then(
+        (url) => {
+          record.url = url;
+          setProgress(file, 1);
+          return url;
+        },
+        (reason: unknown) => {
+          record.error = reason instanceof Error ? reason.message : "The upload didn't finish.";
+          setProgress(file, -1);
+          return undefined;
+        },
+      ),
+    };
+    uploads.current.set(file, record);
+    setProgress(file, 0);
+  };
+  const cancelUpload = (file?: File) => {
+    if (!file) return;
+    uploads.current.get(file)?.cancel();
+    uploads.current.delete(file);
+  };
+  // Leaving the editor stops uploads nobody will save.
+  useEffect(() => {
+    const pending = uploads.current;
+    return () => pending.forEach((record) => record.cancel());
+  }, []);
+  const filesIn = (list: PlanEntry[]) =>
+    list.flatMap((e) =>
+      entryActivities(e)
+        .map((a) => a.videoFile)
+        .filter((f): f is File => !!f),
+    );
+  const waitForUploads = async (files: File[]) => {
+    const pending = files.map((file) => uploads.current.get(file)?.done).filter(Boolean);
+    if (!pending.length) return;
+    setWaitingForUploads(true);
+    try {
+      await Promise.all(pending);
+    } finally {
+      setWaitingForUploads(false);
+    }
+  };
   // In a saved Play Dose, an activity not on the server yet always counts as unsaved.
   const isDirty = (entry: PlanEntry) =>
     entryActivities(entry).some((a) => (doseId.current && !a.persisted) || a.videoFile) ||
@@ -769,6 +853,7 @@ function PlanModal({
   const tidyEntry = (e: PlanEntry): PlanEntry => {
     const activities = (e.activities ?? []).map((a) => ({
       ...a,
+      uploadedVideoUrl: a.videoFile ? uploads.current.get(a.videoFile)?.url : undefined,
       name: a.name.trim(),
       // The video is titled after the activity unless someone chose another title earlier.
       videoLabel: a.videoLabel.trim() || a.name.trim(),
@@ -846,6 +931,7 @@ function PlanModal({
         await createPlayPlan({ name: playPlanName, summary: playPlanSummary, createdBy });
         return undefined;
       }
+      await waitForUploads(filesIn(entries));
       const input = buildInput();
       // A dose created by an earlier attempt is reused, so a retry never makes a second one.
       doseId.current ??= await createDose(input);
@@ -876,7 +962,9 @@ function PlanModal({
       return fail("Video links must start with http:// or https://.");
     setEntryStatus((all) => ({ ...all, [entry.id]: { saving: true } }));
     try {
-      const { activity: stored, problem } = await saveOneActivity(id, tidied, first);
+      await waitForUploads(filesIn([entry]));
+      const ready = tidyEntry(entry);
+      const { activity: stored, problem } = await saveOneActivity(id, ready, ready.activities![0]!);
       const activity = savedActivity(first, stored, Boolean(problem));
       const next = {
         ...tidied,
@@ -1329,7 +1417,11 @@ function PlanModal({
                             {first.videoFile.name}
                             <span className="font-normal text-navy/55">
                               {" "}
-                              · uploads when you save
+                              ·{" "}
+                              <UploadState
+                                fraction={uploadProgress.get(first.videoFile)}
+                                error={uploads.current.get(first.videoFile)?.error}
+                              />
                             </span>
                           </span>
                           <ConfirmButton
@@ -1337,12 +1429,13 @@ function PlanModal({
                             confirmationMessage="The selected video will no longer upload when you save."
                             confirmLabel="Remove video"
                             type="button"
-                            onClick={() =>
+                            onClick={() => {
+                              cancelUpload(first.videoFile);
                               patchActivity(entry.id, first.id, {
                                 videoFile: undefined,
                                 videoUrl: "",
-                              })
-                            }
+                              });
+                            }}
                             className="shrink-0 text-xs font-bold text-coral hover:underline"
                           >
                             Remove
@@ -1390,6 +1483,7 @@ function PlanModal({
                                   videoUrl: URL.createObjectURL(file),
                                   videoFile: file,
                                 });
+                                beginUpload(file);
                                 setError("");
                               }}
                               className="text-xs file:mr-2 file:rounded-full file:border-0 file:bg-navy file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"
@@ -1496,11 +1590,13 @@ function PlanModal({
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white disabled:opacity-60"
           >
             {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-            {plan || doseId.current
-              ? "Save changes"
-              : createNewPlayPlan
-                ? "Create Play Plan"
-                : "Create Play Dose"}
+            {waitingForUploads
+              ? `Uploading videos… ${overallProgress(uploadProgress, filesIn(entries))}%`
+              : plan || doseId.current
+                ? "Save changes"
+                : createNewPlayPlan
+                  ? "Create Play Plan"
+                  : "Create Play Dose"}
           </button>
           <button
             type="button"
@@ -1604,7 +1700,7 @@ function DeletePlanModal({
           </p>
           <div className="flex flex-wrap gap-2">
             <Link
-              to="/admin/children"
+              to="/admin/members"
               className="inline-flex min-h-11 items-center rounded-full bg-navy px-5 text-sm font-bold text-white"
             >
               Go to Members

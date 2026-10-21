@@ -10,7 +10,7 @@ const personas: Array<[string, string, string[]]> = [
     "admin@playhub.local",
     [
       "/admin",
-      "/admin/children",
+      "/admin/members",
       "/admin/progress",
       "/admin/audit",
       "/admin/plans",
@@ -31,7 +31,7 @@ const personas: Array<[string, string, string[]]> = [
   [
     "TTP employee",
     "ttp@playhub.local",
-    ["/admin", "/admin/children", "/admin/progress", "/admin/audit", "/org/enroll", "/account"],
+    ["/admin", "/admin/members", "/admin/progress", "/admin/audit", "/org/enroll", "/account"],
   ],
   [
     "School Admin",

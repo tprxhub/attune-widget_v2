@@ -30,6 +30,7 @@ import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminChildrenRouteImport } from './routes/admin.children'
 import { Route as AdminEducatorsRouteImport } from './routes/admin.educators'
 import { Route as AdminHomepageRouteImport } from './routes/admin.homepage'
+import { Route as AdminMembersRouteImport } from './routes/admin.members'
 import { Route as AdminOrgsRouteImport } from './routes/admin.orgs'
 import { Route as AdminPlansRouteImport } from './routes/admin.plans'
 import { Route as AdminPlayPulseRouteImport } from './routes/admin.play-pulse'
@@ -150,6 +151,11 @@ const AdminHomepageRoute = AdminHomepageRouteImport.update({
   path: '/admin/homepage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminMembersRoute = AdminMembersRouteImport.update({
+  id: '/admin/members',
+  path: '/admin/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminOrgsRoute = AdminOrgsRouteImport.update({
   id: '/admin/orgs',
   path: '/admin/orgs',
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
+  '/admin/members': typeof AdminMembersRoute
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/play-pulse': typeof AdminPlayPulseRoute
@@ -279,6 +286,7 @@ export interface FileRoutesByTo {
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
+  '/admin/members': typeof AdminMembersRoute
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/play-pulse': typeof AdminPlayPulseRoute
@@ -317,6 +325,7 @@ export interface FileRoutesById {
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
+  '/admin/members': typeof AdminMembersRoute
   '/admin/orgs': typeof AdminOrgsRoute
   '/admin/plans': typeof AdminPlansRoute
   '/admin/play-pulse': typeof AdminPlayPulseRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/admin/children'
     | '/admin/educators'
     | '/admin/homepage'
+    | '/admin/members'
     | '/admin/orgs'
     | '/admin/plans'
     | '/admin/play-pulse'
@@ -393,6 +403,7 @@ export interface FileRouteTypes {
     | '/admin/children'
     | '/admin/educators'
     | '/admin/homepage'
+    | '/admin/members'
     | '/admin/orgs'
     | '/admin/plans'
     | '/admin/play-pulse'
@@ -430,6 +441,7 @@ export interface FileRouteTypes {
     | '/admin/children'
     | '/admin/educators'
     | '/admin/homepage'
+    | '/admin/members'
     | '/admin/orgs'
     | '/admin/plans'
     | '/admin/play-pulse'
@@ -468,6 +480,7 @@ export interface RootRouteChildren {
   AdminChildrenRoute: typeof AdminChildrenRoute
   AdminEducatorsRoute: typeof AdminEducatorsRoute
   AdminHomepageRoute: typeof AdminHomepageRoute
+  AdminMembersRoute: typeof AdminMembersRoute
   AdminOrgsRoute: typeof AdminOrgsRoute
   AdminPlansRoute: typeof AdminPlansRoute
   AdminPlayPulseRoute: typeof AdminPlayPulseRoute
@@ -634,6 +647,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminHomepageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/members': {
+      id: '/admin/members'
+      path: '/admin/members'
+      fullPath: '/admin/members'
+      preLoaderRoute: typeof AdminMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/orgs': {
       id: '/admin/orgs'
       path: '/admin/orgs'
@@ -756,6 +776,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminChildrenRoute: AdminChildrenRoute,
   AdminEducatorsRoute: AdminEducatorsRoute,
   AdminHomepageRoute: AdminHomepageRoute,
+  AdminMembersRoute: AdminMembersRoute,
   AdminOrgsRoute: AdminOrgsRoute,
   AdminPlansRoute: AdminPlansRoute,
   AdminPlayPulseRoute: AdminPlayPulseRoute,

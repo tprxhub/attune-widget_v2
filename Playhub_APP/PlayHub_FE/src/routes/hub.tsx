@@ -88,7 +88,7 @@ function platformLaunchItems(session: Session): LaunchItem[] {
       {
         label: "Members",
         detail: "Find and manage profiles",
-        to: "/admin/children",
+        to: "/admin/members",
         icon: Users,
         accent: "from-amber-300 to-orange-400",
       },
@@ -383,7 +383,12 @@ function useHubPreferences(personaId: string) {
               card.title === "Dashboard" && card.to === "/org"
                 ? { ...card, to: "/dashboard" }
                 : isLegacyPlatformCard(card)
-                  ? { ...card, id: migrateHubTileId(card.id), title: "Members" }
+                  ? {
+                      ...card,
+                      id: migrateHubTileId(card.id),
+                      title: "Members",
+                      to: "/admin/members",
+                    }
                   : card,
             ),
           );

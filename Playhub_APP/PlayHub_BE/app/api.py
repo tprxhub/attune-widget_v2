@@ -1862,6 +1862,14 @@ def upload_dose_thumbnail(dose_id: str, file: UploadFile = File(...), actor: Use
     return saved
 
 
+@router.post("/media/videos", status_code=201)
+def upload_video(file: UploadFile = File(...), actor: User = Depends(require_permission("plans")), storage: StorageService = Depends(get_storage)):
+    """Store an activity video on its own, so the editor can upload it while someone is still
+    editing; the Play Dose save then points the activity at the returned address."""
+    url = store_upload(file, "videos", storage)
+    return {"video_source_type": VideoSourceType.UPLOAD.value, "video_url": url}
+
+
 @router.post("/activities/{activity_id}/video", response_model=ActivityRead)
 def upload_activity_video(activity_id: str, file: UploadFile = File(...), actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db), storage: StorageService = Depends(get_storage)):
     activity = one_or_404(db, Activity, activity_id)

@@ -56,7 +56,7 @@ const AREAS: { key: OverviewArea; label: string; to: string; icon: LucideIcon; h
   {
     key: "children",
     label: "Members",
-    to: "/admin/children",
+    to: "/admin/members",
     icon: Users,
     hint: "Profiles, plans and Moderators",
   },
@@ -70,7 +70,7 @@ const AREAS: { key: OverviewArea; label: string; to: string; icon: LucideIcon; h
   {
     key: "billing",
     label: "Subscriptions",
-    to: "/admin/children",
+    to: "/admin/members",
     icon: CreditCard,
     hint: "Family plans and revenue",
   },
@@ -592,21 +592,21 @@ function NeedsAttention({ data }: { data: AdminOverview }) {
     items.push({
       label: `${data.children.inactive_14d} ${data.children.inactive_14d === 1 ? "member has" : "members have"} gone quiet`,
       detail: "No session logged in the last 14 days.",
-      to: "/admin/children",
+      to: "/admin/members",
       tone: "amber",
     });
   if (data.children?.without_moderator)
     items.push({
       label: `${data.children.without_moderator} without a Moderator`,
       detail: "Assign someone so sessions keep getting logged.",
-      to: "/admin/children",
+      to: "/admin/members",
       tone: "amber",
     });
   if (data.billing?.ending_14d)
     items.push({
       label: `${data.billing.ending_14d} ${data.billing.ending_14d === 1 ? "subscription ends" : "subscriptions end"} within 14 days`,
       detail: "Families already see a gentle renewal reminder.",
-      to: "/admin/children",
+      to: "/admin/members",
       tone: "amber",
     });
   for (const org of data.organisations?.near_capacity ?? [])
@@ -797,7 +797,7 @@ function ProgressCard({ progress }: { progress: NonNullable<AdminOverview["progr
 
 function ChildrenCard({ children }: { children: NonNullable<AdminOverview["children"]> }) {
   return (
-    <Card eyebrow="Members" title="Engagement" to="/admin/children" linkLabel="Members">
+    <Card eyebrow="Members" title="Engagement" to="/admin/members" linkLabel="Members">
       <div className="grid grid-cols-2 gap-2">
         <Figure label="Family accounts" value={children.individual} />
         <Figure label="Organisations" value={children.organisation} />
@@ -836,7 +836,7 @@ function BillingCard({ billing }: { billing: NonNullable<AdminOverview["billing"
     <Card
       eyebrow="Subscriptions"
       title="Families and revenue"
-      to="/admin/children"
+      to="/admin/members"
       linkLabel="Subscribers"
     >
       <div className="grid grid-cols-2 gap-2">

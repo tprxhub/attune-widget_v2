@@ -71,6 +71,6 @@ test("a TTP employee sees only the areas they were given", async ({ page }) => {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/overview-ttp.png`, fullPage: true });
 
   // Subscriptions access means the Subscription button shows for family children.
-  await page.goto("/admin/children");
+  await page.goto("/admin/members");
   await expect(page.getByRole("button", { name: "Subscription" }).first()).toBeVisible();
 });

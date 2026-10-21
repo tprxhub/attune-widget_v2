@@ -1,6 +1,8 @@
 """Saving a Play Dose and all its activities at once: everything is saved, or nothing is."""
 from datetime import date
 
+from tests.conftest import register_family
+
 API = "/api/v1"
 VIDEO = ("activity.mp4", b"\x00\x00\x00\x18ftypmp42playhub-video", "video/mp4")
 
@@ -112,3 +114,21 @@ def test_a_new_activity_without_a_sequence_goes_last(client, platform_admin):
     dose, activities = dose_with_activities(client, platform_admin, count=2)
     added = client.post(f"{API}/play-doses/{dose['id']}/activities", headers=platform_admin, json={"title": "Appended"})
     assert added.status_code == 201 and added.json()["sequence"] == 2
+
+
+def test_a_video_uploaded_ahead_is_attached_by_the_save(client, platform_admin):
+    dose, (first, second, _third) = dose_with_activities(client, platform_admin)
+    stored = client.post(f"{API}/media/videos", headers=platform_admin, files={"file": VIDEO})
+    assert stored.status_code == 201 and stored.json()["video_source_type"] == "upload"
+    url = stored.json()["video_url"]
+    saved = client.put(f"{API}/play-doses/{dose['id']}/content", headers=platform_admin, json={
+        "activities": [item(first, keep_video=False, video_source_type="upload", video_url=url), item(second), item(_third)],
+    })
+    assert saved.status_code == 200
+    assert saved.json()["activities"][0]["video_url"] == url
+    assert client.get(url).status_code == 200
+
+
+def test_only_plan_editors_can_upload_videos(client):
+    family = register_family(client, "no.uploads@example.com")
+    assert client.post(f"{API}/media/videos", headers=family, files={"file": VIDEO}).status_code == 403

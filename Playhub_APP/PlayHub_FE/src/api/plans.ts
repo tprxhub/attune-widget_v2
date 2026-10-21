@@ -1,6 +1,13 @@
 import type { Goal, Level, PlanActivity, PlanEntry, PlayPlan, Session } from "@/lib/types";
 import { GOALS, PLAY_PLANS, goalById, planById } from "./domain";
-import { apiAssetUrl, apiRequest, type ApiActivity, type ApiDose, type ApiPlan } from "./client";
+import {
+  apiAssetUrl,
+  apiRequest,
+  apiUpload,
+  type ApiActivity,
+  type ApiDose,
+  type ApiPlan,
+} from "./client";
 import { flattenPlans, mapGoal } from "./mappers";
 
 export interface EntryState {
@@ -161,6 +168,10 @@ type ActivityRow = ReturnType<typeof activityRows>[number];
  * replaces it.
  */
 function videoFields(activity: PlanActivity) {
+  // A file already uploaded while editing: the save just points the activity at it.
+  if (activity.uploadedVideoUrl) {
+    return { keep_video: false, video_source_type: "upload", video_url: activity.uploadedVideoUrl };
+  }
   if (activity.videoFile) return { keep_video: true };
   const url = activity.videoUrl?.trim() || undefined;
   if (url === (apiAssetUrl(activity.videoPath) || undefined)) return { keep_video: true };
@@ -237,7 +248,7 @@ async function uploadFiles(
 ) {
   const problems: UploadProblem[] = [];
   for (const [index, row] of rows.entries()) {
-    const file = row.activity.videoFile;
+    const file = row.activity.uploadedVideoUrl ? undefined : row.activity.videoFile;
     const target = saved[index];
     if (!file || !target) continue;
     try {
@@ -289,6 +300,17 @@ export async function saveDoseContent(doseId: string, input: PlanInput): Promise
   };
 }
 
+/**
+ * Start uploading an activity video as soon as it is picked, so it is (usually) stored before
+ * the Play Dose is saved. Resolves with the stored address.
+ */
+export function startVideoUpload(file: File, onProgress: (fraction: number) => void) {
+  const form = new FormData();
+  form.set("file", file);
+  const upload = apiUpload<{ video_url: string }>("/media/videos", form, onProgress);
+  return { done: upload.done.then((stored) => stored.video_url), cancel: upload.cancel };
+}
+
 /** Create an empty Play Dose; its activities are then saved with saveDoseContent. */
 export async function createDose(input: PlanInput): Promise<string> {
   const dose = await apiRequest<ApiDose>(`/play-plans/${input.goalId}/play-doses`, {
@@ -330,7 +352,7 @@ export async function saveOneActivity(
         body: JSON.stringify(body),
       });
   let problem: string | undefined;
-  if (activity.videoFile) {
+  if (activity.videoFile && !activity.uploadedVideoUrl) {
     try {
       saved = await uploadVideo(saved.id, activity.videoFile);
     } catch (error) {

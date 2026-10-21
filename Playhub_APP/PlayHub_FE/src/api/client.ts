@@ -84,6 +84,51 @@ export async function apiRequest<T>(
   return payload as T;
 }
 
+/**
+ * Upload a form (a large file) with progress: fetch can't report upload progress, so this uses
+ * XMLHttpRequest. onProgress receives 0–1 as the bytes go out.
+ */
+export function apiUpload<T>(
+  path: string,
+  form: FormData,
+  onProgress: (fraction: number) => void,
+): { done: Promise<T>; cancel: () => void } {
+  const request = new XMLHttpRequest();
+  const done = new Promise<T>((resolve, reject) => {
+    const token = getAccessToken();
+    if (!token) return reject(new ApiError("Please sign in to continue.", 401));
+    request.open("POST", `${API_ROOT}${path}`);
+    request.setRequestHeader("Authorization", `Bearer ${token}`);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(event.loaded / event.total);
+    };
+    request.onload = () => {
+      let payload: unknown = request.responseText;
+      try {
+        payload = JSON.parse(request.responseText);
+      } catch {
+        // Not JSON: keep the text for the error message.
+      }
+      if (request.status >= 200 && request.status < 300) return resolve(payload as T);
+      if (request.status === 401) {
+        setAccessToken(null);
+        window.dispatchEvent(new Event("playhub:unauthorized"));
+      }
+      reject(
+        new ApiError(
+          errorMessage(payload, `Upload failed (${request.status})`),
+          request.status,
+          payload,
+        ),
+      );
+    };
+    request.onerror = () => reject(new ApiError("Could not reach Play Hub to upload the file.", 0));
+    request.onabort = () => reject(new ApiError("The upload was cancelled.", 0));
+    request.send(form);
+  });
+  return { done, cancel: () => request.abort() };
+}
+
 /** A POST whose response body is read as it arrives (e.g. Attune's streamed answers). */
 export async function apiStream(
   path: string,

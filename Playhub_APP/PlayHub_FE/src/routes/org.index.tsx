@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AddSupporterModal } from "@/features/org/ModeratorInviteModal";
 import { memberEmailLabel } from "@/lib/memberEmail";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +73,7 @@ function OrgChildren() {
   });
   // Which "licences are all used" message is open, if any.
   const [limit, setLimit] = useState<LicenseType | null>(null);
+  const [addingModeratorFor, setAddingModeratorFor] = useState<string | null>(null);
 
   const list = kids.data ?? [];
   const assigned = list.filter((c) => c.supporterId).length;
@@ -163,7 +165,7 @@ function OrgChildren() {
         <>
           <div className="mt-5 flex items-center justify-between gap-3">
             <p className="text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
-              {list.length} member{list.length === 1 ? "" : "ren"}
+              {list.length} member{list.length === 1 ? "" : "s"}
             </p>
             <ViewToggle mode={view} onChange={setView} />
           </div>
@@ -187,7 +189,7 @@ function OrgChildren() {
         <>
           <div className="mt-5 flex items-center justify-between gap-3">
             <p className="text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
-              {list.length} member{list.length === 1 ? "" : "ren"}
+              {list.length} member{list.length === 1 ? "" : "s"}
             </p>
             <ViewToggle mode={view} onChange={setView} />
           </div>
@@ -200,10 +202,18 @@ function OrgChildren() {
                 planTitle={plans.data?.find((p) => p.id === child.currentPlanId)?.title ?? "—"}
                 supporters={supporters.data ?? []}
                 canAssign={session.role === "educator"}
+                onInviteModerator={() => setAddingModeratorFor(child.id)}
               />
             ))}
           </div>
         </>
+      )}
+      {addingModeratorFor && (
+        <AddSupporterModal
+          kids={list}
+          initialChildId={addingModeratorFor}
+          onClose={() => setAddingModeratorFor(null)}
+        />
       )}
     </>
   );
@@ -264,12 +274,14 @@ function ChildCard({
   planTitle,
   supporters,
   canAssign,
+  onInviteModerator,
   index,
 }: {
   child: Child;
   planTitle: string;
   supporters: { id: string; name: string }[];
   canAssign: boolean;
+  onInviteModerator: () => void;
   index: number;
 }) {
   const queryClient = useQueryClient();
@@ -341,6 +353,15 @@ function ChildCard({
               className="mt-1.5 min-h-11 rounded-xl border-2 border-navy/12"
             />
           </label>
+        )}
+        {canAssign && !child.supporterId && (
+          <button
+            type="button"
+            onClick={onInviteModerator}
+            className="mt-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-navy/15 text-xs font-bold hover:border-navy/40"
+          >
+            <UserPlus className="h-3.5 w-3.5" aria-hidden /> Invite Moderator
+          </button>
         )}
 
         <Link

@@ -130,7 +130,7 @@ function EnrolPage() {
         await inviteParent(child.id, parentEmail.trim());
       return child;
     },
-    onSuccess: () => setTimeout(() => navigate({ to: isAdmin ? "/admin/children" : "/org" }), 900),
+    onSuccess: () => setTimeout(() => navigate({ to: isAdmin ? "/admin/members" : "/org" }), 900),
   });
 
   const [limitOpen, setLimitOpen] = useState(false);
