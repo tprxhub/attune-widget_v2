@@ -19,10 +19,11 @@ import {
   X,
   UserPlus,
 } from "lucide-react";
-import { assignSupporter, listChildrenForSession, updateChild } from "@/api/children";
-import { listOrgs, listStaff, listActiveStaff, updateAccountEmail } from "@/api/admin";
+import { listChildrenForSession, setModerators, updateChild } from "@/api/children";
+import { ModeratorPicker } from "@/components/ModeratorPicker";
+import { listOrgs, listStaff, listActiveStaff } from "@/api/admin";
 import { getProgressForChildren } from "@/api/progress";
-import { inviteParent } from "@/api/org";
+import { saveMemberEmail } from "@/api/org";
 import { getAdminReferences, referenceDoses } from "@/api/references";
 import {
   adminActivateSubscription,
@@ -118,6 +119,7 @@ function AdminChildren() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Child | null>(null);
+  const [editingEmail, setEditingEmail] = useState<Child | null>(null);
   const [billing, setBilling] = useState<Child | null>(null);
   const [addingModeratorFor, setAddingModeratorFor] = useState<Child | null>(null);
 
@@ -131,7 +133,7 @@ function AdminChildren() {
   const filtered = list.filter((child) => {
     if (filter === "b2c" && child.accountType !== "b2c") return false;
     if (filter === "b2b" && child.accountType !== "b2b") return false;
-    if (filter === "unassigned" && child.supporterId) return false;
+    if (filter === "unassigned" && child.supporterIds.length) return false;
     if (
       filter === "ending" &&
       (child.accountType !== "b2c" || subscriptionStage(subFor(child.id)).stage !== "ending")
@@ -155,7 +157,7 @@ function AdminChildren() {
       .map((other) => other.id);
     return supporters.filter(
       (s) =>
-        s.id === child.supporterId ||
+        child.supporterIds.includes(s.id) ||
         (child.accountType === "b2b"
           ? Boolean(child.orgId) && s.orgId === child.orgId
           : !s.orgId && familyMemberIds.some((id) => s.childIds?.includes(id))),
@@ -264,8 +266,8 @@ function AdminChildren() {
               <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
                 <ChildProgressIcon childId={child.id} size={48} />
                 <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <h2 className="truncate text-lg leading-tight font-bold">{child.name}</h2>
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <h2 className="text-lg leading-tight font-bold break-words">{child.name}</h2>
                     {progressFor(child.id) && (
                       <StatusBadge status={progressFor(child.id)!.status} size="sm" />
                     )}
@@ -276,9 +278,22 @@ function AdminChildren() {
                       ? (orgName(child.orgId) ?? "Organisation")
                       : "Family account"}
                   </p>
-                  <p className="truncate text-xs text-navy/55" title={memberEmailLabel(child)}>
-                    {memberEmailLabel(child)}
-                  </p>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <p className="truncate text-xs text-navy/55" title={memberEmailLabel(child)}>
+                      {memberEmailLabel(child)}
+                    </p>
+                    {canInvite && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingEmail(child)}
+                        aria-label={`Edit ${child.name}'s email`}
+                        title="Edit email"
+                        className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-blue hover:bg-blue/10"
+                      >
+                        <Pencil className="h-3 w-3" aria-hidden />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -310,23 +325,20 @@ function AdminChildren() {
 
               {child.accountType === "b2c" && <SubscriptionSummary sub={subFor(child.id)} />}
 
-              <label className="mt-3 block">
-                <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-                  <UserCog className="h-3.5 w-3.5" aria-hidden /> Assigned Moderator
-                </span>
-                <Select
-                  value={child.supporterId ?? ""}
-                  onChange={async (nextId) => {
-                    await assignSupporter(child.id, nextId || undefined);
+              <div className="mt-3">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
+                  <UserCog className="h-3.5 w-3.5" aria-hidden /> Assigned Moderators
+                </p>
+                <ModeratorPicker
+                  memberName={child.name}
+                  value={child.supporterIds}
+                  options={moderatorsFor(child)}
+                  onChange={async (ids) => {
+                    await setModerators(child.id, ids);
                     invalidate();
                   }}
-                  options={[
-                    { value: "", label: "Not assigned" },
-                    ...moderatorsFor(child).map((s) => ({ value: s.id, label: s.name })),
-                  ]}
-                  className="mt-1.5 min-h-11 rounded-xl border-2 border-navy/12"
                 />
-              </label>
+              </div>
 
               {/* The card's other actions share one row; Check-in always takes the full width. */}
               <div className="mt-auto flex flex-col gap-2 pt-4">
@@ -350,7 +362,7 @@ function AdminChildren() {
                     </button>
                   )}
                   {/* A school member without a Moderator gets one invited from here. */}
-                  {canInvite && child.accountType === "b2b" && !child.supporterId && (
+                  {canInvite && child.accountType === "b2b" && !child.supporterIds.length && (
                     <button
                       type="button"
                       onClick={() => setAddingModeratorFor(child)}
@@ -373,6 +385,16 @@ function AdminChildren() {
         </div>
       )}
 
+      {editingEmail && (
+        <MemberEmailModal
+          child={editingEmail}
+          onClose={() => setEditingEmail(null)}
+          onSaved={() => {
+            setEditingEmail(null);
+            invalidate();
+          }}
+        />
+      )}
       {editing && (
         <EditChildModal
           child={editing}
@@ -422,6 +444,82 @@ function Stat({ label, value }: { label: string; value: number | string }) {
       <p className="text-[10px] font-bold tracking-[0.14em] text-amber uppercase">{label}</p>
       <p className="mt-1 text-2xl font-bold">{value}</p>
     </div>
+  );
+}
+
+/** Super Admin: change a member's email (their account's sign-in email, or who is invited). */
+function MemberEmailModal({
+  child,
+  onClose,
+  onSaved,
+}: {
+  child: Child;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const linked = Boolean(child.memberUserId && child.parentEmail);
+  const current = child.parentEmail ?? child.invitedEmail ?? "";
+  const [email, setEmail] = useState(current);
+  const [error, setError] = useState("");
+  const save = useMutation({
+    mutationFn: () => saveMemberEmail(child, email.trim()),
+    onSuccess: onSaved,
+  });
+  return (
+    <Shell title="Member email" subtitle={child.name} onClose={onClose}>
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Enter a valid email address.");
+          if (email.trim().toLowerCase() === current.toLowerCase()) return onClose();
+          setError("");
+          save.mutate();
+        }}
+      >
+        <div>
+          <label htmlFor="me-email" className="text-sm font-bold">
+            Email
+          </label>
+          <input
+            id="me-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            className={inputCls}
+          />
+          <p className="mt-1.5 text-xs text-navy/55">
+            {linked
+              ? "This is their sign-in email; they'll log in with the new one."
+              : "We'll send an invitation to this email to link their Member account."}
+          </p>
+        </div>
+        {error && <p className="text-xs font-semibold text-coral">{error}</p>}
+        {save.isError && (
+          <p role="alert" className="text-xs font-semibold text-coral">
+            {save.error.message}
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={save.isPending}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
+          >
+            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+            Save email
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Shell>
   );
 }
 
@@ -508,8 +606,7 @@ function EditChildModal({
       const scopeChanged = orgId !== (child.orgId ?? "");
       const email = memberEmail.trim();
       if (email && emailChanged) {
-        if (linked) await updateAccountEmail(child.memberUserId!, email);
-        else await inviteParent(child.id, email);
+        await saveMemberEmail(child, email);
       }
       return updateChild(child.id, {
         name: name.trim(),

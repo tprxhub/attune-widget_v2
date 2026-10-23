@@ -36,7 +36,7 @@ const NEEDS_ATTENTION: StatusKey[] = ["needs_check_in", "holding_steady"];
 interface Row {
   child: Child;
   report: ProgressReport | undefined;
-  supporter: StaffMember | undefined;
+  supporters: StaffMember[];
 }
 
 export function SchoolDashboard() {
@@ -73,7 +73,9 @@ export function SchoolDashboard() {
         return {
           child,
           report: reports[index]?.data,
-          supporter: supporters.data?.find((member) => member.id === child.supporterId),
+          supporters: (supporters.data ?? []).filter((member) =>
+            child.supporterIds.includes(member.id),
+          ),
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,10 +149,10 @@ export function SchoolDashboard() {
     );
   }
 
-  const withModerator = rows.filter((row) => row.child.supporterId).length;
+  const withModerator = rows.filter((row) => row.child.supporterIds.length).length;
   const sessions = rows.reduce((sum, row) => sum + (row.report?.totalSessions ?? 0), 0);
   const attention = rows.filter((row) => row.report && NEEDS_ATTENTION.includes(row.report.status));
-  const unassigned = rows.filter((row) => !row.child.supporterId);
+  const unassigned = rows.filter((row) => !row.child.supporterIds.length);
 
   const counts = rows.reduce<Record<string, number>>((acc, row) => {
     const key = row.report?.status ?? "no_data";
@@ -340,7 +342,7 @@ function ChildTile({
   index: number;
   onOpen: () => void;
 }) {
-  const { child, report, supporter } = row;
+  const { child, report, supporters } = row;
   const [open, setOpen] = useState(false);
   return (
     <article
@@ -391,7 +393,15 @@ function ChildTile({
             Moderator
           </dt>
           <dd className="mt-1">
-            <ModeratorChip supporter={supporter} />
+            {supporters.length ? (
+              <span className="flex flex-wrap gap-1.5">
+                {supporters.map((member) => (
+                  <ModeratorChip key={member.id} supporter={member} />
+                ))}
+              </span>
+            ) : (
+              <ModeratorChip supporter={undefined} />
+            )}
           </dd>
         </div>
       </dl>

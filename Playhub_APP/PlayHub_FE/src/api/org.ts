@@ -1,4 +1,4 @@
-import type { Org, StaffMember } from "@/lib/types";
+import type { Child, Org, StaffMember } from "@/lib/types";
 import { apiRequest, getApiChildren, type ApiOrganisation, type ApiUser } from "./client";
 import {
   createStaffInvitation,
@@ -86,4 +86,22 @@ export async function toggleSupporterActive(supporterId: string) {
     body: JSON.stringify({ is_active: !current.is_active }),
   });
   return mapStaff(user, children) ?? undefined;
+}
+
+/**
+ * Super Admin: set a member's email. With a Member account linked it changes that account's
+ * sign-in email; otherwise it invites that email to become the member's Member account.
+ */
+export async function saveMemberEmail(
+  child: Pick<Child, "id" | "memberUserId" | "parentEmail">,
+  email: string,
+) {
+  if (child.memberUserId && child.parentEmail) {
+    await apiRequest<ApiUser>(`/users/${child.memberUserId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ email }),
+    });
+    return;
+  }
+  await inviteParent(child.id, email);
 }

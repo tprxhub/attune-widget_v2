@@ -15,7 +15,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { assignSupporter, listChildrenForSession, renameChild } from "@/api/children";
+import { listChildrenForSession, renameChild, setModerators } from "@/api/children";
+import { ModeratorPicker } from "@/components/ModeratorPicker";
 import { getOrg, listSupporters } from "@/api/org";
 import { getProgress } from "@/api/progress";
 import { listPlans } from "@/api/plans";
@@ -76,7 +77,7 @@ function OrgChildren() {
   const [addingModeratorFor, setAddingModeratorFor] = useState<string | null>(null);
 
   const list = kids.data ?? [];
-  const assigned = list.filter((c) => c.supporterId).length;
+  const assigned = list.filter((c) => c.supporterIds.length).length;
 
   return (
     <>
@@ -177,9 +178,14 @@ function OrgChildren() {
                 canRename={session.role === "educator"}
                 planTitle={plans.data?.find((p) => p.id === child.currentPlanId)?.title ?? "—"}
                 supporterName={
-                  child.supporterId === session.userId
-                    ? session.name
-                    : supporters.data?.find((s) => s.id === child.supporterId)?.name
+                  child.supporterIds
+                    .map((id) =>
+                      id === session.userId
+                        ? session.name
+                        : supporters.data?.find((s) => s.id === id)?.name,
+                    )
+                    .filter(Boolean)
+                    .join(", ") || undefined
                 }
               />
             ))}
@@ -246,7 +252,7 @@ function ChildRow({
         {planTitle}
       </span>
       <span className="shrink-0 rounded-full bg-navy/6 px-2.5 py-1 text-[11px] font-bold text-navy/70">
-        {supporterName ?? (child.supporterId ? "Moderator assigned" : "No Moderator")}
+        {supporterName ?? (child.supporterIds.length ? "Moderator assigned" : "No Moderator")}
       </span>
       {report.data && <StatusBadge status={report.data.status} size="sm" />}
       <Link
@@ -290,7 +296,7 @@ function ChildCard({
     queryFn: () => getProgress(child.id),
   });
   const assign = useMutation({
-    mutationFn: (supporterId: string) => assignSupporter(child.id, supporterId || undefined),
+    mutationFn: (moderatorIds: string[]) => setModerators(child.id, moderatorIds),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["children"] }),
   });
 
@@ -339,43 +345,42 @@ function ChildCard({
         </dl>
 
         {canAssign && (
-          <label className="mt-4 block">
-            <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
-              <UserCog className="h-3.5 w-3.5" aria-hidden /> Assigned Moderator
-            </span>
-            <Select
-              value={child.supporterId ?? ""}
-              onChange={(nextId) => assign.mutate(nextId)}
-              options={[
-                { value: "", label: "Not assigned" },
-                ...supporters.map((s) => ({ value: s.id, label: s.name })),
-              ]}
-              className="mt-1.5 min-h-11 rounded-xl border-2 border-navy/12"
+          <div className="mt-4">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-navy/55 uppercase">
+              <UserCog className="h-3.5 w-3.5" aria-hidden /> Assigned Moderators
+            </p>
+            <ModeratorPicker
+              memberName={child.name}
+              value={child.supporterIds}
+              options={supporters}
+              onChange={(ids) => assign.mutate(ids)}
+              disabled={assign.isPending}
             />
-          </label>
+          </div>
         )}
-        {canAssign && !child.supporterId && (
-          <button
-            type="button"
-            onClick={onInviteModerator}
-            className="mt-2 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-navy/15 text-xs font-bold hover:border-navy/40"
+        {/* Pinned to the bottom, so the buttons line up across a row of cards. */}
+        <div className="mt-auto flex flex-col gap-2 pt-4">
+          {canAssign && !child.supporterIds.length && (
+            <button
+              type="button"
+              onClick={onInviteModerator}
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border-2 border-navy/15 text-xs font-bold hover:border-navy/40"
+            >
+              <UserPlus className="h-3.5 w-3.5" aria-hidden /> Invite Moderator
+            </button>
+          )}
+          <Link
+            to="/plans/$planId"
+            params={{ planId: child.currentPlanId }}
+            className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-navy px-5 text-sm font-bold text-cream transition-colors hover:bg-blue"
           >
-            <UserPlus className="h-3.5 w-3.5" aria-hidden /> Invite Moderator
-          </button>
-        )}
-
-        <Link
-          to="/plans/$planId"
-          params={{ planId: child.currentPlanId }}
-          className="mt-auto inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-navy px-5 pt-0 text-sm font-bold text-cream transition-colors hover:bg-blue"
-          style={{ marginTop: "1rem" }}
-        >
-          Open Play Plan{" "}
-          <ArrowUpRight
-            className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-            aria-hidden
-          />
-        </Link>
+            Open Play Plan{" "}
+            <ArrowUpRight
+              className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
+          </Link>
+        </div>
       </div>
     </article>
   );

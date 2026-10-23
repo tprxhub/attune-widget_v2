@@ -167,13 +167,12 @@ def validate_child_values(db: Session, values: dict, child_id: str | None = None
         ):
             raise HTTPException(status_code=422, detail="Assign a published Play Dose")
 
-    assignments = {
-        "owner_id": {Role.ADMIN, Role.MEMBER},
-        "admin_id": {Role.ADMIN},
-        "moderator_id": {Role.MODERATOR},
-    }
-    for field, roles in assignments.items():
-        assignee_id = values.get(field)
+    assignments = [
+        ("owner_id", values.get("owner_id"), {Role.ADMIN, Role.MEMBER}),
+        ("admin_id", values.get("admin_id"), {Role.ADMIN}),
+        *(("moderator_id", moderator_id, {Role.MODERATOR}) for moderator_id in values.get("moderator_ids") or []),
+    ]
+    for field, assignee_id, roles in assignments:
         if not assignee_id:
             continue
         assignee = one_or_404(db, User, assignee_id)
@@ -183,6 +182,19 @@ def validate_child_values(db: Session, values: dict, child_id: str | None = None
             raise HTTPException(status_code=422, detail=f"{field.removesuffix('_id').title()} must belong to the same organisation")
         if scope == AccountScope.INDIVIDUAL and assignee.organisation_id is not None:
             raise HTTPException(status_code=422, detail=f"{field.removesuffix('_id').title()} must belong to the family account")
+
+
+def moderator_ids_from(values: dict) -> list[str] | None:
+    """Take the Moderator fields out of a member payload: the full list, or one id from an older
+    client (None or an empty list clears them). None when neither was sent."""
+    ids = values.pop("moderator_ids", None)
+    single_sent = "moderator_id" in values
+    single = values.pop("moderator_id", None)
+    if ids is not None:
+        return list(dict.fromkeys(ids))
+    if single_sent:
+        return [single] if single else []
+    return None
 
 
 def default_starter_dose(db: Session) -> PlayDose | None:
@@ -621,7 +633,7 @@ def list_users(user: User = Depends(require_permission("team", "children", "orga
             ).all()
             related_ids = {user.id}
             for child in child_rows:
-                related_ids.update(filter(None, (child.owner_id, child.admin_id, child.moderator_id)))
+                related_ids.update(filter(None, (child.owner_id, child.admin_id, *child.moderator_ids)))
             query = query.where(User.id.in_(related_ids))
     return db.scalars(query).all()
 
@@ -643,7 +655,7 @@ def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require
             for child in db.scalars(
                 select(Child).where((Child.owner_id == actor.id) | (Child.admin_id == actor.id))
             ).all():
-                accessible_ids.update(filter(None, (child.owner_id, child.admin_id, child.moderator_id)))
+                accessible_ids.update(filter(None, (child.owner_id, child.admin_id, *child.moderator_ids)))
             if target.id not in accessible_ids:
                 raise HTTPException(status_code=403, detail="You can manage only users linked to your family account")
     if actor.id == target.id and payload.is_active is False:
@@ -908,7 +920,8 @@ def accept_invitation(payload: InvitationAccept, db: Session = Depends(get_db)):
     db.add(user); db.flush()
     if child:
         if invitation.role == Role.MODERATOR:
-            child.moderator_id = user.id
+            if user not in child.moderators:
+                child.moderators.append(user)
         elif invitation.role == Role.MEMBER:
             child.owner_id = user.id
     audit(db, user.id, "invitation.accepted", "invitation", invitation.id)
@@ -1136,7 +1149,7 @@ def _open_play_plan_ids(db: Session, user: User) -> set[str] | None:
     children = db.scalars(
         select(Child)
         .options(selectinload(Child.subscription))
-        .where((Child.owner_id == user.id) | (Child.admin_id == user.id) | (Child.moderator_id == user.id))
+        .where((Child.owner_id == user.id) | (Child.admin_id == user.id) | Child.moderators.any(User.id == user.id))
     ).all()
     if any(child.has_full_access for child in children):
         return None
@@ -1425,12 +1438,12 @@ def delete_activity(activity_id: str, actor: User = Depends(require_roles(Role.S
 @router.get("/children", response_model=list[ChildRead])
 def list_children(_: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user = _
-    query = select(Child).options(selectinload(Child.subscription), selectinload(Child.owner), selectinload(Child.invitations)).order_by(Child.name)
+    query = select(Child).options(selectinload(Child.subscription), selectinload(Child.owner), selectinload(Child.invitations), selectinload(Child.moderators)).order_by(Child.name)
     if not user.can("children", "progress"):
         if user.organisation_id and user.role == Role.ADMIN:
             query = query.where(Child.organisation_id == user.organisation_id)
         else:
-            query = query.where((Child.owner_id == user.id) | (Child.admin_id == user.id) | (Child.moderator_id == user.id))
+            query = query.where((Child.owner_id == user.id) | (Child.admin_id == user.id) | Child.moderators.any(User.id == user.id))
     return db.scalars(query).all()
 
 
@@ -1460,11 +1473,13 @@ def create_child(payload: ChildCreate, user: User = Depends(require_permission("
             data["current_play_dose_id"] = starter.id
             data["plan_started_at"] = data.get("plan_started_at") or date.today()
     data["is_active"] = True
+    data["moderator_ids"] = moderator_ids_from(data) or []
     validate_child_values(db, data)
     data.pop("is_active")
+    moderators = [db.get(User, moderator_id) for moderator_id in data.pop("moderator_ids")]
     return commit_audited(
         db,
-        Child(**data),
+        Child(**data, moderators=moderators),
         actor_id=user.id,
         action="child.created",
         resource_type="child",
@@ -1507,25 +1522,28 @@ def update_child(child_id: str, payload: ChildUpdate, user: User = Depends(requi
     if not user.is_platform and (payload.account_scope is not None or payload.organisation_id is not None):
         raise HTTPException(status_code=403, detail="Only a platform administrator can move a child between account scopes")
     changes = payload.model_dump(exclude_unset=True)
+    moderator_ids = moderator_ids_from(changes)
     proposed = {
         "account_scope": child.account_scope,
         "organisation_id": child.organisation_id,
         "owner_id": child.owner_id,
         "admin_id": child.admin_id,
-        "moderator_id": child.moderator_id,
+        "moderator_ids": child.moderator_ids if moderator_ids is None else moderator_ids,
         "current_play_dose_id": child.current_play_dose_id,
         "is_active": child.is_active,
         **changes,
     }
     validate_child_values(db, proposed, child.id)
     for key, value in changes.items(): setattr(child, key, value)
+    if moderator_ids is not None:
+        child.moderators = [db.get(User, moderator_id) for moderator_id in moderator_ids]
     return commit_audited(
         db,
         child,
         actor_id=user.id,
         action="child.updated",
         resource_type="child",
-        metadata={"fields": sorted(changes)},
+        metadata={"fields": sorted([*changes, *(["moderator_ids"] if moderator_ids is not None else [])])},
     )
 
 

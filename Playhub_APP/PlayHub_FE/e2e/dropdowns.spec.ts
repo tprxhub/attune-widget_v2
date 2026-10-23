@@ -31,11 +31,20 @@ async function fullyVisible(page: Page, name: string) {
 
 test("card dropdown, member switcher and progress filter are not clipped", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
+  // A member with no Moderator, so their card has the "Add a Moderator" dropdown.
+  const apiLogin = await page.request.post("http://127.0.0.1:8765/api/v1/auth/login", {
+    data: { email: "esther@sunrise.local", password: "ChangeMe123!" },
+  });
+  const headers = { Authorization: `Bearer ${(await apiLogin.json()).access_token}` };
+  await page.request.post("http://127.0.0.1:8765/api/v1/children", {
+    headers,
+    data: { name: `Dropdown ${Date.now() % 100000}`, account_scope: "organisation" },
+  });
   await login(page, "esther@sunrise.local", true);
   await page.goto("/org");
-  // Assigned moderator dropdown sits at the bottom of a card.
+  // The add-a-Moderator dropdown sits at the bottom of a card.
   await page
-    .getByRole("button", { name: /Not assigned|Assigned/ })
+    .getByRole("button", { name: /Add (a|another) Moderator for/ })
     .first()
     .click();
   await fullyVisible(page, "assigned-moderator");

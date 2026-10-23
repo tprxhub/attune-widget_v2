@@ -237,7 +237,7 @@ def child(
     item.organisation_id = org.id if org else None
     item.owner_id = owner.id if owner else None
     item.admin_id = admin.id if admin else None
-    item.moderator_id = moderator.id if moderator else None
+    item.moderators = [moderator] if moderator else []
     item.current_play_dose_id = dose.id
     item.plan_started_at = today - timedelta(days=35)
     item.notes = notes

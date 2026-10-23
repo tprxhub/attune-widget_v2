@@ -28,6 +28,7 @@ from app.models import (
     SiteContent,
     Subscription,
     User,
+    child_moderators,
 )
 
 
@@ -104,7 +105,10 @@ def delete_organisation(db: Session, org: Organisation, actor: User) -> tuple[De
     # Super Admin who deleted the organisation becomes their recorded logger.
     db.execute(update(Attempt).where(Attempt.logged_by_id.in_(user_ids)).values(logged_by_id=actor.id))
     db.execute(update(Attempt).where(Attempt.edited_by_id.in_(user_ids)).values(edited_by_id=None))
-    for column in (Child.owner_id, Child.admin_id, Child.moderator_id):
+    db.execute(delete(child_moderators).where(
+        or_(child_moderators.c.user_id.in_(user_ids), child_moderators.c.child_id.in_(child_ids))
+    ))
+    for column in (Child.owner_id, Child.admin_id):
         db.execute(update(Child).where(column.in_(user_ids)).values({column.key: None}))
     db.execute(update(PlayPlan).where(PlayPlan.created_by_id.in_(user_ids)).values(created_by_id=None))
     db.execute(update(PlayDose).where(PlayDose.created_by_id.in_(user_ids)).values(created_by_id=None))

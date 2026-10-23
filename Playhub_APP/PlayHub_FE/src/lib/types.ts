@@ -138,7 +138,10 @@ export interface Child {
   accountType: AccountType;
   orgId?: string | undefined;
   educatorId?: string | undefined;
+  /** The first Moderator (for places that show one). */
   supporterId?: string | undefined;
+  /** Every Moderator supporting this member. */
+  supporterIds: string[];
   parentEmail?: string | undefined;
   /** An email invited to become this member's Member account, not accepted yet. */
   invitedEmail?: string | undefined;

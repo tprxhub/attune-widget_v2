@@ -460,7 +460,7 @@ def progress_context(db: Session, child: Child) -> list[str]:
 
 def play_pulse_context(db: Session, child: Child) -> list[str]:
     """The child's latest Play Pulse, taken by someone who looks after them, matched by first name."""
-    adults = {child.owner_id, child.admin_id, child.moderator_id} - {None}
+    adults = {child.owner_id, child.admin_id, *child.moderator_ids} - {None}
     if not adults:
         return []
     first = child.name.split()[0].lower() if child.name.split() else ""

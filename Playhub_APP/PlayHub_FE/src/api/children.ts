@@ -52,10 +52,11 @@ export async function renameChild(childId: string, name: string) {
   return mapChild(child);
 }
 
-export async function assignSupporter(childId: string, supporterId: string | undefined) {
+/** Set every Moderator supporting a member (an empty list removes them all). */
+export async function setModerators(childId: string, moderatorIds: string[]) {
   const child = await apiRequest<ApiChild>(`/children/${childId}`, {
     method: "PATCH",
-    body: JSON.stringify({ moderator_id: supporterId ?? null }),
+    body: JSON.stringify({ moderator_ids: moderatorIds }),
   });
   return mapChild(child);
 }

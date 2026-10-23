@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, false, func
+from sqlalchemy import Boolean, CheckConstraint, Column, Date, DateTime, Enum, ForeignKey, Integer, JSON, String, Table, Text, UniqueConstraint, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -18,6 +18,15 @@ from app.database import Base
 
 def uuid_str() -> str:
     return str(uuid.uuid4())
+
+
+# A member can have several Moderators, and a Moderator can support several members.
+child_moderators = Table(
+    "child_moderators",
+    Base.metadata,
+    Column("child_id", ForeignKey("children.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True),
+)
 
 
 class Role(str, enum.Enum):
@@ -214,7 +223,7 @@ class User(TimestampMixin, Base):
         return self.role == Role.TTP_EMPLOYEE and any(key in (self.permissions or []) for key in keys)
     owned_children: Mapped[list[Child]] = relationship(foreign_keys="Child.owner_id", back_populates="owner")
     administered_children: Mapped[list[Child]] = relationship(foreign_keys="Child.admin_id", back_populates="admin")
-    moderated_children: Mapped[list[Child]] = relationship(foreign_keys="Child.moderator_id", back_populates="moderator")
+    moderated_children: Mapped[list[Child]] = relationship(secondary=child_moderators, back_populates="moderators")
     logged_attempts: Mapped[list[Attempt]] = relationship(back_populates="logged_by", foreign_keys="Attempt.logged_by_id")
 
 
@@ -327,7 +336,6 @@ class Child(TimestampMixin, Base):
     organisation_id: Mapped[Optional[str]] = mapped_column(ForeignKey("organisations.id", ondelete="SET NULL"), index=True)
     owner_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     admin_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
-    moderator_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     current_play_dose_id: Mapped[Optional[str]] = mapped_column(ForeignKey("play_doses.id", ondelete="SET NULL"), index=True)
     # A free family child opens one Play Plan of their choice; the rest need a subscription.
     free_play_plan_id: Mapped[Optional[str]] = mapped_column(ForeignKey("play_plans.id", ondelete="SET NULL"))
@@ -338,11 +346,22 @@ class Child(TimestampMixin, Base):
     organisation: Mapped[Optional[Organisation]] = relationship(back_populates="children")
     owner: Mapped[Optional[User]] = relationship(foreign_keys=[owner_id], back_populates="owned_children")
     admin: Mapped[Optional[User]] = relationship(foreign_keys=[admin_id], back_populates="administered_children")
-    moderator: Mapped[Optional[User]] = relationship(foreign_keys=[moderator_id], back_populates="moderated_children")
+    moderators: Mapped[list[User]] = relationship(
+        secondary=child_moderators, back_populates="moderated_children", order_by="User.display_name"
+    )
     current_play_dose: Mapped[Optional[PlayDose]] = relationship(back_populates="children")
     attempts: Mapped[list[Attempt]] = relationship(back_populates="child", cascade="all, delete-orphan")
     subscription: Mapped[Optional[Subscription]] = relationship(back_populates="child", cascade="all, delete-orphan", uselist=False)
     invitations: Mapped[list["Invitation"]] = relationship(viewonly=True, order_by="Invitation.created_at")
+
+    @property
+    def moderator_ids(self) -> list[str]:
+        return [moderator.id for moderator in self.moderators]
+
+    @property
+    def moderator_id(self) -> str | None:
+        """The first Moderator, for clients that show only one."""
+        return self.moderators[0].id if self.moderators else None
 
     @property
     def owner_email(self) -> str | None:

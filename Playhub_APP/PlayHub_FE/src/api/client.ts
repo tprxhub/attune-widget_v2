@@ -253,6 +253,7 @@ export interface ApiChild {
   invited_member_email?: string | null;
   admin_id: string | null;
   moderator_id: string | null;
+  moderator_ids?: string[];
   current_play_dose_id: string | null;
   free_play_plan_id?: string | null;
   plan_started_at: string | null;

@@ -88,7 +88,7 @@ function OrgSupporters() {
   const list = supporters.data ?? [];
   const children = kids.data ?? [];
   const activeCount = list.filter((s) => s.active).length;
-  const assignedChildren = children.filter((c) => c.supporterId).length;
+  const assignedChildren = children.filter((c) => c.supporterIds.length).length;
 
   const toggle = useMutation({
     mutationFn: (id: string) => toggleSupporterActive(id),
@@ -302,7 +302,7 @@ function OrgSupporters() {
                 <SupporterCard
                   key={s.id}
                   member={s}
-                  assigned={children.filter((c) => c.supporterId === s.id)}
+                  assigned={children.filter((c) => c.supporterIds.includes(s.id))}
                   onToggle={() => (s.active ? setDisabling(s) : toggle.mutate(s.id))}
                   busy={toggle.isPending && toggle.variables === s.id}
                   onGenerateLink={() => regenerate.mutate(s.id)}
@@ -320,7 +320,7 @@ function OrgSupporters() {
           ) : (
             <ul className="ph-card mt-3 divide-y divide-navy/8 p-0">
               {list.map((s) => {
-                const assigned = children.filter((c) => c.supporterId === s.id);
+                const assigned = children.filter((c) => c.supporterIds.includes(s.id));
                 return (
                   <li key={s.id} className="flex flex-wrap items-center gap-3 p-4 sm:flex-nowrap">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber/25 text-navy">

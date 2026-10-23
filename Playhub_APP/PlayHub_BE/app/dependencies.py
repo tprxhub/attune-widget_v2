@@ -50,8 +50,8 @@ def require_child_access(child: Child, user: User) -> None:
     if user.can("children", "progress"):
         return
     if child.organisation_id and child.organisation_id == user.organisation_id:
-        if user.role == Role.ADMIN or child.moderator_id == user.id or child.owner_id == user.id:
+        if user.role == Role.ADMIN or user.id in child.moderator_ids or child.owner_id == user.id:
             return
-    if child.account_scope.value == "individual" and (child.owner_id == user.id or child.admin_id == user.id or child.moderator_id == user.id):
+    if child.account_scope.value == "individual" and (child.owner_id == user.id or child.admin_id == user.id or user.id in child.moderator_ids):
         return
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot access this child's data")

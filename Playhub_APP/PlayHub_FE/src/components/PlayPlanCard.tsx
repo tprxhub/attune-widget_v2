@@ -115,6 +115,12 @@ export function PlayPlanCard({
 
       <span className="block px-4 pt-6 pb-4">
         <h3 className="text-xl leading-tight font-extrabold text-navy">{plan.title}</h3>
+        <p className="mt-1 truncate text-xs text-navy/55">
+          Created by{" "}
+          <span className="font-bold text-navy/80">
+            {plan.createdBy ?? goal.createdBy ?? "Super Admin"}
+          </span>
+        </p>
         <span className="mt-2 inline-flex items-center gap-2 text-xs font-bold tracking-wide text-navy">
           <LevelDots level={plan.level} showLabel={false} />
           {plan.level}

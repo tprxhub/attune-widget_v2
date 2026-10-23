@@ -205,7 +205,9 @@ def build_overview(db: Session, user: User, scope: str, audit_condition) -> Over
         children = [
             child
             for child in db.scalars(
-                select(Child).options(selectinload(Child.subscription), selectinload(Child.current_play_dose))
+                select(Child).options(
+                    selectinload(Child.subscription), selectinload(Child.current_play_dose), selectinload(Child.moderators)
+                )
             ).all()
             if child.is_active and _in_scope(scope, child.organisation_id, child.id)
         ]
@@ -231,7 +233,7 @@ def build_overview(db: Session, user: User, scope: str, audit_condition) -> Over
             active_14d=sum(last_logged.get(c.id, date.min) >= cutoff for c in children),
             inactive_14d=sum(c.id in last_logged and last_logged[c.id] < cutoff for c in children),
             never_logged=sum(c.id not in last_logged for c in children),
-            without_moderator=sum(c.moderator_id is None for c in children),
+            without_moderator=sum(not c.moderators for c in children),
         )
 
     if access.progress:
@@ -298,7 +300,7 @@ def build_overview(db: Session, user: User, scope: str, audit_condition) -> Over
             i for i in db.scalars(select(Invitation).where(Invitation.status == InvitationStatus.PENDING)).all()
             if i.role in (Role.ADMIN, Role.MODERATOR) and i.organisation_id and _in_scope(scope, i.organisation_id)
         ]
-        load = Counter(c.moderator_id for c in children if c.moderator_id and c.organisation_id)
+        load = Counter(m.id for c in children if c.organisation_id for m in c.moderators)
         names = {u.id: u.display_name for u in staff}
         overview.team = TeamSection(
             admins=sum(u.role == Role.ADMIN for u in staff),

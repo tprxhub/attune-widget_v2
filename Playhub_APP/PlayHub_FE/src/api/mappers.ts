@@ -82,6 +82,7 @@ export function mapChild(child: ApiChild): Child {
     orgId: child.organisation_id ?? undefined,
     educatorId: child.admin_id ?? undefined,
     supporterId: child.moderator_id ?? undefined,
+    supporterIds: child.moderator_ids ?? (child.moderator_id ? [child.moderator_id] : []),
     currentPlanId: child.current_play_dose_id ?? "",
     freePlanGoalId: child.free_play_plan_id ?? undefined,
     planStartedAt: child.plan_started_at ?? new Date().toISOString().slice(0, 10),
@@ -237,7 +238,9 @@ export function mapStaff(user: ApiUser, children: ApiChild[]): StaffMember | nul
   if (user.role !== "admin" && user.role !== "moderator") return null;
   const role = user.role === "admin" ? "educator" : "supporter";
   const assignedChildren = children.filter((child) =>
-    role === "educator" ? child.admin_id === user.id : child.moderator_id === user.id,
+    role === "educator"
+      ? child.admin_id === user.id
+      : (child.moderator_ids ?? [child.moderator_id]).includes(user.id),
   );
   return {
     id: user.id,

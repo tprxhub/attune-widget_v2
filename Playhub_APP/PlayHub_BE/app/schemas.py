@@ -517,7 +517,9 @@ class ChildCreate(APIModel):
     organisation_id: str | None = None
     owner_id: str | None = None
     admin_id: str | None = None
+    # One Moderator (older clients) or the full list; moderator_ids wins when both are sent.
     moderator_id: str | None = None
+    moderator_ids: list[str] | None = Field(default=None, max_length=50)
     current_play_dose_id: str | None = None
     plan_started_at: date | None = None
     notes: str | None = None
@@ -537,6 +539,7 @@ class ChildUpdate(APIModel):
     owner_id: str | None = None
     admin_id: str | None = None
     moderator_id: str | None = None
+    moderator_ids: list[str] | None = Field(default=None, max_length=50)
     current_play_dose_id: str | None = None
     plan_started_at: date | None = None
     notes: str | None = None
@@ -584,7 +587,9 @@ class ChildRead(APIModel):
     # A Member invited by email who hasn't accepted yet.
     invited_member_email: str | None = None
     admin_id: str | None
+    # The first Moderator, and all of them.
     moderator_id: str | None
+    moderator_ids: list[str] = Field(default_factory=list)
     current_play_dose_id: str | None
     free_play_plan_id: str | None = None
     plan_started_at: date | None

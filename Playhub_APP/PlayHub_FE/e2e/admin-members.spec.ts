@@ -4,12 +4,24 @@ import { signIn } from "./support/signIn";
 const card = (page: Page, name: string) =>
   page.locator("article").filter({ has: page.getByRole("heading", { name, exact: true }) });
 
+/** The Moderators a member has, plus the ones their card offers to add. */
 async function moderatorOptions(page: Page, name: string) {
   const member = card(page, name);
-  await member.locator('button[aria-haspopup="listbox"]').click();
-  const options = await page.getByRole("option").allInnerTexts();
-  await page.keyboard.press("Escape");
-  return options.map((option) => option.trim());
+  const assigned = await member
+    .getByRole("list", { name: `${name}'s Moderators` })
+    .getByRole("listitem")
+    .allInnerTexts()
+    .catch(() => []);
+  let addable: string[] = [];
+  const add = member.getByRole("button", { name: /Add (a|another) Moderator for/ });
+  if (await add.count()) {
+    await add.click();
+    addable = (await page.getByRole("option").allInnerTexts()).filter(
+      (o) => !/Add (a|another) Moderator/.test(o),
+    );
+    await page.keyboard.press("Escape");
+  }
+  return [...assigned, ...addable].map((option) => option.trim());
 }
 
 test("a member's Moderator list only offers Moderators from their organisation or family", async ({
@@ -120,4 +132,80 @@ test("the old Members address still opens the page", async ({ page }) => {
   await signIn(page, "admin@playhub.local");
   await page.goto("/admin/children");
   await expect(page).toHaveURL(/\/admin\/members$/);
+});
+
+test("the Super Admin edits a member's email from their card", async ({ page }) => {
+  await signIn(page, "admin@playhub.local");
+  await page.goto("/admin/members");
+  // A linked member: this changes their sign-in email.
+  const amira = card(page, "Amira");
+  await amira.getByRole("button", { name: "Edit Amira's email" }).click();
+  let dialog = page.getByRole("dialog", { name: "Member email" });
+  await expect(dialog.getByLabel("Email")).toHaveValue("hana@sunrise.local");
+  await expect(dialog).toContainText("sign-in email");
+  const changed = page.waitForRequest((r) => r.method() === "PATCH" && /\/users\//.test(r.url()));
+  await dialog.getByLabel("Email").fill("hana.omar@sunrise.local");
+  await dialog.getByRole("button", { name: "Save email" }).click();
+  expect((await changed).postDataJSON()).toEqual({ email: "hana.omar@sunrise.local" });
+  await expect(dialog).toBeHidden();
+  await expect(amira).toContainText("hana.omar@sunrise.local");
+  // Put it back for other tests.
+  await amira.getByRole("button", { name: "Edit Amira's email" }).click();
+  dialog = page.getByRole("dialog", { name: "Member email" });
+  await dialog.getByLabel("Email").fill("hana@sunrise.local");
+  await dialog.getByRole("button", { name: "Save email" }).click();
+  await expect(dialog).toBeHidden();
+
+  // An email already used by another account is refused with a message.
+  await amira.getByRole("button", { name: "Edit Amira's email" }).click();
+  dialog = page.getByRole("dialog", { name: "Member email" });
+  await dialog.getByLabel("Email").fill("esther@sunrise.local");
+  await dialog.getByRole("button", { name: "Save email" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("already belongs to an account");
+});
+
+test("a member can have several Moderators, added and removed from their card", async ({
+  page,
+}) => {
+  const name = await memberWithoutModerator(page);
+  // A second Sunrise Moderator who has accepted their invitation.
+  const login = await page.request.post(`${API}/auth/login`, {
+    data: { email: "admin@playhub.local", password: "ChangeMe123!" },
+  });
+  const headers = { Authorization: `Bearer ${(await login.json()).access_token}` };
+  const orgs = await (await page.request.get(`${API}/organisations`, { headers })).json();
+  const sunrise = orgs.find((org: { name: string }) => org.name.startsWith("Sunrise"));
+  const invited = await (
+    await page.request.post(`${API}/invitations`, {
+      headers,
+      data: {
+        email: `second.mod.${Date.now()}@example.com`,
+        display_name: "Second Moderator",
+        role: "moderator",
+        account_scope: "organisation",
+        organisation_id: sunrise.id,
+      },
+    })
+  ).json();
+  await page.request.post(`${API}/invitations/accept`, {
+    data: { token: invited.acceptance_token, password: "A-secure-password" },
+  });
+
+  await signIn(page, "esther@sunrise.local");
+  await page.goto("/org");
+  const member = card(page, name);
+  const chips = member.getByRole("list", { name: `${name}'s Moderators` });
+  for (const moderator of ["Priya Raman", "Second Moderator"]) {
+    await member.getByRole("button", { name: /Add (a|another) Moderator for/ }).click();
+    await page.getByRole("option", { name: moderator }).click();
+    await expect(chips).toContainText(moderator);
+  }
+  await expect(chips.getByRole("listitem")).toHaveCount(2);
+  await member.getByRole("button", { name: "Remove Priya Raman" }).click();
+  await expect(chips.getByRole("listitem")).toHaveCount(1);
+  await expect(chips).toContainText("Second Moderator");
+  await page.reload();
+  await expect(card(page, name).getByRole("list", { name: `${name}'s Moderators` })).toContainText(
+    "Second Moderator",
+  );
 });
