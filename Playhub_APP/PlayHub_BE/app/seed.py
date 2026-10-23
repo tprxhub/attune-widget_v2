@@ -1,4 +1,10 @@
-"""Idempotent development demo data. Run with ``python -m app.seed``."""
+"""Starting content and development demo data. Run with ``python -m app.seed``.
+
+The seed runs on every deploy against the live database, so it only ever adds what is missing:
+a record that already exists is never changed or deleted. Edits made in the app (plan text,
+activities, members, Moderators) must survive a deploy. Changes to existing content belong in
+an Alembic migration, not here.
+"""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
@@ -37,21 +43,22 @@ DEMO_PASSWORD = "ChangeMe123!"
 
 def organisation(db, *, name: str, kind: str, licenses: int, cycle: str) -> Organisation:
     item = db.scalar(select(Organisation).where(Organisation.name == name))
-    if not item:
-        item = Organisation(name=name)
-        db.add(item)
-        db.flush()
-    item.kind = kind
-    item.seat_limit = licenses
-    item.billing_cycle = cycle
-    item.is_active = True
-    # Demo prices and dates, set once so recorded renewals survive a re-seed.
-    # Prices are per licence per month (AED 9). Older demo data stored AED 99 as a yearly price.
-    if not item.license_price or item.license_price == 9900:
-        item.license_price = 900
-    if not item.billing_started_on:
-        item.billing_started_on = date.today().replace(day=1)
-        item.renews_on = add_cycle(item.billing_started_on, cycle)
+    if item:
+        return item
+    started = date.today().replace(day=1)
+    # Prices are per licence per month (AED 9).
+    item = Organisation(
+        name=name,
+        kind=kind,
+        seat_limit=licenses,
+        billing_cycle=cycle,
+        is_active=True,
+        license_price=900,
+        billing_started_on=started,
+        renews_on=add_cycle(started, cycle),
+    )
+    db.add(item)
+    db.flush()
     return item
 
 
@@ -65,22 +72,19 @@ def user(
     org: Organisation | None = None,
 ) -> User:
     item = db.scalar(select(User).where(User.email == email))
-    if not item:
-        item = User(
-            email=email,
-            display_name=name,
-            password_hash=hash_password(DEMO_PASSWORD),
-            role=role,
-            account_scope=scope,
-            organisation_id=org.id if org else None,
-        )
-        db.add(item)
-        db.flush()
-    item.display_name = name
-    item.role = role
-    item.account_scope = scope
-    item.organisation_id = org.id if org else None
-    item.is_active = True
+    if item:
+        return item
+    item = User(
+        email=email,
+        display_name=name,
+        password_hash=hash_password(DEMO_PASSWORD),
+        role=role,
+        account_scope=scope,
+        organisation_id=org.id if org else None,
+        is_active=True,
+    )
+    db.add(item)
+    db.flush()
     return item
 
 
@@ -134,79 +138,72 @@ PLAN_SPECS = [
 PLAN_SPECS = SMART_CATALOG
 
 
-def seed_plans(db) -> dict[tuple[str, PlanLevel], tuple[PlayPlan, PlayDose, Activity]]:
-    result: dict[tuple[str, PlanLevel], tuple[PlayPlan, PlayDose, Activity]] = {}
+def seed_plans(db) -> dict[tuple[str, PlanLevel], tuple[PlayPlan, PlayDose, Activity | None]]:
+    """Add any catalogue plan that is missing, with its doses and activities.
+
+    A plan that already exists is left exactly as it is, including doses or activities the
+    Super Admin edited, added or deleted in the Plans library.
+    """
+    result: dict[tuple[str, PlanLevel], tuple[PlayPlan, PlayDose, Activity | None]] = {}
     for plan_order, spec in enumerate(PLAN_SPECS):
         plan = db.scalar(select(PlayPlan).where(PlayPlan.slug == spec["slug"]))
-        if not plan:
-            plan = PlayPlan(name=spec["name"], slug=spec["slug"])
-            db.add(plan)
-            db.flush()
-        plan.name = spec["name"]
-        plan.description = spec["description"]
-        plan.short_description = spec["description"]
-        plan.icon = spec["icon"]
-        plan.colour = spec["colour"]
-        plan.is_active = True
+        if plan:
+            for dose in db.scalars(select(PlayDose).where(PlayDose.play_plan_id == plan.id)):
+                first = db.scalar(
+                    select(Activity).where(Activity.play_dose_id == dose.id).order_by(Activity.sequence).limit(1)
+                )
+                result.setdefault((spec["slug"], dose.level), (plan, dose, first))
+            continue
 
+        plan = PlayPlan(
+            name=spec["name"],
+            slug=spec["slug"],
+            description=spec["description"],
+            short_description=spec["description"],
+            icon=spec["icon"],
+            colour=spec["colour"],
+            is_active=True,
+        )
+        db.add(plan)
+        db.flush()
         for dose_order, level in enumerate((PlanLevel.ROOKIE, PlanLevel.STARTER, PlanLevel.PRO)):
             level_spec = spec["levels"][level.value]
-            title = spec["goal_title"]
-            summary = level_spec["goal"]
-            age = "Ages 4–6"
-            dose = db.scalar(
-                select(PlayDose).where(PlayDose.play_plan_id == plan.id, PlayDose.level == level)
+            dose = PlayDose(
+                play_plan_id=plan.id,
+                level=level,
+                title=spec["goal_title"],
+                summary=level_spec["goal"],
+                age_guidance="Ages 4–6",
+                safety_note=level_spec.get("safety"),
+                sort_order=plan_order * 10 + dose_order,
+                is_active=True,
             )
-            if not dose:
-                dose = PlayDose(play_plan_id=plan.id, level=level, title=title)
-                db.add(dose)
-                db.flush()
-            dose.title = title
-            dose.summary = summary
-            dose.age_guidance = age
-            dose.safety_note = level_spec.get("safety")
-            dose.sort_order = plan_order * 10 + dose_order
-            dose.is_active = True
-
-            for stale_activity in list(dose.activities):
-                if stale_activity.sequence not in range(1, 7):
-                    db.delete(stale_activity)
+            db.add(dose)
+            db.flush()
 
             activity_specs = [
-                (day, day, ActivityKind.ACTIVITY, activity_title, True,
-                 ["Follow the activity card and video.", "Keep the session playful and short."], False)
+                (day, activity_title, ["Follow the activity card and video.", "Keep the session playful and short."], False)
                 for day, activity_title in enumerate(level_spec["kit"], start=1)
             ]
-            activity_specs.append(
-                (6, 6, ActivityKind.ACTIVITY, level_spec["try"], True,
-                 level_spec["steps"], True)
-            )
-            loggable_activity = None
-            for sequence, day, kind, activity_title, loggable, instructions, is_real_life_try in activity_specs:
-                activity = db.scalar(
-                    select(Activity).where(
-                        Activity.play_dose_id == dose.id,
-                        Activity.sequence == sequence,
-                    )
+            activity_specs.append((6, level_spec["try"], level_spec["steps"], True))
+            first_activity = None
+            for sequence, activity_title, instructions, is_real_life_try in activity_specs:
+                activity = Activity(
+                    play_dose_id=dose.id,
+                    sequence=sequence,
+                    day=sequence,
+                    kind=ActivityKind.ACTIVITY,
+                    title=activity_title,
+                    instructions=instructions,
+                    duration_minutes=10,
+                    is_loggable=True,
+                    is_real_life_try=is_real_life_try,
                 )
-                if not activity:
-                    activity = Activity(
-                        play_dose_id=dose.id,
-                        sequence=sequence,
-                        title=activity_title,
-                    )
-                    db.add(activity)
-                    db.flush()
-                activity.day = day
-                activity.kind = kind
-                activity.title = activity_title
-                activity.instructions = instructions
-                activity.duration_minutes = 5 if not loggable else 10
-                activity.is_loggable = loggable
-                activity.is_real_life_try = is_real_life_try
+                db.add(activity)
+                db.flush()
                 if sequence == 1:
-                    loggable_activity = activity
-            result[(spec["slug"], level)] = (plan, dose, loggable_activity)
+                    first_activity = activity
+            result[(spec["slug"], level)] = (plan, dose, first_activity)
     return result
 
 
@@ -227,21 +224,25 @@ def child(
     query = select(Child).where(Child.name == name, Child.account_scope == scope)
     query = query.where(Child.organisation_id == org.id) if org else query.where(Child.organisation_id.is_(None))
     item = db.scalar(query)
-    if not item:
-        item = Child(name=name, account_scope=scope)
-        db.add(item)
-        db.flush()
+    if item:
+        return item
     today = date.today()
-    item.date_of_birth = date(today.year - age, 6, 15)
-    item.colour_token = colour
-    item.organisation_id = org.id if org else None
-    item.owner_id = owner.id if owner else None
-    item.admin_id = admin.id if admin else None
-    item.moderators = [moderator] if moderator else []
-    item.current_play_dose_id = dose.id
-    item.plan_started_at = today - timedelta(days=35)
-    item.notes = notes
-    item.is_active = True
+    item = Child(
+        name=name,
+        account_scope=scope,
+        date_of_birth=date(today.year - age, 6, 15),
+        colour_token=colour,
+        organisation_id=org.id if org else None,
+        owner_id=owner.id if owner else None,
+        admin_id=admin.id if admin else None,
+        moderators=[moderator] if moderator else [],
+        current_play_dose_id=dose.id,
+        plan_started_at=today - timedelta(days=35),
+        notes=notes,
+        is_active=True,
+    )
+    db.add(item)
+    db.flush()
     return item
 
 
@@ -253,10 +254,10 @@ def subscription(
     plan_name: str,
     months: int | None = None,
 ) -> None:
-    item = db.scalar(select(Subscription).where(Subscription.child_id == member.id))
-    if not item:
-        item = Subscription(child_id=member.id)
-        db.add(item)
+    if db.scalar(select(Subscription).where(Subscription.child_id == member.id)):
+        return
+    item = Subscription(child_id=member.id)
+    db.add(item)
     item.status = status
     item.plan_name = plan_name
     item.started_on = date.today() - timedelta(days=30) if status == SubscriptionStatus.ACTIVE else None
@@ -292,8 +293,8 @@ def journey(db, *, member: Child, catalog, plan_slug: str, logger: User, doses: 
             activity.sequence: activity
             for activity in db.scalars(select(Activity).where(Activity.play_dose_id == dose.id))
         }
-        steps = [(activities[day], score) for day, score in enumerate(days, start=1)]
-        if try_score != "skip":
+        steps = [(activities[day], score) for day, score in enumerate(days, start=1) if day in activities]
+        if try_score != "skip" and 6 in activities:
             steps.append((activities[6], try_score))
         for position, (activity, score) in enumerate(steps):
             finished = score is not None
@@ -351,6 +352,19 @@ def seed() -> None:
         free_admin = user(db, email="free.parent@playhub.local", name="Leila Haddad", role=Role.ADMIN, scope=AccountScope.INDIVIDUAL)
 
         catalog = seed_plans(db)
+        demo_doses = [
+            ("pinch-grip-development", PlanLevel.STARTER),
+            ("pinch-grip-development", PlanLevel.ROOKIE),
+            ("bilateral-coordination", PlanLevel.STARTER),
+            ("bilateral-coordination", PlanLevel.PRO),
+            ("visual-motor-integration", PlanLevel.STARTER),
+            ("visual-motor-integration", PlanLevel.PRO),
+        ]
+        if any(key not in catalog for key in demo_doses):
+            # A dose the demo members use was removed in the Plans library; leave everything as is.
+            db.commit()
+            print("Demo members skipped: a Play Dose they use no longer exists.")
+            return
         pinch_starter = catalog[("pinch-grip-development", PlanLevel.STARTER)]
         pinch_rookie = catalog[("pinch-grip-development", PlanLevel.ROOKIE)]
         bilateral_starter = catalog[("bilateral-coordination", PlanLevel.STARTER)]
