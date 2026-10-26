@@ -38,7 +38,8 @@ run_once python -m alembic upgrade head
 echo "== seed (adds missing content only)"
 run_once python -m app.seed
 
-if docker ps --format '{{.Names}}' | grep -qx playhub_be_a; then
+running="$(docker ps --format '{{.Names}}')"
+if grep -qx playhub_be_a <<<"$running"; then
   OLD=playhub_be_a; NEW=playhub_be_b; PORT=8001
 else
   OLD=playhub_be_b; NEW=playhub_be_a; PORT=8000
@@ -63,7 +64,7 @@ fi
 
 # Caddy's health check (every 3s) must see the new slot before the old one goes away.
 sleep 8
-if docker ps -a --format '{{.Names}}' | grep -qx "$OLD"; then
+if grep -qx "$OLD" <<<"$(docker ps -a --format '{{.Names}}')"; then
   echo "== stop $OLD"
   docker stop -t 25 "$OLD" >/dev/null && docker rm "$OLD" >/dev/null
 fi
@@ -85,9 +86,11 @@ echo "$VERSION" > "$ROOT/CURRENT"
 echo "$(date -u +%FT%TZ) $VERSION" >> "$ROOT/releases.log"
 
 # Keep the last few releases and images for a quick rollback; remove older ones.
-ls -1t "$ROOT/releases" | tail -n +$((KEEP + 1)) | while read -r old; do rm -rf "${ROOT:?}/releases/$old"; done
-docker images playhub-be --format '{{.Tag}}' | grep -vx "$VERSION" | tail -n +$KEEP \
-  | while read -r tag; do docker rmi "playhub-be:$tag" >/dev/null 2>&1 || true; done
+# (Cleanup never fails the release: an empty list makes grep exit 1, which pipefail would turn
+# into an error.)
+{ ls -1t "$ROOT/releases" | tail -n +$((KEEP + 1)) | while read -r old; do rm -rf "${ROOT:?}/releases/$old"; done; } || true
+{ docker images playhub-be --format '{{.Tag}}' | grep -vx "$VERSION" | tail -n +$KEEP \
+  | while read -r tag; do docker rmi "playhub-be:$tag" >/dev/null 2>&1 || true; done; } || true
 docker image prune -f >/dev/null 2>&1 || true
 
 echo "RELEASED $VERSION on $NEW"
