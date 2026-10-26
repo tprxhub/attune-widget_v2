@@ -172,3 +172,31 @@ IAM role. The API role needs `s3:ListBucket` on the bucket (for readiness) and `
 `s3:DeleteObject` on the configured prefix. CloudFront, not the API role, should receive read access.
 Uploaded files are size-limited, extension/MIME/signature checked, encrypted server-side, served with
 immutable cache metadata, and removed when they are replaced or their owning record is deleted.
+
+## Releasing to production
+
+The API runs on one long-lived EC2 server (Docker, behind Caddy). A release replaces the running
+container in place without downtime:
+
+```bash
+Playhub_APP/PlayHub_BE/scripts/deploy.sh            # release the committed HEAD
+Playhub_APP/PlayHub_BE/scripts/deploy.sh <commit>   # release (or roll back to) a given commit
+Playhub_APP/PlayHub_BE/scripts/deploy.sh --refresh-env   # also reload .env from the deploy bucket
+```
+
+It needs the SSH key `~/.ssh/playhub-backend-key.pem`, the `playhub` AWS CLI profile, and your IP
+allowed on port 22 of the backend security group (SSH is open to named admin IPs only; the script
+checks and prints the command to add yours). Only committed code is released.
+
+On the server, `scripts/server-release.sh` builds the image, runs `alembic upgrade head` and the
+seed, starts the new version in the free slot (`playhub_be_a` on 8000 / `playhub_be_b` on 8001),
+waits for `/ready`, then stops the old one. Caddy (`scripts/Caddyfile`) routes to whichever slot is
+healthy and retries requests that hit a stopping one. The last three releases are kept in
+`/opt/playhub/releases`; `/opt/playhub/CURRENT` and `releases.log` show what is live.
+
+Rules that keep releases safe:
+
+- Migrations run while the old version is still serving, so they must work with it (add columns;
+  drop them in a later release).
+- The seed only adds missing content and never changes existing records. Changes to existing data
+  go in an Alembic data migration.
