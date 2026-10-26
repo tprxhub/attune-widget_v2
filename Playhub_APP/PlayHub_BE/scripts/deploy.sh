@@ -30,23 +30,25 @@ VERSION="$(git -C "$REPO" rev-parse --short "$REF")"
 [ -f "$KEY" ] || { echo "SSH key not found: $KEY"; exit 1; }
 
 MYIP="$(curl -s https://checkip.amazonaws.com)"
-if ! aws "${AWS_ARGS[@]}" ec2 describe-security-groups --group-ids "$SG" \
-    --query "SecurityGroups[0].IpPermissions[?FromPort==\`22\`].IpRanges[].CidrIp" --output text | grep -qw "$MYIP/32"; then
+ALLOWED="$(aws "${AWS_ARGS[@]}" ec2 describe-security-groups --group-ids "$SG" \
+    --query "SecurityGroups[0].IpPermissions[?FromPort==\`22\`].IpRanges[].CidrIp" --output text)"
+if ! grep -qw "$MYIP/32" <<<"$ALLOWED"; then
   echo "Your IP $MYIP is not allowed on port 22. Allow it with:"
   echo "  aws ${AWS_ARGS[*]} ec2 authorize-security-group-ingress --group-id $SG --ip-permissions 'IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$MYIP/32,Description=playhub-deploy}]'"
   echo "(and revoke the old address with revoke-security-group-ingress)"
   exit 1
 fi
 
-if [ -n "$(git -C "$REPO" status --porcelain -- Playhub_APP/PlayHub_BE)" ] && [ "$REF" = HEAD ]; then
+if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no -- Playhub_APP/PlayHub_BE)" ] && [ "$REF" = HEAD ]; then
   echo "note: uncommitted backend changes are NOT deployed; only commit $VERSION is."
 fi
 
 BUNDLE="$(mktemp -t playhub-be).tgz"
 trap 'rm -f "$BUNDLE"' EXIT
 git -C "$REPO" archive --format=tar.gz -o "$BUNDLE" "$REF:Playhub_APP/PlayHub_BE"
+REMOTE="/tmp/playhub-$VERSION-$(date +%s).tgz"
 echo "== copy $VERSION ($(du -h "$BUNDLE" | cut -f1))"
-scp -q -i "$KEY" -o StrictHostKeyChecking=accept-new "$BUNDLE" "ec2-user@$HOST:/tmp/playhub-$VERSION.tgz"
+scp -q -i "$KEY" -o StrictHostKeyChecking=accept-new "$BUNDLE" "ec2-user@$HOST:$REMOTE"
 
 if [ -n "$REFRESH_ENV" ]; then
   echo "== refresh .env from s3://$BUCKET/deploy/.env"
@@ -55,7 +57,7 @@ if [ -n "$REFRESH_ENV" ]; then
 fi
 
 echo "== release on server"
-"${SSH[@]}" "sudo tar xzf /tmp/playhub-$VERSION.tgz -O scripts/server-release.sh > /tmp/server-release.sh && sudo bash /tmp/server-release.sh $VERSION /tmp/playhub-$VERSION.tgz && rm -f /tmp/playhub-$VERSION.tgz"
+"${SSH[@]}" "tar xzf $REMOTE -O scripts/server-release.sh > $REMOTE.sh && sudo bash $REMOTE.sh $VERSION $REMOTE; status=\$?; rm -f $REMOTE $REMOTE.sh; exit \$status"
 
 echo "== check https://$HOST/ready"
 for _ in $(seq 1 15); do
