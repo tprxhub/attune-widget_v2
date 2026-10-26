@@ -1,0 +1,18 @@
+{
+	email ak6260168744@gmail.com
+}
+
+{$PLAYHUB_HOST} {
+	encode gzip
+	# Two API slots take turns during a release (see server-release.sh). Traffic goes to 8000
+	# when it is healthy, otherwise 8001; a request that hits a stopping slot is retried.
+	reverse_proxy 127.0.0.1:8000 127.0.0.1:8001 {
+		lb_policy first
+		lb_try_duration 15s
+		lb_try_interval 250ms
+		health_uri /health
+		health_interval 3s
+		health_timeout 2s
+		fail_duration 10s
+	}
+}
