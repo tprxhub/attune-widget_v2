@@ -124,6 +124,12 @@ class UserRead(APIModel):
     is_active: bool
     created_at: datetime
     permissions: list[str] = Field(default_factory=list)
+    # Super Admins only: whether they receive account emails and platform alerts.
+    email_notifications: bool = False
+
+
+class NotificationSettings(APIModel):
+    enabled: bool
 
 
 def _clean_permissions(value: list[str] | None) -> list[str] | None:
@@ -274,6 +280,29 @@ class OrganisationDeletion(APIModel):
     subscriptions: int
     attune_conversations: int
     invitations: int
+
+
+class AccountDeletion(APIModel):
+    """What deleting one account removes or unlinks (or did)."""
+    name: str
+    email: str
+    role: str
+    members_unlinked: int
+    moderator_assignments: int
+    sessions_kept: int
+    attune_conversations: int
+    invitations: int
+    family_members: list[str]
+
+
+class MemberDeletion(APIModel):
+    """What deleting one member removes (or removed)."""
+    member: str
+    sessions: int
+    subscription: str | None
+    attune_conversations: int
+    invitations: int
+    member_login: str | None
 
 
 class OrganisationRead(APIModel):

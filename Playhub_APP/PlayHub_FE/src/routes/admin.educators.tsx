@@ -15,6 +15,7 @@ import {
   Plus,
   Power,
   Search,
+  Trash2,
   Users,
   X,
   Contact,
@@ -22,6 +23,8 @@ import {
 } from "lucide-react";
 import {
   createEducator,
+  deleteAccount,
+  getAccountDeletionPreview,
   listOrgs,
   listStaffByOrg,
   regenerateStaffActivation,
@@ -30,6 +33,7 @@ import {
 } from "@/api/admin";
 import { createSupporter } from "@/api/org";
 import { ModalPortal } from "@/components/ModalPortal";
+import { PreviewedDeleteDialog } from "@/components/DeleteConfirmDialog";
 import { EditStaffDialog } from "@/components/EditStaffDialog";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
@@ -66,6 +70,9 @@ type RoleFilter = "all" | "educator" | "supporter";
 
 function AdminEducators() {
   const queryClient = useQueryClient();
+  const { session } = useSession();
+  const canDelete = session.role === "super_admin";
+  const [deleting, setDeleting] = useState<StaffMember | null>(null);
   const groupsQuery = useQuery({ queryKey: ["staff-by-org"], queryFn: listStaffByOrg });
   const { matches } = useOrgScope();
   const groups = {
@@ -262,6 +269,7 @@ function AdminEducators() {
                       onViewActivation={() => regenerate.mutate(m.id)}
                       viewingActivation={regenerate.isPending && regenerate.variables === m.id}
                       onEdit={() => setEditing(m)}
+                      onDelete={canDelete ? () => setDeleting(m) : undefined}
                     />
                   ))}
                 </div>
@@ -328,6 +336,16 @@ function AdminEducators() {
                             {m.active ? "Disable" : "Enable"}
                           </ConfirmButton>
                         )}
+                        {canDelete && !m.invitationPending && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleting(m)}
+                            aria-label={`Delete ${m.name}`}
+                            className="inline-flex min-h-9 items-center gap-1 rounded-full border border-coral/40 px-3 text-[11px] font-bold text-coral hover:bg-coral/8"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete
+                          </button>
+                        )}
                       </span>
                     </li>
                   ))}
@@ -344,6 +362,14 @@ function AdminEducators() {
             ? regenerate.error.message
             : "Could not generate the activation link."}
         </p>
+      )}
+
+      {deleting && (
+        <DeleteAccountDialog
+          member={deleting}
+          roleLabel={deleting.role === "educator" ? "Admin" : "Moderator"}
+          onClose={() => setDeleting(null)}
+        />
       )}
 
       {editing && (
@@ -453,6 +479,7 @@ function StaffCard({
   onViewActivation,
   viewingActivation,
   onEdit,
+  onDelete,
 }: {
   member: StaffMember;
   pending: boolean;
@@ -460,6 +487,8 @@ function StaffCard({
   onViewActivation: () => void;
   viewingActivation: boolean;
   onEdit: () => void;
+  /** Super Admin only. */
+  onDelete?: (() => void) | undefined;
 }) {
   return (
     <article className="rounded-2xl border border-navy/10 bg-card p-4 transition-shadow hover:shadow-md">
@@ -534,7 +563,65 @@ function StaffCard({
           {member.active ? "Disable account" : "Enable account"}
         </ConfirmButton>
       )}
+      {onDelete && !member.invitationPending && (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={`Delete ${member.name}`}
+          className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full border border-coral/40 text-xs font-bold text-coral hover:bg-coral/8"
+        >
+          <Trash2 className="h-4 w-4" aria-hidden /> Delete account
+        </button>
+      )}
     </article>
+  );
+}
+
+/** Super Admin: permanently delete an Admin or Moderator account. */
+function DeleteAccountDialog({
+  member,
+  roleLabel,
+  onClose,
+}: {
+  member: StaffMember;
+  roleLabel: string;
+  onClose: () => void;
+}) {
+  return (
+    <PreviewedDeleteDialog
+      queryKey={["account-deletion-preview", member.id]}
+      loadPreview={() => getAccountDeletionPreview(member.id)}
+      remove={(typed) => deleteAccount(member.id, typed)}
+      rows={(counts) => [
+        ["Members unlinked", counts.members_unlinked],
+        ["Moderator assignments", counts.moderator_assignments],
+        ["Attune chats", counts.attune_conversations],
+        ["Invitations", counts.invitations],
+      ]}
+      blocked={(counts) =>
+        counts.family_members.length
+          ? `${member.name} is the account holder for ${counts.family_members.join(", ")}. ` +
+            "Delete those members first, or make someone else their Account Admin."
+          : undefined
+      }
+      description={(counts) => (
+        <>
+          <p>
+            This permanently deletes the {roleLabel} account {member.email}. They can no longer sign
+            in, and it cannot be undone.
+          </p>
+          {counts && counts.sessions_kept > 0 && (
+            <p className="mt-2">
+              The {counts.sessions_kept} Sessions they logged are kept with each member.
+            </p>
+          )}
+        </>
+      )}
+      title={`Delete ${member.name}?`}
+      confirmText={member.name}
+      deleteLabel="Delete account"
+      onClose={onClose}
+    />
   );
 }
 

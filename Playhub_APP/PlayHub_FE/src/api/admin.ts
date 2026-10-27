@@ -493,3 +493,52 @@ export interface AdminOverview {
 export function getAdminOverview(scope = "all") {
   return apiRequest<AdminOverview>(`/admin/overview?scope=${encodeURIComponent(scope)}`);
 }
+
+/** What deleting one Admin, Moderator or Member account removes or unlinks. */
+export interface AccountDeletionSummary {
+  name: string;
+  email: string;
+  role: string;
+  members_unlinked: number;
+  moderator_assignments: number;
+  sessions_kept: number;
+  attune_conversations: number;
+  invitations: number;
+  /** Family members this person is the account holder for; they must be dealt with first. */
+  family_members: string[];
+}
+
+export function getAccountDeletionPreview(userId: string) {
+  return apiRequest<AccountDeletionSummary>(`/users/${userId}/deletion-preview`);
+}
+
+/** Super Admin: permanently delete an Admin, Moderator or Member account. */
+export function deleteAccount(userId: string, confirmName: string) {
+  return apiRequest<AccountDeletionSummary>(
+    `/users/${userId}?confirm_name=${encodeURIComponent(confirmName)}`,
+    { method: "DELETE" },
+  );
+}
+
+/** What deleting one member removes. */
+export interface MemberDeletionSummary {
+  member: string;
+  sessions: number;
+  subscription: string | null;
+  attune_conversations: number;
+  invitations: number;
+  /** Their own Member login, removed with them. */
+  member_login: string | null;
+}
+
+export function getMemberDeletionPreview(childId: string) {
+  return apiRequest<MemberDeletionSummary>(`/children/${childId}/deletion-preview`);
+}
+
+/** Super Admin: permanently delete a member and all their data. */
+export function deleteMember(childId: string, confirmName: string) {
+  return apiRequest<MemberDeletionSummary>(
+    `/children/${childId}?confirm_name=${encodeURIComponent(confirmName)}`,
+    { method: "DELETE" },
+  );
+}

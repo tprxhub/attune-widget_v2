@@ -208,6 +208,9 @@ class User(TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Only used by TTP employees: the PERMISSION_KEYS they may use.
     permissions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    # Super Admins only: also receive the standard account emails and the platform alerts
+    # (invitations, sign-ups, payments, refunds, Play Pulse leads). Off by default.
+    email_notifications: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
 
     organisation: Mapped[Optional[Organisation]] = relationship(back_populates="users")
 

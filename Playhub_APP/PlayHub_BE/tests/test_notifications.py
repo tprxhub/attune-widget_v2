@@ -186,3 +186,10 @@ def test_a_super_admin_gets_only_the_basic_account_emails(client, platform_admin
         notifications.payment_confirmed(person, "Ayla", "6-Month", 33900, datetime.now(timezone.utc).date(), False)
     assert sent_to("admin@example.com") == []
     assert len(sent_to("parent@example.com")) == 3
+
+    # A Super Admin who switched notifications on gets them too.
+    SENT.clear()
+    opted_in = SimpleNamespace(role=Role.SUPER_ADMIN, email="admin@example.com", display_name="Admin",
+                               email_notifications=True)
+    notifications.welcome(opted_in, "Ayla")
+    assert len(sent_to("admin@example.com")) == 1

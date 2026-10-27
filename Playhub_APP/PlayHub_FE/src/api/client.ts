@@ -228,6 +228,7 @@ export interface ApiUser {
   is_active: boolean;
   created_at: string;
   permissions?: string[];
+  email_notifications?: boolean;
 }
 
 export interface ApiSubscription {

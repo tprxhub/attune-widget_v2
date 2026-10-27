@@ -21,6 +21,8 @@ export interface AccountProfile {
   orgKind: string | null;
   orgUsername: string | null;
   memberSince: string | null;
+  /** Super Admins: whether they receive account emails and platform alerts. */
+  emailNotifications: boolean;
 }
 
 export async function getAccount(session: Session): Promise<AccountProfile> {
@@ -44,7 +46,16 @@ export async function getAccount(session: Session): Promise<AccountProfile> {
     orgKind: org?.kind ?? null,
     orgUsername: null,
     memberSince: user.created_at.slice(0, 10),
+    emailNotifications: Boolean(user.email_notifications),
   };
+}
+
+/** Super Admin: switch email notifications (account emails and platform alerts) on or off. */
+export async function setEmailNotifications(enabled: boolean) {
+  return apiRequest<ApiUser>("/auth/me/notifications", {
+    method: "PUT",
+    body: JSON.stringify({ enabled }),
+  });
 }
 
 export async function updateMyName(displayName: string) {

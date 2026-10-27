@@ -32,9 +32,9 @@ from app.oidc_identity import (
 from app import deletion, licenses
 from app.schemas import (
     AdminReferencesRead,
-    ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, ProfileUpdate, ChildCreate, ChildRead, ChildUpdate,
+    ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, NotificationSettings, ProfileUpdate, ChildCreate, ChildRead, ChildUpdate,
     AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
-    LoginRequest, OrganisationCreate, OrganisationDeletion, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
+    AccountDeletion, LoginRequest, MemberDeletion, OrganisationCreate, OrganisationDeletion, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
     PlayDoseUpdate, DoseContentUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
     SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, SiteContentRead,
     ModeratorInvitationUpdate,
@@ -317,6 +317,7 @@ def google_register_family(payload: GoogleFamilyRegistration, db: Session = Depe
     audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id, "via": "google"})
     db.commit()
     notifications.welcome(user, child.name)
+    notifications.alert_family_signup(db, user, child.name)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -416,6 +417,7 @@ def social_register_family(provider: Provider, payload: SocialFamilyRegistration
     audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id, "via": provider})
     db.commit()
     notifications.welcome(user, child.name)
+    notifications.alert_family_signup(db, user, child.name)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -470,6 +472,7 @@ def register_family(payload: FamilyRegistration, db: Session = Depends(get_db)):
     audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id})
     db.commit()
     notifications.welcome(user, child.name)
+    notifications.alert_family_signup(db, user, child.name)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -602,6 +605,15 @@ def choose_my_avatar_sticker(
     saved = commit(db, user)
     discard_stored_asset(storage, old_url)
     return saved
+
+
+@router.put("/auth/me/notifications", response_model=UserRead)
+def set_my_notifications(payload: NotificationSettings, user: User = Depends(require_roles(Role.SUPER_ADMIN)),
+                         db: Session = Depends(get_db)):
+    """A Super Admin switches their email notifications on or off (account emails and platform alerts)."""
+    user.email_notifications = payload.enabled
+    audit(db, user.id, "user.notifications_changed", "user", user.id, {"enabled": payload.enabled})
+    return commit(db, user)
 
 
 @router.delete("/auth/me/avatar", status_code=status.HTTP_204_NO_CONTENT)
@@ -746,6 +758,7 @@ def _email_invitation(db: Session, invitation: Invitation, actor: User) -> None:
     """Email the activation link; the admin can still copy it from the screen as before."""
     organisation = db.get(Organisation, invitation.organisation_id) if invitation.organisation_id else None
     notifications.invitation(invitation, invitation.token, actor, organisation.name if organisation else None)
+    notifications.alert_invitation(db, invitation, actor, organisation.name if organisation else None)
 
 
 @router.get("/invitations", response_model=list[InvitationRead])
@@ -926,6 +939,7 @@ def accept_invitation(payload: InvitationAccept, db: Session = Depends(get_db)):
             child.owner_id = user.id
     audit(db, user.id, "invitation.accepted", "invitation", invitation.id)
     db.commit()
+    notifications.alert_invitation_accepted(db, user, user.organisation.name if user.organisation else None)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -1072,6 +1086,101 @@ def delete_organisation(
     for url in avatars:
         discard_stored_asset(storage, url)
     return asdict(summary)
+
+
+@router.get("/users/{user_id}/deletion-preview", response_model=AccountDeletion)
+def preview_account_deletion(user_id: str, _: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+    """What deleting this account would remove or unlink, shown before confirming."""
+    return asdict(deletion.account_deletion_summary(db, one_or_404(db, User, user_id)))
+
+
+@router.delete("/users/{user_id}", response_model=AccountDeletion)
+def delete_account(
+    user_id: str,
+    confirm_name: str = Query(min_length=1, max_length=120),
+    actor: User = Depends(require_roles(Role.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+    storage: StorageService = Depends(get_storage),
+):
+    """Permanently delete an Admin, Moderator or Member account (Super Admin only; type their name to
+    confirm). Sessions they logged stay with the member; their own Attune chats go with them."""
+    target = one_or_404(db, User, user_id)
+    if target.id == actor.id:
+        raise HTTPException(status_code=422, detail="You cannot delete your own account")
+    if target.role not in deletion.DELETABLE_ROLES:
+        raise HTTPException(status_code=403, detail="Only Admin, Moderator and Member accounts can be deleted here")
+    if confirm_name.strip().casefold() != target.display_name.strip().casefold():
+        raise HTTPException(status_code=422, detail="Type the person's name exactly to confirm the deletion")
+    summary = deletion.account_deletion_summary(db, target)
+    if summary.family_members:
+        names = ", ".join(summary.family_members)
+        raise HTTPException(
+            status_code=409,
+            detail=f"{target.display_name} is the account holder for {names}. Delete those members first, "
+                   "or make someone else their Account Admin.",
+        )
+    summary, avatars = deletion.delete_account(db, target, actor)
+    db.commit()
+    for url in avatars:
+        discard_stored_asset(storage, url)
+    return asdict(summary)
+
+
+@router.get("/children/{child_id}/deletion-preview", response_model=MemberDeletion)
+def preview_member_deletion(child_id: str, _: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db)):
+    """What deleting this member would remove, shown before confirming."""
+    return asdict(deletion.member_deletion_summary(db, one_or_404(db, Child, child_id)))
+
+
+@router.delete("/children/{child_id}", response_model=MemberDeletion)
+def delete_member(
+    child_id: str,
+    confirm_name: str = Query(min_length=1, max_length=120),
+    actor: User = Depends(require_roles(Role.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+    storage: StorageService = Depends(get_storage),
+):
+    """Permanently delete a member with their Sessions, subscription, Attune chats and invitations, and
+    their own Member login if no other member uses it (Super Admin only; type the name to confirm)."""
+    child = one_or_404(db, Child, child_id)
+    if confirm_name.strip().casefold() != child.name.strip().casefold():
+        raise HTTPException(status_code=422, detail="Type the member's name exactly to confirm the deletion")
+    summary, avatars = deletion.delete_member(db, child, actor)
+    db.commit()
+    for url in avatars:
+        discard_stored_asset(storage, url)
+    return asdict(summary)
+
+
+@router.delete("/children/{child_id}/member-email", response_model=ChildRead)
+def clear_member_email(child_id: str, actor: User = Depends(require_roles(Role.SUPER_ADMIN)), db: Session = Depends(get_db),
+                       storage: StorageService = Depends(get_storage)):
+    """Remove the email linked to a member (Super Admin only): withdraw a pending Member invitation and
+    unlink whoever is linked. A member's own Member login is deleted when no other member uses it; any
+    other account (such as a family's account holder) is only unlinked and keeps signing in, and stays
+    the member's Account Admin if it is one, so paying and renewing still work."""
+    child = one_or_404(db, Child, child_id)
+    owner = child.owner
+    revoked = 0
+    for invite in child.invitations:
+        if invite.role == Role.MEMBER and invite.status == InvitationStatus.PENDING:
+            invite.status = InvitationStatus.REVOKED
+            revoked += 1
+    avatars: list[str] = []
+    removed_login = None
+    if owner:
+        child.owner_id = None
+        db.flush()
+        if owner.role == Role.MEMBER and not db.scalar(select(func.count(Child.id)).where(Child.owner_id == owner.id)):
+            removed_login = owner.email
+            _, avatars = deletion.delete_account(db, owner, actor)
+    audit(db, actor.id, "child.member_email_cleared", "child", child.id,
+          {"invitations_withdrawn": revoked, "unlinked": bool(owner), "login_removed": bool(removed_login)})
+    db.commit()
+    for url in avatars:
+        discard_stored_asset(storage, url)
+    db.refresh(child)
+    return child
 
 
 @router.post("/organisations/{organisation_id}/renewal", response_model=OrganisationRead)
@@ -1648,12 +1757,14 @@ def refund_billing_payment(
         audit(db, user.id, "billing.renewal_refunded", "subscription", subscription.id, {"refund_id": refund_id})
         subscription = commit(db, subscription)
         notifications.refund_started(child.owner, child.name, subscription.ends_on)
+        notifications.alert_refund(db, child.owner, child.name, "requested")
         return subscription
     subscription.status = SubscriptionStatus.CANCELLED
     subscription.ends_on = date.today()
     audit(db, user.id, "billing.refunded", "subscription", subscription.id)
     subscription = commit(db, subscription)
     notifications.refund_started(child.owner, child.name, None)
+    notifications.alert_refund(db, child.owner, child.name, "requested")
     return subscription
 
 
@@ -1687,19 +1798,23 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
         )
         if subscription:
             outcome = None
+            stage = ""
             if event_type == "refund.failed" or refund_status in {"failed", "canceled"}:
                 subscription.status = SubscriptionStatus.ACTIVE
                 audit(db, None, "billing.refund_failed", "subscription", subscription.id)
                 outcome = notifications.refund_failed
+                stage = "failed"
             elif refund_status == "succeeded":
                 subscription.status = SubscriptionStatus.CANCELLED
                 subscription.ends_on = date.today()
                 audit(db, None, "billing.refund_completed", "subscription", subscription.id)
                 outcome = notifications.refund_completed
+                stage = "completed"
             db.add(StripeEvent(id=event_id, event_type=event_type))
             db.commit()
             if outcome and subscription.child:
                 outcome(subscription.child.owner, subscription.child.name)
+                notifications.alert_refund(db, subscription.child.owner, subscription.child.name, stage)
         return {"received": True}
     if event_type not in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
         return {"received": True}
@@ -1749,6 +1864,9 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     db.commit()
     notifications.payment_confirmed(
         child.owner, child.name, selected["name"], selected["amount"], subscription.ends_on, renewing_from is not None
+    )
+    notifications.alert_payment(
+        db, child.owner, child.name, selected["name"], selected["amount"], subscription.ends_on, renewing_from is not None
     )
     return {"received": True}
 

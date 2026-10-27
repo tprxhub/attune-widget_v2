@@ -83,8 +83,8 @@ export async function setChildPlan(childId: string, planId: string) {
 
 export interface ChildEditInput {
   name?: string;
-  age?: number;
-  planId?: string;
+  age?: number | undefined;
+  planId?: string | undefined;
   note?: string | undefined;
   parentEmail?: string | undefined;
   orgId?: string | null | undefined;

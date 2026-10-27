@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app import notifications
 from app.database import get_db
 from app.dependencies import bearer, require_roles
 from app.models import PlayPulseContact, PlayPulseResult, Role, User
@@ -206,6 +207,9 @@ def submit_result(payload: PulseSubmission, user: User | None = Depends(_optiona
     )
     db.add(result)
     db.commit()
+    lead_name = contact.name if contact else user.display_name
+    lead_email = contact.email if contact else user.email
+    notifications.alert_play_pulse_lead(db, lead_name, lead_email, result.goal_name, result.tier)
     return PulseSubmitted(id=result.id)
 
 

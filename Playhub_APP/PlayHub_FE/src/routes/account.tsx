@@ -3,7 +3,7 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   CalendarDays,
@@ -28,6 +28,7 @@ import {
   UserCheck,
   Briefcase,
   CircleCheck,
+  BellRing,
 } from "lucide-react";
 import {
   changePassword,
@@ -35,6 +36,7 @@ import {
   chooseProfileSticker,
   getAccount,
   removeProfileAvatar,
+  setEmailNotifications,
   updateMyName,
   uploadProfilePhoto,
 } from "@/api/account";
@@ -480,6 +482,12 @@ function AccountPage() {
               Preferences
             </h2>
             <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
+              {session.role === "super_admin" && account.data && (
+                <NotificationSwitch
+                  personaId={session.personaId}
+                  enabled={account.data.emailNotifications}
+                />
+              )}
               <button
                 type="button"
                 onClick={() => setGuideOpen(true)}
@@ -897,5 +905,57 @@ function AccountPage() {
         </ModalPortal>
       )}
     </>
+  );
+}
+
+/** Super Admin: receive account emails and platform alerts (invitations and activations, new
+ * families, payments, refunds and Play Pulse leads). Off by default. */
+function NotificationSwitch({ personaId, enabled }: { personaId: string; enabled: boolean }) {
+  const queryClient = useQueryClient();
+  const save = useMutation({
+    mutationFn: (next: boolean) => setEmailNotifications(next),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["account", personaId] }),
+  });
+  const on = save.isPending ? Boolean(save.variables) : enabled;
+  return (
+    <div className="flex min-w-0 items-start gap-3 rounded-2xl border border-navy/10 bg-navy/[0.03] p-3.5">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue/12 text-blue">
+        <BellRing className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span id="notify-label" className="block text-sm font-bold">
+          Email notifications
+        </span>
+        <span id="notify-help" className="block text-xs text-navy/60">
+          Get an email when an Admin, Moderator or Member is invited or activates their account, a
+          family signs up, a payment or refund happens, or a Play Pulse lead comes in.
+        </span>
+        {save.isError && (
+          <span role="alert" className="mt-1 block text-xs font-semibold text-coral">
+            {save.error instanceof Error ? save.error.message : "Could not save."}
+          </span>
+        )}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-labelledby="notify-label"
+        aria-describedby="notify-help"
+        disabled={save.isPending}
+        onClick={() => save.mutate(!on)}
+        className={cn(
+          "relative mt-1 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition disabled:opacity-60",
+          on ? "bg-coral" : "bg-navy/20",
+        )}
+      >
+        <span
+          className={cn(
+            "inline-block h-5 w-5 rounded-full bg-white shadow transition",
+            on ? "translate-x-6" : "translate-x-1",
+          )}
+        />
+      </button>
+    </div>
   );
 }

@@ -92,6 +92,12 @@ export async function toggleSupporterActive(supporterId: string) {
  * Super Admin: set a member's email. With a Member account linked it changes that account's
  * sign-in email; otherwise it invites that email to become the member's Member account.
  */
+/** Super Admin: remove the email linked to a member (withdraws an invitation, or unlinks and removes
+ * their own Member login). A family's account holder can't be removed; the API explains. */
+export async function clearMemberEmail(childId: string) {
+  await apiRequest<unknown>(`/children/${childId}/member-email`, { method: "DELETE" });
+}
+
 export async function saveMemberEmail(
   child: Pick<Child, "id" | "memberUserId" | "parentEmail">,
   email: string,

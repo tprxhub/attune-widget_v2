@@ -26,6 +26,7 @@ import {
 } from "@/api/admin";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
+import { PreviewedDeleteDialog } from "@/components/DeleteConfirmDialog";
 import { ModalPortal } from "@/components/ModalPortal";
 import { PageHeader } from "@/components/AppShell";
 import { Select } from "@/components/Select";
@@ -455,24 +456,12 @@ function AdminOrgs() {
 
 /** Super Admin: see everything that goes with an organisation, type its name, then delete it all. */
 function DeleteOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const [typed, setTyped] = useState("");
-  const preview = useQuery({
-    queryKey: ["org-deletion-preview", org.id],
-    queryFn: () => getOrgDeletionPreview(org.id),
-  });
-  const remove = useMutation({
-    mutationFn: () => deleteOrg(org.id, typed.trim()),
-    onSuccess: () => {
-      // People, children, progress and counts all change; refresh everything the admin pages show.
-      void queryClient.invalidateQueries();
-      onClose();
-    },
-  });
-  const matches = typed.trim().toLowerCase() === org.name.trim().toLowerCase();
-  const counts = preview.data;
-  const rows: Array<[string, number]> = counts
-    ? [
+  return (
+    <PreviewedDeleteDialog
+      queryKey={["org-deletion-preview", org.id]}
+      loadPreview={() => getOrgDeletionPreview(org.id)}
+      remove={(typed) => deleteOrg(org.id, typed)}
+      rows={(counts) => [
         ["Admins", counts.admins],
         ["Moderators", counts.moderators],
         ["Member accounts", counts.members],
@@ -481,99 +470,18 @@ function DeleteOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
         ["Subscriptions", counts.subscriptions],
         ["Attune chats", counts.attune_conversations],
         ["Invitations", counts.invitations],
-      ]
-    : [];
-
-  return (
-    <ModalPortal>
-      <div className="fixed inset-0 z-50 grid place-items-end bg-navy/50 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
-        <div
-          role="alertdialog"
-          aria-modal="true"
-          aria-label={`Delete ${org.name}`}
-          className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card p-5 shadow-xl sm:rounded-3xl"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-coral/12 text-coral">
-              <TriangleAlert className="h-5 w-5" aria-hidden />
-            </span>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-navy/6 hover:bg-navy/12"
-            >
-              <X className="h-4 w-4" aria-hidden />
-            </button>
-          </div>
-          <h2 className="mt-3 text-lg font-bold">Delete {org.name}?</h2>
-          <p className="mt-1 text-sm text-navy/70">
-            This permanently deletes the organisation, everyone in it and every member&apos;s data.
-            It cannot be undone. Play Plans and the audit log are kept.
-          </p>
-          {preview.isLoading ? (
-            <p className="mt-4 flex items-center gap-2 text-sm text-navy/60">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Counting what will be
-              deleted…
-            </p>
-          ) : preview.isError ? (
-            <p role="alert" className="mt-4 text-sm font-semibold text-coral">
-              {preview.error instanceof Error
-                ? preview.error.message
-                : "Could not load the details."}
-            </p>
-          ) : (
-            <dl
-              aria-label="What will be deleted"
-              className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-coral/6 p-3 text-sm"
-            >
-              {rows.map(([label, value]) => (
-                <div key={label} className="flex items-baseline justify-between gap-2">
-                  <dt className="text-navy/65">{label}</dt>
-                  <dd className="font-bold">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-          <label className="mt-4 block text-sm font-bold">
-            Type <span className="text-coral">{org.name}</span> to confirm
-            <input
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-              autoComplete="off"
-              className="mt-1.5 min-h-11 w-full rounded-xl border border-navy/20 bg-card px-3 text-sm font-normal outline-none focus:border-coral focus:ring-2 focus:ring-coral/25"
-            />
-          </label>
-          {remove.isError && (
-            <p role="alert" className="mt-3 text-sm font-semibold text-coral">
-              {remove.error instanceof Error ? remove.error.message : "Could not delete."}
-            </p>
-          )}
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!matches || !counts || remove.isPending}
-              onClick={() => remove.mutate()}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-50"
-            >
-              {remove.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <Trash2 className="h-4 w-4" aria-hidden />
-              )}
-              Delete everything
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </ModalPortal>
+      ]}
+      description={() => (
+        <p>
+          This permanently deletes the organisation, everyone in it and every member&apos;s data. It
+          cannot be undone. Play Plans and the audit log are kept.
+        </p>
+      )}
+      title={`Delete ${org.name}?`}
+      confirmText={org.name}
+      deleteLabel="Delete everything"
+      onClose={onClose}
+    />
   );
 }
 

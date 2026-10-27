@@ -1,8 +1,14 @@
 """The emails Play Hub sends when something happens to an account. Each one is plain text and goes
-through `send_email`, so Klaviyo (or SMTP) delivers them all with the same template."""
+through `send_email`, so Klaviyo (or SMTP) delivers them all with the same template.
+
+Super Admins get only the basic account emails unless they switch on notifications (Account page).
+With it on they also get their other account emails and the platform alerts at the end of this file."""
 from __future__ import annotations
 
 from datetime import date
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.mailer import OutgoingEmail, send_email
@@ -39,8 +45,11 @@ def _send(to: str | None, subject: str, *paragraphs: str) -> None:
 
 def _inbox(user: User) -> str | None:
     """Where an account email goes. A Super Admin gets only the basic account emails (password reset,
-    password changed, invitation), so everything sent through here skips them."""
-    return None if user.role == Role.SUPER_ADMIN else user.email
+    password changed, invitation) unless they switched notifications on, so everything sent through
+    here skips them otherwise."""
+    if user.role == Role.SUPER_ADMIN and not getattr(user, "email_notifications", False):
+        return None
+    return user.email
 
 
 def welcome(user: User, child_name: str) -> None:
@@ -182,3 +191,83 @@ def account_status(user: User, active: bool) -> None:
             "Your Play Hub account has been disabled, so you can’t log in for now. Any Sessions you logged stay saved.",
             "If you think this is a mistake, reply to this email or contact the person who manages your account.",
         )
+
+
+# ---------- Platform alerts for Super Admins who switched notifications on ----------
+
+def _alert(db: Session, subject: str, *paragraphs: str) -> None:
+    inboxes = db.scalars(
+        select(User.email).where(
+            User.role == Role.SUPER_ADMIN, User.is_active.is_(True), User.email_notifications.is_(True)
+        )
+    ).all()
+    for inbox in inboxes:
+        _send(inbox, f"Play Hub alert: {subject}", *paragraphs)
+
+
+def alert_invitation(db: Session, invite: Invitation, inviter: User, organisation_name: str | None) -> None:
+    """An activation link went out. The link itself is not repeated here: whoever opens it can
+    activate the account, and Super Admins can copy it from Admins & Moderators if needed."""
+    role = ROLE_LABEL.get(invite.role, "Member")
+    where = f" at {organisation_name}" if organisation_name else ""
+    _alert(
+        db,
+        f"{role} invited{where}",
+        f"{inviter.display_name} invited {invite.display_name or invite.email} ({invite.email}) to join Play Hub "
+        f"as {role}{where}. An activation link was emailed to them; it works until {_day(invite.expires_at.date())}.",
+        f"See invitations and activation links: {_link('/admin/educators')}",
+    )
+
+
+def alert_invitation_accepted(db: Session, user: User, organisation_name: str | None) -> None:
+    where = f" at {organisation_name}" if organisation_name else ""
+    _alert(
+        db,
+        f"{user.display_name} activated their account",
+        f"{user.display_name} ({user.email}) accepted their invitation and can now sign in as "
+        f"{ROLE_LABEL.get(user.role, 'Member')}{where}.",
+    )
+
+
+def alert_family_signup(db: Session, user: User, child_name: str) -> None:
+    _alert(
+        db,
+        "new family sign-up",
+        f"{user.display_name} ({user.email}) created a family account for {child_name} on the free plan.",
+        f"Open Members: {_link('/admin/members')}",
+    )
+
+
+def alert_payment(db: Session, owner: User | None, child_name: str, plan_name: str, amount: int,
+                  ends_on: date | None, renewal: bool) -> None:
+    who = f"{owner.display_name} ({owner.email})" if owner else "A family"
+    until = f" Paid until {_day(ends_on)}." if ends_on else ""
+    _alert(
+        db,
+        f"{'renewal' if renewal else 'payment'} received for {child_name}",
+        f"{who} paid {_money(amount)} for {plan_name} for {child_name}.{until}",
+    )
+
+
+def alert_refund(db: Session, owner: User | None, child_name: str, stage: str) -> None:
+    """stage: requested, completed or failed."""
+    who = f"{owner.display_name} ({owner.email})" if owner else "A family"
+    text = {
+        "requested": f"{who} requested a refund for {child_name}'s subscription.",
+        "completed": f"The refund for {child_name}'s subscription is complete.",
+        "failed": f"Stripe could not complete the refund for {child_name}'s subscription. Check it in Stripe.",
+    }[stage]
+    _alert(db, f"refund {stage} for {child_name}", text)
+
+
+PULSE_TIER = {"ontrack": "On track", "practice": "Needs practice", "help": "Needs help"}
+
+
+def alert_play_pulse_lead(db: Session, name: str, email: str, goal_name: str, tier: str) -> None:
+    _alert(
+        db,
+        "new Play Pulse lead",
+        f"{name} ({email}) finished a Play Pulse check for “{goal_name}”: "
+        f"{PULSE_TIER.get(tier, tier)}.",
+        f"See all leads: {_link('/admin/play-pulse')}",
+    )

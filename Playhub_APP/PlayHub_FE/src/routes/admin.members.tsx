@@ -14,6 +14,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Trash2,
   Users,
   UserCog,
   X,
@@ -21,9 +22,15 @@ import {
 } from "lucide-react";
 import { listChildrenForSession, setModerators, updateChild } from "@/api/children";
 import { ModeratorPicker } from "@/components/ModeratorPicker";
-import { listOrgs, listStaff, listActiveStaff } from "@/api/admin";
+import {
+  deleteMember,
+  getMemberDeletionPreview,
+  listOrgs,
+  listStaff,
+  listActiveStaff,
+} from "@/api/admin";
 import { getProgressForChildren } from "@/api/progress";
-import { saveMemberEmail } from "@/api/org";
+import { clearMemberEmail, saveMemberEmail } from "@/api/org";
 import { getAdminReferences, referenceDoses } from "@/api/references";
 import {
   adminActivateSubscription,
@@ -36,6 +43,7 @@ import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
 import { ChildProgressIcon } from "@/components/ChildProgressIcon";
+import { PreviewedDeleteDialog } from "@/components/DeleteConfirmDialog";
 import { ModalPortal } from "@/components/ModalPortal";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
@@ -120,6 +128,7 @@ function AdminChildren() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Child | null>(null);
   const [editingEmail, setEditingEmail] = useState<Child | null>(null);
+  const [deleting, setDeleting] = useState<Child | null>(null);
   const [billing, setBilling] = useState<Child | null>(null);
   const [addingModeratorFor, setAddingModeratorFor] = useState<Child | null>(null);
 
@@ -410,8 +419,17 @@ function AdminChildren() {
             invalidate();
             setEditing(null);
           }}
+          onDelete={
+            session.role === "super_admin"
+              ? () => {
+                  setDeleting(editing);
+                  setEditing(null);
+                }
+              : undefined
+          }
         />
       )}
+      {deleting && <DeleteMemberDialog child={deleting} onClose={() => setDeleting(null)} />}
 
       {billing && (
         <SubscriptionModal
@@ -462,16 +480,19 @@ function MemberEmailModal({
   const [email, setEmail] = useState(current);
   const [error, setError] = useState("");
   const save = useMutation({
-    mutationFn: () => saveMemberEmail(child, email.trim()),
+    mutationFn: () =>
+      email.trim() ? saveMemberEmail(child, email.trim()) : clearMemberEmail(child.id),
     onSuccess: onSaved,
   });
+  const clearing = Boolean(current) && !email.trim();
   return (
     <Shell title="Member email" subtitle={child.name} onClose={onClose}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Enter a valid email address.");
+          if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim()))
+            return setError("Enter a valid email address.");
           if (email.trim().toLowerCase() === current.toLowerCase()) return onClose();
           setError("");
           save.mutate();
@@ -490,9 +511,11 @@ function MemberEmailModal({
             className={inputCls}
           />
           <p className="mt-1.5 text-xs text-navy/55">
-            {linked
-              ? "This is their sign-in email; they'll log in with the new one."
-              : "We'll send an invitation to this email to link their Member account."}
+            {clearing
+              ? removeEmailHint(child, linked)
+              : linked
+                ? "This is their sign-in email; they'll log in with the new one."
+                : "We'll send an invitation to this email to link their Member account."}
           </p>
         </div>
         {error && <p className="text-xs font-semibold text-coral">{error}</p>}
@@ -508,7 +531,7 @@ function MemberEmailModal({
             className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
           >
             {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-            Save email
+            {clearing ? "Remove email" : "Save email"}
           </button>
           <button
             type="button"
@@ -575,6 +598,7 @@ function EditChildModal({
   plans,
   onClose,
   onSaved,
+  onDelete,
 }: {
   child: Child;
   orgs: Org[];
@@ -582,9 +606,12 @@ function EditChildModal({
   plans: { id: string; title: string }[];
   onClose: () => void;
   onSaved: () => void;
+  /** Super Admin only: delete this member. */
+  onDelete?: (() => void) | undefined;
 }) {
   const [name, setName] = useState(child.name);
-  const [age, setAge] = useState(String(child.age));
+  // Members created without a date of birth have no age yet; leave the field empty.
+  const [age, setAge] = useState(child.age > 0 ? String(child.age) : "");
   const [planId, setPlanId] = useState(child.currentPlanId);
   const [orgId, setOrgId] = useState(child.orgId ?? "");
   const [educatorId, setEducatorId] = useState(child.educatorId ?? "");
@@ -595,6 +622,7 @@ function EditChildModal({
   // A linked Member account has its sign-in email changed; otherwise the email gets an invitation.
   const linked = Boolean(child.memberUserId && child.parentEmail);
   const emailChanged = memberEmail.trim().toLowerCase() !== shownEmail.toLowerCase();
+  const emailCleared = Boolean(shownEmail) && !memberEmail.trim();
 
   const educators = staff.filter(
     (staffMember) =>
@@ -603,21 +631,12 @@ function EditChildModal({
 
   const save = useMutation({
     mutationFn: async () => {
-      const scopeChanged = orgId !== (child.orgId ?? "");
-      const email = memberEmail.trim();
-      if (email && emailChanged) {
-        await saveMemberEmail(child, email);
-      }
-      return updateChild(child.id, {
-        name: name.trim(),
-        age: Number(age),
-        planId,
-        orgId: scopeChanged ? orgId : undefined,
-        educatorId: educatorId || null,
-        ownerUserId: scopeChanged ? (orgId ? null : educatorId || null) : undefined,
-        moderatorId: scopeChanged ? null : undefined,
-        note: note.trim() || undefined,
-      });
+      // Removing the email happens first, so a refusal (a family's account holder) saves nothing.
+      await applyMemberEmail(child, memberEmail, shownEmail);
+      return updateChild(
+        child.id,
+        memberChanges(child, { name, age, planId, orgId, educatorId, note }),
+      );
     },
     onSuccess: onSaved,
   });
@@ -630,8 +649,10 @@ function EditChildModal({
           e.preventDefault();
           const n = Number(age);
           if (name.trim().length < 2) return setError("Enter the member's name.");
-          if (!Number.isFinite(n) || n < 1 || n > 18) return setError("Age must be 1–18.");
-          if (!educatorId) return setError("Choose the Account Admin.");
+          if (age.trim() && (!Number.isInteger(n) || n < 1 || n > 18))
+            return setError("Age must be 1–18.");
+          // A family member needs their Account Admin; an organisation member may have none yet.
+          if (!educatorId && !orgId) return setError("Choose the Family Account Admin.");
           if (memberEmail.trim() && !/^\S+@\S+\.\S+$/.test(memberEmail.trim()))
             return setError("Enter a valid member email.");
           setError("");
@@ -726,11 +747,13 @@ function EditChildModal({
             className={inputCls}
           />
           <p className="mt-1.5 text-xs text-navy/55">
-            {linked
-              ? "This is the Member account's sign-in email; changing it changes how they log in."
-              : child.invitedEmail && !emailChanged
-                ? "An invitation to this email is waiting to be accepted. Change it to invite someone else."
-                : "Saving sends an invitation to this email and links the Member account once accepted."}
+            {emailCleared
+              ? removeEmailHint(child, linked)
+              : linked
+                ? "This is the Member account's sign-in email; changing it changes how they log in."
+                : child.invitedEmail && !emailChanged
+                  ? "An invitation to this email is waiting to be accepted. Change it to invite someone else."
+                  : "Saving sends an invitation to this email and links the Member account once accepted."}
           </p>
         </div>
 
@@ -755,6 +778,15 @@ function EditChildModal({
         )}
 
         <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-coral/40 px-5 text-sm font-bold text-coral hover:bg-coral/8 sm:mr-auto"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden /> Delete member
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -773,6 +805,87 @@ function EditChildModal({
         </div>
       </form>
     </Shell>
+  );
+}
+
+/** Save the member email field: remove it, change it, or leave it alone. */
+async function applyMemberEmail(child: Child, typed: string, shown: string) {
+  const email = typed.trim();
+  if (shown && !email) return clearMemberEmail(child.id);
+  if (email && email.toLowerCase() !== shown.toLowerCase()) return saveMemberEmail(child, email);
+}
+
+/** Only what changed on the profile: re-sending the Play Plan would restart its start date. */
+function memberChanges(
+  child: Child,
+  form: {
+    name: string;
+    age: string;
+    planId: string;
+    orgId: string;
+    educatorId: string;
+    note: string;
+  },
+) {
+  const scopeChanged = form.orgId !== (child.orgId ?? "");
+  const ageChanged = form.age.trim() !== "" && Number(form.age) !== child.age;
+  return {
+    name: form.name.trim(),
+    age: ageChanged ? Number(form.age) : undefined,
+    planId: form.planId !== child.currentPlanId ? form.planId : undefined,
+    orgId: scopeChanged ? form.orgId : undefined,
+    educatorId: form.educatorId || null,
+    ownerUserId: scopeChanged ? (form.orgId ? null : form.educatorId || null) : undefined,
+    moderatorId: scopeChanged ? null : undefined,
+    note: form.note.trim() !== (child.note ?? "").trim() ? form.note.trim() : undefined,
+  };
+}
+
+/** What saving with the email field emptied will do. */
+function removeEmailHint(child: Child, linked: boolean) {
+  return linked
+    ? `Saving removes ${child.parentEmail} from ${child.name}. A Member login used only for ` +
+        `${child.name} is deleted; any other account (such as the family's account holder) keeps ` +
+        "signing in and stays their Account Admin."
+    : `Saving withdraws the invitation sent to ${child.invitedEmail ?? "this email"}.`;
+}
+
+/** Super Admin: permanently delete a member and all their data. */
+function DeleteMemberDialog({ child, onClose }: { child: Child; onClose: () => void }) {
+  return (
+    <PreviewedDeleteDialog
+      queryKey={["member-deletion-preview", child.id]}
+      loadPreview={() => getMemberDeletionPreview(child.id)}
+      remove={(typed) => deleteMember(child.id, typed)}
+      rows={(counts) => [
+        ["Sessions", counts.sessions],
+        ["Attune chats", counts.attune_conversations],
+        ["Invitations", counts.invitations],
+        ["Subscription", counts.subscription ?? "None"],
+      ]}
+      description={(counts) => (
+        <>
+          <p>
+            This permanently deletes {child.name} and everything logged for them. It cannot be
+            undone.
+          </p>
+          {counts?.member_login && (
+            <p className="mt-2">
+              Their Member login <strong>{counts.member_login}</strong> is deleted too.
+            </p>
+          )}
+          {counts?.subscription === "active" && !child.orgId && (
+            <p className="mt-2 font-semibold text-coral">
+              They have an active paid subscription. Deleting does not refund it.
+            </p>
+          )}
+        </>
+      )}
+      title={`Delete ${child.name}?`}
+      confirmText={child.name}
+      deleteLabel="Delete member"
+      onClose={onClose}
+    />
   );
 }
 
