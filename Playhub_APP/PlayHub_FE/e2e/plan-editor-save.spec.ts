@@ -41,6 +41,8 @@ async function setUp(page: Page, name: string) {
   const section = page.locator("section").filter({
     has: page.getByRole("heading", { name, exact: true }),
   });
+  // Play Plan cards start collapsed.
+  await section.getByRole("button", { name: `Show ${name} Play Doses` }).click();
   return { section, headers, doseId: dose.id as string };
 }
 

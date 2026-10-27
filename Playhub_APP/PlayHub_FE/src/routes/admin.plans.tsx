@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
+  ChevronDown,
+  ChevronsUpDown,
   EyeOff,
   Globe2,
   ImagePlus,
@@ -102,6 +104,18 @@ function AdminPlans() {
 
   const [search, setSearch] = useState("");
   const [level, setLevel] = useState<Level | "all">("all");
+  // Play Plan cards start collapsed so every plan fits on screen; searching or picking a level
+  // opens them all so no match is hidden.
+  const [openPlans, setOpenPlans] = useState<Set<string>>(() => new Set());
+  const filtering = search.trim() !== "" || level !== "all";
+  const isOpen = (goalId: string) => filtering || openPlans.has(goalId);
+  const setPlanOpen = (goalId: string, open: boolean) =>
+    setOpenPlans((current) => {
+      const next = new Set(current);
+      if (open) next.add(goalId);
+      else next.delete(goalId);
+      return next;
+    });
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
   const [creditFor, setCreditFor] = useState<{ id: string; name: string } | null>(null);
   const [editing, setEditing] = useState<PlayPlan | "new" | "new-play-plan" | null>(null);
@@ -261,11 +275,34 @@ function AdminPlans() {
           {reorderError}
         </p>
       )}
-      <div className="mt-5 space-y-5">
+      {grouped.length > 0 && (
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-navy/60">
+            {grouped.length} {grouped.length === 1 ? "Play Plan" : "Play Plans"}
+          </p>
+          {!filtering && (
+            <button
+              type="button"
+              onClick={() =>
+                setOpenPlans(
+                  grouped.every((g) => openPlans.has(g.goalId))
+                    ? new Set()
+                    : new Set(grouped.map((g) => g.goalId)),
+                )
+              }
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-navy/15 bg-card px-3.5 text-xs font-bold text-navy/70 hover:border-navy/35"
+            >
+              <ChevronsUpDown className="h-4 w-4" aria-hidden />
+              {grouped.every((g) => openPlans.has(g.goalId)) ? "Collapse all" : "Expand all"}
+            </button>
+          )}
+        </div>
+      )}
+      <div className="mt-3 space-y-4">
         {grouped.map((group, groupIndex) => (
           <section key={group.goalId} className="ph-card p-4 sm:p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+              <div className="min-w-0">
                 <p className="eyebrow text-coral">Play Plan</p>
                 <h2 className="text-lg font-bold">{group.name}</h2>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-navy/55">
@@ -296,73 +333,8 @@ function AdminPlans() {
                   )}
                 </div>
               </div>
-              {group.goalId !== "other" && (
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingGoal(group.goalId)}
-                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-navy/15 px-3 text-xs font-bold"
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden /> Edit Play Plan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNewDoseGoalId(group.goalId);
-                      setEditing("new");
-                    }}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
-                  >
-                    <Plus className="h-4 w-4" aria-hidden /> New Play Dose
-                  </button>
-                </div>
-              )}
-            </div>
-            {group.goalId !== "other" && (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-navy/8 bg-navy/[0.02] px-3 py-2">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-xs font-bold text-navy/55">Visibility</span>
-                  <div
-                    className="inline-flex rounded-full border border-navy/12 bg-navy/[0.035] p-1"
-                    aria-label={`Publishing status for ${group.name}`}
-                  >
-                    {(
-                      [
-                        ["published", "Visible", Globe2],
-                        ["invisible", "Invisible", EyeOff],
-                        ["locked", "Locked", Lock],
-                      ] as const
-                    ).map(([value, label, Icon]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        title={
-                          value === "invisible"
-                            ? "Hide this old or unpopular plan"
-                            : value === "locked"
-                              ? "Show as upcoming, but prevent starting it"
-                              : "Show and allow this plan"
-                        }
-                        onClick={() => statusChange.mutate({ id: group.goalId, status: value })}
-                        disabled={statusChange.isPending}
-                        className={cn(
-                          "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold transition",
-                          group.publicationStatus === value
-                            ? value === "published"
-                              ? "bg-blue text-white"
-                              : value === "locked"
-                                ? "bg-amber text-navy"
-                                : "bg-navy text-white"
-                            : "text-navy/55 hover:bg-white",
-                        )}
-                      >
-                        <Icon className="h-3.5 w-3.5" aria-hidden /> {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-navy/55">Plan order</span>
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                {group.goalId !== "other" && (
                   <MoveButtons
                     label={`Play Plan ${group.name}`}
                     disabled={reorder.isPending}
@@ -373,73 +345,159 @@ function AdminPlans() {
                     }
                     onMove={(dir) => movePlayPlan(group.goalId, dir)}
                   />
-                </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPlanOpen(group.goalId, !isOpen(group.goalId))}
+                  disabled={filtering}
+                  aria-expanded={isOpen(group.goalId)}
+                  aria-controls={`plan-body-${group.goalId}`}
+                  aria-label={`${isOpen(group.goalId) ? "Hide" : "Show"} ${group.name} Play Doses`}
+                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-navy/6 px-3 text-xs font-bold text-navy hover:bg-navy/12 disabled:opacity-60"
+                >
+                  {isOpen(group.goalId) ? "Hide" : "Show"} Play Doses
+                  <ChevronDown
+                    className={cn("h-4 w-4 transition", isOpen(group.goalId) && "rotate-180")}
+                    aria-hidden
+                  />
+                </button>
+                {group.goalId !== "other" && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingGoal(group.goalId)}
+                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-navy/15 px-3 text-xs font-bold"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden /> Edit Play Plan
+                  </button>
+                )}
+                {group.goalId !== "other" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlanOpen(group.goalId, true);
+                      setNewDoseGoalId(group.goalId);
+                      setEditing("new");
+                    }}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden /> New Play Dose
+                  </button>
+                )}
               </div>
-            )}
-            {group.plans.length === 0 ? (
-              <p className="mt-2 text-sm text-navy/55">No plans match your filters.</p>
-            ) : (
-              <ul className="mt-3 space-y-3">
-                {group.plans.map((plan, doseIndex) => {
-                  const used = usage.data?.[plan.id] ?? 0;
-                  const acts = plan.entries.reduce((n, e) => n + entryActivities(e).length, 0);
-                  const vids = plan.entries.reduce(
-                    (n, e) => n + entryActivities(e).filter((a) => a.videoUrl?.trim()).length,
-                    0,
-                  );
-                  return (
-                    <li key={plan.id} className="rounded-2xl border border-navy/10 bg-card p-4">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold tracking-[0.12em] text-blue uppercase">
-                          Play Dose · {plan.level}
-                        </p>
-                        <p className="mt-1 font-bold">{plan.title}</p>
-                        <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-navy/10 bg-navy/[0.035] px-2.5 py-1 text-xs font-semibold text-navy/65">
-                          <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden /> Created by{" "}
-                          <span data-testid="dose-creator" className="font-bold text-navy">
-                            {plan.createdBy ?? "Super Admin"}
-                          </span>
-                        </p>
-                        <p className="mt-1 text-sm text-navy/65">{plan.summary}</p>
-                        <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-navy/55">
-                          <span>{acts} activities</span>
-                          <span>
-                            {vids} with video · {acts - vids} instructions only
-                          </span>
-                          <span>
-                            {used} {used === 1 ? "member" : "members"} on this plan
-                          </span>
-                        </p>
-                      </div>
-                      <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-navy/8 pt-3">
-                        <MoveButtons
-                          label={`Play Dose ${plan.title} (${plan.level})`}
-                          disabled={reorder.isPending}
-                          first={doseIndex === 0}
-                          last={doseIndex === group.plans.length - 1}
-                          onMove={(dir) => movePlayDose(group.goalId, plan.id, dir)}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setEditing(plan)}
-                          className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
-                        >
-                          <Pencil className="h-4 w-4" aria-hidden /> Edit Play Dose
-                        </button>
-                        {canDelete && (
+            </div>
+            {isOpen(group.goalId) && (
+              <div id={`plan-body-${group.goalId}`}>
+                {group.goalId !== "other" && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-navy/8 bg-navy/[0.02] px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-xs font-bold text-navy/55">Visibility</span>
+                      <div
+                        className="inline-flex rounded-full border border-navy/12 bg-navy/[0.035] p-1"
+                        aria-label={`Publishing status for ${group.name}`}
+                      >
+                        {(
+                          [
+                            ["published", "Visible", Globe2],
+                            ["invisible", "Invisible", EyeOff],
+                            ["locked", "Locked", Lock],
+                          ] as const
+                        ).map(([value, label, Icon]) => (
                           <button
+                            key={value}
                             type="button"
-                            onClick={() => setRemoving(plan)}
-                            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-coral/40 px-4 text-sm font-bold text-coral"
+                            title={
+                              value === "invisible"
+                                ? "Hide this old or unpopular plan"
+                                : value === "locked"
+                                  ? "Show as upcoming, but prevent starting it"
+                                  : "Show and allow this plan"
+                            }
+                            onClick={() => statusChange.mutate({ id: group.goalId, status: value })}
+                            disabled={statusChange.isPending}
+                            className={cn(
+                              "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold transition",
+                              group.publicationStatus === value
+                                ? value === "published"
+                                  ? "bg-blue text-white"
+                                  : value === "locked"
+                                    ? "bg-amber text-navy"
+                                    : "bg-navy text-white"
+                                : "text-navy/55 hover:bg-white",
+                            )}
                           >
-                            <Trash2 className="h-4 w-4" aria-hidden /> Delete
+                            <Icon className="h-3.5 w-3.5" aria-hidden /> {label}
                           </button>
-                        )}
+                        ))}
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                    </div>
+                  </div>
+                )}
+                {group.plans.length === 0 ? (
+                  <p className="mt-2 text-sm text-navy/55">No plans match your filters.</p>
+                ) : (
+                  <ul className="mt-3 space-y-3">
+                    {group.plans.map((plan, doseIndex) => {
+                      const used = usage.data?.[plan.id] ?? 0;
+                      const acts = plan.entries.reduce((n, e) => n + entryActivities(e).length, 0);
+                      const vids = plan.entries.reduce(
+                        (n, e) => n + entryActivities(e).filter((a) => a.videoUrl?.trim()).length,
+                        0,
+                      );
+                      return (
+                        <li key={plan.id} className="rounded-2xl border border-navy/10 bg-card p-4">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-bold tracking-[0.12em] text-blue uppercase">
+                              Play Dose · {plan.level}
+                            </p>
+                            <p className="mt-1 font-bold">{plan.title}</p>
+                            <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-navy/10 bg-navy/[0.035] px-2.5 py-1 text-xs font-semibold text-navy/65">
+                              <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden /> Created by{" "}
+                              <span data-testid="dose-creator" className="font-bold text-navy">
+                                {plan.createdBy ?? "Super Admin"}
+                              </span>
+                            </p>
+                            <p className="mt-1 text-sm text-navy/65">{plan.summary}</p>
+                            <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-navy/55">
+                              <span>{acts} activities</span>
+                              <span>
+                                {vids} with video · {acts - vids} instructions only
+                              </span>
+                              <span>
+                                {used} {used === 1 ? "member" : "members"} on this plan
+                              </span>
+                            </p>
+                          </div>
+                          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-navy/8 pt-3">
+                            <MoveButtons
+                              label={`Play Dose ${plan.title} (${plan.level})`}
+                              disabled={reorder.isPending}
+                              first={doseIndex === 0}
+                              last={doseIndex === group.plans.length - 1}
+                              onMove={(dir) => movePlayDose(group.goalId, plan.id, dir)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setEditing(plan)}
+                              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
+                            >
+                              <Pencil className="h-4 w-4" aria-hidden /> Edit Play Dose
+                            </button>
+                            {canDelete && (
+                              <button
+                                type="button"
+                                onClick={() => setRemoving(plan)}
+                                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-coral/40 px-4 text-sm font-bold text-coral"
+                              >
+                                <Trash2 className="h-4 w-4" aria-hidden /> Delete
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             )}
           </section>
         ))}

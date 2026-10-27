@@ -59,6 +59,7 @@ test("removing a draft activity confirms without closing the Play Dose editor", 
   page,
 }) => {
   await page.goto("/admin/plans");
+  await page.getByRole("button", { name: "Expand all" }).click();
   await page.getByRole("button", { name: "Edit Play Dose", exact: true }).first().click();
   const editor = page.getByRole("dialog", { name: "Edit Play Dose", exact: true });
   const remove = editor.getByRole("button", { name: "Remove activity", exact: true });
