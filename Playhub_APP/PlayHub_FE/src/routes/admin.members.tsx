@@ -465,6 +465,57 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
+/** The step before an invitation email goes out: the admin checks the address and sends it. */
+function InviteConfirm({
+  email,
+  pending,
+  error,
+  onBack,
+  onSend,
+}: {
+  email: string;
+  pending: boolean;
+  error: string;
+  onBack: () => void;
+  onSend: () => void;
+}) {
+  return (
+    <div role="group" aria-labelledby="invite-confirm-title" className="space-y-4">
+      <h3 id="invite-confirm-title" className="text-lg font-bold">
+        Send an invitation email?
+      </h3>
+      <p className="text-sm leading-relaxed text-navy/70">
+        Saving sends an invitation to <strong className="break-all text-navy">{email}</strong> to
+        link the Member account. Check the address before it goes out.
+      </p>
+      {error && (
+        <p role="alert" className="text-xs font-semibold text-coral">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={pending}
+          className="min-h-12 rounded-full bg-navy/6 px-6 text-sm font-bold text-navy hover:bg-navy/12 disabled:opacity-60"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={pending}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white disabled:opacity-60"
+        >
+          {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+          Send invitation and save
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Super Admin: change a member's email (their account's sign-in email, or who is invited). */
 function MemberEmailModal({
   child,
@@ -485,63 +536,76 @@ function MemberEmailModal({
     onSuccess: onSaved,
   });
   const clearing = Boolean(current) && !email.trim();
+  const [confirming, setConfirming] = useState(false);
   return (
     <Shell title="Member email" subtitle={child.name} onClose={onClose}>
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim()))
-            return setError("Enter a valid email address.");
-          if (email.trim().toLowerCase() === current.toLowerCase()) return onClose();
-          setError("");
-          save.mutate();
-        }}
-      >
-        <div>
-          <label htmlFor="me-email" className="text-sm font-bold">
-            Email
-          </label>
-          <input
-            id="me-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@example.com"
-            className={inputCls}
-          />
-          <p className="mt-1.5 text-xs text-navy/55">
-            {clearing
-              ? removeEmailHint(child, linked)
-              : linked
-                ? "This is their sign-in email; they'll log in with the new one."
-                : "We'll send an invitation to this email to link their Member account."}
-          </p>
-        </div>
-        {error && <p className="text-xs font-semibold text-coral">{error}</p>}
-        {save.isError && (
-          <p role="alert" className="text-xs font-semibold text-coral">
-            {save.error.message}
-          </p>
-        )}
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={save.isPending}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
-          >
-            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-            {clearing ? "Remove email" : "Save email"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+      {confirming ? (
+        <InviteConfirm
+          email={email.trim()}
+          pending={save.isPending}
+          error={save.isError ? save.error.message : ""}
+          onBack={() => setConfirming(false)}
+          onSend={() => save.mutate()}
+        />
+      ) : (
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim()))
+              return setError("Enter a valid email address.");
+            if (email.trim().toLowerCase() === current.toLowerCase()) return onClose();
+            setError("");
+            // Saving a new email for an unlinked member sends an invitation: confirm it first.
+            if (email.trim() && !linked) return setConfirming(true);
+            save.mutate();
+          }}
+        >
+          <div>
+            <label htmlFor="me-email" className="text-sm font-bold">
+              Email
+            </label>
+            <input
+              id="me-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              className={inputCls}
+            />
+            <p className="mt-1.5 text-xs text-navy/55">
+              {clearing
+                ? removeEmailHint(child, linked)
+                : linked
+                  ? "This is their sign-in email; they'll log in with the new one."
+                  : "We'll send an invitation to this email to link their Member account."}
+            </p>
+          </div>
+          {error && <p className="text-xs font-semibold text-coral">{error}</p>}
+          {save.isError && (
+            <p role="alert" className="text-xs font-semibold text-coral">
+              {save.error.message}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={save.isPending}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-bold text-white disabled:opacity-60"
+            >
+              {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              {clearing ? "Remove email" : "Save email"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-11 items-center rounded-full border border-navy/20 px-5 text-sm font-bold"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
     </Shell>
   );
 }
@@ -623,6 +687,9 @@ function EditChildModal({
   const linked = Boolean(child.memberUserId && child.parentEmail);
   const emailChanged = memberEmail.trim().toLowerCase() !== shownEmail.toLowerCase();
   const emailCleared = Boolean(shownEmail) && !memberEmail.trim();
+  // Saving a new email for an unlinked member sends an invitation, so it's confirmed first.
+  const sendsInvite = !linked && emailChanged && Boolean(memberEmail.trim());
+  const [confirming, setConfirming] = useState(false);
 
   const educators = staff.filter(
     (staffMember) =>
@@ -643,167 +710,178 @@ function EditChildModal({
 
   return (
     <Shell title="Maintain member profile" subtitle={child.name} onClose={onClose}>
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const n = Number(age);
-          if (name.trim().length < 2) return setError("Enter the member's name.");
-          if (age.trim() && (!Number.isInteger(n) || n < 1 || n > 18))
-            return setError("Age must be 1–18.");
-          // A family member needs their Account Admin; an organisation member may have none yet.
-          if (!educatorId && !orgId) return setError("Choose the Family Account Admin.");
-          if (memberEmail.trim() && !/^\S+@\S+\.\S+$/.test(memberEmail.trim()))
-            return setError("Enter a valid member email.");
-          setError("");
-          save.mutate();
-        }}
-      >
-        <div className="grid gap-4 sm:grid-cols-[1.6fr_0.6fr]">
-          <div>
-            <label htmlFor="ec-name" className="text-sm font-bold">
-              Member's name
-            </label>
-            <input
-              id="ec-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputCls}
-            />
+      {confirming ? (
+        <InviteConfirm
+          email={memberEmail.trim()}
+          pending={save.isPending}
+          error={save.isError ? save.error.message : ""}
+          onBack={() => setConfirming(false)}
+          onSend={() => save.mutate()}
+        />
+      ) : (
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const n = Number(age);
+            if (name.trim().length < 2) return setError("Enter the member's name.");
+            if (age.trim() && (!Number.isInteger(n) || n < 1 || n > 18))
+              return setError("Age must be 1–18.");
+            // A family member needs their Account Admin; an organisation member may have none yet.
+            if (!educatorId && !orgId) return setError("Choose the Family Account Admin.");
+            if (memberEmail.trim() && !/^\S+@\S+\.\S+$/.test(memberEmail.trim()))
+              return setError("Enter a valid member email.");
+            setError("");
+            if (sendsInvite) return setConfirming(true);
+            save.mutate();
+          }}
+        >
+          <div className="grid gap-4 sm:grid-cols-[1.6fr_0.6fr]">
+            <div>
+              <label htmlFor="ec-name" className="text-sm font-bold">
+                Member's name
+              </label>
+              <input
+                id="ec-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label htmlFor="ec-age" className="text-sm font-bold">
+                Age
+              </label>
+              <input
+                id="ec-age"
+                inputMode="numeric"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                className={inputCls}
+              />
+            </div>
           </div>
-          <div>
-            <label htmlFor="ec-age" className="text-sm font-bold">
-              Age
-            </label>
-            <input
-              id="ec-age"
-              inputMode="numeric"
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
-              className={inputCls}
-            />
-          </div>
-        </div>
 
-        <div>
-          <label htmlFor="ec-plan" className="text-sm font-bold">
-            Play Plan
-          </label>
-          <Select
-            id="ec-plan"
-            value={planId}
-            onChange={setPlanId}
-            options={plans.map((p) => ({ value: p.id, label: p.title }))}
-            className={inputCls}
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="ec-org" className="text-sm font-bold">
-              Organisation
+            <label htmlFor="ec-plan" className="text-sm font-bold">
+              Play Plan
             </label>
             <Select
-              id="ec-org"
-              value={orgId}
-              onChange={(nextOrgId) => {
-                setOrgId(nextOrgId);
-                setEducatorId("");
-              }}
-              options={[
-                { value: "", label: "Individual family" },
-                ...orgs.map((o) => ({ value: o.id, label: o.name })),
-              ]}
+              id="ec-plan"
+              value={planId}
+              onChange={setPlanId}
+              options={plans.map((p) => ({ value: p.id, label: p.title }))}
               className={inputCls}
             />
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="ec-org" className="text-sm font-bold">
+                Organisation
+              </label>
+              <Select
+                id="ec-org"
+                value={orgId}
+                onChange={(nextOrgId) => {
+                  setOrgId(nextOrgId);
+                  setEducatorId("");
+                }}
+                options={[
+                  { value: "", label: "Individual family" },
+                  ...orgs.map((o) => ({ value: o.id, label: o.name })),
+                ]}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label htmlFor="ec-edu" className="text-sm font-bold">
+                {orgId ? "Organisation Admin" : "Family Account Admin"}
+              </label>
+              <Select
+                id="ec-edu"
+                value={educatorId}
+                onChange={setEducatorId}
+                options={[
+                  { value: "", label: "Not assigned" },
+                  ...educators.map((s) => ({ value: s.id, label: s.name })),
+                ]}
+                className={inputCls}
+              />
+            </div>
+          </div>
+
           <div>
-            <label htmlFor="ec-edu" className="text-sm font-bold">
-              {orgId ? "Organisation Admin" : "Family Account Admin"}
+            <label htmlFor="ec-email" className="text-sm font-bold">
+              Member email
             </label>
-            <Select
-              id="ec-edu"
-              value={educatorId}
-              onChange={setEducatorId}
-              options={[
-                { value: "", label: "Not assigned" },
-                ...educators.map((s) => ({ value: s.id, label: s.name })),
-              ]}
+            <input
+              id="ec-email"
+              type="email"
+              value={memberEmail}
+              onChange={(e) => setMemberEmail(e.target.value)}
+              placeholder="name@example.com"
               className={inputCls}
             />
+            <p className="mt-1.5 text-xs text-navy/55">
+              {emailCleared
+                ? removeEmailHint(child, linked)
+                : linked
+                  ? "This is the Member account's sign-in email; changing it changes how they log in."
+                  : child.invitedEmail && !emailChanged
+                    ? "An invitation to this email is waiting to be accepted. Change it to invite someone else."
+                    : "Saving sends an invitation to this email and links the Member account once accepted."}
+            </p>
           </div>
-        </div>
 
-        <div>
-          <label htmlFor="ec-email" className="text-sm font-bold">
-            Member email
-          </label>
-          <input
-            id="ec-email"
-            type="email"
-            value={memberEmail}
-            onChange={(e) => setMemberEmail(e.target.value)}
-            placeholder="name@example.com"
-            className={inputCls}
-          />
-          <p className="mt-1.5 text-xs text-navy/55">
-            {emailCleared
-              ? removeEmailHint(child, linked)
-              : linked
-                ? "This is the Member account's sign-in email; changing it changes how they log in."
-                : child.invitedEmail && !emailChanged
-                  ? "An invitation to this email is waiting to be accepted. Change it to invite someone else."
-                  : "Saving sends an invitation to this email and links the Member account once accepted."}
-          </p>
-        </div>
+          <div>
+            <label htmlFor="ec-note" className="text-sm font-bold">
+              Note
+            </label>
+            <textarea
+              id="ec-note"
+              rows={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className={cn(inputCls, "min-h-24 py-3")}
+            />
+          </div>
 
-        <div>
-          <label htmlFor="ec-note" className="text-sm font-bold">
-            Note
-          </label>
-          <textarea
-            id="ec-note"
-            rows={3}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className={cn(inputCls, "min-h-24 py-3")}
-          />
-        </div>
+          {error && <p className="text-xs font-semibold text-coral">{error}</p>}
+          {save.isError && (
+            <p role="alert" className="text-xs font-semibold text-coral">
+              {save.error.message}
+            </p>
+          )}
 
-        {error && <p className="text-xs font-semibold text-coral">{error}</p>}
-        {save.isError && (
-          <p role="alert" className="text-xs font-semibold text-coral">
-            {save.error.message}
-          </p>
-        )}
-
-        <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
-          {onDelete && (
+          <div className="flex flex-col-reverse gap-3 pt-1 sm:flex-row sm:justify-end">
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-coral/40 px-5 text-sm font-bold text-coral hover:bg-coral/8 sm:mr-auto"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden /> Delete member
+              </button>
+            )}
             <button
               type="button"
-              onClick={onDelete}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-coral/40 px-5 text-sm font-bold text-coral hover:bg-coral/8 sm:mr-auto"
+              onClick={onClose}
+              className="min-h-12 rounded-full bg-navy/6 px-6 text-sm font-bold text-navy hover:bg-navy/12"
             >
-              <Trash2 className="h-4 w-4" aria-hidden /> Delete member
+              Cancel
             </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-12 rounded-full bg-navy/6 px-6 text-sm font-bold text-navy hover:bg-navy/12"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={save.isPending}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white disabled:opacity-60"
-          >
-            {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-            Save changes
-          </button>
-        </div>
-      </form>
+            <button
+              type="submit"
+              disabled={save.isPending}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white disabled:opacity-60"
+            >
+              {save.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              Save changes
+            </button>
+          </div>
+        </form>
+      )}
     </Shell>
   );
 }

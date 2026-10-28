@@ -2,10 +2,13 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
 import { resetPassword } from "@/api/account";
+import { apiAssetUrl } from "@/api/client";
+import { loadHomepageForRoute, useHomepageContent } from "@/features/homepage/useHomepageContent";
 import { AuthLayout, authButton, authInput, authLabel } from "@/components/AuthLayout";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/reset-password")({
+  loader: ({ context }) => loadHomepageForRoute(context.queryClient),
   validateSearch: (search: Record<string, unknown>) => ({
     token: typeof search["token"] === "string" ? search["token"] : "",
   }),
@@ -14,6 +17,7 @@ export const Route = createFileRoute("/reset-password")({
 });
 
 function ResetPasswordPage() {
+  const { auth } = useHomepageContent();
   const { token } = Route.useSearch();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -39,7 +43,7 @@ function ResetPasswordPage() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout artImage={apiAssetUrl(auth.password_image_url) || undefined}>
       <h1 className="text-4xl leading-[1.05] font-bold tracking-tight text-navy">
         Choose a new password
       </h1>

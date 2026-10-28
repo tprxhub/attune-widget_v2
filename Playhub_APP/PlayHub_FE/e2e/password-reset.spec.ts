@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signIn } from "./support/signIn";
 
 test("a signed-out user can ask for a reset link from the login page", async ({ page }) => {
   await page.goto("/login");
@@ -20,4 +21,36 @@ test("an expired or made-up reset link explains what to do", async ({ page }) =>
   await page.getByRole("button", { name: "Save new password" }).click();
   await expect(page.getByRole("alert")).toContainText("expired or was already used");
   await expect(page.getByRole("link", { name: "Send a new link" })).toBeVisible();
+});
+
+test("the password pages show the picture chosen in the homepage editor", async ({ page }) => {
+  const picture = "https://example.com/password-picture.jpg";
+  const art = () => page.getByAltText("A member playing with colourful wooden toys");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await signIn(page, "admin@playhub.local");
+  await page.goto("/admin/homepage");
+  await page
+    .getByRole("navigation", { name: "Editor sections" })
+    .getByRole("button", { name: "Login, signup & password images", exact: true })
+    .click();
+  const field = page.getByLabel("Password pages image", { exact: true });
+  const original = await field.inputValue();
+  await field.fill(picture);
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByRole("status")).not.toContainText("unsaved changes");
+  try {
+    await page.goto("/forgot-password");
+    await expect(art()).toHaveAttribute("src", picture);
+    await page.goto("/reset-password?token=not-a-real-token-but-long-enough");
+    await expect(art()).toHaveAttribute("src", picture);
+  } finally {
+    await page.goto("/admin/homepage");
+    await page
+      .getByRole("navigation", { name: "Editor sections" })
+      .getByRole("button", { name: "Login, signup & password images", exact: true })
+      .click();
+    await page.getByLabel("Password pages image", { exact: true }).fill(original);
+    await page.getByRole("button", { name: "Save changes", exact: true }).click();
+    await expect(page.getByRole("status")).not.toContainText("unsaved changes");
+  }
 });

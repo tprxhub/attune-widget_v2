@@ -935,6 +935,7 @@ class HomeFooter(HomeContentModel):
 class HomeAuthImages(HomeContentModel):
     login_image_url: ImageUrl = ""
     signup_image_url: ImageUrl = ""
+    password_image_url: ImageUrl = ""
 
 
 class HomePolicy(HomeContentModel):
@@ -965,3 +966,10 @@ class SiteContentRead(APIModel):
     """`content` is null until a Super Admin saves; the site then falls back to its built-in copy."""
     content: dict | None = None
     updated_at: datetime | None = None
+
+
+class PlanPictureRead(APIModel):
+    """The picture a published Play Plan shows, for the landing page."""
+    plan: str
+    category: str
+    thumbnail_url: str

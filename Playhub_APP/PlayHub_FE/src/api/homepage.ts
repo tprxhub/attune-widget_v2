@@ -52,7 +52,7 @@ export interface HomeAudience {
 
 export interface HomepageContent {
   hero: HomeHero;
-  auth: { login_image_url: string; signup_image_url: string };
+  auth: { login_image_url: string; signup_image_url: string; password_image_url: string };
   policies: {
     privacy: { title: string; body: string };
     terms: { title: string; body: string };
@@ -97,7 +97,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
     image_url: "",
     mobile_image_url: "",
   },
-  auth: { login_image_url: "", signup_image_url: "" },
+  auth: { login_image_url: "", signup_image_url: "", password_image_url: "" },
   policies: {
     privacy: { title: "Privacy policy", body: policyToText(PRIVACY_INTRO, PRIVACY_SECTIONS) },
     terms: { title: "Terms of service", body: policyToText(TERMS_INTRO, TERMS_SECTIONS) },
@@ -374,4 +374,26 @@ export async function uploadHomepageImage(file: File): Promise<string> {
     body: form,
   });
   return url;
+}
+
+/** The picture a published Play Plan shows, keyed by its name and its category's name. */
+export interface PlanPicture {
+  plan: string;
+  category: string;
+  thumbnailUrl: string;
+}
+
+export const PLAN_PICTURES_QUERY_KEY = ["plan-pictures"] as const;
+
+/** Public: the landing page's skill tiles show the same picture as each Play Plan. */
+export async function loadPlanPictures(): Promise<PlanPicture[]> {
+  const rows = await apiRequest<{ plan: string; category: string; thumbnail_url: string }[]>(
+    "/site-content/plan-pictures",
+    { authenticated: false },
+  );
+  return rows.map((row) => ({
+    plan: row.plan,
+    category: row.category,
+    thumbnailUrl: row.thumbnail_url,
+  }));
 }

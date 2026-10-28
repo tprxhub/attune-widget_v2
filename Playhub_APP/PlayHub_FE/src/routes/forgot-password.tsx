@@ -2,10 +2,13 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Loader2, MailCheck } from "lucide-react";
 import { requestPasswordReset } from "@/api/account";
+import { apiAssetUrl } from "@/api/client";
+import { loadHomepageForRoute, useHomepageContent } from "@/features/homepage/useHomepageContent";
 import { AuthLayout, authButton, authInput, authLabel } from "@/components/AuthLayout";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/forgot-password")({
+  loader: ({ context }) => loadHomepageForRoute(context.queryClient),
   validateSearch: (search: Record<string, unknown>) => ({
     email: typeof search["email"] === "string" ? search["email"] : undefined,
   }),
@@ -14,6 +17,7 @@ export const Route = createFileRoute("/forgot-password")({
 });
 
 function ForgotPasswordPage() {
+  const { auth } = useHomepageContent();
   const search = Route.useSearch();
   const [email, setEmail] = useState(search.email ?? "");
   const [pending, setPending] = useState(false);
@@ -39,7 +43,7 @@ function ForgotPasswordPage() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout artImage={apiAssetUrl(auth.password_image_url) || undefined}>
       <Link
         to="/login"
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy/70 hover:text-navy"

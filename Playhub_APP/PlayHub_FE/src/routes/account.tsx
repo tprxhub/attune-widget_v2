@@ -321,16 +321,6 @@ function AccountPage() {
                       Subscription
                     </Link>
                   ))}
-                {session.role === "educator" && session.accountType === "b2b" && (
-                  <Link
-                    to="/org/billing"
-                    search={{ from: "account" }}
-                    className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-cream px-3 text-xs font-bold text-navy transition-colors hover:bg-amber"
-                  >
-                    <Receipt className="h-3.5 w-3.5" aria-hidden />
-                    Billing
-                  </Link>
-                )}
               </div>
               <p className="mt-1 truncate text-sm text-cream/70">
                 {session.guardianName
@@ -485,56 +475,78 @@ function AccountPage() {
             )}
           </section>
 
-          <section
-            className="ph-card min-w-0 p-5 sm:p-6"
-            aria-labelledby="account-preferences-title"
-          >
-            <h2 id="account-preferences-title" className="text-lg font-bold">
-              Preferences
-            </h2>
-            <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
-              {session.role === "super_admin" && account.data && (
-                <NotificationSwitch
-                  personaId={session.personaId}
-                  enabled={account.data.emailNotifications}
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => setGuideOpen(true)}
-                className="group flex min-w-0 flex-wrap items-center gap-3 rounded-2xl bg-navy p-3.5 text-left text-white transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
+          <div className="min-w-0 space-y-4">
+            <section
+              className="ph-card min-w-0 p-5 sm:p-6"
+              aria-labelledby="account-preferences-title"
+            >
+              <h2 id="account-preferences-title" className="text-lg font-bold">
+                Preferences
+              </h2>
+              <div className="mt-4 grid min-w-0 grid-cols-1 gap-3">
+                {session.role === "super_admin" && account.data && (
+                  <NotificationSwitch
+                    personaId={session.personaId}
+                    enabled={account.data.emailNotifications}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setGuideOpen(true)}
+                  className="group flex min-w-0 flex-wrap items-center gap-3 rounded-2xl bg-navy p-3.5 text-left text-white transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber text-navy">
+                    <HelpCircle className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold">How Play Hub works</span>
+                    <span className="block text-xs text-white/65">
+                      Levels, progress statuses and how a Play Plan runs
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-coral px-3 py-1.5 text-[11px] font-bold text-white transition group-hover:bg-coral/90">
+                    Open guide
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPwOpen(true)}
+                  className="group flex min-w-0 items-center gap-3 rounded-2xl border border-coral/25 bg-coral/8 p-3.5 text-left transition hover:-translate-y-0.5 hover:border-coral/50 hover:shadow-[var(--shadow-card)]"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral/15 text-coral">
+                    <KeyRound className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-bold">Change password</span>
+                    <span className="block truncate text-xs text-navy/60">
+                      Update your sign-in password
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </section>
+            {session.role === "educator" && session.accountType === "b2b" && (
+              <Link
+                to="/org/billing"
+                search={{ from: "account" }}
+                className="ph-card group flex min-w-0 items-center gap-3 p-5 transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] sm:p-6"
               >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber text-navy">
-                  <HelpCircle className="h-5 w-5" aria-hidden />
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-blue/12 text-blue">
+                  <Receipt className="h-5 w-5" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold">How Play Hub works</span>
-                  <span className="block text-xs text-white/65">
-                    Levels, progress statuses and how a Play Plan runs
+                  <span className="block text-base font-bold">Billing</span>
+                  <span className="block text-sm text-navy/60">
+                    View your organisation's billing schedule
                   </span>
                 </span>
-                <span className="shrink-0 rounded-full bg-coral px-3 py-1.5 text-[11px] font-bold text-white transition group-hover:bg-coral/90">
-                  Open guide
+                <span className="shrink-0 rounded-full bg-navy px-3 py-2 text-xs font-bold text-white transition group-hover:bg-blue">
+                  View billing
                 </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPwOpen(true)}
-                className="group flex min-w-0 items-center gap-3 rounded-2xl border border-coral/25 bg-coral/8 p-3.5 text-left transition hover:-translate-y-0.5 hover:border-coral/50 hover:shadow-[var(--shadow-card)]"
-              >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-coral/15 text-coral">
-                  <KeyRound className="h-5 w-5" aria-hidden />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold">Change password</span>
-                  <span className="block truncate text-xs text-navy/60">
-                    Update your sign-in password
-                  </span>
-                </span>
-              </button>
-            </div>
-          </section>
+              </Link>
+            )}
+          </div>
         </div>
 
         {session.accountType === "b2b" && session.role === "educator" && (

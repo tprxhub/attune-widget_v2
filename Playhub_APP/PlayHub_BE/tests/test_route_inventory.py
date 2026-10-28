@@ -48,6 +48,7 @@ EXPECTED_OPERATIONS = {
     ("POST", "/api/v1/site-content/branding/logo"),
     ("DELETE", "/api/v1/site-content/branding/logo"),
     ("GET", "/api/v1/site-content/homepage"),
+    ("GET", "/api/v1/site-content/plan-pictures"),
     ("PUT", "/api/v1/site-content/homepage"),
     ("DELETE", "/api/v1/site-content/homepage"),
     ("POST", "/api/v1/site-content/homepage/image"),

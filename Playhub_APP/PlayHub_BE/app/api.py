@@ -36,7 +36,7 @@ from app.schemas import (
     AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
     AccountDeletion, LoginRequest, MemberDeletion, OrganisationCreate, OrganisationDeletion, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
     PlayDoseUpdate, DoseContentUpdate, OrderUpdate, PlayCategoryCreate, PlayCategoryRead, PlayCategoryUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
-    SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, SiteContentRead,
+    SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, PlanPictureRead, SiteContentRead,
     ModeratorInvitationUpdate,
 )
 from app.security import create_access_token, hash_password, verify_password
@@ -2127,6 +2127,29 @@ def _site_content_read(row: SiteContent | None) -> SiteContentRead:
 def get_homepage_content(db: Session = Depends(get_db)):
     """Public: the landing page reads its copy from here and falls back to its own defaults."""
     return _site_content_read(db.get(SiteContent, HOMEPAGE_KEY))
+
+
+@router.get("/site-content/plan-pictures", response_model=list[PlanPictureRead])
+def get_plan_pictures(db: Session = Depends(get_db)):
+    """Public: the picture each published Play Plan shows, for the landing page's skill tiles.
+
+    A plan's picture is the thumbnail of its first level that has one; plans without any are left out.
+    """
+    plans = db.scalars(
+        select(PlayPlan).join(PlayPlan.category)
+        .options(selectinload(PlayPlan.play_doses))
+        .where(PlayPlan.is_active.is_(True), PlayPlan.publication_status != PlanPublicationStatus.INVISIBLE)
+        .order_by(PlayCategory.sort_order, PlayPlan.sort_order, PlayPlan.name)
+    ).unique().all()
+    pictures: list[PlanPictureRead] = []
+    for plan in plans:
+        doses = sorted(
+            (dose for dose in plan.play_doses if dose.is_active and dose.thumbnail_url),
+            key=lambda dose: (LEVEL_ORDER.get(dose.level, 9), dose.sort_order),
+        )
+        if doses:
+            pictures.append(PlanPictureRead(plan=plan.name, category=plan.category.name, thumbnail_url=doses[0].thumbnail_url))
+    return pictures
 
 
 @router.put("/site-content/homepage", response_model=SiteContentRead)

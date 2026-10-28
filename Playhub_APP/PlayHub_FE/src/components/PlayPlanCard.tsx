@@ -5,27 +5,13 @@ import type { Goal, PlayPlan } from "@/lib/types";
 import { LevelDots } from "@/components/brand";
 import { GoalIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import thumbGrip from "@/assets/Thumbnails/Thumb1.jpeg";
-import thumbReading from "@/assets/Thumbnails/Thumb2.jpeg";
-import thumbScissors from "@/assets/Thumbnails/Thum3.jpeg";
-import thumbWriting from "@/assets/Thumbnails/Thumb4.jpeg";
+import { DEFAULT_PLAN_THUMBNAIL, PLAN_THUMBNAILS } from "@/features/plans/planThumbnails";
 
 const GRADIENT: Record<string, string> = {
   coral: "from-coral to-navy",
   blue: "from-blue to-navy",
   amber: "from-amber to-navy",
   navy: "from-navy to-navy",
-};
-
-/** One visual per Play Plan, shared by its Rookie, Starter and Pro versions. */
-const PLAN_THUMBNAILS: Record<string, string> = {
-  pinch: thumbGrip,
-  bilateral: thumbGrip,
-  visual: thumbReading,
-  tool: thumbScissors,
-  prewrite: thumbWriting,
-  scanning: thumbReading,
-  letters: thumbWriting,
 };
 
 export function PlayPlanCard({
@@ -76,7 +62,7 @@ export function PlayPlanCard({
         )}
       >
         <img
-          src={plan.thumbnailUrl ?? PLAN_THUMBNAILS[goal.id] ?? thumbGrip}
+          src={plan.thumbnailUrl ?? PLAN_THUMBNAILS[goal.id] ?? DEFAULT_PLAN_THUMBNAIL}
           alt=""
           aria-hidden
           loading="lazy"

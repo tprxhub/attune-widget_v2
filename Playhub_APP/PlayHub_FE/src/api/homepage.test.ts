@@ -29,14 +29,22 @@ describe("homepage content migration", () => {
     const content = mergeHomepageContent({ hero: { title: "Our existing homepage" } });
     expect(content.hero.title).toBe("Our existing homepage");
     expect(content.hero.mobile_image_url).toBe("");
-    expect(content.auth).toEqual({ login_image_url: "", signup_image_url: "" });
+    expect(content.auth).toEqual({
+      login_image_url: "",
+      signup_image_url: "",
+      password_image_url: "",
+    });
     expect(content.policies).toEqual(DEFAULT_HOMEPAGE_CONTENT.policies);
   });
 
   test("preserves separate images and policy text when merging a saved response", () => {
     const stored = {
       hero: { mobile_image_url: "/uploads/phone.jpg" },
-      auth: { login_image_url: "/uploads/login.jpg", signup_image_url: "/uploads/signup.jpg" },
+      auth: {
+        login_image_url: "/uploads/login.jpg",
+        signup_image_url: "/uploads/signup.jpg",
+        password_image_url: "/uploads/password.jpg",
+      },
       policies: { privacy: { title: "Your privacy", body: "## Information\n\nYour choices." } },
     };
     const content = mergeHomepageContent(stored);

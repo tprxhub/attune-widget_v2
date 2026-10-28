@@ -6,7 +6,7 @@ import { Logo } from "@/components/brand";
 
 interface AuthLayoutProps {
   children: ReactNode;
-  artImage?: string;
+  artImage?: string | undefined;
 }
 
 export function AuthLayout({ children, artImage }: AuthLayoutProps) {

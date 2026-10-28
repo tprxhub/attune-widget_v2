@@ -56,6 +56,13 @@ test("the Super Admin adds a member's email from their profile", async ({ page }
   );
   await dialog.getByLabel("Member email").fill("omar.parent@example.com");
   await dialog.getByRole("button", { name: /Save/ }).click();
+  // Nothing is sent until the admin confirms the invitation; Back returns to the form.
+  await expect(dialog).toContainText("Send an invitation email?");
+  await expect(dialog).toContainText("omar.parent@example.com");
+  await dialog.getByRole("button", { name: "Back" }).click();
+  await expect(dialog.getByLabel("Member email")).toHaveValue("omar.parent@example.com");
+  await dialog.getByRole("button", { name: /Save/ }).click();
+  await dialog.getByRole("button", { name: "Send invitation and save" }).click();
   expect((await invitation).postDataJSON()).toMatchObject({
     email: "omar.parent@example.com",
     role: "member",

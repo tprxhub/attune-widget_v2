@@ -127,8 +127,8 @@ function buildSections(
     },
     {
       id: "auth-images",
-      title: "Login & signup images",
-      blurb: "Separate photographs beside the login and signup forms on large screens.",
+      title: "Login, signup & password images",
+      blurb: "Separate photographs beside the login, signup and password forms on large screens.",
       groups: [
         {
           fields: [
@@ -141,6 +141,11 @@ function buildSections(
               ["auth", "signup_image_url"],
               "Signup image",
               "Leave blank to keep the built-in signup photo.",
+            ),
+            image(
+              ["auth", "password_image_url"],
+              "Password pages image",
+              "Shown on Forgot password and Reset password. Leave blank to keep the built-in photo.",
             ),
           ],
         },

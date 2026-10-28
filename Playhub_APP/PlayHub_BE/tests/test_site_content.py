@@ -276,7 +276,7 @@ def test_application_logo_upload_and_reset(client, family, platform_admin):
 def test_images_and_policies_are_saved_and_public(client, platform_admin):
     payload = homepage()
     payload["hero"]["mobile_image_url"] = "/uploads/phone.jpg"
-    payload["auth"] = {"login_image_url": "/uploads/login.jpg", "signup_image_url": "https://example.com/signup.webp"}
+    payload["auth"] = {"login_image_url": "/uploads/login.jpg", "signup_image_url": "https://example.com/signup.webp", "password_image_url": "/uploads/password.jpg"}
     payload["policies"] = {
         "privacy": {"title": "Your privacy", "body": "## Your data\n\n- Name\n- Email\n\nYour choices."},
         "terms": {"title": "Service terms", "body": "Terms approved by the site owner."},
@@ -289,7 +289,7 @@ def test_images_and_policies_are_saved_and_public(client, platform_admin):
     assert stored["hero"]["mobile_image_url"] == "/uploads/phone.jpg"
 
 
-@pytest.mark.parametrize("path", ["hero.mobile_image_url", "auth.login_image_url", "auth.signup_image_url"])
+@pytest.mark.parametrize("path", ["hero.mobile_image_url", "auth.login_image_url", "auth.signup_image_url", "auth.password_image_url"])
 def test_new_image_fields_reject_unsafe_urls(client, platform_admin, path):
     payload = homepage()
     payload["auth"] = {"login_image_url": "", "signup_image_url": ""}
@@ -303,3 +303,28 @@ def test_policy_content_requires_bounded_nonempty_text(client, platform_admin, b
     payload = homepage()
     payload["policies"] = {"privacy": {"title": "Privacy", "body": body}}
     assert client.put(URL, headers=platform_admin, json=payload).status_code == 422
+
+
+def test_plan_pictures_are_public_and_use_the_first_level_with_a_thumbnail(client, platform_admin):
+    plan = client.post("/api/v1/play-plans", headers=platform_admin, json={
+        "name": "Picture Plan", "slug": "picture-plan", "colour": "blue",
+    }).json()
+    rookie = client.post(f"/api/v1/play-plans/{plan['id']}/play-doses", headers=platform_admin,
+                         json={"level": "rookie", "title": "No picture", "sort_order": 1}).json()
+    starter = client.post(f"/api/v1/play-plans/{plan['id']}/play-doses", headers=platform_admin,
+                          json={"level": "starter", "title": "With picture", "sort_order": 2}).json()
+    assert rookie["thumbnail_url"] is None
+    assert client.patch(f"/api/v1/play-doses/{starter['id']}", headers=platform_admin,
+                        json={"thumbnail_url": "https://example.com/starter.jpg"}).status_code == 200
+
+    response = client.get("/api/v1/site-content/plan-pictures")
+
+    assert response.status_code == 200
+    pictures = [p for p in response.json() if p["plan"] == "Picture Plan"]
+    assert len(pictures) == 1
+    assert pictures[0]["thumbnail_url"] == "https://example.com/starter.jpg"
+    assert pictures[0]["category"]
+
+    assert client.patch(f"/api/v1/play-plans/{plan['id']}", headers=platform_admin,
+                        json={"publication_status": "invisible"}).status_code == 200
+    assert not [p for p in client.get("/api/v1/site-content/plan-pictures").json() if p["plan"] == "Picture Plan"]

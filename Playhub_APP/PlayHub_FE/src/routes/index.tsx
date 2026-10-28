@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { ApplicationFooter } from "@/components/landing/ApplicationFooter";
 import { PillLink } from "@/components/landing/PillLink";
@@ -8,6 +9,8 @@ import { GOALS } from "@/api/domain";
 import { loadPricingForRoute } from "@/api/pricing";
 import { apiAssetUrl } from "@/api/client";
 import { loadHomepageForRoute, useHomepageContent } from "@/features/homepage/useHomepageContent";
+import { loadPlanPictures, PLAN_PICTURES_QUERY_KEY } from "@/api/homepage";
+import { FALLBACK_THUMBNAILS, PLAN_THUMBNAILS } from "@/features/plans/planThumbnails";
 import mobileWallpaper from "@/assets/home-mobile-wallpaper.jpg";
 import { Logo } from "@/components/brand";
 import { AccountMenu } from "@/components/AccountMenu";
@@ -16,7 +19,7 @@ import { GoalIcon } from "@/components/icons";
 import { GuideButton } from "@/features/guide/GuideDialog";
 import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { SAMPLE_PLANS, sampleProgressPoints } from "@/features/progress/sampleProgress";
-import { LEVELS } from "@/lib/types";
+import { LEVELS, type Goal } from "@/lib/types";
 import { useSession } from "@/auth/session";
 import heroKids from "@/assets/hero-kids-playing.jpg";
 import kidsHands from "@/assets/kids-hands-beads.jpg";
@@ -67,6 +70,9 @@ export const Route = createFileRoute("/")({
 });
 
 const JOURNEY_IMAGES = [kidsHands, playTweezers, parentPencil];
+
+/** Rookie, Starter and Pro read as a step down, the baseline and a step up. */
+const LEVEL_STEPS = ["\u22121", "0", "+1"];
 
 /** The real Progress chart with a made-up child's journey, so visitors see what parents get. */
 function SampleProgress() {
@@ -368,6 +374,24 @@ function Landing() {
   useEffect(() => setSessionReady(true), []);
   const signedIn = sessionReady && session.role !== "anonymous";
   const home = useHomepageContent();
+  const { data: planPictures = [] } = useQuery({
+    queryKey: PLAN_PICTURES_QUERY_KEY,
+    queryFn: loadPlanPictures,
+    staleTime: 60_000,
+    retry: false,
+  });
+  /** A skill tile shows the picture its Play Plan uses, or a built-in one until it has its own. */
+  const pictureFor = (goal: Goal, index: number) => {
+    const names = [goal.name, goal.categoryName].filter(Boolean);
+    const found =
+      planPictures.find((picture) => picture.plan === goal.name) ??
+      planPictures.find((picture) => names.includes(picture.category));
+    return (
+      apiAssetUrl(found?.thumbnailUrl) ||
+      PLAN_THUMBNAILS[goal.id] ||
+      FALLBACK_THUMBNAILS[index % FALLBACK_THUMBNAILS.length]!
+    );
+  };
   const gridColumns =
     home.stories.quotes.length === 1
       ? "md:mx-auto md:max-w-xl md:grid-cols-1"
@@ -497,7 +521,7 @@ function Landing() {
               <div>
                 <div className="flex items-center gap-3">
                   <span className="ph-pill h-2 w-2 bg-amber" aria-hidden />
-                  <Eyebrow tone="light">{`Skills library · ${GOALS.length} focus areas`}</Eyebrow>
+                  <Eyebrow tone="light">Skills library</Eyebrow>
                 </div>
                 <h2 className="ph-display mt-4 max-w-2xl text-4xl leading-[1.08] text-cream sm:text-5xl lg:text-6xl">
                   {home.skills.title}
@@ -518,19 +542,25 @@ function Landing() {
                 to="/plans"
                 className="ph-r-2xl group relative flex min-h-[320px] overflow-hidden bg-amber p-6 text-navy sm:p-8 lg:min-h-full"
               >
+                {GOALS[0] && (
+                  <img
+                    src={pictureFor(GOALS[0], 0)}
+                    alt=""
+                    aria-hidden
+                    loading="lazy"
+                    decoding="async"
+                    data-testid="skill-picture"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                )}
                 <div
-                  className="ph-pill absolute -right-16 -bottom-20 h-64 w-64 border-[44px] border-cream/35 transition-transform duration-500 group-hover:scale-105"
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-t from-amber via-amber/70 to-transparent"
                   aria-hidden
                 />
                 <div className="relative z-10 flex w-full flex-col">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[11px] font-bold tracking-[0.16em] text-navy/55 uppercase">
-                      Featured focus
-                    </span>
-                    <span className="ph-display text-base font-bold tracking-[0.16em] text-navy/55">
-                      01 / 07
-                    </span>
-                  </div>
+                  <span className="ph-pill self-start bg-cream/85 px-3 py-1 text-[11px] font-bold tracking-[0.16em] text-navy/70 uppercase">
+                    Featured focus
+                  </span>
 
                   <div className="mt-auto pt-16">
                     <h3 className="ph-display mt-2 max-w-sm text-3xl leading-tight sm:text-4xl">
@@ -563,19 +593,27 @@ function Landing() {
                   <li key={goal.id}>
                     <Link
                       to="/plans"
-                      className="ph-r-lg group flex h-full min-h-40 flex-col border border-cream/10 bg-cream/7 p-4 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-cream/20 hover:bg-cream/12 sm:min-h-44 sm:p-5"
+                      className="ph-r-lg group relative isolate flex h-full min-h-40 flex-col overflow-hidden border border-cream/10 bg-navy p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-cream/25 sm:min-h-44 sm:p-5"
                     >
-                      <div className="flex justify-end">
-                        <span className="ph-display text-lg font-bold tracking-[0.14em] text-cream/45">
-                          {String(index + 2).padStart(2, "0")}
-                        </span>
-                      </div>
+                      <img
+                        src={pictureFor(goal, index + 1)}
+                        alt=""
+                        aria-hidden
+                        loading="lazy"
+                        decoding="async"
+                        data-testid="skill-picture"
+                        className="absolute inset-0 -z-10 h-full w-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div
+                        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-navy via-navy/75 to-navy/10"
+                        aria-hidden
+                      />
                       <div className="mt-auto flex items-end justify-between gap-4 pt-6">
                         <div>
                           <h3 className="ph-display text-xl leading-snug text-cream">
                             {goal.short}
                           </h3>
-                          <p className="mt-2 hidden line-clamp-2 text-xs leading-relaxed text-cream/55 sm:block">
+                          <p className="mt-2 hidden line-clamp-2 text-xs leading-relaxed text-cream/70 sm:block">
                             {goal.blurb}
                           </p>
                         </div>
@@ -720,7 +758,7 @@ function Landing() {
                           highlight ? "text-amber" : "text-navy/20"
                         }`}
                       >
-                        0{i + 1}
+                        {LEVEL_STEPS[i]}
                       </span>
                       <h3 className="ph-display text-2xl">{level}</h3>
                       <p
