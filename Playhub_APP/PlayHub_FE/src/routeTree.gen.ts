@@ -38,6 +38,7 @@ import { Route as AdminProgressRouteImport } from './routes/admin.progress'
 import { Route as AdminTtpRouteImport } from './routes/admin.ttp'
 import { Route as AuthMicrosoftCallbackRouteImport } from './routes/auth.microsoft-callback'
 import { Route as OrgIndexRouteImport } from './routes/org.index'
+import { Route as OrgBillingRouteImport } from './routes/org.billing'
 import { Route as OrgEnrollRouteImport } from './routes/org.enroll'
 import { Route as OrgSupportersRouteImport } from './routes/org.supporters'
 import { Route as PlansIndexRouteImport } from './routes/plans.index'
@@ -191,6 +192,11 @@ const OrgIndexRoute = OrgIndexRouteImport.update({
   path: '/org/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgBillingRoute = OrgBillingRouteImport.update({
+  id: '/org/billing',
+  path: '/org/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgEnrollRoute = OrgEnrollRouteImport.update({
   id: '/org/enroll',
   path: '/org/enroll',
@@ -255,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/admin/progress': typeof AdminProgressRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
+  '/org/billing': typeof OrgBillingRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
   '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/admin/progress': typeof AdminProgressRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
+  '/org/billing': typeof OrgBillingRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
   '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/admin/progress': typeof AdminProgressRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
+  '/org/billing': typeof OrgBillingRoute
   '/org/enroll': typeof OrgEnrollRoute
   '/org/supporters': typeof OrgSupportersRoute
   '/policies/privacy-policy': typeof PoliciesPrivacyPolicyRoute
@@ -372,6 +381,7 @@ export interface FileRouteTypes {
     | '/admin/progress'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
+    | '/org/billing'
     | '/org/enroll'
     | '/org/supporters'
     | '/policies/privacy-policy'
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/admin/progress'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
+    | '/org/billing'
     | '/org/enroll'
     | '/org/supporters'
     | '/policies/privacy-policy'
@@ -448,6 +459,7 @@ export interface FileRouteTypes {
     | '/admin/progress'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
+    | '/org/billing'
     | '/org/enroll'
     | '/org/supporters'
     | '/policies/privacy-policy'
@@ -487,6 +499,7 @@ export interface RootRouteChildren {
   AdminProgressRoute: typeof AdminProgressRoute
   AdminTtpRoute: typeof AdminTtpRoute
   AuthMicrosoftCallbackRoute: typeof AuthMicrosoftCallbackRoute
+  OrgBillingRoute: typeof OrgBillingRoute
   OrgEnrollRoute: typeof OrgEnrollRoute
   OrgSupportersRoute: typeof OrgSupportersRoute
   PoliciesPrivacyPolicyRoute: typeof PoliciesPrivacyPolicyRoute
@@ -703,6 +716,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/org/billing': {
+      id: '/org/billing'
+      path: '/org/billing'
+      fullPath: '/org/billing'
+      preLoaderRoute: typeof OrgBillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/org/enroll': {
       id: '/org/enroll'
       path: '/org/enroll'
@@ -783,6 +803,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminProgressRoute: AdminProgressRoute,
   AdminTtpRoute: AdminTtpRoute,
   AuthMicrosoftCallbackRoute: AuthMicrosoftCallbackRoute,
+  OrgBillingRoute: OrgBillingRoute,
   OrgEnrollRoute: OrgEnrollRoute,
   OrgSupportersRoute: OrgSupportersRoute,
   PoliciesPrivacyPolicyRoute: PoliciesPrivacyPolicyRoute,

@@ -255,7 +255,7 @@ function EnrolPage() {
                       : "border-navy/15 bg-card hover:border-navy/35",
                   )}
                 >
-                  {playPlanName(g, plans.data ?? [])}
+                  {playPlanName(g)}
                 </button>
               ))}
             </div>

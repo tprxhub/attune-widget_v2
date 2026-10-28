@@ -21,6 +21,7 @@ from app.models import (
     Child,
     Invitation,
     Organisation,
+    OrganisationBilling,
     PasswordResetToken,
     PlayDose,
     PlayPlan,
@@ -96,6 +97,7 @@ def delete_organisation(db: Session, org: Organisation, actor: User) -> tuple[De
     # Super Admin who deleted the organisation becomes their recorded logger.
     _remove_users(db, user_ids, actor)
     org_id = org.id
+    db.execute(delete(OrganisationBilling).where(OrganisationBilling.organisation_id == org_id))
     db.execute(delete(Organisation).where(Organisation.id == org_id))
     db.add(AuditEvent(actor_id=actor.id, action="organisation.deleted", resource_type="organisation",
                       resource_id=org_id, metadata_json=asdict(summary)))
@@ -139,6 +141,7 @@ def _remove_users(db: Session, user_ids: list[str], actor: User) -> None:
     db.execute(update(PlayDose).where(PlayDose.created_by_id.in_(user_ids)).values(created_by_id=None))
     db.execute(update(SiteContent).where(SiteContent.updated_by_id.in_(user_ids)).values(updated_by_id=None))
     db.execute(update(PlayPulseResult).where(PlayPulseResult.user_id.in_(user_ids)).values(user_id=None))
+    db.execute(update(OrganisationBilling).where(OrganisationBilling.added_by_id.in_(user_ids)).values(added_by_id=None))
     db.execute(update(AuditEvent).where(AuditEvent.actor_id.in_(user_ids)).values(actor_id=None))
     db.execute(delete(User).where(User.id.in_(user_ids)))
 

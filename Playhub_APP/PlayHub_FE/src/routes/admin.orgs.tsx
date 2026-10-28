@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   CalendarClock,
+  Download,
   Loader2,
   Mail,
   Pencil,
@@ -24,6 +25,7 @@ import {
   toggleOrgActive,
   updateOrg,
 } from "@/api/admin";
+import { exportAllBilling } from "@/api/billingSchedule";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PreviewedDeleteDialog } from "@/components/DeleteConfirmDialog";
@@ -32,6 +34,8 @@ import { PageHeader } from "@/components/AppShell";
 import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
+import { BillingSchedule, BillingScheduleSummary, Sheet } from "@/features/org/BillingSchedule";
+import { useBillingSchedule } from "@/features/org/useBillingSchedule";
 import { useOrgScope } from "@/lib/org-scope";
 import type { LicenseType, Org } from "@/lib/types";
 import { fmtDate } from "@/lib/format";
@@ -123,6 +127,12 @@ function AdminOrgs() {
   const canDelete = session.role === "super_admin";
   const [deleting, setDeleting] = useState<Org | null>(null);
   const [editing, setEditing] = useState<Org | null>(null);
+  const [billingFor, setBillingFor] = useState<Org | null>(null);
+  const [exportError, setExportError] = useState("");
+  const exportBilling = useMutation({
+    mutationFn: exportAllBilling,
+    onError: (failure: Error) => setExportError(failure.message),
+  });
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"School" | "Clinic">("School");
   const [licenses, setLicenses] = useState("25");
@@ -297,12 +307,37 @@ function AdminOrgs() {
         </form>
       )}
 
-      <div className="mt-5 flex items-center justify-between gap-3">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
           {(orgs.data ?? []).length} organisation{(orgs.data ?? []).length === 1 ? "" : "s"}
         </p>
-        <ViewToggle mode={view} onChange={setView} />
+        <div className="flex flex-wrap items-center gap-2">
+          {!isIndividualScope && (
+            <button
+              type="button"
+              onClick={() => {
+                setExportError("");
+                exportBilling.mutate();
+              }}
+              disabled={exportBilling.isPending}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-navy/15 bg-card px-3.5 text-xs font-bold text-navy/80 hover:border-navy/35 disabled:opacity-60"
+            >
+              {exportBilling.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden />
+              )}
+              Export billing
+            </button>
+          )}
+          <ViewToggle mode={view} onChange={setView} />
+        </div>
       </div>
+      {exportError && (
+        <p role="alert" className="mt-2 text-sm font-semibold text-coral">
+          {exportError}
+        </p>
+      )}
 
       {orgs.isLoading ? (
         <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -327,14 +362,7 @@ function AdminOrgs() {
               <span className="shrink-0 rounded-full bg-navy/6 px-2.5 py-1 text-[11px] font-bold text-navy/70">
                 {licenseSummary(org)}
               </span>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold",
-                  RENEWAL_STYLE[org.renewalStatus],
-                )}
-              >
-                {renewalLabel(org)}
-              </span>
+              <RenewalBadge org={org} />
               <span
                 className={cn(
                   "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold",
@@ -343,6 +371,14 @@ function AdminOrgs() {
               >
                 {org.active ? "Active" : "Suspended"}
               </span>
+              <button
+                type="button"
+                onClick={() => setBillingFor(org)}
+                aria-label={`Billing schedule for ${org.name}`}
+                className="inline-flex shrink-0 items-center gap-1.5 px-2 text-xs font-bold text-blue hover:underline"
+              >
+                <Receipt className="h-3.5 w-3.5" aria-hidden /> Billing
+              </button>
               <button
                 type="button"
                 onClick={() => setEditing(org)}
@@ -421,7 +457,7 @@ function AdminOrgs() {
                   ? "Licensed by Moderator: each active or invited Moderator uses a licence. Members are unlimited."
                   : "Licensed by member: each active member uses a licence. Moderators are unlimited."}
               </p>
-              <BillingPanel org={org} />
+              <OrgBilling org={org} onOpen={() => setBillingFor(org)} />
 
               <ConfirmButton
                 confirmationTitle={`Suspend ${org.name}?`}
@@ -450,7 +486,17 @@ function AdminOrgs() {
       )}
       {deleting && <DeleteOrgDialog org={deleting} onClose={() => setDeleting(null)} />}
       {editing && <EditOrgDialog org={editing} onClose={() => setEditing(null)} />}
+      {billingFor && <BillingDialog org={billingFor} onClose={() => setBillingFor(null)} />}
     </>
+  );
+}
+
+/** The organisation's billing schedule, the same one its Admin sees under Billing. */
+function BillingDialog({ org, onClose }: { org: Org; onClose: () => void }) {
+  return (
+    <Sheet title={`Billing schedule for ${org.name}`} wide onClose={onClose}>
+      <BillingSchedule orgId={org.id} />
+    </Sheet>
   );
 }
 
@@ -755,8 +801,50 @@ function EditOrgDialog({ org, onClose }: { org: Org; onClose: () => void }) {
   );
 }
 
+/** When the organisation is paid until: from its billing schedule, else its renewal date. */
+function RenewalBadge({ org }: { org: Org }) {
+  const endsOn = useBillingSchedule(org.id).data?.endsOn;
+  const days = endsOn
+    ? Math.round((new Date(`${endsOn}T00:00`).getTime() - Date.now()) / 86_400_000)
+    : 0;
+  const status: Org["renewalStatus"] = !endsOn
+    ? org.renewalStatus
+    : days < 0
+      ? "overdue"
+      : days <= 14
+        ? "due_soon"
+        : "active";
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold",
+        RENEWAL_STYLE[status],
+      )}
+    >
+      {!endsOn
+        ? renewalLabel(org)
+        : status === "overdue"
+          ? `Billing ended ${fmtDate(endsOn)}`
+          : `Paid until ${fmtDate(endsOn)}`}
+    </span>
+  );
+}
+
+/** One billing box per organisation: its schedule once it has billing periods, otherwise the
+ * licence price and renewal date, with a way to start a schedule from them. */
+function OrgBilling({ org, onOpen }: { org: Org; onOpen: () => void }) {
+  const schedule = useBillingSchedule(org.id);
+  const hasPeriods = (schedule.data?.periods.length ?? 0) > 0;
+  if (schedule.isLoading) return null;
+  return hasPeriods ? (
+    <BillingScheduleSummary orgId={org.id} onOpen={onOpen} />
+  ) : (
+    <BillingPanel org={org} onStartSchedule={onOpen} />
+  );
+}
+
 /** What the organisation pays, when it renews, and the actions to record a renewal or change billing. */
-function BillingPanel({ org }: { org: Org }) {
+function BillingPanel({ org, onStartSchedule }: { org: Org; onStartSchedule: () => void }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState("");
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["orgs"] });
@@ -825,6 +913,14 @@ function BillingPanel({ org }: { org: Org }) {
           )}
           Record renewal
         </ConfirmButton>
+        <button
+          type="button"
+          onClick={onStartSchedule}
+          aria-label={`Start a billing schedule for ${org.name}`}
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-bold text-blue hover:bg-blue/8"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden /> Start a billing schedule
+        </button>
       </div>
       {error && (
         <p role="alert" className="mt-2 text-xs font-semibold text-coral">

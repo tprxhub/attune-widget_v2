@@ -27,6 +27,7 @@ from app.models import (
     InvitationStatus,
     Organisation,
     PlanLevel,
+    PlayCategory,
     PlayDose,
     PlayPlan,
     Role,
@@ -155,8 +156,14 @@ def seed_plans(db) -> dict[tuple[str, PlanLevel], tuple[PlayPlan, PlayDose, Acti
                 result.setdefault((spec["slug"], dose.level), (plan, dose, first))
             continue
 
+        category = db.scalar(select(PlayCategory).where(PlayCategory.name == spec["name"]))
+        if category is None:
+            category = PlayCategory(name=spec["name"], sort_order=plan_order)
+            db.add(category)
+            db.flush()
         plan = PlayPlan(
-            name=spec["name"],
+            category_id=category.id,
+            name=spec["goal_title"],
             slug=spec["slug"],
             description=spec["description"],
             short_description=spec["description"],

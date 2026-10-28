@@ -196,7 +196,7 @@ export function FreePlanGate({ goal, dose }: { goal: Goal; dose?: PlayPlan }) {
       {choosing && child && (
         <ChooseFreePlanDialog
           goal={goal}
-          planTitle={dose?.title ?? goal.name}
+          planTitle={goal.name}
           childId={child.id}
           childName={child.name}
           onClose={() => setChoosing(false)}

@@ -114,7 +114,10 @@ export function PlayPlanCard({
       </span>
 
       <span className="block px-4 pt-6 pb-4">
-        <h3 className="text-xl leading-tight font-extrabold text-navy">{plan.title}</h3>
+        <h3 className="text-xl leading-tight font-extrabold text-navy">{goal.name}</h3>
+        {plan.title !== goal.name && (
+          <p className="mt-1 text-xs font-semibold text-navy/65">{plan.title}</p>
+        )}
         <p className="mt-1 truncate text-xs text-navy/55">
           Created by{" "}
           <span className="font-bold text-navy/80">

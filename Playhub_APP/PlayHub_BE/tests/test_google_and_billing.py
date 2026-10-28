@@ -311,8 +311,12 @@ def test_audit_log_entries_are_limited_to_the_categories_ticked_for_a_ttp_employ
 
 
 def test_admin_can_reorder_play_plans_and_play_doses(client, platform_admin):
+    category = client.post(
+        "/api/v1/play-categories", headers=platform_admin, json={"name": "Reorder group"}
+    ).json()
     plans = [
-        client.post("/api/v1/play-plans", headers=platform_admin, json={"name": name, "slug": name.lower()}).json()
+        client.post("/api/v1/play-plans", headers=platform_admin,
+                    json={"name": name, "slug": name.lower(), "category_id": category["id"]}).json()
         for name in ("Alpha", "Bravo", "Charlie")
     ]
     listed = [p["name"] for p in client.get("/api/v1/play-plans", headers=platform_admin).json()]

@@ -220,7 +220,7 @@ function CheckInPage() {
                     }}
                     options={playPlans.map((playPlan) => ({
                       value: playPlan.id,
-                      label: playPlanName(playPlan, allDoses),
+                      label: playPlanName(playPlan),
                     }))}
                     className="mt-2"
                   />

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_child_access, require_permission, require_roles
-from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, PlanPublicationStatus, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
+from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, PlanPublicationStatus, PlayCategory, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
 from app.config import get_settings
 from app.billing import BillingError, create_checkout, create_refund, paid_in_full, parse_webhook, settled_plan
 from app.pricing import billing_catalog
@@ -35,7 +35,7 @@ from app.schemas import (
     ActivityCreate, ActivityRead, ActivityUpdate, AttemptCreate, FreePlayPlanChoice, AttemptRead, AvatarStickerUpdate, NotificationSettings, ProfileUpdate, ChildCreate, ChildRead, ChildUpdate,
     AuditEventRead, CheckoutCreate, CheckoutCreated, FamilyRegistration, GoogleFamilyRegistration, GoogleLoginRequest, SocialFamilyRegistration, SocialLoginRequest, InvitationAccept, InvitationCreate, InvitationCreated, InvitationRead,
     AccountDeletion, LoginRequest, MemberDeletion, OrganisationCreate, OrganisationDeletion, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
-    PlayDoseUpdate, DoseContentUpdate, OrderUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
+    PlayDoseUpdate, DoseContentUpdate, OrderUpdate, PlayCategoryCreate, PlayCategoryRead, PlayCategoryUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
     SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, SiteContentRead,
     ModeratorInvitationUpdate,
 )
@@ -1202,13 +1202,50 @@ def renew_organisation(organisation_id: str, actor: User = Depends(require_permi
     return licenses.with_usage(db, [renewed])[0]
 
 
+@router.get("/play-categories", response_model=list[PlayCategoryRead])
+def list_play_categories(_: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
+    return db.scalars(select(PlayCategory).order_by(PlayCategory.sort_order, PlayCategory.name)).all()
+
+
+@router.post("/play-categories", response_model=PlayCategoryRead, status_code=201)
+def create_play_category(payload: PlayCategoryCreate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
+    name = payload.name.strip()
+    if len(name) < 2:
+        raise HTTPException(status_code=422, detail="Give the category a name")
+    if db.scalar(select(PlayCategory).where(func.lower(PlayCategory.name) == name.lower())):
+        raise HTTPException(status_code=409, detail="Category name already exists")
+    last = db.scalar(select(func.max(PlayCategory.sort_order)))
+    return commit_audited(
+        db,
+        PlayCategory(name=name, sort_order=0 if last is None else last + 1,
+                     created_by_id=actor.id, created_by_label=actor.display_name),
+        actor_id=actor.id,
+        action="play_category.created",
+        resource_type="play_category",
+    )
+
+
+@router.patch("/play-categories/{category_id}", response_model=PlayCategoryRead)
+def update_play_category(category_id: str, payload: PlayCategoryUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
+    category = one_or_404(db, PlayCategory, category_id)
+    name = payload.name.strip()
+    if len(name) < 2:
+        raise HTTPException(status_code=422, detail="Give the category a name")
+    if db.scalar(select(PlayCategory).where(PlayCategory.id != category_id, func.lower(PlayCategory.name) == name.lower())):
+        raise HTTPException(status_code=409, detail="Category name already exists")
+    category.name = name
+    return commit_audited(db, category, actor_id=actor.id, action="play_category.updated", resource_type="play_category")
+
+
 @router.get("/play-plans", response_model=list[PlayPlanRead])
 def list_plans(include_inactive: bool = False, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role == Role.TTP_EMPLOYEE and not user.can("plans"):
         raise HTTPException(status_code=403, detail="You do not have permission to view Play Plans")
     if include_inactive and not user.can("plans"):
         raise HTTPException(status_code=403, detail="Only a platform administrator can view inactive content")
-    query = select(PlayPlan).options(selectinload(PlayPlan.play_doses).selectinload(PlayDose.activities)).order_by(PlayPlan.sort_order, PlayPlan.name)
+    query = (select(PlayPlan).join(PlayPlan.category)
+             .options(selectinload(PlayPlan.play_doses).selectinload(PlayDose.activities))
+             .order_by(PlayCategory.sort_order, PlayPlan.sort_order, PlayPlan.name))
     if not include_inactive:
         query = query.where(
             PlayPlan.is_active.is_(True),
@@ -1299,6 +1336,15 @@ def reorder_plans(payload: OrderUpdate, actor: User = Depends(require_permission
     ).unique().all()
 
 
+@router.put("/play-categories/order", response_model=list[PlayCategoryRead])
+def reorder_categories(payload: OrderUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
+    rows = db.scalars(select(PlayCategory)).all()
+    _apply_order(rows, payload.ids)
+    audit(db, actor.id, "play_category.reordered", "play_category", payload.ids[0])
+    db.commit()
+    return db.scalars(select(PlayCategory).order_by(PlayCategory.sort_order, PlayCategory.name)).all()
+
+
 @router.put("/play-plans/{plan_id}/play-doses/order", response_model=PlayPlanRead)
 def reorder_doses(plan_id: str, payload: OrderUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     plan = one_or_404(db, PlayPlan, plan_id)
@@ -1315,10 +1361,27 @@ def create_plan(payload: PlayPlanCreate, actor: User = Depends(require_permissio
         raise HTTPException(status_code=409, detail="Play Plan name or slug already exists")
     data = payload.model_dump()
     credit = (data.pop("created_by_name", None) or "").strip()
+    category_id = data.pop("category_id")
+    if category_id:
+        one_or_404(db, PlayCategory, category_id)
+    else:
+        # Older API clients that omit a category keep their previous one-plan-per-group layout.
+        category = db.scalar(select(PlayCategory).where(func.lower(PlayCategory.name) == payload.name.lower()))
+        if category is None:
+            last_category = db.scalar(select(func.max(PlayCategory.sort_order)))
+            category = PlayCategory(
+                name=payload.name,
+                sort_order=0 if last_category is None else last_category + 1,
+                created_by_id=actor.id,
+                created_by_label=credit or actor.display_name,
+            )
+            db.add(category)
+            db.flush()
+        category_id = category.id
     last = db.scalar(select(func.max(PlayPlan.sort_order)))
     return commit_audited(
         db,
-        PlayPlan(**data, sort_order=0 if last is None else last + 1, created_by_id=actor.id, created_by_label=credit or actor.display_name),
+        PlayPlan(**data, category_id=category_id, sort_order=0 if last is None else last + 1, created_by_id=actor.id, created_by_label=credit or actor.display_name),
         actor_id=actor.id,
         action="play_plan.created",
         resource_type="play_plan",
@@ -1329,6 +1392,10 @@ def create_plan(payload: PlayPlanCreate, actor: User = Depends(require_permissio
 def update_plan(plan_id: str, payload: PlayPlanUpdate, actor: User = Depends(require_permission("plans")), db: Session = Depends(get_db)):
     item = one_or_404(db, PlayPlan, plan_id)
     changes = payload.model_dump(exclude_unset=True)
+    if "category_id" in changes:
+        if not changes["category_id"]:
+            raise HTTPException(status_code=422, detail="Choose a category")
+        one_or_404(db, PlayCategory, changes["category_id"])
     if "name" in changes or "slug" in changes:
         name = changes.get("name", item.name)
         slug = changes.get("slug", item.slug)

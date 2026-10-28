@@ -8,7 +8,6 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
-  ChevronsUpDown,
   EyeOff,
   Globe2,
   ImagePlus,
@@ -26,6 +25,7 @@ import { apiAssetUrl, type ApiActivity } from "@/api/client";
 import {
   blankPlanEntries,
   createDose,
+  createPlayCategory,
   createPlayPlan,
   saveDoseContent,
   saveOneActivity,
@@ -38,12 +38,16 @@ import {
   deletePlan,
   entryActivities,
   listAllGoals,
+  listPlayCategories,
   listPlanUsage,
   listPlans,
   type PlanInput,
   reorderPlayDoses,
+  reorderPlayCategories,
   reorderPlayPlans,
+  updatePlayCategory,
   type PlanPublicationStatus,
+  type PlayCategory,
 } from "@/api/plans";
 import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
@@ -100,6 +104,7 @@ function AdminPlans() {
     queryFn: () => listPlans(undefined, true),
   });
   const goals = useQuery({ queryKey: ["goals", "library"], queryFn: listAllGoals });
+  const categories = useQuery({ queryKey: ["play-categories"], queryFn: listPlayCategories });
   const usage = useQuery({ queryKey: ["plan-usage"], queryFn: listPlanUsage });
 
   const [search, setSearch] = useState("");
@@ -117,15 +122,18 @@ function AdminPlans() {
       return next;
     });
   const [editingGoal, setEditingGoal] = useState<string | null>(null);
+  const [editingCategory, setEditingCategory] = useState<PlayCategory | "new" | null>(null);
   const [creditFor, setCreditFor] = useState<{ id: string; name: string } | null>(null);
   const [editing, setEditing] = useState<PlayPlan | "new" | "new-play-plan" | null>(null);
   const [newDoseGoalId, setNewDoseGoalId] = useState<string | undefined>();
+  const [newPlanCategoryId, setNewPlanCategoryId] = useState<string | undefined>();
   const [removing, setRemoving] = useState<PlayPlan | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["plans"] });
     queryClient.invalidateQueries({ queryKey: ["plan-usage"] });
     queryClient.invalidateQueries({ queryKey: ["goals"] });
+    queryClient.invalidateQueries({ queryKey: ["play-categories"] });
   };
 
   const [reorderError, setReorderError] = useState<string | null>(null);
@@ -151,13 +159,28 @@ function AdminPlans() {
     [next[from], next[to]] = [next[to]!, next[from]!];
     return next;
   };
-  const movePlayPlan = (goalId: string, dir: -1 | 1) => {
+  const moveCategory = (categoryId: string, dir: -1 | 1) => {
     const next = shift(
-      (goals.data ?? []).map((g) => g.id),
+      (categories.data ?? []).map((category) => category.id),
+      categoryId,
+      dir,
+    );
+    if (next) reorder.mutate(() => reorderPlayCategories(next));
+  };
+  const movePlayPlan = (categoryId: string, goalId: string, dir: -1 | 1) => {
+    const all = goals.data ?? [];
+    const inCategory = all.filter((goal) => (goal.categoryId ?? goal.id) === categoryId);
+    const next = shift(
+      inCategory.map((goal) => goal.id),
       goalId,
       dir,
     );
-    if (next) reorder.mutate(() => reorderPlayPlans(next));
+    if (!next) return;
+    let position = 0;
+    const ids = all.map((goal) =>
+      (goal.categoryId ?? goal.id) === categoryId ? next[position++]! : goal.id,
+    );
+    reorder.mutate(() => reorderPlayPlans(ids));
   };
   const movePlayDose = (goalId: string, doseId: string, dir: -1 | 1) => {
     const all = (plans.data ?? []).filter((p) => p.goalId === goalId).map((p) => p.id);
@@ -172,7 +195,8 @@ function AdminPlans() {
       if (!q) return true;
       return (
         p.title.toLowerCase().includes(q) ||
-        (goalById(p.goalId)?.name.toLowerCase().includes(q) ?? false)
+        (goalById(p.goalId)?.name.toLowerCase().includes(q) ?? false) ||
+        (goalById(p.goalId)?.categoryName?.toLowerCase().includes(q) ?? false)
       );
     });
   }, [plans.data, search, level]);
@@ -181,6 +205,7 @@ function AdminPlans() {
     const libraryGoals = goals.data ?? GOALS;
     const known = libraryGoals.map((g) => ({
       goalId: g.id,
+      categoryId: g.categoryId ?? g.id,
       name: g.name,
       createdBy: g.createdBy,
       publicationStatus: g.publicationStatus ?? "published",
@@ -192,6 +217,7 @@ function AdminPlans() {
           ...known,
           {
             goalId: "other",
+            categoryId: "other",
             name: "Other goals",
             createdBy: undefined,
             publicationStatus: "published" as const,
@@ -200,6 +226,27 @@ function AdminPlans() {
         ]
       : known;
   }, [filtered, goals.data]);
+
+  const categoryGroups = useMemo(() => {
+    const available = [...(categories.data ?? [])];
+    for (const [index, group] of grouped.entries()) {
+      if (available.some((category) => category.id === group.categoryId)) continue;
+      available.push({
+        id: group.categoryId,
+        name: group.name,
+        sort_order: index,
+        created_by_name: group.createdBy ?? null,
+      });
+    }
+    return available
+      .map((category) => ({
+        category,
+        planGroups: grouped.filter(
+          (group) => group.categoryId === category.id && (!filtering || group.plans.length > 0),
+        ),
+      }))
+      .filter(({ planGroups }) => !filtering || planGroups.length > 0);
+  }, [categories.data, filtering, grouped]);
 
   if (plans.isLoading || !plans.data) {
     return (
@@ -219,10 +266,12 @@ function AdminPlans() {
       <PageHeader
         eyebrow="Platform"
         title="Play Plans library"
-        description="Play Plan → Play Dose → Activity. Each activity carries one optional video and written instructions."
+        description="Category → Play Plan → Play Dose → Activity. A category can hold several plans; each plan has Rookie, Starter and Pro doses."
       />
 
       <p className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold text-navy/55">
+        <span className="rounded-full bg-navy/8 px-3 py-1">Category</span>
+        <span aria-hidden>→</span>
         <span className="rounded-full bg-navy/8 px-3 py-1">Play Plan</span>
         <span aria-hidden>→</span>
         <span className="rounded-full bg-navy/8 px-3 py-1">Play Dose</span>
@@ -239,7 +288,7 @@ function AdminPlans() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search play plans, play doses or activities"
+            placeholder="Search categories, play plans or doses"
             aria-label="Search Play Plans"
             className="min-h-12 w-full rounded-2xl border border-navy/15 bg-card pr-4 pl-11 text-sm outline-none focus:border-blue focus:ring-2 focus:ring-blue/25"
           />
@@ -262,7 +311,17 @@ function AdminPlans() {
           ))}
           <button
             type="button"
-            onClick={() => setEditing("new-play-plan")}
+            onClick={() => setEditingCategory("new")}
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> New Category
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setNewPlanCategoryId(undefined);
+              setEditing("new-play-plan");
+            }}
             className="inline-flex min-h-10 items-center gap-2 rounded-full bg-coral px-4 text-sm font-bold text-white"
           >
             <Plus className="h-4 w-4" aria-hidden /> New Play Plan
@@ -280,225 +339,291 @@ function AdminPlans() {
           <p className="text-sm font-semibold text-navy/60">
             {grouped.length} {grouped.length === 1 ? "Play Plan" : "Play Plans"}
           </p>
-          {!filtering && (
-            <button
-              type="button"
-              onClick={() =>
-                setOpenPlans(
-                  grouped.every((g) => openPlans.has(g.goalId))
-                    ? new Set()
-                    : new Set(grouped.map((g) => g.goalId)),
-                )
-              }
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-navy/15 bg-card px-3.5 text-xs font-bold text-navy/70 hover:border-navy/35"
-            >
-              <ChevronsUpDown className="h-4 w-4" aria-hidden />
-              {grouped.every((g) => openPlans.has(g.goalId)) ? "Collapse all" : "Expand all"}
-            </button>
-          )}
         </div>
       )}
       <div className="mt-3 space-y-4">
-        {grouped.map((group, groupIndex) => (
-          <section key={group.goalId} className="ph-card p-4 sm:p-5">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-              <div className="min-w-0">
-                <p className="eyebrow text-coral">Play Plan</p>
-                <h2 className="text-lg font-bold">{group.name}</h2>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-navy/55">
-                  <span>
-                    {group.plans.length} {group.plans.length === 1 ? "Play Dose" : "Play Doses"}
-                  </span>
-                  {group.goalId !== "other" && (
-                    <>
-                      <span
-                        data-testid="plan-creator"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue/8 px-2.5 py-1 font-bold text-navy"
-                      >
-                        <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden />
-                        Created by{" "}
-                        <span className="text-blue">{group.createdBy ?? "Super Admin"}</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCreditFor({ id: group.goalId, name: group.createdBy ?? "Super Admin" })
-                        }
-                        aria-label={`Edit who created ${group.name}`}
-                        className="ml-1.5 inline-flex align-middle text-navy/50 hover:text-navy"
-                      >
-                        <Pencil className="h-3 w-3" aria-hidden />
-                      </button>
-                    </>
-                  )}
-                </div>
+        {categoryGroups.map(({ category, planGroups }, categoryIndex) => (
+          <section
+            key={category.id}
+            data-testid="play-category"
+            className="min-w-0 rounded-3xl border border-navy/10 bg-white/65 p-3 sm:p-5"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="eyebrow text-coral">Category</p>
+                <h2 className="text-xl font-bold text-navy">{category.name}</h2>
+                <p className="mt-1 text-xs text-navy/55">
+                  {planGroups.length} {planGroups.length === 1 ? "Play Plan" : "Play Plans"} ·
+                  Created by {category.created_by_name ?? "Super Admin"}
+                </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                {group.goalId !== "other" && (
-                  <MoveButtons
-                    label={`Play Plan ${group.name}`}
-                    disabled={reorder.isPending}
-                    first={groupIndex === 0}
-                    last={
-                      groupIndex === grouped.length - 1 ||
-                      grouped[groupIndex + 1]?.goalId === "other"
-                    }
-                    onMove={(dir) => movePlayPlan(group.goalId, dir)}
-                  />
-                )}
+              <div className="flex flex-wrap items-center gap-2">
+                <MoveButtons
+                  label={`Category ${category.name}`}
+                  disabled={reorder.isPending}
+                  first={categoryIndex === 0}
+                  last={categoryIndex === categoryGroups.length - 1}
+                  onMove={(dir) => moveCategory(category.id, dir)}
+                />
                 <button
                   type="button"
-                  onClick={() => setPlanOpen(group.goalId, !isOpen(group.goalId))}
-                  disabled={filtering}
-                  aria-expanded={isOpen(group.goalId)}
-                  aria-controls={`plan-body-${group.goalId}`}
-                  aria-label={`${isOpen(group.goalId) ? "Hide" : "Show"} ${group.name} Play Doses`}
-                  className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-navy/6 px-3 text-xs font-bold text-navy hover:bg-navy/12 disabled:opacity-60"
+                  onClick={() => setEditingCategory(category)}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-navy/15 px-3 text-xs font-bold"
                 >
-                  {isOpen(group.goalId) ? "Hide" : "Show"} Play Doses
-                  <ChevronDown
-                    className={cn("h-4 w-4 transition", isOpen(group.goalId) && "rotate-180")}
-                    aria-hidden
-                  />
+                  <Pencil className="h-4 w-4" aria-hidden /> Edit Category
                 </button>
-                {group.goalId !== "other" && (
-                  <button
-                    type="button"
-                    onClick={() => setEditingGoal(group.goalId)}
-                    className="inline-flex min-h-9 items-center gap-2 rounded-full border border-navy/15 px-3 text-xs font-bold"
-                  >
-                    <Pencil className="h-4 w-4" aria-hidden /> Edit Play Plan
-                  </button>
-                )}
-                {group.goalId !== "other" && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlanOpen(group.goalId, true);
-                      setNewDoseGoalId(group.goalId);
-                      setEditing("new");
-                    }}
-                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
-                  >
-                    <Plus className="h-4 w-4" aria-hidden /> New Play Dose
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewPlanCategoryId(category.id);
+                    setEditing("new-play-plan");
+                  }}
+                  className="inline-flex min-h-9 items-center gap-2 rounded-full border border-navy/15 px-3 text-xs font-bold"
+                >
+                  <Plus className="h-4 w-4" aria-hidden /> New Play Plan
+                </button>
               </div>
             </div>
-            {isOpen(group.goalId) && (
-              <div id={`plan-body-${group.goalId}`}>
-                {group.goalId !== "other" && (
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-navy/8 bg-navy/[0.02] px-3 py-2">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-xs font-bold text-navy/55">Visibility</span>
-                      <div
-                        className="inline-flex rounded-full border border-navy/12 bg-navy/[0.035] p-1"
-                        aria-label={`Publishing status for ${group.name}`}
+            {planGroups.length === 0 && (
+              <p className="mt-4 text-sm text-navy/55">No Play Plans in this category yet.</p>
+            )}
+            <div className="mt-4 grid min-w-0 grid-cols-1 gap-4">
+              {planGroups.map((group, groupIndex) => (
+                <section
+                  key={group.goalId}
+                  data-testid="play-plan"
+                  className="ph-card min-w-0 p-4 sm:p-5"
+                >
+                  {/* Clicking anywhere on the header that isn't a button opens or closes the card. */}
+                  <div
+                    className={cn(
+                      "grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start",
+                      !filtering && "cursor-pointer",
+                    )}
+                    onClick={(event) => {
+                      if (filtering || (event.target as HTMLElement).closest("button, a, input"))
+                        return;
+                      setPlanOpen(group.goalId, !isOpen(group.goalId));
+                    }}
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPlanOpen(group.goalId, !isOpen(group.goalId))}
+                        disabled={filtering}
+                        aria-expanded={isOpen(group.goalId)}
+                        aria-controls={`plan-body-${group.goalId}`}
+                        aria-label={`${isOpen(group.goalId) ? "Hide" : "Show"} ${group.name} Play Doses`}
+                        title={isOpen(group.goalId) ? "Collapse" : "Expand"}
+                        className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy/6 text-navy hover:bg-navy/12 disabled:opacity-60"
                       >
-                        {(
-                          [
-                            ["published", "Visible", Globe2],
-                            ["invisible", "Invisible", EyeOff],
-                            ["locked", "Locked", Lock],
-                          ] as const
-                        ).map(([value, label, Icon]) => (
-                          <button
-                            key={value}
-                            type="button"
-                            title={
-                              value === "invisible"
-                                ? "Hide this old or unpopular plan"
-                                : value === "locked"
-                                  ? "Show as upcoming, but prevent starting it"
-                                  : "Show and allow this plan"
-                            }
-                            onClick={() => statusChange.mutate({ id: group.goalId, status: value })}
-                            disabled={statusChange.isPending}
-                            className={cn(
-                              "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold transition",
-                              group.publicationStatus === value
-                                ? value === "published"
-                                  ? "bg-blue text-white"
-                                  : value === "locked"
-                                    ? "bg-amber text-navy"
-                                    : "bg-navy text-white"
-                                : "text-navy/55 hover:bg-white",
-                            )}
-                          >
-                            <Icon className="h-3.5 w-3.5" aria-hidden /> {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {group.plans.length === 0 ? (
-                  <p className="mt-2 text-sm text-navy/55">No plans match your filters.</p>
-                ) : (
-                  <ul className="mt-3 space-y-3">
-                    {group.plans.map((plan, doseIndex) => {
-                      const used = usage.data?.[plan.id] ?? 0;
-                      const acts = plan.entries.reduce((n, e) => n + entryActivities(e).length, 0);
-                      const vids = plan.entries.reduce(
-                        (n, e) => n + entryActivities(e).filter((a) => a.videoUrl?.trim()).length,
-                        0,
-                      );
-                      return (
-                        <li key={plan.id} className="rounded-2xl border border-navy/10 bg-card p-4">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-bold tracking-[0.12em] text-blue uppercase">
-                              Play Dose · {plan.level}
-                            </p>
-                            <p className="mt-1 font-bold">{plan.title}</p>
-                            <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-navy/10 bg-navy/[0.035] px-2.5 py-1 text-xs font-semibold text-navy/65">
-                              <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden /> Created by{" "}
-                              <span data-testid="dose-creator" className="font-bold text-navy">
-                                {plan.createdBy ?? "Super Admin"}
+                        <ChevronDown
+                          className={cn("h-5 w-5 transition", isOpen(group.goalId) && "rotate-180")}
+                          aria-hidden
+                        />
+                      </button>
+                      <div className="min-w-0">
+                        <p className="eyebrow text-coral">Play Plan</p>
+                        <h3 className="text-lg font-bold">{group.name}</h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-navy/55">
+                          <span>
+                            {group.plans.length}{" "}
+                            {group.plans.length === 1 ? "Play Dose" : "Play Doses"}
+                          </span>
+                          {group.goalId !== "other" && (
+                            <>
+                              <span
+                                data-testid="plan-creator"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-blue/20 bg-blue/8 px-2.5 py-1 font-bold text-navy"
+                              >
+                                <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden />
+                                Created by{" "}
+                                <span className="text-blue">
+                                  {group.createdBy ?? "Super Admin"}
+                                </span>
                               </span>
-                            </p>
-                            <p className="mt-1 text-sm text-navy/65">{plan.summary}</p>
-                            <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-navy/55">
-                              <span>{acts} activities</span>
-                              <span>
-                                {vids} with video · {acts - vids} instructions only
-                              </span>
-                              <span>
-                                {used} {used === 1 ? "member" : "members"} on this plan
-                              </span>
-                            </p>
-                          </div>
-                          <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-navy/8 pt-3">
-                            <MoveButtons
-                              label={`Play Dose ${plan.title} (${plan.level})`}
-                              disabled={reorder.isPending}
-                              first={doseIndex === 0}
-                              last={doseIndex === group.plans.length - 1}
-                              onMove={(dir) => movePlayDose(group.goalId, plan.id, dir)}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setEditing(plan)}
-                              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
-                            >
-                              <Pencil className="h-4 w-4" aria-hidden /> Edit Play Dose
-                            </button>
-                            {canDelete && (
                               <button
                                 type="button"
-                                onClick={() => setRemoving(plan)}
-                                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-coral/40 px-4 text-sm font-bold text-coral"
+                                onClick={() =>
+                                  setCreditFor({
+                                    id: group.goalId,
+                                    name: group.createdBy ?? "Super Admin",
+                                  })
+                                }
+                                aria-label={`Edit who created ${group.name}`}
+                                className="ml-1.5 inline-flex align-middle text-navy/50 hover:text-navy"
                               >
-                                <Trash2 className="h-4 w-4" aria-hidden /> Delete
+                                <Pencil className="h-3 w-3" aria-hidden />
                               </button>
-                            )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                      {group.goalId !== "other" && (
+                        <MoveButtons
+                          label={`Play Plan ${group.name}`}
+                          disabled={reorder.isPending}
+                          first={groupIndex === 0}
+                          last={groupIndex === planGroups.length - 1}
+                          onMove={(dir) => movePlayPlan(category.id, group.goalId, dir)}
+                        />
+                      )}
+                      {group.goalId !== "other" && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingGoal(group.goalId)}
+                          className="inline-flex min-h-9 items-center gap-2 rounded-full border border-navy/15 px-3 text-xs font-bold"
+                        >
+                          <Pencil className="h-4 w-4" aria-hidden /> Edit Play Plan
+                        </button>
+                      )}
+                      {group.goalId !== "other" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlanOpen(group.goalId, true);
+                            setNewDoseGoalId(group.goalId);
+                            setEditing("new");
+                          }}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
+                        >
+                          <Plus className="h-4 w-4" aria-hidden /> New Play Dose
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {isOpen(group.goalId) && (
+                    <div id={`plan-body-${group.goalId}`}>
+                      {group.goalId !== "other" && (
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-navy/8 bg-navy/[0.02] px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-xs font-bold text-navy/55">Visibility</span>
+                            <div
+                              className="inline-flex rounded-full border border-navy/12 bg-navy/[0.035] p-1"
+                              aria-label={`Publishing status for ${group.name}`}
+                            >
+                              {(
+                                [
+                                  ["published", "Visible", Globe2],
+                                  ["invisible", "Invisible", EyeOff],
+                                  ["locked", "Locked", Lock],
+                                ] as const
+                              ).map(([value, label, Icon]) => (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  title={
+                                    value === "invisible"
+                                      ? "Hide this old or unpopular plan"
+                                      : value === "locked"
+                                        ? "Show as upcoming, but prevent starting it"
+                                        : "Show and allow this plan"
+                                  }
+                                  onClick={() =>
+                                    statusChange.mutate({ id: group.goalId, status: value })
+                                  }
+                                  disabled={statusChange.isPending}
+                                  className={cn(
+                                    "inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-[11px] font-bold transition",
+                                    group.publicationStatus === value
+                                      ? value === "published"
+                                        ? "bg-blue text-white"
+                                        : value === "locked"
+                                          ? "bg-amber text-navy"
+                                          : "bg-navy text-white"
+                                      : "text-navy/55 hover:bg-white",
+                                  )}
+                                >
+                                  <Icon className="h-3.5 w-3.5" aria-hidden /> {label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            )}
+                        </div>
+                      )}
+                      {group.plans.length === 0 ? (
+                        <p className="mt-2 text-sm text-navy/55">No plans match your filters.</p>
+                      ) : (
+                        <ul className="mt-3 space-y-3">
+                          {group.plans.map((plan, doseIndex) => {
+                            const used = usage.data?.[plan.id] ?? 0;
+                            const acts = plan.entries.reduce(
+                              (n, e) => n + entryActivities(e).length,
+                              0,
+                            );
+                            const vids = plan.entries.reduce(
+                              (n, e) =>
+                                n + entryActivities(e).filter((a) => a.videoUrl?.trim()).length,
+                              0,
+                            );
+                            return (
+                              <li
+                                key={plan.id}
+                                className="rounded-2xl border border-navy/10 bg-card p-4"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[11px] font-bold tracking-[0.12em] text-blue uppercase">
+                                    Play Dose · {plan.level}
+                                  </p>
+                                  <p className="mt-1 font-bold">{plan.title}</p>
+                                  <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-navy/10 bg-navy/[0.035] px-2.5 py-1 text-xs font-semibold text-navy/65">
+                                    <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden />{" "}
+                                    Created by{" "}
+                                    <span
+                                      data-testid="dose-creator"
+                                      className="font-bold text-navy"
+                                    >
+                                      {plan.createdBy ?? "Super Admin"}
+                                    </span>
+                                  </p>
+                                  <p className="mt-1 text-sm text-navy/65">{plan.summary}</p>
+                                  <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold text-navy/55">
+                                    <span>{acts} activities</span>
+                                    <span>
+                                      {vids} with video · {acts - vids} instructions only
+                                    </span>
+                                    <span>
+                                      {used} {used === 1 ? "member" : "members"} on this plan
+                                    </span>
+                                  </p>
+                                </div>
+                                <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-navy/8 pt-3">
+                                  <MoveButtons
+                                    label={`Play Dose ${plan.title} (${plan.level})`}
+                                    disabled={reorder.isPending}
+                                    first={doseIndex === 0}
+                                    last={doseIndex === group.plans.length - 1}
+                                    onMove={(dir) => movePlayDose(group.goalId, plan.id, dir)}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditing(plan)}
+                                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-navy/20 px-4 text-sm font-bold"
+                                  >
+                                    <Pencil className="h-4 w-4" aria-hidden /> Edit Play Dose
+                                  </button>
+                                  {canDelete && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setRemoving(plan)}
+                                      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-coral/40 px-4 text-sm font-bold text-coral"
+                                    >
+                                      <Trash2 className="h-4 w-4" aria-hidden /> Delete
+                                    </button>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </div>
           </section>
         ))}
       </div>
@@ -507,21 +632,40 @@ function AdminPlans() {
         <PlanModal
           plan={typeof editing === "object" ? editing : null}
           createNewPlayPlan={editing === "new-play-plan"}
+          categories={categories.data ?? []}
+          {...(newPlanCategoryId ? { initialCategoryId: newPlanCategoryId } : {})}
           {...(newDoseGoalId ? { initialGoalId: newDoseGoalId } : {})}
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            setEditing(null);
+            setNewPlanCategoryId(undefined);
+            setNewDoseGoalId(undefined);
+          }}
           onSaved={() => {
             invalidate();
             setEditing(null);
+            setNewPlanCategoryId(undefined);
+            setNewDoseGoalId(undefined);
           }}
         />
       )}
       {editingGoal && (
         <PlayPlanDetailsModal
           goalId={editingGoal}
+          categories={categories.data ?? []}
           onClose={() => setEditingGoal(null)}
           onSaved={() => {
             invalidate();
             setEditingGoal(null);
+          }}
+        />
+      )}
+      {editingCategory && (
+        <CategoryModal
+          category={editingCategory === "new" ? null : editingCategory}
+          onClose={() => setEditingCategory(null)}
+          onSaved={() => {
+            invalidate();
+            setEditingCategory(null);
           }}
         />
       )}
@@ -706,12 +850,16 @@ function PlanModal({
   plan,
   createNewPlayPlan = false,
   initialGoalId,
+  initialCategoryId,
+  categories,
   onClose,
   onSaved,
 }: {
   plan: PlayPlan | null;
   createNewPlayPlan?: boolean;
   initialGoalId?: string;
+  initialCategoryId?: string;
+  categories: PlayCategory[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -727,6 +875,7 @@ function PlanModal({
   const [createdBy, setCreatedBy] = useState(plan ? (plan.createdBy ?? "Super Admin") : "");
   const [playPlanName, setPlayPlanName] = useState("");
   const [playPlanSummary, setPlayPlanSummary] = useState("");
+  const [categoryId, setCategoryId] = useState(initialCategoryId ?? categories[0]?.id ?? "");
   const [entries, setEntries] = useState<PlanEntry[]>(() =>
     plan
       ? plan.entries.map((e) => ({
@@ -752,6 +901,7 @@ function PlanModal({
       createdBy,
       playPlanName,
       playPlanSummary,
+      categoryId,
     ]) + (thumbnailFile ? `:${thumbnailFile.name}:${thumbnailFile.size}` : "");
   // What the dose and each activity looked like when last saved, to spot unsaved changes.
   const [savedDose, setSavedDose] = useState(doseSnapshot);
@@ -986,7 +1136,12 @@ function PlanModal({
   const save = useMutation<DoseSaveResult | undefined, Error, void>({
     mutationFn: async () => {
       if (createNewPlayPlan) {
-        await createPlayPlan({ name: playPlanName, summary: playPlanSummary, createdBy });
+        await createPlayPlan({
+          name: playPlanName,
+          summary: playPlanSummary,
+          createdBy,
+          categoryId,
+        });
         return undefined;
       }
       await waitForUploads(filesIn(entries));
@@ -1055,6 +1210,7 @@ function PlanModal({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (createNewPlayPlan) {
+      if (!categoryId) return setError("Choose a category first.");
       if (playPlanName.trim().length < 3) return setError("Give the new Play Plan a name.");
       setError("");
       save.mutate();
@@ -1085,10 +1241,29 @@ function PlanModal({
     return (
       <Shell
         title="New Play Plan"
-        subtitle="Create the top-level Play Plan. Play Doses and activities are added separately."
+        subtitle="Add a Play Plan inside a category. Its Play Doses and activities are added separately."
         onClose={closeEditor}
       >
         <form className="space-y-4" onSubmit={submit}>
+          <div>
+            <label htmlFor="pl-category" className="text-sm font-bold">
+              Category
+            </label>
+            <select
+              id="pl-category"
+              value={categoryId}
+              onChange={(event) => setCategoryId(event.target.value)}
+              required
+              className={inputCls}
+            >
+              <option value="">Choose a category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label htmlFor="pl-root-name" className="text-sm font-bold">
               Play Plan name
@@ -1097,7 +1272,7 @@ function PlanModal({
               id="pl-root-name"
               value={playPlanName}
               onChange={(e) => setPlayPlanName(e.target.value)}
-              placeholder="e.g. Pinch & Grip Development"
+              placeholder="e.g. Fix the Pencil Grip"
               className={inputCls}
             />
           </div>
@@ -1178,7 +1353,7 @@ function PlanModal({
                   id="pl-root-name"
                   value={playPlanName}
                   onChange={(e) => setPlayPlanName(e.target.value)}
-                  placeholder="e.g. Pinch & Grip Development"
+                  placeholder="e.g. Fix the Pencil Grip"
                   className={inputCls}
                 />
               </div>
@@ -1804,10 +1979,12 @@ function DeletePlanModal({
 
 function PlayPlanDetailsModal({
   goalId,
+  categories,
   onClose,
   onSaved,
 }: {
   goalId: string;
+  categories: PlayCategory[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -1816,6 +1993,7 @@ function PlayPlanDetailsModal({
   const [short, setShort] = useState(goal.short);
   const [blurb, setBlurb] = useState(goal.blurb);
   const [createdBy, setCreatedBy] = useState(goal.createdBy ?? "Super Admin");
+  const [categoryId, setCategoryId] = useState(goal.categoryId ?? "");
   const save = useMutation({
     mutationFn: () =>
       updatePlayPlanDetails(goalId, {
@@ -1823,6 +2001,7 @@ function PlayPlanDetailsModal({
         short: short.trim(),
         blurb: blurb.trim(),
         createdBy: createdBy.trim(),
+        categoryId,
       }),
     onSuccess: onSaved,
   });
@@ -1839,6 +2018,22 @@ function PlayPlanDetailsModal({
           save.mutate();
         }}
       >
+        <label className="block text-sm font-bold">
+          Category
+          <select
+            required
+            value={categoryId}
+            onChange={(event) => setCategoryId(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-navy/20 bg-white p-3"
+          >
+            <option value="">Choose a category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="block text-sm font-bold">
           Name
           <input
@@ -1887,6 +2082,62 @@ function PlayPlanDetailsModal({
           className="rounded-full bg-coral px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
         >
           {save.isPending ? "Saving…" : "Save Play Plan"}
+        </button>
+      </form>
+    </Shell>
+  );
+}
+
+function CategoryModal({
+  category,
+  onClose,
+  onSaved,
+}: {
+  category: PlayCategory | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(category?.name ?? "");
+  const save = useMutation({
+    mutationFn: () => (category ? updatePlayCategory(category.id, name) : createPlayCategory(name)),
+    onSuccess: onSaved,
+  });
+  return (
+    <Shell
+      title={category ? "Edit Category" : "New Category"}
+      subtitle="A category can contain several Play Plans, each with its own Play Doses."
+      onClose={onClose}
+    >
+      <form
+        className="space-y-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save.mutate();
+        }}
+      >
+        <label className="block text-sm font-bold">
+          Category name
+          <input
+            required
+            minLength={2}
+            maxLength={160}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="e.g. Pinch & Grip Development"
+            className="mt-1 w-full rounded-xl border border-navy/20 bg-white p-3"
+          />
+        </label>
+        {save.isError && (
+          <p role="alert" className="text-sm text-coral">
+            {save.error instanceof Error ? save.error.message : "Could not save this category."}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={save.isPending || name.trim().length < 2}
+          className="rounded-full bg-coral px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
+        >
+          {save.isPending ? "Saving…" : category ? "Save Category" : "Create Category"}
         </button>
       </form>
     </Shell>

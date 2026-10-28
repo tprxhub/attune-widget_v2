@@ -54,6 +54,10 @@ export interface Session {
 
 export interface Goal {
   id: string;
+  /** The parent Category shared by one or more Play Plans. */
+  categoryId?: string | undefined;
+  categoryName?: string | undefined;
+  categoryCreatedBy?: string | undefined;
   name: string;
   short: string;
   icon: string;

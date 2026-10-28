@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./support/signIn";
 
-test("Play Plan cards start collapsed, open one at a time or all, and searching opens them", async ({
+test("Play Plan cards start collapsed, open from the card header, and searching opens them", async ({
   page,
 }) => {
   await signIn(page, "admin@playhub.local");
@@ -16,7 +16,7 @@ test("Play Plan cards start collapsed, open one at a time or all, and searching 
   ).toBeVisible();
   await expect(plans.first().getByRole("button", { name: "Edit Play Plan" })).toBeVisible();
 
-  const name = (await plans.first().locator("h2").textContent())!;
+  const name = (await plans.first().locator("h3").textContent())!;
   const toggle = page.getByRole("button", { name: `Show ${name} Play Doses` });
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await toggle.click();
@@ -28,10 +28,12 @@ test("Play Plan cards start collapsed, open one at a time or all, and searching 
   await hide.click();
   await expect(editDose).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Expand all" }).click();
-  expect(await editDose.count()).toBeGreaterThan(3);
-  await page.getByRole("button", { name: "Collapse all" }).click();
+  // Clicking the plan name opens and closes the card too.
+  await plans.first().locator("h3").click();
+  await expect(hide).toHaveAttribute("aria-expanded", "true");
+  await plans.first().locator("h3").click();
   await expect(editDose).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Expand all" })).toHaveCount(0);
 
   // A search shows every match without opening cards by hand.
   await page.getByLabel("Search Play Plans").fill("Pencil");

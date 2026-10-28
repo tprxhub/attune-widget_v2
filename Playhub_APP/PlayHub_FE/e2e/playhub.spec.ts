@@ -735,14 +735,15 @@ test("Play Dose forms carry no SMART or GAS fields, and a Play Dose can be creat
   await page.goto("/admin/plans");
 
   // A fresh Play Plan, so the new Play Dose cannot clash with a level that already exists.
-  await page.getByRole("button", { name: "New Play Plan" }).click();
+  await page.getByRole("button", { name: "New Play Plan" }).first().click();
   const planDialog = page.getByRole("dialog", { name: "New Play Plan" });
+  await planDialog.getByLabel("Category").selectOption({ index: 1 });
   await planDialog.getByLabel("Play Plan name").fill("Browser test plan");
   await planDialog.getByLabel("Created by (full name)").fill("Dr Jane Doe");
   await planDialog.getByRole("button", { name: "Create Play Plan" }).click();
   await expect(planDialog).toBeHidden();
 
-  const plan = page.locator("section").filter({
+  const plan = page.getByTestId("play-plan").filter({
     has: page.getByRole("heading", { name: "Browser test plan", exact: true }),
   });
   await expect(plan.getByTestId("plan-creator")).toHaveText("Created by Dr Jane Doe");
@@ -877,20 +878,32 @@ test("Progress shows an empty state, not an endless skeleton, when the account h
 test("Super Admin can reorder Play Plans from the library", async ({ page }) => {
   await login(page, "admin@playhub.local");
   await page.goto("/admin/plans");
-  const titles = page.locator("section.ph-card h2");
-  await expect(titles.first()).toBeVisible();
-  const before = await titles.allTextContents();
-  expect(before.length).toBeGreaterThan(1);
-
-  const first = before[0]!;
-  await page.getByRole("button", { name: `Move Play Plan ${first} down` }).click();
-  await expect(titles.nth(1)).toHaveText(first);
+  await page.getByRole("button", { name: "New Category", exact: true }).click();
+  const categoryDialog = page.getByRole("dialog", { name: "New Category" });
+  await categoryDialog
+    .getByRole("textbox", { name: "Category name" })
+    .fill("Reorder test category");
+  await categoryDialog.getByRole("button", { name: "Create Category" }).click();
+  const category = page.getByTestId("play-category").filter({
+    has: page.getByRole("heading", { name: "Reorder test category", exact: true }),
+  });
+  for (const name of ["First reorder plan", "Second reorder plan"]) {
+    await category.getByRole("button", { name: "New Play Plan" }).click();
+    const dialog = page.getByRole("dialog", { name: "New Play Plan" });
+    await dialog.getByRole("textbox", { name: "Play Plan name" }).fill(name);
+    await dialog.getByRole("button", { name: "Create Play Plan" }).click();
+    await expect(category.getByRole("heading", { name, exact: true })).toBeVisible();
+  }
+  const titles = category.getByTestId("play-plan").locator("h3");
+  await expect(titles).toHaveText(["First reorder plan", "Second reorder plan"]);
+  await category.getByRole("button", { name: "Move Play Plan First reorder plan down" }).click();
+  await expect(titles).toHaveText(["Second reorder plan", "First reorder plan"]);
 
   // The new order is saved, not just shown.
   await page.reload();
-  await expect(titles.nth(1)).toHaveText(first);
-  await page.getByRole("button", { name: `Move Play Plan ${first} up` }).click();
-  await expect(titles.first()).toHaveText(first);
+  await expect(titles).toHaveText(["Second reorder plan", "First reorder plan"]);
+  await category.getByRole("button", { name: "Move Play Plan First reorder plan up" }).click();
+  await expect(titles).toHaveText(["First reorder plan", "Second reorder plan"]);
 });
 
 test("Super Admin can raise an organisation's licenses but not below the members in use", async ({

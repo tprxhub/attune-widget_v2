@@ -6,6 +6,7 @@ import {
   cycleUnit,
   monthsFromToday,
   monthsUntil,
+  periodEnd,
 } from "./billing";
 
 const today = new Date(2026, 9, 19); // 19 October 2026
@@ -32,5 +33,15 @@ describe("organisation billing cycles", () => {
   test("months from today keep the day, or the month's last day", () => {
     expect(monthsFromToday(10, today)).toBe("2027-08-19");
     expect(monthsFromToday(1, new Date(2027, 0, 31))).toBe("2027-02-28");
+  });
+});
+
+describe("billing periods", () => {
+  test("a period ends the day before the same date the given months later", () => {
+    expect(periodEnd("2026-01-01", 4)).toBe("2026-04-30");
+    expect(periodEnd("2026-05-01", 6)).toBe("2026-10-31");
+    expect(periodEnd("2026-01-31", 1)).toBe("2026-02-27");
+    expect(periodEnd("2026-11-15", 3)).toBe("2027-02-14");
+    expect(periodEnd("", 3)).toBe("");
   });
 });

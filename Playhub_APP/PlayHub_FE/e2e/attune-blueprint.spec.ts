@@ -167,21 +167,23 @@ test("Progress asks Attune what the chart means", async ({ page }) => {
   expect(String(state.bodies[0]?.["message"])).toMatch(/progress chart mean/);
 });
 
-test("Activity and Play Dose pages offer Get an idea and My member is struggling", async ({
-  page,
-}) => {
+test("Play Dose pages offer four questions for Attune", async ({ page }) => {
   await mockAttune(page, { content: "An idea." });
   await login(page, "parent@playhub.local");
   await page.goto("/plans");
   await page.locator('a[href^="/plans/"]').first().click();
   await expect(page).toHaveURL(/\/plans\/[^/]+$/);
   const card = page.getByRole("region", { name: "Ask Attune" });
-  await expect(card.getByRole("link", { name: "Get an idea" })).toHaveAttribute(
-    "href",
-    /mode=idea/,
-  );
-  await expect(card.getByRole("link", { name: "My member is struggling" })).toHaveAttribute(
-    "href",
-    /mode=regulation/,
-  );
+  for (const [question, mode] of [
+    ["We’re bored. Help.", "idea"],
+    ["What should we play right now?", "idea"],
+    ["They won’t engage today", "regulation"],
+    ["Help! We just had a meltdown", "regulation"],
+  ]) {
+    const href = await card.getByRole("link", { name: question, exact: true }).getAttribute("href");
+    expect(href).toBeTruthy();
+    const search = new URL(href!, "http://localhost").searchParams;
+    expect(search.get("mode")).toBe(mode);
+    expect(search.get("q")).toBe(question);
+  }
 });

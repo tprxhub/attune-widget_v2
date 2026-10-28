@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app import models  # noqa: F401 - registers declarative metadata
 from app.api import router
 from app.attune import router as attune_router
+from app.org_billing import router as org_billing_router
 from app.play_pulse import router as play_pulse_router
 from app.pricing import router as pricing_router
 from app.config import get_settings
@@ -47,6 +48,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
+    # Lets the app save a download under the server's filename.
+    expose_headers=["Content-Disposition"],
 )
 if settings.storage_backend == "local" or settings.environment.lower() == "development":
     app.mount(
@@ -56,6 +59,7 @@ if settings.storage_backend == "local" or settings.environment.lower() == "devel
     )
 app.include_router(router)
 app.include_router(attune_router)
+app.include_router(org_billing_router)
 app.include_router(play_pulse_router)
 app.include_router(pricing_router)
 

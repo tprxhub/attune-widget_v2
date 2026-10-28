@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.mailer import OutgoingEmail, send_email
-from app.models import Invitation, Role, User
+from app.models import Invitation, Organisation, OrganisationBilling, Role, User
 
 SIGN_OFF = "The Play Hub team\nThe Toy Pharmacy"
 
@@ -235,6 +235,20 @@ def alert_family_signup(db: Session, user: User, child_name: str) -> None:
         "new family sign-up",
         f"{user.display_name} ({user.email}) created a family account for {child_name} on the free plan.",
         f"Open Members: {_link('/admin/members')}",
+    )
+
+
+def alert_billing_period(db: Session, organisation: Organisation, period: OrganisationBilling, ends_on: date,
+                         added_by: User) -> None:
+    """An organisation's Admin added a billing period."""
+    months = f"{period.months} month{'s' if period.months != 1 else ''}"
+    _alert(
+        db,
+        f"Billing {period.sequence} added for {organisation.name}",
+        f"{added_by.display_name} ({added_by.email}) added Billing {period.sequence} for {organisation.name}: "
+        f"{_day(period.starts_on)} to {_day(ends_on)} ({months}), {period.licenses} licences at "
+        f"{_money(period.license_price)} per licence per month, {_money(period.amount)} in total.",
+        f"See the billing schedule: {_link('/admin/orgs')}",
     )
 
 

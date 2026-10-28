@@ -182,7 +182,7 @@ function PlayDosePage() {
     <>
       <BackLink planId={planId} />
       <PageHeader
-        eyebrow={`${plan.title} · ${entry.label}`}
+        eyebrow={plan.title}
         title={entry.title}
         description={entry.activity}
         actions={<LevelDots level={plan.level} />}
@@ -486,14 +486,6 @@ function DoseRail({
               </span>
               <span className="min-w-0 text-left">
                 <span className="block text-sm leading-snug font-bold">{entry.title}</span>
-                <span
-                  className={cn(
-                    "mt-0.5 block text-[11px]",
-                    active ? "text-white/70" : "text-navy/55",
-                  )}
-                >
-                  {entry.label}
-                </span>
               </span>
             </>
           );

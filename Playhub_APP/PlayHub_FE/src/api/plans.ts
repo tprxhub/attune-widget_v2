@@ -51,6 +51,41 @@ export async function listAllGoals() {
   return (await loadCatalog(true)).goals;
 }
 
+export interface PlayCategory {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_by_name: string | null;
+}
+
+export async function listPlayCategories(): Promise<PlayCategory[]> {
+  return apiRequest<PlayCategory[]>("/play-categories");
+}
+
+export async function createPlayCategory(name: string): Promise<PlayCategory> {
+  return apiRequest<PlayCategory>("/play-categories", {
+    method: "POST",
+    body: JSON.stringify({ name: name.trim() }),
+  });
+}
+
+export async function updatePlayCategory(categoryId: string, name: string): Promise<PlayCategory> {
+  const updated = await apiRequest<PlayCategory>(`/play-categories/${categoryId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name: name.trim() }),
+  });
+  invalidatePlanCatalog();
+  return updated;
+}
+
+export async function reorderPlayCategories(categoryIds: string[]) {
+  await apiRequest<PlayCategory[]>("/play-categories/order", {
+    method: "PUT",
+    body: JSON.stringify({ ids: categoryIds }),
+  });
+  invalidatePlanCatalog();
+}
+
 export async function listPlans(goalId?: string, includeInactive = false) {
   const plans = (await loadCatalog(includeInactive)).plans;
   return goalId ? plans.filter((plan) => plan.goalId === goalId) : plans;
@@ -375,11 +410,13 @@ export async function createPlayPlan(input: {
   name: string;
   summary: string;
   createdBy?: string;
+  categoryId: string;
 }): Promise<Goal> {
   const created = await apiRequest<ApiPlan>("/play-plans", {
     method: "POST",
     body: JSON.stringify({
       name: input.name.trim(),
+      category_id: input.categoryId,
       slug: `${slugify(input.name)}-${Date.now().toString(36)}`,
       short_description: input.summary.trim(),
       colour: "blue",
@@ -487,12 +524,13 @@ export { goalById, planById };
 
 export async function updatePlayPlanDetails(
   planId: string,
-  values: { name: string; short: string; blurb: string; createdBy: string },
+  values: { name: string; short: string; blurb: string; createdBy: string; categoryId: string },
 ) {
   await apiRequest<ApiPlan>(`/play-plans/${planId}`, {
     method: "PATCH",
     body: JSON.stringify({
       name: values.name,
+      category_id: values.categoryId,
       short_description: values.short,
       description: values.blurb,
       created_by_name: values.createdBy,

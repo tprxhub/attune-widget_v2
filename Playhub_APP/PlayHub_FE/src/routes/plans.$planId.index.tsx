@@ -159,7 +159,7 @@ function PlanWeek() {
                 params={{ planId: data.id, entryId: nextUp.entry.id }}
                 className="inline-flex min-h-12 items-center gap-2 rounded-full bg-coral px-6 text-sm font-bold text-white"
               >
-                Play: {nextUp.entry.label} <ArrowRight className="h-4 w-4" aria-hidden />
+                Play: {nextUp.entry.title} <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             ) : (
               <span className="inline-flex min-h-12 items-center gap-2 rounded-full bg-blue px-6 text-sm font-bold text-white">

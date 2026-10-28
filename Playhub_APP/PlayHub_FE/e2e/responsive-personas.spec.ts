@@ -267,7 +267,11 @@ test("phone editors keep long forms within the screen and allow scrolling", asyn
     ["/admin/ttp", "Add TTP employee"],
   ]) {
     await page.goto(route);
-    if (button === "Edit Play Dose") await page.getByRole("button", { name: "Expand all" }).click();
+    if (button === "Edit Play Dose")
+      await page
+        .getByRole("button", { name: /^Show .* Play Doses$/ })
+        .first()
+        .click();
     await page.getByRole("button", { name: button, exact: true }).first().click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();

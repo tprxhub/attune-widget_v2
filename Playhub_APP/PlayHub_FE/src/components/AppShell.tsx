@@ -20,6 +20,7 @@ import {
   Search,
   CornerDownLeft,
   X,
+  Receipt,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -161,7 +162,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     return items.filter((item): item is NavItem => item !== false);
   }
 
-  // Organisation staff — no billing or subscription anywhere.
+  // Organisation staff. Only the organisation's Admin sees its billing schedule.
   if (accountType === "b2b" && (role === "educator" || role === "supporter")) {
     return [
       { to: "/dashboard", label: "Dashboard", short: "Home", icon: DashboardIcon },
@@ -178,6 +179,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
               short: "Team",
               icon: HeartHandshake,
             } as NavItem,
+            { to: "/org/billing", label: "Billing", short: "Billing", icon: Receipt } as NavItem,
           ]
         : []),
       account,

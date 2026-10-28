@@ -298,6 +298,9 @@ export interface ApiDose {
 
 export interface ApiPlan {
   id: string;
+  category_id: string;
+  category_name: string;
+  category_created_by_name?: string | null;
   name: string;
   slug: string;
   description: string | null;

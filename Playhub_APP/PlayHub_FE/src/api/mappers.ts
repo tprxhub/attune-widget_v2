@@ -96,6 +96,9 @@ export function mapGoal(plan: ApiPlan): Goal {
   const colour = plan.colour?.toLowerCase();
   return {
     id: plan.id,
+    categoryId: plan.category_id,
+    categoryName: plan.category_name,
+    categoryCreatedBy: plan.category_created_by_name ?? undefined,
     name: plan.name,
     short: plan.name,
     icon: plan.icon ?? "pinch",

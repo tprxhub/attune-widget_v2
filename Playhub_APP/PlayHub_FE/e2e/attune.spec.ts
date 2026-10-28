@@ -138,9 +138,7 @@ test("the chat list collapses to an icon rail and remembers it", async ({ page }
 });
 
 test("the Activity page opens Attune about that Activity", async ({ page }) => {
-  await page.route("**/api/v1/attune/status", (route) =>
-    route.fulfill({ json: { enabled: true, daily_limit: 30, used_today: 0, remaining_today: 30 } }),
-  );
+  const state = await mockAttune(page);
   await login(page, "parent@playhub.local");
   // Open the first Play Dose linked from the dashboard.
   await page.goto("/dashboard");
@@ -163,12 +161,11 @@ test("the Activity page opens Attune about that Activity", async ({ page }) => {
     );
   expect(doseHref).toBeTruthy();
   await page.goto(doseHref as string);
-  await page.getByRole("link", { name: "Get an idea" }).click();
+  await page.getByRole("link", { name: "What should we play right now?" }).click();
   await expect(page).toHaveURL(/\/attune\?mode=idea&activity=/);
   await expect(page.getByText(/Asking about:/)).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /How can I make this Activity easier/ }),
-  ).toBeVisible();
+  await expect(page.getByText("Here is an idea.")).toBeVisible();
+  expect(state.asked).toEqual(["What should we play right now?"]);
   await page.getByRole("button", { name: "Stop asking about this Activity" }).click();
   await expect(page.getByText(/Asking about:/)).toHaveCount(0);
 });

@@ -464,7 +464,23 @@ class PlayDoseRead(APIModel):
     activities: list[ActivityRead] = Field(default_factory=list)
 
 
+class PlayCategoryCreate(APIModel):
+    name: str = Field(min_length=2, max_length=160)
+
+
+class PlayCategoryUpdate(APIModel):
+    name: str = Field(min_length=2, max_length=160)
+
+
+class PlayCategoryRead(APIModel):
+    id: str
+    name: str
+    sort_order: int
+    created_by_name: str | None = None
+
+
 class PlayPlanCreate(APIModel):
+    category_id: str | None = None
     name: str = Field(min_length=2, max_length=160)
     slug: str = Field(min_length=2, max_length=180, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     description: str | None = None
@@ -483,6 +499,7 @@ class OrderUpdate(APIModel):
 
 
 class PlayPlanUpdate(APIModel):
+    category_id: str | None = None
     name: str | None = Field(default=None, min_length=2, max_length=160)
     slug: str | None = Field(default=None, min_length=2, max_length=180, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     description: str | None = None
@@ -496,6 +513,9 @@ class PlayPlanUpdate(APIModel):
 
 class PlayPlanRead(APIModel):
     id: str
+    category_id: str
+    category_name: str
+    category_created_by_name: str | None = None
     name: str
     slug: str
     description: str | None

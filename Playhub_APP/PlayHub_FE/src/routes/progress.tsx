@@ -334,14 +334,14 @@ export function ProgressPage() {
   });
   const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
   const goals = useQuery({ queryKey: ["goals"], queryFn: () => listGoals() });
-  // The graph follows one Play Plan (a goal, e.g. "Pinch & Grip") through its levels.
+  // The graph follows one Play Plan through its dose levels.
   const chartPlans = useMemo(
     () =>
       (goals.data ?? []).map((goal) => ({
         id: goal.id,
-        title: playPlanName(goal, plans.data ?? []),
+        title: playPlanName(goal),
       })),
-    [goals.data, plans.data],
+    [goals.data],
   );
   const allRows = useMemo(() => attempts.data ?? [], [attempts.data]);
   const usedPlans = useMemo(

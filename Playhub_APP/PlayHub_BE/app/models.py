@@ -1,7 +1,8 @@
 """Database entities for the Play Hub service.
 
-Terminology deliberately follows the product: a Play Plan contains one Play
-Dose per level, and each Play Dose contains ordered Activities.
+Terminology deliberately follows the product: a Category contains Play Plans,
+each Play Plan contains one Play Dose per level, and each Play Dose contains
+ordered Activities.
 """
 from __future__ import annotations
 
@@ -190,6 +191,31 @@ class Organisation(TimestampMixin, Base):
         return "overdue" if days < 0 else "due_soon" if days <= 14 else "active"
 
 
+class OrganisationBilling(TimestampMixin, Base):
+    """One paid period in an organisation's billing schedule (Billing 1, Billing 2, ...).
+
+    Periods follow each other: each starts the day after the previous one ends unless a later
+    date is picked, and they never overlap. It sits alongside the licence price and renewal date above.
+    """
+    __tablename__ = "organisation_billings"
+    __table_args__ = (UniqueConstraint("organisation_id", "sequence", name="uq_organisation_billing_sequence"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    organisation_id: Mapped[str] = mapped_column(ForeignKey("organisations.id"), index=True, nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    months: Mapped[int] = mapped_column(Integer, nullable=False)
+    licenses: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Price of one licence for one month, in fils.
+    license_price: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # What the organisation pays for the whole period, in fils; licences × price × months unless
+    # a different (agreed) amount was entered.
+    amount: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    note: Mapped[Optional[str]] = mapped_column(String(500))
+    added_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id"))
+    added_by_name: Mapped[Optional[str]] = mapped_column(String(120))
+
+
 class User(TimestampMixin, Base):
     __tablename__ = "users"
 
@@ -230,10 +256,28 @@ class User(TimestampMixin, Base):
     logged_attempts: Mapped[list[Attempt]] = relationship(back_populates="logged_by", foreign_keys="Attempt.logged_by_id")
 
 
+class PlayCategory(TimestampMixin, Base):
+    __tablename__ = "play_categories"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    name: Mapped[str] = mapped_column(String(160), unique=True, index=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    created_by_label: Mapped[Optional[str]] = mapped_column(String(120))
+
+    creator: Mapped[Optional[User]] = relationship(foreign_keys=[created_by_id], lazy="joined")
+    play_plans: Mapped[list[PlayPlan]] = relationship(back_populates="category", order_by="PlayPlan.sort_order")
+
+    @property
+    def created_by_name(self) -> Optional[str]:
+        return self.created_by_label or (self.creator.display_name if self.creator else None)
+
+
 class PlayPlan(TimestampMixin, Base):
     __tablename__ = "play_plans"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    category_id: Mapped[str] = mapped_column(ForeignKey("play_categories.id", ondelete="RESTRICT"), index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(160), unique=True, index=True, nullable=False)
     slug: Mapped[str] = mapped_column(String(180), unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text)
@@ -251,6 +295,7 @@ class PlayPlan(TimestampMixin, Base):
     created_by_label: Mapped[Optional[str]] = mapped_column(String(120))
 
     creator: Mapped[Optional[User]] = relationship(foreign_keys=[created_by_id], lazy="joined")
+    category: Mapped[PlayCategory] = relationship(back_populates="play_plans", lazy="joined")
     play_doses: Mapped[list[PlayDose]] = relationship(
         back_populates="play_plan", cascade="all, delete-orphan", order_by="PlayDose.sort_order"
     )
@@ -258,6 +303,15 @@ class PlayPlan(TimestampMixin, Base):
     @property
     def created_by_name(self) -> Optional[str]:
         return self.created_by_label or (self.creator.display_name if self.creator else None)
+
+    @property
+    def category_name(self) -> str:
+        return self.category.name
+
+    @property
+    def category_created_by_name(self) -> Optional[str]:
+        return self.category.created_by_name
+
     attempts: Mapped[list[Attempt]] = relationship(back_populates="play_plan")
 
 

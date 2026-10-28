@@ -45,3 +45,14 @@ export function monthsUntil(value: string, today = new Date()): number | null {
   if (dayGap < -15) months -= 1;
   return months >= 1 ? months : null;
 }
+
+/** The last day of a billing period, as yyyy-mm-dd: 1 January for 4 months ends on 30 April. */
+export function periodEnd(start: string, months: number): string {
+  const match = start.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match || !Number.isInteger(months) || months < 1) return "";
+  const from = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const end = new Date(from.getFullYear(), from.getMonth() + months, 1);
+  const lastDay = new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+  end.setDate(Math.min(from.getDate(), lastDay) - 1);
+  return isoDate(end);
+}

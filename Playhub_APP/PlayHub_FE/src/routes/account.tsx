@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Copy,
   CreditCard,
+  Receipt,
   Eye,
   EyeOff,
   KeyRound,
@@ -320,6 +321,16 @@ function AccountPage() {
                       Subscription
                     </Link>
                   ))}
+                {session.role === "educator" && session.accountType === "b2b" && (
+                  <Link
+                    to="/org/billing"
+                    search={{ from: "account" }}
+                    className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full bg-cream px-3 text-xs font-bold text-navy transition-colors hover:bg-amber"
+                  >
+                    <Receipt className="h-3.5 w-3.5" aria-hidden />
+                    Billing
+                  </Link>
+                )}
               </div>
               <p className="mt-1 truncate text-sm text-cream/70">
                 {session.guardianName

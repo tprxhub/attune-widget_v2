@@ -56,9 +56,9 @@ export function SchoolDashboard() {
     () =>
       (goals.data ?? []).map((goal) => ({
         id: goal.id,
-        title: playPlanName(goal, plans.data ?? []),
+        title: playPlanName(goal),
       })),
-    [goals.data, plans.data],
+    [goals.data],
   );
   const reports = useQueries({
     queries: children.map((child) => ({
