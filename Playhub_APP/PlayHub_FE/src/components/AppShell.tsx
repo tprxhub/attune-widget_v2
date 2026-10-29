@@ -3,6 +3,7 @@ import { isPlatformRole } from "@/lib/roles";
 import type { PermissionKey, Session } from "@/lib/types";
 import {
   BadgeCheck,
+  Receipt,
   HeartPulse,
   Building2,
   CalendarCheck,
@@ -11,6 +12,7 @@ import {
   Home,
   LayoutGrid,
   LayoutPanelTop,
+  SlidersHorizontal,
   Sparkles,
   ShieldCheck,
   UserPlus,
@@ -20,7 +22,6 @@ import {
   Search,
   CornerDownLeft,
   X,
-  Receipt,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -115,6 +116,12 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
         icon: ProgressIcon,
       },
       role === "super_admin" && {
+        to: "/admin/attune-settings",
+        label: "Attune settings",
+        short: "Attune set.",
+        icon: SlidersHorizontal,
+      },
+      role === "super_admin" && {
         to: "/admin/play-pulse",
         label: "Play Pulse leads",
         short: "Pulse",
@@ -139,6 +146,12 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
         short: "Home page",
         icon: LayoutPanelTop,
       },
+      role === "super_admin" && {
+        to: "/admin/billing",
+        label: "Billing",
+        short: "Billing",
+        icon: Receipt,
+      },
       allowed("organisations") && {
         to: "/admin/orgs",
         label: "Organisations",
@@ -162,7 +175,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     return items.filter((item): item is NavItem => item !== false);
   }
 
-  // Organisation staff. Only the organisation's Admin sees its billing schedule.
+  // Organisation staff. Admins access billing from their Account page.
   if (accountType === "b2b" && (role === "educator" || role === "supporter")) {
     return [
       { to: "/dashboard", label: "Dashboard", short: "Home", icon: DashboardIcon },
@@ -179,7 +192,6 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
               short: "Team",
               icon: HeartHandshake,
             } as NavItem,
-            { to: "/org/billing", label: "Billing", short: "Billing", icon: Receipt } as NavItem,
           ]
         : []),
       account,

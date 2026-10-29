@@ -9,6 +9,8 @@ export interface AttuneStatus {
   remainingToday: number;
   /** On the free plan, where Attune allows fewer questions a day. */
   freePlan: boolean;
+  /** What the three ways into Attune are called; a Super Admin can rename them. */
+  modeLabels: Record<AttuneMode, string>;
 }
 
 /** The three ways into Attune: "Get an idea", "My child is struggling", "What does this mean?". */
@@ -19,6 +21,11 @@ export const ATTUNE_MODES: Record<AttuneMode, { label: string; short: string }> 
   regulation: { label: "My member is struggling", short: "Struggling" },
   progress: { label: "What does this mean?", short: "Progress" },
 };
+
+/** A mode's name as set by the Super Admin, or the built-in one until the status has loaded. */
+export function attuneModeLabel(mode: AttuneMode, status?: AttuneStatus | null) {
+  return status?.modeLabels[mode] || ATTUNE_MODES[mode].label;
+}
 
 export function isAttuneMode(value: unknown): value is AttuneMode {
   return value === "idea" || value === "regulation" || value === "progress";
@@ -109,6 +116,7 @@ export async function getAttuneStatus(): Promise<AttuneStatus> {
     used_today: number;
     remaining_today: number;
     free_plan?: boolean;
+    mode_labels?: Partial<Record<AttuneMode, string>>;
   }>("/attune/status");
   return {
     enabled: row.enabled,
@@ -116,6 +124,11 @@ export async function getAttuneStatus(): Promise<AttuneStatus> {
     usedToday: row.used_today,
     remainingToday: row.remaining_today,
     freePlan: row.free_plan ?? false,
+    modeLabels: {
+      idea: row.mode_labels?.idea || ATTUNE_MODES.idea.label,
+      regulation: row.mode_labels?.regulation || ATTUNE_MODES.regulation.label,
+      progress: row.mode_labels?.progress || ATTUNE_MODES.progress.label,
+    },
   };
 }
 
@@ -330,4 +343,132 @@ export async function askAttuneStream(
     }
     if (done) throw new Error("Attune couldn’t answer just now. Please try again in a moment.");
   }
+}
+
+/** Super Admin: what Attune is told and how it answers. The API key stays on the server. */
+export interface AttuneSettings {
+  enabled: boolean;
+  dailyLimit: number;
+  consultUrl: string;
+  model: string;
+  temperature: number;
+  maxAnswerTokens: number;
+  instructions: string;
+  modeGuidance: Record<AttuneMode, string>;
+  modeLabels: Record<AttuneMode, string>;
+  safetyOverride: string;
+  summaryInstructions: string;
+}
+
+export interface AttuneSettingsState {
+  settings: AttuneSettings;
+  defaults: AttuneSettings;
+  /** Settings that differ from the defaults, e.g. "instructions" or "mode_guidance.idea". */
+  customised: string[];
+  provider: string;
+  keyConfigured: boolean;
+  updatedAt: string | null;
+  updatedByName: string | null;
+}
+
+export interface AttuneSettingsTestResult {
+  answer: string;
+  references: AttuneReference[];
+  safety: boolean;
+  seconds: number;
+}
+
+interface ApiAttuneSettings {
+  enabled: boolean;
+  daily_limit: number;
+  consult_url: string;
+  model: string;
+  temperature: number;
+  max_answer_tokens: number;
+  instructions: string;
+  mode_guidance: Record<AttuneMode, string>;
+  mode_labels: Record<AttuneMode, string>;
+  safety_override: string;
+  summary_instructions: string;
+}
+
+interface ApiAttuneSettingsState {
+  settings: ApiAttuneSettings;
+  defaults: ApiAttuneSettings;
+  customised: string[];
+  provider: string;
+  key_configured: boolean;
+  updated_at: string | null;
+  updated_by_name: string | null;
+}
+
+const fromApiSettings = (row: ApiAttuneSettings): AttuneSettings => ({
+  enabled: row.enabled,
+  dailyLimit: row.daily_limit,
+  consultUrl: row.consult_url,
+  model: row.model,
+  temperature: row.temperature,
+  maxAnswerTokens: row.max_answer_tokens,
+  instructions: row.instructions,
+  modeGuidance: { ...row.mode_guidance },
+  modeLabels: { ...row.mode_labels },
+  safetyOverride: row.safety_override,
+  summaryInstructions: row.summary_instructions,
+});
+
+const toApiSettings = (settings: AttuneSettings): ApiAttuneSettings => ({
+  enabled: settings.enabled,
+  daily_limit: settings.dailyLimit,
+  consult_url: settings.consultUrl,
+  model: settings.model,
+  temperature: settings.temperature,
+  max_answer_tokens: settings.maxAnswerTokens,
+  instructions: settings.instructions,
+  mode_guidance: settings.modeGuidance,
+  mode_labels: settings.modeLabels,
+  safety_override: settings.safetyOverride,
+  summary_instructions: settings.summaryInstructions,
+});
+
+const toSettingsState = (row: ApiAttuneSettingsState): AttuneSettingsState => ({
+  settings: fromApiSettings(row.settings),
+  defaults: fromApiSettings(row.defaults),
+  customised: row.customised,
+  provider: row.provider,
+  keyConfigured: row.key_configured,
+  updatedAt: row.updated_at,
+  updatedByName: row.updated_by_name,
+});
+
+export const ATTUNE_SETTINGS_KEY = ["attune", "settings"] as const;
+
+export async function getAttuneSettings() {
+  return toSettingsState(await apiRequest<ApiAttuneSettingsState>("/attune/settings"));
+}
+
+export async function saveAttuneSettings(settings: AttuneSettings) {
+  return toSettingsState(
+    await apiRequest<ApiAttuneSettingsState>("/attune/settings", {
+      method: "PUT",
+      body: JSON.stringify(toApiSettings(settings)),
+    }),
+  );
+}
+
+export async function resetAttuneSettings() {
+  return toSettingsState(
+    await apiRequest<ApiAttuneSettingsState>("/attune/settings", { method: "DELETE" }),
+  );
+}
+
+/** One answer written with draft settings; nothing is saved. */
+export async function testAttuneSettings(
+  settings: AttuneSettings,
+  message: string,
+  mode: AttuneMode | null,
+) {
+  return apiRequest<AttuneSettingsTestResult>("/attune/settings/test", {
+    method: "POST",
+    body: JSON.stringify({ settings: toApiSettings(settings), message, mode }),
+  });
 }

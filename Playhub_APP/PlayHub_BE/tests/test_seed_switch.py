@@ -110,3 +110,28 @@ def test_a_deleted_demo_dose_does_not_break_the_seed(monkeypatch):
     run_seed(monkeypatch, demo=True)
     with TestingSession() as db:
         assert db.scalar(select(func.count(User.id))) > 0
+
+
+def test_a_redeploy_never_brings_back_a_deleted_plan_or_renamed_category(monkeypatch):
+    """Deleting a built-in plan, or renaming its category, must survive every deploy's seed."""
+    from app.models import PlayCategory
+
+    run_seed(monkeypatch, demo=False)
+    with TestingSession() as db:
+        plans_before = db.scalar(select(func.count(PlayPlan.id)))
+        deleted = db.scalars(select(PlayPlan).order_by(PlayPlan.slug)).first()
+        deleted_slug, deleted_category = deleted.slug, deleted.category_id
+        db.delete(deleted)
+        db.delete(db.get(PlayCategory, deleted_category))
+        db.flush()
+        renamed = db.scalars(select(PlayCategory).order_by(PlayCategory.name.desc())).first()
+        renamed.name = "Our own category name"
+        db.commit()
+        categories_before = db.scalar(select(func.count(PlayCategory.id)))
+
+    run_seed(monkeypatch, demo=False)
+    with TestingSession() as db:
+        assert db.scalar(select(PlayPlan).where(PlayPlan.slug == deleted_slug)) is None
+        assert db.scalar(select(func.count(PlayPlan.id))) == plans_before - 1
+        assert db.scalar(select(func.count(PlayCategory.id))) == categories_before
+        assert db.scalar(select(PlayCategory).where(PlayCategory.name == "Our own category name"))

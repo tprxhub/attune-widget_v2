@@ -35,7 +35,7 @@ import {
   X,
 } from "lucide-react";
 import {
-  ATTUNE_MODES,
+  attuneModeLabel,
   askAttuneStream,
   isAttuneMode,
   deleteAttuneConversation,
@@ -527,13 +527,13 @@ function AttunePage() {
             <div className="flex flex-wrap gap-1.5">
               {mode && (
                 <span className="ph-pill inline-flex max-w-full items-center gap-1.5 bg-amber/25 py-1 pr-1 pl-3 text-xs font-bold text-navy">
-                  <span className="truncate">{ATTUNE_MODES[mode].label}</span>
+                  <span className="truncate">{attuneModeLabel(mode, status.data)}</span>
                   <button
                     type="button"
                     onClick={() =>
                       void navigate({ search: ({ mode: _mode, ...rest }) => rest, replace: true })
                     }
-                    aria-label={`Stop: ${ATTUNE_MODES[mode].label}`}
+                    aria-label={`Stop: ${attuneModeLabel(mode, status.data)}`}
                     className="ph-pill grid h-5 w-5 shrink-0 place-items-center hover:bg-amber/40"
                   >
                     <X className="h-3 w-3" aria-hidden />

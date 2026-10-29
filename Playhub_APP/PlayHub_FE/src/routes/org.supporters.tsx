@@ -258,6 +258,10 @@ function OrgSupporters() {
         }
       />
       <OrgLicenseNote org={org.data} kind="moderators" />
+      <p className="mt-3 text-sm text-navy/65">
+        You can add up to 2 Moderators per active member. Active accounts and pending invitations
+        count towards this limit.
+      </p>
       {limitOpen && org.data && (
         <LicenceLimitModal org={org.data} kind="moderators" onClose={() => setLimitOpen(false)} />
       )}

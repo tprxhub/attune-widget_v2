@@ -2,7 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, Lock } from "lucide-react";
 import { AttuneAvatar } from "./AttuneAvatar";
-import { ATTUNE_MODES, getAttuneResetDelay, getAttuneStatus, type AttuneMode } from "@/api/attune";
+import {
+  attuneModeLabel,
+  getAttuneResetDelay,
+  getAttuneStatus,
+  type AttuneMode,
+} from "@/api/attune";
 import { useCapabilities } from "@/auth/session";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +58,7 @@ export function AskAttuneBar({ childName, className }: { childName?: string; cla
             search={item.q ? { mode: item.mode, q: item.q } : { mode: item.mode }}
             className="ph-pill inline-flex min-h-9 items-center border border-cream/20 px-3.5 text-xs font-bold text-cream transition hover:bg-cream/10"
           >
-            {ATTUNE_MODES[item.mode].label}
+            {attuneModeLabel(item.mode, status.data)}
           </Link>
         ))}
       </div>

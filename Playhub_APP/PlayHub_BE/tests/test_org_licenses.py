@@ -87,3 +87,39 @@ def test_no_limit_means_unlimited_for_either_type(client, platform_admin):
     clinic = org(client, platform_admin, seat_limit=0, license_type="moderators")
     for i in range(4):
         assert invite(client, platform_admin, clinic["id"], f"free{i}@example.com").status_code == 201
+
+
+def test_admin_moderators_capped_at_twice_active_members(client, platform_admin):
+    school = org(client, platform_admin, seat_limit=0)
+    created = client.post('/api/v1/auth/register', json={
+        'email': 'school.admin@example.com', 'display_name': 'School Admin',
+        'password': 'A-secure-password', 'role': 'admin',
+        'account_scope': 'organisation', 'organisation_id': school['id'],
+    })
+    assert created.status_code == 201
+    login = client.post('/api/v1/auth/login', json={
+        'email': 'school.admin@example.com', 'password': 'A-secure-password',
+    })
+    admin = {'Authorization': f"Bearer {login.json()['access_token']}"}
+    assert invite(client, admin, school['id'], 'zero@example.com').status_code == 409
+    assert child(client, admin, school['id'], 'Ada').status_code == 201
+    first = invite(client, admin, school['id'], 'first@example.com')
+    assert first.status_code == 201
+    assert invite(client, admin, school['id'], 'second@example.com').status_code == 201
+    blocked = invite(client, admin, school['id'], 'third@example.com')
+    assert blocked.status_code == 409
+    assert '2 per active member' in blocked.json()['detail']
+    # Accepting replaces the reservation rather than consuming a third slot.
+    assert client.post('/api/v1/invitations/accept', json={
+        'token': first.json()['acceptance_token'], 'password': 'A-secure-password',
+    }).status_code == 200
+    moderator = next(u for u in client.get('/api/v1/users', headers=admin).json()
+                     if u['email'] == 'first@example.com')
+    url = f"/api/v1/users/{moderator['id']}"
+    assert client.patch(url, headers=admin, json={'is_active': False}).status_code == 200
+    assert invite(client, admin, school['id'], 'third@example.com').status_code == 201
+    assert client.patch(url, headers=admin, json={'is_active': True}).status_code == 409
+    assert child(client, admin, school['id'], 'Ben').status_code == 201
+    assert client.patch(url, headers=admin, json={'is_active': True}).status_code == 200
+    assert invite(client, admin, school['id'], 'fourth@example.com').status_code == 201
+    assert invite(client, admin, school['id'], 'fifth@example.com').status_code == 409

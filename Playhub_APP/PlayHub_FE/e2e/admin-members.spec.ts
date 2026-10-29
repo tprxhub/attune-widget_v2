@@ -216,3 +216,17 @@ test("a member can have several Moderators, added and removed from their card", 
     "Second Moderator",
   );
 });
+
+test("the Super Admin opens member deletion directly from the card", async ({ page }) => {
+  await signIn(page, "admin@playhub.local");
+  await page.goto("/admin/members");
+  const member = card(page, "Amira");
+  await expect(member.getByRole("link", { name: "Check-in" })).toHaveCount(0);
+  await member.getByRole("button", { name: "Delete Member", exact: true }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Delete Amira?" });
+  await expect(dialog.getByRole("button", { name: "Delete member", exact: true })).toBeDisabled();
+  await expect(dialog.getByLabel("What will be deleted")).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(member).toBeVisible();
+});

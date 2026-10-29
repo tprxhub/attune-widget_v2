@@ -14,8 +14,9 @@ import {
   Pencil,
   Repeat2,
   Gauge,
+  Trash2,
 } from "lucide-react";
-import { correctAttempt, listAttempts, logAttempt } from "@/api/attempts";
+import { correctAttempt, deleteAttempt, listAttempts, logAttempt } from "@/api/attempts";
 import { listGoals, listPlans } from "@/api/plans";
 import { getProgress } from "@/api/progress";
 import { useCapabilities, useSession } from "@/auth/session";
@@ -25,6 +26,7 @@ import { CardSkeleton } from "@/components/Skeletons";
 import { AttemptScore } from "@/components/AttemptScore";
 import { ParentWinNote } from "@/components/ParentWinNote";
 import { SupportScoreInfo } from "@/components/SupportScoreInfo";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { ModalPortal } from "@/components/ModalPortal";
 import { Select } from "@/components/Select";
 import { ReflectionForm, type ReflectionValues } from "@/features/attempts/ReflectionForm";
@@ -194,13 +196,15 @@ function CheckInPage() {
           <div className="min-w-0 space-y-4">
             {/* Who are we logging for */}
             <section className="ph-card p-5">
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <p className="flex items-center gap-2 text-[11px] font-bold tracking-[0.14em] text-navy/45 uppercase">
-                  <CalendarCheck className="h-4 w-4" aria-hidden /> Who are we logging for?
+              <div className="rounded-2xl bg-navy p-4 text-cream">
+                <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-cream/70 uppercase">
+                  <CalendarCheck className="h-4 w-4" aria-hidden /> Logging a session for
                 </p>
-                <p className="text-sm text-navy/60">
-                  Logging a Session for{" "}
-                  <span className="font-bold text-navy">{activeChild.name}</span>
+                <h2 className="mt-1 break-words text-2xl font-bold sm:text-3xl">
+                  {activeChild.name}
+                </h2>
+                <p className="mt-2 text-sm text-cream/80">
+                  Check the member's name before saving. Use the member selector to switch.
                 </p>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -398,6 +402,7 @@ function CheckInPage() {
             </section>
 
             <RecentSessions
+              key={activeChild.id}
               loading={attempts.isLoading}
               childName={activeChild?.name}
               sessions={[...logged]
@@ -434,7 +439,16 @@ function RecentSessions({
   sessions: Attempt[];
 }) {
   const { canLogAttempts, canLeaveConsultNotes } = useCapabilities();
+  const { session } = useSession();
   const queryClient = useQueryClient();
+  const [deleting, setDeleting] = useState<Attempt | null>(null);
+  const removal = useMutation({
+    mutationFn: deleteAttempt,
+    onSuccess: () => {
+      setDeleting(null);
+      void queryClient.invalidateQueries();
+    },
+  });
   const [editing, setEditing] = useState<Attempt | null>(null);
   const correction = useMutation({
     mutationFn: (values: ReflectionValues) => correctAttempt(editing!, values),
@@ -455,6 +469,28 @@ function RecentSessions({
   const hidden = sessions.length - visible.length;
   return (
     <section className="ph-card overflow-hidden">
+      {deleting && (
+        <DeleteConfirmDialog
+          title="Delete check-in?"
+          description={
+            <p>
+              Permanently delete {childName}'s check-in for <strong>{deleting.activity}</strong>
+              {" on "}
+              {fmtDate(deleting.date)}? Their session totals and progress will update.
+            </p>
+          }
+          confirmText={childName ?? "Delete"}
+          rows={[]}
+          loading={false}
+          deleting={removal.isPending}
+          error={removal.isError ? removal.error.message : undefined}
+          deleteLabel="Delete check-in"
+          onDelete={() => removal.mutate(deleting)}
+          onClose={() => {
+            if (!removal.isPending) setDeleting(null);
+          }}
+        />
+      )}
       {editing && (
         <ModalPortal>
           <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-navy/45 p-4">
@@ -539,7 +575,7 @@ function RecentSessions({
                 const isOpen = expanded === a.id;
                 const hasWin = !!a.bigWin?.trim();
                 return (
-                  <li key={a.id} className="relative rounded-2xl bg-navy/4">
+                  <li key={a.id} className="group relative rounded-2xl bg-navy/4">
                     <span
                       className="absolute top-[26px] -left-[21px] h-2.5 w-2.5 bg-blue"
                       style={{ borderRadius: "9999px" }}
@@ -569,6 +605,21 @@ function RecentSessions({
                               className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-blue transition hover:bg-blue/10 focus-visible:ring-2 focus-visible:ring-blue/40 focus-visible:outline-none"
                             >
                               <Pencil className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                          )}
+                          {session.role === "super_admin" && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                removal.reset();
+                                setDeleting(a);
+                              }}
+                              aria-label={`Delete check-in: ${a.activity}, ${fmtDate(a.date)}`}
+                              title="Delete check-in"
+                              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-coral opacity-100 transition hover:bg-coral/10 focus-visible:ring-2 focus-visible:ring-coral/40 focus-visible:outline-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100"
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden />
                             </button>
                           )}
                         </span>

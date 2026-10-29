@@ -176,7 +176,7 @@ def test_share_this_writes_a_plain_handover_note_once(client, monkeypatch, opena
 
     calls = []
 
-    def note(instructions, conversation):
+    def note(instructions, conversation, config=None):
         calls.append((instructions, conversation))
         return ("## Note\n- Leaving the park has been hard for Free.\n\n**Try** a two-minute warning.\n"
                 "[[refs: nmt]]\n\nWatch for a quicker recovery.")

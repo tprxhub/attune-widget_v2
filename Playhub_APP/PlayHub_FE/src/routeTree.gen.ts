@@ -25,8 +25,10 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SubscriptionRouteImport } from './routes/subscription'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAttuneSettingsRouteImport } from './routes/admin.attune-settings'
 import { Route as AdminAttuneSourcesRouteImport } from './routes/admin.attune-sources'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
+import { Route as AdminBillingRouteImport } from './routes/admin.billing'
 import { Route as AdminChildrenRouteImport } from './routes/admin.children'
 import { Route as AdminEducatorsRouteImport } from './routes/admin.educators'
 import { Route as AdminHomepageRouteImport } from './routes/admin.homepage'
@@ -127,6 +129,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAttuneSettingsRoute = AdminAttuneSettingsRouteImport.update({
+  id: '/admin/attune-settings',
+  path: '/admin/attune-settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminAttuneSourcesRoute = AdminAttuneSourcesRouteImport.update({
   id: '/admin/attune-sources',
   path: '/admin/attune-sources',
@@ -135,6 +142,11 @@ const AdminAttuneSourcesRoute = AdminAttuneSourcesRouteImport.update({
 const AdminAuditRoute = AdminAuditRouteImport.update({
   id: '/admin/audit',
   path: '/admin/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBillingRoute = AdminBillingRouteImport.update({
+  id: '/admin/billing',
+  path: '/admin/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminChildrenRoute = AdminChildrenRouteImport.update({
@@ -249,8 +261,10 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
+  '/admin/attune-settings': typeof AdminAttuneSettingsRoute
   '/admin/attune-sources': typeof AdminAttuneSourcesRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/billing': typeof AdminBillingRoute
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
@@ -288,8 +302,10 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
+  '/admin/attune-settings': typeof AdminAttuneSettingsRoute
   '/admin/attune-sources': typeof AdminAttuneSourcesRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/billing': typeof AdminBillingRoute
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
@@ -328,8 +344,10 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/subscription': typeof SubscriptionRoute
+  '/admin/attune-settings': typeof AdminAttuneSettingsRoute
   '/admin/attune-sources': typeof AdminAttuneSourcesRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/billing': typeof AdminBillingRoute
   '/admin/children': typeof AdminChildrenRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
@@ -369,8 +387,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/subscription'
+    | '/admin/attune-settings'
     | '/admin/attune-sources'
     | '/admin/audit'
+    | '/admin/billing'
     | '/admin/children'
     | '/admin/educators'
     | '/admin/homepage'
@@ -408,8 +428,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/subscription'
+    | '/admin/attune-settings'
     | '/admin/attune-sources'
     | '/admin/audit'
+    | '/admin/billing'
     | '/admin/children'
     | '/admin/educators'
     | '/admin/homepage'
@@ -447,8 +469,10 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/subscription'
+    | '/admin/attune-settings'
     | '/admin/attune-sources'
     | '/admin/audit'
+    | '/admin/billing'
     | '/admin/children'
     | '/admin/educators'
     | '/admin/homepage'
@@ -487,8 +511,10 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   SubscriptionRoute: typeof SubscriptionRoute
+  AdminAttuneSettingsRoute: typeof AdminAttuneSettingsRoute
   AdminAttuneSourcesRoute: typeof AdminAttuneSourcesRoute
   AdminAuditRoute: typeof AdminAuditRoute
+  AdminBillingRoute: typeof AdminBillingRoute
   AdminChildrenRoute: typeof AdminChildrenRoute
   AdminEducatorsRoute: typeof AdminEducatorsRoute
   AdminHomepageRoute: typeof AdminHomepageRoute
@@ -625,6 +651,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/attune-settings': {
+      id: '/admin/attune-settings'
+      path: '/admin/attune-settings'
+      fullPath: '/admin/attune-settings'
+      preLoaderRoute: typeof AdminAttuneSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/attune-sources': {
       id: '/admin/attune-sources'
       path: '/admin/attune-sources'
@@ -637,6 +670,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/billing': {
+      id: '/admin/billing'
+      path: '/admin/billing'
+      fullPath: '/admin/billing'
+      preLoaderRoute: typeof AdminBillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/children': {
@@ -791,8 +831,10 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   SubscriptionRoute: SubscriptionRoute,
+  AdminAttuneSettingsRoute: AdminAttuneSettingsRoute,
   AdminAttuneSourcesRoute: AdminAttuneSourcesRoute,
   AdminAuditRoute: AdminAuditRoute,
+  AdminBillingRoute: AdminBillingRoute,
   AdminChildrenRoute: AdminChildrenRoute,
   AdminEducatorsRoute: AdminEducatorsRoute,
   AdminHomepageRoute: AdminHomepageRoute,

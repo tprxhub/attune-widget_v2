@@ -61,3 +61,52 @@ def test_session_correction_preserves_count_and_audits_original_values(client, p
     assert client.patch(url, json=payload).status_code in (401, 403)
     other = client.post("/api/v1/children", headers=platform_admin, json={"name": "Other", "account_scope": "individual"}).json()
     assert client.patch(f"/api/v1/children/{other['id']}/attempts/{row['id']}", headers=platform_admin, json=payload).status_code == 404
+
+
+def test_only_super_admin_can_delete_sessions_and_progress_is_recalculated(client, platform_admin):
+    plan = client.post('/api/v1/play-plans', headers=platform_admin,
+                       json={'name': 'Deletion', 'slug': 'deletion'}).json()
+    dose = client.post(f"/api/v1/play-plans/{plan['id']}/play-doses", headers=platform_admin,
+                       json={'level': 'starter', 'title': 'Practice'}).json()
+    child = client.post('/api/v1/children', headers=platform_admin, json={
+        'name': 'Amira', 'account_scope': 'individual', 'current_play_dose_id': dose['id'],
+    }).json()
+    base = f"/api/v1/children/{child['id']}"
+    rows = []
+    for day in ('2026-10-01', '2026-10-09', '2026-10-15'):
+        response = client.post(f'{base}/attempts', headers=platform_admin, json={
+            'play_dose_id': dose['id'], 'occurred_on': day, 'completion_score': 3,
+            'mood_score': 4, 'big_win': 'Original check-in',
+        })
+        assert response.status_code == 201
+        rows.append(response.json())
+    url = f"{base}/attempts/{rows[0]['id']}"
+    assert client.delete(url).status_code in (401, 403)
+    for role in ('admin', 'moderator', 'member', 'ttp_employee'):
+        email = f'cannot-delete-{role}@example.com'
+        registered = client.post('/api/v1/auth/register', json={
+            'email': email, 'display_name': role, 'password': 'A-secure-password',
+            'role': role, 'account_scope': 'platform' if role == 'ttp_employee' else 'individual',
+        })
+        assert registered.status_code == 201
+        token = client.post('/api/v1/auth/login', json={
+            'email': email, 'password': 'A-secure-password',
+        }).json()['access_token']
+        assert client.delete(url, headers={'Authorization': f'Bearer {token}'}).status_code == 403
+    other = client.post('/api/v1/children', headers=platform_admin,
+                        json={'name': 'Other', 'account_scope': 'individual'}).json()
+    assert client.delete(f"/api/v1/children/{other['id']}/attempts/{rows[0]['id']}",
+                         headers=platform_admin).status_code == 404
+    assert client.delete(url, headers=platform_admin).status_code == 204
+    remaining = client.get(f'{base}/attempts', headers=platform_admin).json()
+    assert len(remaining) == 2
+    assert {row['week_number'] for row in remaining} == {1}
+    assert client.get(f'{base}/progress', headers=platform_admin).json()['total_attempts'] == 2
+    events = client.get('/api/v1/audit-events', headers=platform_admin).json()
+    event = next(e for e in events if e['action'] == 'attempt.deleted')
+    assert event['resource_id'] == rows[0]['id']
+    assert event['metadata_json']['big_win'] == 'Original check-in'
+    assert client.delete(url, headers=platform_admin).status_code == 404
+    for row in remaining:
+        assert client.delete(f"{base}/attempts/{row['id']}", headers=platform_admin).status_code == 204
+    assert client.get(f'{base}/progress', headers=platform_admin).json()['total_attempts'] == 0

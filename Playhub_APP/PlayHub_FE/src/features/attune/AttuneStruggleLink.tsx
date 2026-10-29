@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ATTUNE_MODES, getAttuneStatus } from "@/api/attune";
+import { attuneModeLabel, getAttuneStatus } from "@/api/attune";
 import { cn } from "@/lib/utils";
 
 /**
@@ -35,7 +35,7 @@ export function AttuneStruggleLink({
         className,
       )}
     >
-      Was it a hard one? {ATTUNE_MODES.regulation.label}
+      Was it a hard one? {attuneModeLabel("regulation", status.data)}
     </Link>
   );
 }

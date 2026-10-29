@@ -140,14 +140,18 @@ PLAN_SPECS = SMART_CATALOG
 
 
 def seed_plans(db) -> dict[tuple[str, PlanLevel], tuple[PlayPlan, PlayDose, Activity | None]]:
-    """Add any catalogue plan that is missing, with its doses and activities.
+    """Create the built-in catalogue on an empty database, with its doses and activities.
 
-    A plan that already exists is left exactly as it is, including doses or activities the
-    Super Admin edited, added or deleted in the Plans library.
+    Every release runs the seed against the live database, so once any Play Plan exists the
+    catalogue belongs to the Plans library: nothing is created, changed or brought back, even a
+    built-in plan a Super Admin deleted. Content changes after that go in Alembic migrations.
     """
     result: dict[tuple[str, PlanLevel], tuple[PlayPlan, PlayDose, Activity | None]] = {}
+    catalogue_exists = db.scalar(select(PlayPlan.id).limit(1)) is not None
     for plan_order, spec in enumerate(PLAN_SPECS):
         plan = db.scalar(select(PlayPlan).where(PlayPlan.slug == spec["slug"]))
+        if catalogue_exists and not plan:
+            continue
         if plan:
             for dose in db.scalars(select(PlayDose).where(PlayDose.play_plan_id == plan.id)):
                 first = db.scalar(

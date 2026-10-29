@@ -48,7 +48,7 @@ export async function listRecentCheckIns(childIds: string[], limit = 3): Promise
   return recentAttempts(childIds, limit, (attempt) => attempt.source === "daily_check_in");
 }
 
-/** Attempts are append-only in the API; saving never overwrites a previous session. */
+/** Logging creates a new session; corrections and deletion use separate actions. */
 export async function logAttempt(input: NewAttemptInput): Promise<Attempt> {
   const plans = await listPlans();
   const row = await apiRequest<ApiAttempt>(`/children/${input.childId}/attempts`, {
@@ -85,5 +85,12 @@ export async function correctAttempt(
       big_win: values.bigWin || null,
       notes: values.consultNotes || null,
     }),
+  });
+}
+
+/** Super Admin: remove a session that was logged by mistake. */
+export async function deleteAttempt(attempt: Attempt): Promise<void> {
+  await apiRequest(`/children/${attempt.childId}/attempts/${attempt.id}`, {
+    method: "DELETE",
   });
 }

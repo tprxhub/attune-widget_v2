@@ -25,11 +25,12 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
-from app.dependencies import get_current_user, require_child_access, require_permission
-from app.attune_rules import (MODE_GUIDANCE, SAFETY_OVERRIDE, SUMMARY_INSTRUCTIONS, Mode, build_rules,
-                              plain_summary, safety_concern, split_reply, visible_text)
+from app.dependencies import get_current_user, require_child_access, require_permission, require_roles
+from app import attune_config
+from app.attune_config import AttuneConfig
+from app.attune_rules import (Mode, build_rules, plain_summary, safety_concern, split_reply, visible_text)
 from app.attune_sources import references_for, register
-from app.models import Activity, Attempt, AttuneConversation, AttuneMessage, Child, PlayPulseResult, User
+from app.models import Activity, Attempt, AttuneConversation, AttuneMessage, Child, PlayPulseResult, Role, SiteContent, User
 from app.services import PROGRESS_LOAD, assigned_plan_id, audit, progress_summary
 
 log = logging.getLogger(__name__)
@@ -92,6 +93,8 @@ class AttuneStatus(BaseModel):
     used_today: int
     remaining_today: int
     free_plan: bool = False
+    # What the three ways into Attune are called; a Super Admin can rename them.
+    mode_labels: dict[str, str] = Field(default_factory=dict)
 
 
 class AttuneAsk(BaseModel):
@@ -154,10 +157,15 @@ def _output_text(payload: dict) -> str:
     return re.sub(r"【[^】]*】", "", "".join(parts)).strip()
 
 
-def attune_enabled() -> bool:
+def key_configured() -> bool:
     settings = get_settings()
     key = settings.deepinfra_api_key if settings.attune_provider == "deepinfra" else settings.openai_api_key
     return bool(key)
+
+
+def attune_enabled(db: Session) -> bool:
+    """The provider's key is set and a Super Admin hasn't switched Attune off."""
+    return key_configured() and attune_config.load(db).enabled
 
 
 def _post(url: str, key: str | None, body: dict) -> dict:
@@ -176,30 +184,30 @@ def _post(url: str, key: str | None, body: dict) -> dict:
     return response.json()
 
 
-def _ask_openai(instructions: str, conversation: list[dict[str, str]]) -> str:
+def _ask_openai(instructions: str, conversation: list[dict[str, str]], config: AttuneConfig) -> str:
     settings = get_settings()
     body: dict = {
-        "model": settings.openai_model,
+        "model": config.model,
         "instructions": instructions,
         "input": [{"role": m["role"], "content": m["content"]} for m in conversation],
-        "max_output_tokens": 4000,
+        "max_output_tokens": config.max_answer_tokens,
         "store": False,
     }
     effort = (settings.openai_reasoning_effort or "").strip()
-    if effort and REASONING_MODEL.match(settings.openai_model):
+    if effort and REASONING_MODEL.match(config.model):
         body["reasoning"] = {"effort": effort}
     if settings.openai_vector_store_id:
         body["tools"] = [{"type": "file_search", "vector_store_ids": [settings.openai_vector_store_id]}]
     return _output_text(_post(OPENAI_RESPONSES_URL, settings.openai_api_key, body))
 
 
-def _ask_deepinfra(instructions: str, conversation: list[dict[str, str]]) -> str:
+def _ask_deepinfra(instructions: str, conversation: list[dict[str, str]], config: AttuneConfig) -> str:
     settings = get_settings()
     body = {
-        "model": settings.deepinfra_model,
+        "model": config.model,
         "messages": [{"role": "system", "content": instructions}, *conversation],
-        "max_tokens": 1500,
-        "temperature": 0.6,
+        "max_tokens": config.max_answer_tokens,
+        "temperature": config.temperature,
     }
     payload = _post(DEEPINFRA_CHAT_URL, settings.deepinfra_api_key, body)
     text = ((payload.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
@@ -207,10 +215,11 @@ def _ask_deepinfra(instructions: str, conversation: list[dict[str, str]]) -> str
     return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 
-def ask_model(instructions: str, conversation: list[dict[str, str]]) -> str:
+def ask_model(instructions: str, conversation: list[dict[str, str]], config: AttuneConfig | None = None) -> str:
     """Send the instructions and the conversation so far to the chosen provider; return the reply."""
     provider = get_settings().attune_provider
-    text = (_ask_deepinfra if provider == "deepinfra" else _ask_openai)(instructions, conversation)
+    config = config or attune_config.defaults()
+    text = (_ask_deepinfra if provider == "deepinfra" else _ask_openai)(instructions, conversation, config)
     if not text:
         log.warning("Attune provider %s returned no text", provider)
         raise AttuneUnavailable
@@ -251,13 +260,13 @@ def _stream_lines(url: str, key: str | None, body: dict) -> Iterator[str]:
         raise AttuneUnavailable from exc
 
 
-def _stream_deepinfra(instructions: str, conversation: list[dict[str, str]]) -> Iterator[str]:
+def _stream_deepinfra(instructions: str, conversation: list[dict[str, str]], config: AttuneConfig) -> Iterator[str]:
     settings = get_settings()
     body = {
-        "model": settings.deepinfra_model,
+        "model": config.model,
         "messages": [{"role": "system", "content": instructions}, *conversation],
-        "max_tokens": 1500,
-        "temperature": 0.6,
+        "max_tokens": config.max_answer_tokens,
+        "temperature": config.temperature,
         "stream": True,
     }
     for line in _stream_lines(DEEPINFRA_CHAT_URL, settings.deepinfra_api_key, body):
@@ -275,18 +284,18 @@ def _stream_deepinfra(instructions: str, conversation: list[dict[str, str]]) -> 
             yield delta
 
 
-def _stream_openai(instructions: str, conversation: list[dict[str, str]]) -> Iterator[str]:
+def _stream_openai(instructions: str, conversation: list[dict[str, str]], config: AttuneConfig) -> Iterator[str]:
     settings = get_settings()
     body: dict = {
-        "model": settings.openai_model,
+        "model": config.model,
         "instructions": instructions,
         "input": [{"role": m["role"], "content": m["content"]} for m in conversation],
-        "max_output_tokens": 4000,
+        "max_output_tokens": config.max_answer_tokens,
         "store": False,
         "stream": True,
     }
     effort = (settings.openai_reasoning_effort or "").strip()
-    if effort and REASONING_MODEL.match(settings.openai_model):
+    if effort and REASONING_MODEL.match(config.model):
         body["reasoning"] = {"effort": effort}
     if settings.openai_vector_store_id:
         body["tools"] = [{"type": "file_search", "vector_store_ids": [settings.openai_vector_store_id]}]
@@ -301,10 +310,12 @@ def _stream_openai(instructions: str, conversation: list[dict[str, str]]) -> Ite
             raise AttuneUnavailable
 
 
-def stream_model(instructions: str, conversation: list[dict[str, str]]) -> Iterator[str]:
+def stream_model(instructions: str, conversation: list[dict[str, str]],
+                 config: AttuneConfig | None = None) -> Iterator[str]:
     """Yield the visible reply in pieces as the chosen provider writes it."""
     provider = get_settings().attune_provider
-    raw = (_stream_deepinfra if provider == "deepinfra" else _stream_openai)(instructions, conversation)
+    config = config or attune_config.defaults()
+    raw = (_stream_deepinfra if provider == "deepinfra" else _stream_openai)(instructions, conversation, config)
     full, sent = "", ""
     for piece in raw:
         full += piece
@@ -510,18 +521,19 @@ def activity_context(activity: Activity, with_steps: bool = True) -> str:
 
 def build_instructions(
     db: Session, child: Child | None, activity: Activity | None, user: User, first_reply: bool = True,
-    mode: str | None = None, safety: bool = False,
+    mode: str | None = None, safety: bool = False, config: AttuneConfig | None = None,
 ) -> str:
+    config = config or attune_config.load(db)
     sections = [
-        build_rules(get_settings().attune_consult_url),
+        build_rules(config.consult_url, config.instructions),
         f"You are talking with {user.display_name}. "
         + ("This is the start of the conversation." if first_reply
            else "The conversation is already under way: don't greet them again."),
     ]
-    if mode in MODE_GUIDANCE:
-        sections.append(MODE_GUIDANCE[mode])
+    if mode in attune_config.MODE_LABELS:
+        sections.append(getattr(config.mode_guidance, mode))
     if safety:
-        sections.append(SAFETY_OVERRIDE)
+        sections.append(config.safety_override)
     if child:
         sections.append("Child context:\n" + child_context(db, child, user=user))
     if activity:
@@ -573,14 +585,15 @@ def _title(message: str) -> str:
 def attune_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     used = _used_today(db, user)
     free = _on_free_plan(db, user)
-    settings = get_settings()
-    limit = 0 if free else min(30, max(0, settings.attune_daily_limit))
+    config = attune_config.load(db)
+    limit = 0 if free else config.daily_limit
     return AttuneStatus(
-        enabled=attune_enabled(),
+        enabled=key_configured() and config.enabled,
         daily_limit=limit,
         used_today=used,
         remaining_today=max(0, limit - used),
         free_plan=free,
+        mode_labels=config.mode_labels.model_dump(),
     )
 
 
@@ -689,12 +702,13 @@ def summarise(message_id: str, user: User = Depends(get_current_user), db: Sessi
         raise HTTPException(status_code=404, detail="Answer not found")
     if message.summary:
         return AttuneSummary(summary=message.summary)
-    if not attune_enabled():
+    if not attune_enabled(db):
         raise HTTPException(status_code=503, detail="Attune isn’t switched on yet.")
+    config = attune_config.load(db)
     turns = [m for m in message.conversation.messages if m.created_at <= message.created_at][-HISTORY_MESSAGES:]
     transcript = "\n\n".join(f"{'Parent' if m.role == 'user' else 'Guidance'}: {m.content}" for m in turns)
     try:
-        summary = plain_summary(ask_model(SUMMARY_INSTRUCTIONS, [{"role": "user", "content": transcript}]))
+        summary = plain_summary(ask_model(config.summary_instructions, [{"role": "user", "content": transcript}], config))
     except AttuneUnavailable:
         raise HTTPException(status_code=502, detail="The summary couldn’t be written just now. Please try again.") from None
     if not summary:
@@ -711,7 +725,114 @@ def source_register(_: User = Depends(require_permission("progress"))):
     return register()
 
 
+# ---------- Super Admin: Attune settings ----------
+
+class AttuneSettingsRead(BaseModel):
+    settings: AttuneConfig
+    defaults: AttuneConfig
+    # Which settings differ from the defaults, e.g. "instructions" or "mode_guidance.idea".
+    customised: list[str]
+    provider: str
+    key_configured: bool
+    updated_at: datetime | None = None
+    updated_by_name: str | None = None
+
+
+class AttuneSettingsTest(BaseModel):
+    settings: AttuneConfig
+    message: str = Field(min_length=1, max_length=2000)
+    mode: Mode | None = None
+
+
+class AttuneSettingsTestResult(BaseModel):
+    answer: str
+    references: list[dict[str, str]]
+    safety: bool
+    seconds: float
+
+
+def _settings_read(db: Session) -> AttuneSettingsRead:
+    row = db.get(SiteContent, attune_config.KEY)
+    editor = db.get(User, row.updated_by_id) if row and row.updated_by_id else None
+    config = attune_config.load(db)
+    return AttuneSettingsRead(
+        settings=config,
+        defaults=attune_config.defaults(),
+        customised=attune_config.changed_fields({}, attune_config.changes_from_defaults(config)),
+        provider=get_settings().attune_provider,
+        key_configured=key_configured(),
+        updated_at=_as_utc(row.updated_at) if row and row.updated_at else None,
+        updated_by_name=editor.display_name if editor else None,
+    )
+
+
+super_admin = require_roles(Role.SUPER_ADMIN)
+
+
+@router.get("/settings", response_model=AttuneSettingsRead)
+def get_attune_settings(_: User = Depends(super_admin), db: Session = Depends(get_db)):
+    return _settings_read(db)
+
+
+@router.put("/settings", response_model=AttuneSettingsRead)
+def save_attune_settings(payload: AttuneConfig, actor: User = Depends(super_admin), db: Session = Depends(get_db)):
+    """Applies to every question from now on. Only changes from the defaults are stored, and the
+    audit log records which settings changed, never the text."""
+    before = attune_config.stored_changes(db)
+    changes = attune_config.changes_from_defaults(payload)
+    fields = attune_config.changed_fields(before, changes)
+    row = db.get(SiteContent, attune_config.KEY)
+    if not changes:
+        if row:
+            db.delete(row)
+    elif row:
+        row.content, row.updated_by_id = changes, actor.id
+    else:
+        db.add(SiteContent(key=attune_config.KEY, content=changes, updated_by_id=actor.id))
+    if fields:
+        audit(db, actor.id, "site_content.attune_updated", "site_content", attune_config.KEY, {"fields": fields})
+    db.commit()
+    return _settings_read(db)
+
+
+@router.delete("/settings", response_model=AttuneSettingsRead)
+def reset_attune_settings(actor: User = Depends(super_admin), db: Session = Depends(get_db)):
+    row = db.get(SiteContent, attune_config.KEY)
+    if row:
+        db.delete(row)
+        audit(db, actor.id, "site_content.attune_reset", "site_content", attune_config.KEY)
+        db.commit()
+    return _settings_read(db)
+
+
+@router.post("/settings/test", response_model=AttuneSettingsTestResult)
+def try_attune_settings(payload: AttuneSettingsTest, actor: User = Depends(super_admin),
+                         db: Session = Depends(get_db)):
+    """One answer written with draft settings, before they are saved. Nothing is stored and it
+    doesn't count against anyone's daily limit; it works even while Attune is switched off."""
+    if not key_configured():
+        raise HTTPException(status_code=503, detail="Attune has no API key on the server.")
+    message = payload.message.strip()
+    flagged = safety_concern(message)
+    instructions = build_instructions(db, None, None, actor, mode=payload.mode, safety=flagged,
+                                      config=payload.settings)
+    started = datetime.now(timezone.utc)
+    try:
+        raw = ask_model(instructions, [{"role": "user", "content": message}], payload.settings)
+    except AttuneUnavailable:
+        raise HTTPException(status_code=502, detail="The model didn’t answer. Check the model name and try again.") from None
+    reply, ids, model_safety = split_reply(raw)
+    safety = model_safety or flagged
+    return AttuneSettingsTestResult(
+        answer=reply,
+        references=references_for(ids, "safety" if safety else (payload.mode or "general")),
+        safety=safety,
+        seconds=round((datetime.now(timezone.utc) - started).total_seconds(), 1),
+    )
+
+
 FAILED = "Attune couldn’t answer just now. Please try again in a moment."
+SWITCHED_OFF = "Attune is switched off for now. Please try again later."
 
 
 @dataclass
@@ -728,6 +849,7 @@ class _Question:
     mode: str | None = None
     # The question itself matched a danger phrase (see attune_rules.safety_concern).
     safety_flag: bool = False
+    config: AttuneConfig | None = None
 
     @property
     def kind(self) -> str:
@@ -736,8 +858,11 @@ class _Question:
 
 def _prepare(payload: AttuneAsk, user: User, db: Session) -> _Question:
     """Every check that can refuse a question, done before anything is sent to the model."""
-    if not attune_enabled():
+    config = attune_config.load(db)
+    if not key_configured():
         raise HTTPException(status_code=503, detail="Attune isn’t switched on yet.")
+    if not config.enabled:
+        raise HTTPException(status_code=503, detail=SWITCHED_OFF)
     message = payload.message.strip()
     if not message:
         raise HTTPException(status_code=422, detail="Please type a question.")
@@ -751,13 +876,12 @@ def _prepare(payload: AttuneAsk, user: User, db: Session) -> _Question:
 
     used = _used_today(db, user)
     free = _on_free_plan(db, user)
-    settings = get_settings()
+    limit = config.daily_limit
     if free:
         raise HTTPException(
             status_code=403,
-            detail="Attune is available on a paid plan. Subscribe to ask up to 30 questions a day.",
+            detail=f"Attune is available on a paid plan. Subscribe to ask up to {limit} questions a day.",
         )
-    limit = min(30, max(0, settings.attune_daily_limit))
     if used >= limit:
         raise HTTPException(
             status_code=429,
@@ -772,12 +896,13 @@ def _prepare(payload: AttuneAsk, user: User, db: Session) -> _Question:
         activity_id=activity.id if activity else None,
         history=history[-HISTORY_MESSAGES:] + [{"role": "user", "content": message}],
         instructions=build_instructions(db, child, activity, user, first_reply=not history,
-                                        mode=payload.mode, safety=flagged),
+                                        mode=payload.mode, safety=flagged, config=config),
         used_today=used,
         daily_limit=limit,
         asked_at=datetime.now(timezone.utc),
         mode=payload.mode,
         safety_flag=flagged,
+        config=config,
     )
 
 
@@ -821,7 +946,7 @@ def _save(db: Session, user: User, question: _Question, raw_reply: str) -> Attun
 def ask(payload: AttuneAsk, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     question = _prepare(payload, user, db)
     try:
-        return _save(db, user, question, ask_model(question.instructions, question.history))
+        return _save(db, user, question, ask_model(question.instructions, question.history, question.config))
     except AttuneUnavailable:
         raise HTTPException(status_code=502, detail=FAILED) from None
 
@@ -841,7 +966,7 @@ def ask_stream(payload: AttuneAsk, user: User = Depends(get_current_user), db: S
         # should read is sent as deltas.
         raw, sent = "", ""
         try:
-            for piece in stream_model(question.instructions, question.history):
+            for piece in stream_model(question.instructions, question.history, question.config):
                 raw += piece
                 visible = visible_text(raw)
                 if visible.startswith(sent) and len(visible) > len(sent):

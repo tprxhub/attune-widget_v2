@@ -697,6 +697,7 @@ def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require
     )
     if target.organisation_id and counted_after and not counted_before:
         licenses.ensure_available(db, target.organisation, "moderators")
+        licenses.ensure_admin_moderator_capacity(db, actor)
     for key, value in payload.model_dump(exclude_unset=True).items(): setattr(target, key, value)
     audit(db, actor.id, "user.updated", "user", target.id, {"fields": sorted(payload.model_dump(exclude_unset=True))})
     target = commit(db, target)
@@ -729,6 +730,8 @@ def create_invitation(payload: InvitationCreate, actor: User = Depends(require_p
     )
     if payload.role == Role.MODERATOR and payload.organisation_id:
         licenses.ensure_available(db, db.get(Organisation, payload.organisation_id), "moderators")
+    if payload.role == Role.MODERATOR:
+        licenses.ensure_admin_moderator_capacity(db, actor)
     invited_child = validate_invitation_child(db, payload)
     if invited_child and actor.role == Role.ADMIN:
         require_child_access(invited_child, actor)
@@ -912,6 +915,10 @@ def accept_invitation(payload: InvitationAccept, db: Session = Depends(get_db)):
     if invitation.role == Role.MODERATOR and invitation.organisation_id:
         licenses.ensure_available(
             db, db.get(Organisation, invitation.organisation_id), "moderators", exclude_invitation_id=invitation.id,
+        )
+    if invitation.role == Role.MODERATOR:
+        licenses.ensure_admin_moderator_capacity(
+            db, db.get(User, invitation.invited_by_id), exclude_invitation_id=invitation.id,
         )
     child = None
     if invitation.child_id:
@@ -2033,6 +2040,34 @@ def correct_attempt(child_id: str, attempt_id: str, payload: AttemptCreate,
     for item in siblings:
         item.week_number = (item.occurred_on - anchor).days // 7 + 1
     return commit(db, attempt)
+
+
+@router.delete("/children/{child_id}/attempts/{attempt_id}", status_code=204, response_class=Response)
+def delete_attempt(child_id: str, attempt_id: str,
+                   user: User = Depends(require_roles(Role.SUPER_ADMIN)),
+                   db: Session = Depends(get_db)):
+    child = one_or_404(db, Child, child_id)
+    attempt = one_or_404(db, Attempt, attempt_id)
+    if attempt.child_id != child.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    audit(db, user.id, "attempt.deleted", "attempt", attempt.id, {
+        "child_id": child.id, "play_plan_id": attempt.play_plan_id,
+        "play_dose_id": attempt.play_dose_id, "activity_id": attempt.activity_id,
+        "occurred_on": attempt.occurred_on.isoformat(), "logged_by_id": attempt.logged_by_id,
+        "completion_score": attempt.completion_score, "mood_score": attempt.mood_score,
+        "big_win": attempt.big_win, "notes": attempt.notes,
+    })
+    siblings = db.scalars(select(Attempt).where(
+        Attempt.child_id == child.id, Attempt.play_dose_id == attempt.play_dose_id,
+        Attempt.run_number == attempt.run_number, Attempt.id != attempt.id,
+    )).all()
+    # Removing the first session changes the week anchor for the remaining sessions.
+    if siblings:
+        anchor = min(item.occurred_on for item in siblings)
+        for item in siblings:
+            item.week_number = (item.occurred_on - anchor).days // 7 + 1
+    db.delete(attempt)
+    db.commit()
 
 
 @router.get("/children/{child_id}/progress", response_model=ProgressSummary)

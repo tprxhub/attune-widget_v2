@@ -9,7 +9,7 @@ import { PlayPlanCard } from "@/components/PlayPlanCard";
 import { ListSkeleton } from "@/components/Skeletons";
 import { TOKEN_BG } from "@/components/brand";
 import { cn } from "@/lib/utils";
-import { Gift, Lock, PenLine } from "lucide-react";
+import { Gift, Lock } from "lucide-react";
 import { ChooseFreePlanDialog, FreePlanBanner } from "@/features/plans/freePlan";
 import { useFreePlan } from "@/features/plans/useFreePlan";
 import type { Goal } from "@/lib/types";
@@ -43,8 +43,7 @@ function PlansPage() {
   const plans = useQuery({ queryKey: ["plans"], queryFn: () => listPlans() });
   const free = useFreePlan();
   const [choosing, setChoosing] = useState<Goal | null>(null);
-  const categories: { id: string; name: string; createdBy: string | undefined; plans: Goal[] }[] =
-    [];
+  const categories: { id: string; name: string; plans: Goal[] }[] = [];
   for (const goal of goals.data ?? []) {
     const id = goal.categoryId ?? goal.id;
     const category = categories.find((item) => item.id === id);
@@ -54,7 +53,6 @@ function PlansPage() {
       categories.push({
         id,
         name: goal.categoryName ?? goal.name,
-        createdBy: goal.categoryCreatedBy,
         plans: [goal],
       });
     }
@@ -87,13 +85,6 @@ function PlansPage() {
                   />
                   <h2 className="text-lg font-bold">{category.name}</h2>
                 </div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-navy/10 bg-white/70 px-3 py-1.5 text-xs text-navy/60">
-                  <PenLine className="h-3.5 w-3.5 text-blue" aria-hidden />
-                  <span>Created by</span>
-                  <span className="font-semibold text-navy">
-                    {category.createdBy ?? "Super Admin"}
-                  </span>
-                </span>
               </div>
               {category.plans.map((goal) => {
                 const doses = (plans.data ?? []).filter((dose) => dose.goalId === goal.id);

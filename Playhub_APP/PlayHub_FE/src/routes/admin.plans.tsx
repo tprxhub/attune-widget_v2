@@ -353,8 +353,7 @@ function AdminPlans() {
                 <p className="eyebrow text-coral">Category</p>
                 <h2 className="text-xl font-bold text-navy">{category.name}</h2>
                 <p className="mt-1 text-xs text-navy/55">
-                  {planGroups.length} {planGroups.length === 1 ? "Play Plan" : "Play Plans"} ·
-                  Created by {category.created_by_name ?? "Super Admin"}
+                  {planGroups.length} {planGroups.length === 1 ? "Play Plan" : "Play Plans"}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">

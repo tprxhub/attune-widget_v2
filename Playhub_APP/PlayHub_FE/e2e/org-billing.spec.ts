@@ -78,8 +78,9 @@ test("the Super Admin and the organisation's Admin share one billing schedule an
   await page.context().clearCookies();
   await page.evaluate(() => localStorage.clear());
   await signIn(page, "esther@sunrise.local");
-  await page.goto("/dashboard");
-  await page.getByRole("link", { name: "Billing", exact: true }).first().click();
+  // An organisation's Admin reaches billing from their Account page.
+  await page.goto("/account");
+  await page.locator('main a[href*="from=account"]').click();
   await expect(page.getByRole("listitem", { name: "Billing 1", exact: true })).toContainText(
     "AED 1,500",
   );

@@ -96,6 +96,24 @@ def ensure_available(db: Session, org: Organisation | None, kind: LicenseType, *
         )
 
 
+def ensure_admin_moderator_capacity(db: Session, actor: User | None, *,
+                                   exclude_invitation_id: str | None = None) -> None:
+    """Organisation Admins can add at most two active or invited Moderators per active member."""
+    if actor is None or actor.role != Role.ADMIN or not actor.organisation_id:
+        return
+    # Serialize additions for the same organisation before counting available slots.
+    org = db.scalar(select(Organisation).where(Organisation.id == actor.organisation_id).with_for_update())
+    limit = 2 * in_use(db, org, "children")
+    used = in_use(db, org, "moderators", exclude_invitation_id=exclude_invitation_id)
+    if used >= limit:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Moderator limit reached: your organisation can have up to {limit} Moderators "
+                   "(2 per active member). Active accounts and pending invitations count. "
+                   "Add a member, disable a Moderator or remove a pending invitation first.",
+        )
+
+
 def ensure_fits(db: Session, org: Organisation, license_type: str, seat_limit: int) -> None:
     """A new licence type or count must cover what is already in use."""
     if not seat_limit:

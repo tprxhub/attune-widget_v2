@@ -349,7 +349,7 @@ function AdminChildren() {
                 />
               </div>
 
-              {/* The card's other actions share one row; Check-in always takes the full width. */}
+              {/* The card's primary action takes the full width. */}
               <div className="mt-auto flex flex-col gap-2 pt-4">
                 {/* Side by side when they fit; otherwise each takes the full width. */}
                 <div className="flex flex-wrap gap-2">
@@ -381,13 +381,23 @@ function AdminChildren() {
                     </button>
                   )}
                 </div>
-                <Link
-                  to="/check-in"
-                  onClick={() => setActiveChildId(child.id)}
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full bg-navy text-xs font-bold text-cream hover:bg-blue"
-                >
-                  <CalendarCheck className="h-3.5 w-3.5" aria-hidden /> Check-in
-                </Link>
+                {session.role === "super_admin" ? (
+                  <button
+                    type="button"
+                    onClick={() => setDeleting(child)}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full bg-coral text-xs font-bold text-white hover:bg-coral/90"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete Member
+                  </button>
+                ) : (
+                  <Link
+                    to="/check-in"
+                    onClick={() => setActiveChildId(child.id)}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full bg-navy text-xs font-bold text-cream hover:bg-blue"
+                  >
+                    <CalendarCheck className="h-3.5 w-3.5" aria-hidden /> Check-in
+                  </Link>
+                )}
               </div>
             </article>
           ))}

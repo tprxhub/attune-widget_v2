@@ -1,7 +1,7 @@
 import { loadHomepageForRoute, useHomepageContent } from "@/features/homepage/useHomepageContent";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Building2, Eye, EyeOff, HeartHandshake, Loader2 } from "lucide-react";
+import { Building2, Eye, EyeOff, House, Loader2 } from "lucide-react";
 import loginArt from "@/assets/login-art.jpg";
 import { useSession } from "@/auth/session";
 import { GuestOnly } from "@/auth/guards";
@@ -154,7 +154,7 @@ function LoginPage() {
       >
         {(
           [
-            ["b2c", "Family", HeartHandshake],
+            ["b2c", "Family", House],
             ["b2b", "School / clinic", Building2],
           ] as const
         ).map(([key, label, Icon]) => (

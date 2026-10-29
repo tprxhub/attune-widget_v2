@@ -23,7 +23,7 @@ def openai(monkeypatch):
     monkeypatch.setattr(attune, "_on_free_plan", lambda _db, _user: False)
     calls = []
 
-    def fake(instructions, conversation):
+    def fake(instructions, conversation, config=None):
         calls.append({"instructions": instructions, "conversation": conversation})
         return f"Answer {len(calls)}"
 
@@ -87,7 +87,9 @@ def test_a_conversation_keeps_its_history_and_child_context(client, openai):
     listed = client.get(f"/api/v1/attune/conversations?child_id={child['id']}", headers=family).json()
     assert [c["id"] for c in listed] == [conversation_id]
     status = client.get("/api/v1/attune/status", headers=family).json()
-    assert status == {"enabled": True, "daily_limit": 30, "used_today": 2, "remaining_today": 28, "free_plan": False}
+    assert status == {"enabled": True, "daily_limit": 30, "used_today": 2, "remaining_today": 28, "free_plan": False,
+                      "mode_labels": {"idea": "Get an idea", "regulation": "My member is struggling",
+                                      "progress": "What does this mean?"}}
 
 
 def test_sessions_and_the_current_play_dose_reach_the_context(client, platform_admin, openai):
@@ -258,7 +260,7 @@ def test_streamed_answers_arrive_in_pieces_and_are_saved_once_complete(client, m
     assert done["remaining_today"] == 29
     conversation_id = done["conversation"]["id"]
 
-    monkeypatch.setattr(attune, "stream_model", lambda _, history: iter([f"Seen {len(history)} messages"]))
+    monkeypatch.setattr(attune, "stream_model", lambda _, history, *_config: iter([f"Seen {len(history)} messages"]))
     events = stream_events(client.post("/api/v1/attune/ask/stream", headers=family,
                                        json={"message": "More?", "conversation_id": conversation_id}))
     assert events[-1]["answer"]["content"] == "Seen 3 messages"

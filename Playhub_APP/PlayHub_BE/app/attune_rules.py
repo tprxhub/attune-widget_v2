@@ -2,7 +2,8 @@
 
 The rules follow "Attune: Product Reasoning Blueprint" (The Toy Pharmacy, 15 Oct 2026): what Attune
 is and is not, its decision pathway, the seven-part answer, activity grading, the safety pathway and
-guardrails, and the handover summary ("Share this"). Users can't change any of it.
+guardrails, and the handover summary ("Share this"). These are the defaults: a Super Admin can
+change the texts from Play Hub (app.attune_config); people asking questions can't change any of it.
 """
 from __future__ import annotations
 
@@ -215,8 +216,8 @@ def safety_concern(message: str) -> bool:
     return bool(_SAFETY.search(message))
 
 
-def build_rules(consult_url: str) -> str:
-    return INSTRUCTIONS.replace("{consult_url}", consult_url).replace("{sources}", citable_list())
+def build_rules(consult_url: str, instructions: str = INSTRUCTIONS) -> str:
+    return instructions.replace("{consult_url}", consult_url).replace("{sources}", citable_list())
 
 
 # ---------- Hidden reference marker ----------
