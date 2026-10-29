@@ -43,8 +43,10 @@ if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no -- Playhub_APP
   echo "note: uncommitted backend changes are NOT deployed; only commit $VERSION is."
 fi
 
-BUNDLE="$(mktemp -t playhub-be).tgz"
-trap 'rm -f "$BUNDLE"' EXIT
+# A template with X's works on both macOS and Linux (GitHub Actions); `mktemp -t name` is macOS-only.
+SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/playhub-be.XXXXXX")"
+BUNDLE="$SCRATCH/backend.tgz"
+trap 'rm -rf "$SCRATCH"' EXIT
 git -C "$REPO" archive --format=tar.gz -o "$BUNDLE" "$REF:Playhub_APP/PlayHub_BE"
 REMOTE="/tmp/playhub-$VERSION-$(date +%s).tgz"
 echo "== copy $VERSION ($(du -h "$BUNDLE" | cut -f1))"
