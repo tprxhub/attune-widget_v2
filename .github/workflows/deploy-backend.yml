@@ -1,0 +1,120 @@
+# Releases the backend to the live server whenever backend code reaches main.
+#
+#   check  - the backend tests, then the migrations and seed on a throwaway PostgreSQL
+#            (tests use SQLite; production is PostgreSQL, so migrations are checked there too)
+#   deploy - runs scripts/deploy.sh: copy, build, migrate, seed (create-only), switch slots
+#
+# The runner's IP is allowed on port 22 only for the deploy and always removed afterwards.
+# Run it by hand from the Actions tab with a commit to release or roll back to.
+# This repository is public, so its logs are too: never print secrets or the .env here.
+name: Deploy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Playhub_APP/PlayHub_BE/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit or branch to release (default: latest main)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# One release at a time; a newer push waits for the running one instead of cancelling it.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  BACKEND: Playhub_APP/PlayHub_BE
+  AWS_REGION: eu-north-1
+  SECURITY_GROUP: sg-06260a729b0f16b40
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: playhub
+          POSTGRES_PASSWORD: playhub
+          POSTGRES_DB: playhub
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U playhub" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: ${{ env.BACKEND }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ${{ env.BACKEND }}/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Backend tests
+        run: python -m pytest -q
+      - name: Migrations and seed on PostgreSQL
+        env:
+          DATABASE_URL: postgresql+psycopg://playhub:playhub@localhost:5432/playhub
+        run: |
+          python -m alembic upgrade head
+          python -m app.seed
+          # The seed runs on every release, so a second run must change nothing.
+          python -m app.seed
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0
+
+      - name: AWS profile and SSH key
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SSH_KEY: ${{ secrets.PLAYHUB_SSH_KEY }}
+        run: |
+          aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID" --profile playhub
+          aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY" --profile playhub
+          aws configure set region "$AWS_REGION" --profile playhub
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/playhub-backend-key.pem
+          chmod 600 ~/.ssh/playhub-backend-key.pem
+
+      - name: Allow this runner on port 22
+        id: allow
+        run: |
+          ip="$(curl -fsS https://checkip.amazonaws.com)"
+          echo "cidr=$ip/32" >> "$GITHUB_OUTPUT"
+          aws --profile playhub --region "$AWS_REGION" ec2 authorize-security-group-ingress \
+            --group-id "$SECURITY_GROUP" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=$ip/32,Description=github-actions-deploy}]"
+
+      - name: Release
+        run: ${{ env.BACKEND }}/scripts/deploy.sh "$(git rev-parse HEAD)"
+
+      - name: Remove this runner from port 22
+        if: always() && steps.allow.outputs.cidr != ''
+        run: |
+          aws --profile playhub --region "$AWS_REGION" ec2 revoke-security-group-ingress \
+            --group-id "$SECURITY_GROUP" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=${{ steps.allow.outputs.cidr }}}]"
+
+      - name: Forget credentials
+        if: always()
+        run: rm -rf ~/.ssh/playhub-backend-key.pem ~/.aws
