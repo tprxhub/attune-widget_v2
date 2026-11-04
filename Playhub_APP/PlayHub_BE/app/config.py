@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     smtp_from: str = "Play Hub <no-reply@thetoypharmacy.com>"
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
-    # Testing only: charge every plan this amount (in fils, so 200 = AED 2.00, Stripe's minimum)
-    # instead of its real price. Leave unset in normal operation.
+    # No longer used: checkouts always charge the plan's saved price. Kept only so a server whose
+    # .env still sets BILLING_TEST_AMOUNT starts normally; the value is ignored.
     billing_test_amount: int | None = None
     # Database connections each API worker keeps open, and how many more it may open under load.
     # 3 workers x (5 + 10) = 45, inside the ~80-connection limit of the db.t3.micro RDS instance.
@@ -96,8 +96,6 @@ class Settings(BaseSettings):
             raise ValueError("STORAGE_KEY_PREFIX cannot contain relative path segments")
         if bool(self.stripe_secret_key) != bool(self.stripe_webhook_secret):
             raise ValueError("STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET must be configured together")
-        if self.billing_test_amount is not None and self.billing_test_amount < 200:
-            raise ValueError("BILLING_TEST_AMOUNT must be at least 200 fils (AED 2.00, Stripe's minimum)")
         frontend_url = urlparse(self.frontend_base_url)
         if frontend_url.scheme not in {"http", "https"} or not frontend_url.netloc:
             raise ValueError("FRONTEND_BASE_URL must be an absolute HTTP(S) URL")

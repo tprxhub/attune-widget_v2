@@ -1,13 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  AlertTriangle,
-  BadgePercent,
-  Layers,
-  Tag,
-  TrendingDown,
-  type LucideIcon,
-} from "lucide-react";
+import { BadgePercent, Layers, Tag, TrendingDown, type LucideIcon } from "lucide-react";
 import { apiRequest } from "@/api/client";
 import { DISCOUNTS_KEY, listDiscounts } from "@/api/discounts";
 import { usePricePlans } from "@/api/pricing";
@@ -43,11 +36,10 @@ function SubscriptionAdmin() {
   const pricing = usePricePlans();
   const discounts = useQuery({ queryKey: DISCOUNTS_KEY, queryFn: listDiscounts });
   const rows = discounts.data ?? [];
-  // Payments charge the saved plan prices, unless the server has a test price switched on.
+  // Families can only pay once Stripe is set up on the server.
   const status = useQuery({
     queryKey: ["billing", "status"],
-    queryFn: () =>
-      apiRequest<{ stripe_configured: boolean; test_amount: number | null }>("/billing/status"),
+    queryFn: () => apiRequest<{ stripe_configured: boolean }>("/billing/status"),
     retry: false,
   });
   const cheapest = Math.min(...pricing.plans.map((plan) => plan.amount / plan.months));
@@ -87,19 +79,6 @@ function SubscriptionAdmin() {
         description="The plans families can buy, their prices, and the discounts and coupons they can use at checkout."
       />
 
-      {status.data?.test_amount != null && (
-        <p
-          role="alert"
-          className="mt-5 flex items-start gap-3 rounded-2xl border border-amber/60 bg-amber/15 px-4 py-3 text-sm text-navy"
-        >
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#9b6208]" aria-hidden />
-          <span>
-            <b>Test price is on.</b> Every checkout charges{" "}
-            {fmtMoney(status.data.test_amount / 100)} instead of the plan prices below. Remove
-            BILLING_TEST_AMOUNT from the server settings to charge real prices.
-          </span>
-        </p>
-      )}
       {status.data && !status.data.stripe_configured && (
         <p
           role="alert"

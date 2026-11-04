@@ -25,21 +25,14 @@ def register_family(client, email="tester@example.com"):
 SAVED = {"6m": {"months": 6, "amount": 33900, "name": "Play Hub — 6-Month"}}
 
 
-def test_test_price_replaces_every_plan_amount_only_while_set():
+def test_an_old_test_price_setting_is_ignored():
+    """Checkouts charge the saved plan price even if the server still has BILLING_TEST_AMOUNT set."""
     assert plan_price(Settings(), "6m", SAVED)["amount"] == 33900
-    test = plan_price(Settings(billing_test_amount=200), "6m", SAVED)
-    assert test["amount"] == 200
-    assert test["months"] == 6
-    assert "test price" in test["name"]
+    assert plan_price(Settings(billing_test_amount=200), "6m", SAVED) == SAVED["6m"]
     assert plan_price(Settings(billing_test_amount=200), "nope", SAVED) is None
 
 
-def test_test_price_below_stripes_minimum_is_rejected():
-    with pytest.raises(ValueError):
-        Settings(billing_test_amount=199)
-
-
-def test_checkout_charges_the_test_price(monkeypatch):
+def test_checkout_charges_the_saved_price_not_a_test_price(monkeypatch):
     captured = {}
 
     def fake_create(**kwargs):
@@ -57,8 +50,10 @@ def test_checkout_charges_the_test_price(monkeypatch):
         plan="3m",
         catalog={"3m": {"months": 3, "amount": 18900, "name": "Play Hub — 3-Month"}},
     )
-    assert captured["line_items"][0]["price_data"]["unit_amount"] == 200
-    assert captured["line_items"][0]["price_data"]["currency"] == "aed"
+    line = captured["line_items"][0]["price_data"]
+    assert line["unit_amount"] == 18900
+    assert line["currency"] == "aed"
+    assert "test price" not in line["product_data"]["name"]
 
 
 def test_webhook_activates_a_plan_paid_at_the_test_price(client, monkeypatch):

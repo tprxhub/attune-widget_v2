@@ -65,15 +65,11 @@ def get_pricing(db: Session = Depends(get_db)):
 
 class BillingStatus(BaseModel):
     stripe_configured: bool
-    # Set only while testing payments: every checkout then charges this many fils instead of the plan.
-    test_amount: int | None
 
 
 @router.get("/status", response_model=BillingStatus)
 def billing_status(_: User = Depends(require_roles(Role.SUPER_ADMIN))):
-    settings = get_settings()
-    return BillingStatus(stripe_configured=bool(settings.stripe_secret_key),
-                         test_amount=settings.billing_test_amount)
+    return BillingStatus(stripe_configured=bool(get_settings().stripe_secret_key))
 
 
 @router.put("/plans", response_model=PricingCatalog)

@@ -12,11 +12,9 @@ CURRENCY = "aed"
 
 
 def plan_price(settings: Settings, plan: str | None, catalog: dict) -> dict | None:
-    """The plan as it is charged now: its saved price, or the test price while one is set."""
-    selected = catalog.get(plan or "")
-    if selected is None or settings.billing_test_amount is None:
-        return selected
-    return {**selected, "amount": settings.billing_test_amount, "name": f"{selected['name']} (test price)"}
+    """The plan as it is charged: always its saved price. (The old BILLING_TEST_AMOUNT override,
+    which charged every plan a fixed test amount, is no longer honoured.)"""
+    return catalog.get(plan or "")
 
 
 def paid_in_full(session, plan: dict, field) -> bool:

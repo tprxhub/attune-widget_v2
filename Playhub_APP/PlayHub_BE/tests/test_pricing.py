@@ -119,10 +119,6 @@ def test_each_plan_can_show_its_own_badge(client, platform_admin):
     assert [plan["featured"] for plan in client.get(URL).json()["plans"]] == [True, False, True, True, True]
 
 
-def test_super_admin_sees_whether_a_test_price_is_on(client, platform_admin, family, monkeypatch):
-    from app.config import get_settings
+def test_super_admin_sees_whether_stripe_is_set_up(client, platform_admin, family):
     assert client.get("/api/v1/billing/status", headers=family).status_code == 403
-    monkeypatch.setattr(get_settings(), "billing_test_amount", None)
-    assert client.get("/api/v1/billing/status", headers=platform_admin).json()["test_amount"] is None
-    monkeypatch.setattr(get_settings(), "billing_test_amount", 200)
-    assert client.get("/api/v1/billing/status", headers=platform_admin).json()["test_amount"] == 200
+    assert set(client.get("/api/v1/billing/status", headers=platform_admin).json()) == {"stripe_configured"}
