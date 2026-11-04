@@ -45,20 +45,17 @@ for (const width of [375, 768, 1440]) {
     await expect(page.getByRole("status")).toContainText("unsaved changes");
     await headline.fill(original);
 
+    // Prices now live on the Subscription page; this section points there.
     await chooseSection(page, "pricing", "Subscription pricing");
-    const pricing = page.getByRole("region", { name: "Subscription pricing", exact: true });
-    const badge = pricing
-      .getByRole("group", { name: "Plan 1", exact: true })
-      .getByLabel("Badge text", { exact: true });
-    await badge.fill("Draft badge");
+    await expect(page.getByRole("link", { name: "Open Subscription" })).toHaveAttribute(
+      "href",
+      "/admin/subscription",
+    );
     await chooseSection(page, "dimensions", "Image dimensions");
     await expect(
       page.getByRole("heading", { name: "Image dimensions", exact: true }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Save changes", exact: true })).not.toBeVisible();
-    await chooseSection(page, "pricing", "Subscription pricing");
-    await expect(badge).toHaveValue("Draft badge");
-    await pricing.getByRole("button", { name: "Discard pricing changes", exact: true }).click();
 
     await chooseSection(page, "hero", "Top of the page");
     expect(

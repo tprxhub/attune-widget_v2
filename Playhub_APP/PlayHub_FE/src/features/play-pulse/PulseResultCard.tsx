@@ -3,6 +3,7 @@ import { Check, ChevronDown, Info, Loader2, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DOMAINS, type PlayPulseDomain } from "./data";
 import { TIER_COPY, type DomainTier, type ScoreTier } from "./scoring";
+import { resultCopy } from "./resultCopy";
 import { sharePlayPulseResult } from "./sharePlayPulse";
 
 /** The big percentage: amber while there is something to practise, as in the design. */
@@ -37,30 +38,6 @@ const DOMAIN_DOT: Record<PlayPulseDomain, string> = {
   Cognition: "bg-[#cf4a3a]",
   Engagement: "bg-[#d9a441]",
 };
-
-function resultCopy(tier: ScoreTier, childName: string, goalName: string, ageBand: string) {
-  const goal = `“${goalName}”`;
-  const notAGrade = "This is not a pass/fail score, it just shows you where to focus next.";
-  if (tier === "ontrack") {
-    return {
-      summary: `At the ${ageBand} stage, ${childName} is showing most of the skills that ${goal} calls for. Regular play at home can help build on them. ${notAGrade}`,
-      heading: "Keep the momentum going",
-      body: "Your child is doing well with what this skill calls for. Keep it going with the matching Play Dose — or a Play Consult can suggest ways to stretch them further.",
-    };
-  }
-  if (tier === "practice") {
-    return {
-      summary: `At the ${ageBand} stage, ${childName} is showing some of the skills that ${goal} calls for. Strategic practice in this area at home can help close the gap. ${notAGrade}`,
-      heading: "Let’s keep building together",
-      body: "There’s a bit of a gap between where your child is now and what this skill calls for. A Play Consult can help target it — or start practising today with the matching Play Dose.",
-    };
-  }
-  return {
-    summary: `At the ${ageBand} stage, ${childName} is just starting to show the skills that ${goal} calls for. Strategic practice at home, with the right support, can help close the gap. ${notAGrade}`,
-    heading: "Let’s find the right support",
-    body: "There’s a gap between where your child is now and what this skill calls for. A Play Consult can help you choose where to start — or begin today with the matching Play Dose.",
-  };
-}
 
 /**
  * The Play Pulse result: the Support Score and what it means, the four areas, and the next step.

@@ -22,6 +22,8 @@ from app.models import (
     Invitation,
     Organisation,
     OrganisationBilling,
+    Discount,
+    DiscountRedemption,
     PasswordResetToken,
     PlayDose,
     PlayPlan,
@@ -114,6 +116,7 @@ def _remove_members(db: Session, child_ids: list[str]) -> None:
     db.execute(delete(AttuneMessage).where(AttuneMessage.conversation_id.in_(conversations)))
     db.execute(delete(AttuneConversation).where(AttuneConversation.id.in_(conversations)))
     db.execute(delete(Attempt).where(Attempt.child_id.in_(child_ids)))
+    db.execute(update(DiscountRedemption).where(DiscountRedemption.child_id.in_(child_ids)).values(child_id=None))
     db.execute(delete(Subscription).where(Subscription.child_id.in_(child_ids)))
     db.execute(delete(Invitation).where(Invitation.child_id.in_(child_ids)))
     db.execute(delete(child_moderators).where(child_moderators.c.child_id.in_(child_ids)))
@@ -140,6 +143,8 @@ def _remove_users(db: Session, user_ids: list[str], actor: User) -> None:
     db.execute(update(PlayPlan).where(PlayPlan.created_by_id.in_(user_ids)).values(created_by_id=None))
     db.execute(update(PlayDose).where(PlayDose.created_by_id.in_(user_ids)).values(created_by_id=None))
     db.execute(update(SiteContent).where(SiteContent.updated_by_id.in_(user_ids)).values(updated_by_id=None))
+    db.execute(update(Discount).where(Discount.created_by_id.in_(user_ids)).values(created_by_id=None))
+    db.execute(update(DiscountRedemption).where(DiscountRedemption.user_id.in_(user_ids)).values(user_id=None))
     db.execute(update(PlayPulseResult).where(PlayPulseResult.user_id.in_(user_ids)).values(user_id=None))
     db.execute(update(OrganisationBilling).where(OrganisationBilling.added_by_id.in_(user_ids)).values(added_by_id=None))
     db.execute(update(AuditEvent).where(AuditEvent.actor_id.in_(user_ids)).values(actor_id=None))

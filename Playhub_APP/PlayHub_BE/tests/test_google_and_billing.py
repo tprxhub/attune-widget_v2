@@ -81,7 +81,7 @@ def test_stripe_checkout_webhook_and_refund_flow(client, monkeypatch):
         "currency": "aed",
         "payment_intent": "pi_test_123",
         "customer": "cus_test_123",
-        "metadata": {"child_id": child["id"], "plan": "6m"},
+        "metadata": {"child_id": child["id"], "plan": "6m", "plan_amount": "33900", "plan_months": "6", "plan_label": "Play Hub — 6-Month"},
     }
     monkeypatch.setattr(
         "app.api.parse_webhook",
@@ -148,12 +148,15 @@ def test_checkout_adapter_sends_fixed_server_side_price_and_metadata(monkeypatch
         email="family@example.com",
         child_id="child-1",
         plan="12m",
+        catalog={"12m": {"months": 12, "amount": 57900, "name": "Play Hub — 12-Month"}},
     )
     assert result.id == "cs_test"
     assert captured["mode"] == "payment"
     assert captured["line_items"][0]["price_data"]["unit_amount"] == 57900
     assert captured["line_items"][0]["price_data"]["currency"] == "aed"
-    assert captured["metadata"] == {"child_id": "child-1", "plan": "12m", "user_id": "user-1"}
+    # The price it was sold at travels with the payment, so later price edits can't change it.
+    assert captured["metadata"] == {"child_id": "child-1", "plan": "12m", "user_id": "user-1",
+                                    "plan_amount": "57900", "plan_months": "12", "plan_label": "Play Hub — 12-Month"}
 
 
 def test_refresh_swaps_a_valid_token_for_a_fresh_one_and_rejects_anonymous(client):
@@ -386,7 +389,7 @@ def test_renewal_opens_in_the_last_days_and_carries_on_from_the_last_day(client,
         "amount_total": 33900,
         "currency": "aed",
         "payment_intent": "pi_renew",
-        "metadata": {"child_id": child["id"], "plan": "6m"},
+        "metadata": {"child_id": child["id"], "plan": "6m", "plan_amount": "33900", "plan_months": "6", "plan_label": "Play Hub — 6-Month"},
     }
     monkeypatch.setattr(
         "app.api.parse_webhook",
@@ -405,9 +408,9 @@ def test_renewal_opens_in_the_last_days_and_carries_on_from_the_last_day(client,
 
 def test_payment_check_accepts_aed_and_stripe_local_currency_conversion():
     from app.api import stripe_field
-    from app.billing import PLAN_CATALOG, paid_in_full
+    from app.billing import paid_in_full
 
-    plan = PLAN_CATALOG["6m"]
+    plan = {"months": 6, "amount": 33900, "name": "Play Hub — 6-Month"}
     assert paid_in_full({"currency": "aed", "amount_total": 33900}, plan, stripe_field)
     # A visitor in the UK paid in pounds through Adaptive Pricing; the AED price still matches.
     converted = {"currency": "gbp", "amount_total": 7300,

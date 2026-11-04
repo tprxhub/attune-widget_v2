@@ -71,10 +71,18 @@ function subscriptionFromResponse(childId: string, sub: ApiSubscription): Subscr
 }
 
 /** Starts hosted Stripe Checkout. Only the signed Stripe webhook grants access. */
-export async function checkout(childId: string, duration: PlanDuration): Promise<void> {
+export async function checkout(
+  childId: string,
+  duration: PlanDuration,
+  discountCode?: string | null,
+): Promise<void> {
   const response = await apiRequest<{ checkout_url: string }>("/billing/checkout", {
     method: "POST",
-    body: JSON.stringify({ child_id: childId, plan: duration }),
+    body: JSON.stringify({
+      child_id: childId,
+      plan: duration,
+      ...(discountCode ? { discount_code: discountCode } : {}),
+    }),
   });
   window.location.assign(response.checkout_url);
 }

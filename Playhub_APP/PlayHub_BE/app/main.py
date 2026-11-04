@@ -13,6 +13,7 @@ from app.attune import router as attune_router
 from app.org_billing import router as org_billing_router
 from app.play_pulse import router as play_pulse_router
 from app.pricing import router as pricing_router
+from app.discounts import router as discounts_router
 from app.config import get_settings
 from app.reminders import notice_loop
 from app.database import Base, engine, get_db
@@ -62,6 +63,7 @@ app.include_router(attune_router)
 app.include_router(org_billing_router)
 app.include_router(play_pulse_router)
 app.include_router(pricing_router)
+app.include_router(discounts_router)
 
 
 @app.get("/health")

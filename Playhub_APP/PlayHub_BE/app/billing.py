@@ -6,20 +6,14 @@ from dataclasses import dataclass
 from app.config import Settings
 
 
-# Prices are charged in UAE dirhams, in fils (1 AED = 100 fils).
-# Legacy catalogue for checkouts created before editable pricing; new purchases use app.pricing.
+# Prices are charged in UAE dirhams, in fils (1 AED = 100 fils). There is no built-in price list:
+# every plan and price comes from the catalogue the Super Admin saves (app.pricing).
 CURRENCY = "aed"
 
-PLAN_CATALOG = {
-    "3m": {"months": 3, "amount": 18900, "name": "Play Hub — 3 months"},
-    "6m": {"months": 6, "amount": 33900, "name": "Play Hub — 6 months"},
-    "12m": {"months": 12, "amount": 57900, "name": "Play Hub — 12 months"},
-}
 
-
-def plan_price(settings: Settings, plan: str | None, catalog: dict | None = None) -> dict | None:
-    """The plan as it is charged now: its catalogue price, or the test price while one is set."""
-    selected = (PLAN_CATALOG if catalog is None else catalog).get(plan or "")
+def plan_price(settings: Settings, plan: str | None, catalog: dict) -> dict | None:
+    """The plan as it is charged now: its saved price, or the test price while one is set."""
+    selected = catalog.get(plan or "")
     if selected is None or settings.billing_test_amount is None:
         return selected
     return {**selected, "amount": settings.billing_test_amount, "name": f"{selected['name']} (test price)"}
@@ -50,15 +44,23 @@ class CheckoutResult:
     url: str
 
 
-def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: str, plan: str, catalog: dict | None = None) -> CheckoutResult:
+def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: str, plan: str, catalog: dict,
+                    discount: dict | None = None) -> CheckoutResult:
+    """`discount` (id, code, amount_off) lowers the price charged; the webhook checks the paid amount
+    against the price frozen in the metadata, so it carries the discounted amount."""
     if not settings.stripe_secret_key or not settings.stripe_webhook_secret:
         raise BillingError("Stripe payments are not configured")
     selected = plan_price(settings, plan, catalog)
     if selected is None:
         raise BillingError("Unknown plan")
     metadata = {"child_id": child_id, "plan": plan, "user_id": user_id}
-    if catalog is not None:
-        metadata.update(plan_amount=str(selected["amount"]), plan_months=str(selected["months"]), plan_label=selected["name"])
+    if discount:
+        list_amount = selected["amount"]
+        selected = {**selected, "amount": list_amount - discount["amount_off"],
+                    "name": f"{selected['name']} ({discount['code']})"}
+        metadata.update(discount_id=discount["id"], discount_code=discount["code"], list_amount=str(list_amount),
+                        discount_amount=str(discount["amount_off"]))
+    metadata.update(plan_amount=str(selected["amount"]), plan_months=str(selected["months"]), plan_label=selected["name"])
     try:
         import stripe
 
@@ -118,7 +120,7 @@ def settled_plan(settings: Settings, session, field) -> dict | None:
     metadata = field(session, "metadata", {}) or {}
     snapshot = [field(metadata, key) for key in ("plan_amount", "plan_months", "plan_label")]
     if not any(value is not None for value in snapshot):
-        return plan_price(settings, field(metadata, "plan"))  # Checkouts created before editable pricing.
+        return None  # every checkout records the price it was sold at; one without it isn't ours
     try:
         amount, months = int(snapshot[0]), int(snapshot[1])
     except (TypeError, ValueError):

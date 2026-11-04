@@ -30,6 +30,7 @@ import { Route as AdminAttuneSourcesRouteImport } from './routes/admin.attune-so
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminBillingRouteImport } from './routes/admin.billing'
 import { Route as AdminChildrenRouteImport } from './routes/admin.children'
+import { Route as AdminDiscountsRouteImport } from './routes/admin.discounts'
 import { Route as AdminEducatorsRouteImport } from './routes/admin.educators'
 import { Route as AdminHomepageRouteImport } from './routes/admin.homepage'
 import { Route as AdminMembersRouteImport } from './routes/admin.members'
@@ -37,6 +38,7 @@ import { Route as AdminOrgsRouteImport } from './routes/admin.orgs'
 import { Route as AdminPlansRouteImport } from './routes/admin.plans'
 import { Route as AdminPlayPulseRouteImport } from './routes/admin.play-pulse'
 import { Route as AdminProgressRouteImport } from './routes/admin.progress'
+import { Route as AdminSubscriptionRouteImport } from './routes/admin.subscription'
 import { Route as AdminTtpRouteImport } from './routes/admin.ttp'
 import { Route as AuthMicrosoftCallbackRouteImport } from './routes/auth.microsoft-callback'
 import { Route as OrgIndexRouteImport } from './routes/org.index'
@@ -154,6 +156,11 @@ const AdminChildrenRoute = AdminChildrenRouteImport.update({
   path: '/admin/children',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDiscountsRoute = AdminDiscountsRouteImport.update({
+  id: '/admin/discounts',
+  path: '/admin/discounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminEducatorsRoute = AdminEducatorsRouteImport.update({
   id: '/admin/educators',
   path: '/admin/educators',
@@ -187,6 +194,11 @@ const AdminPlayPulseRoute = AdminPlayPulseRouteImport.update({
 const AdminProgressRoute = AdminProgressRouteImport.update({
   id: '/admin/progress',
   path: '/admin/progress',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSubscriptionRoute = AdminSubscriptionRouteImport.update({
+  id: '/admin/subscription',
+  path: '/admin/subscription',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminTtpRoute = AdminTtpRouteImport.update({
@@ -266,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/billing': typeof AdminBillingRoute
   '/admin/children': typeof AdminChildrenRoute
+  '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
   '/admin/members': typeof AdminMembersRoute
@@ -273,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/admin/plans': typeof AdminPlansRoute
   '/admin/play-pulse': typeof AdminPlayPulseRoute
   '/admin/progress': typeof AdminProgressRoute
+  '/admin/subscription': typeof AdminSubscriptionRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
   '/org/billing': typeof OrgBillingRoute
@@ -307,6 +321,7 @@ export interface FileRoutesByTo {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/billing': typeof AdminBillingRoute
   '/admin/children': typeof AdminChildrenRoute
+  '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
   '/admin/members': typeof AdminMembersRoute
@@ -314,6 +329,7 @@ export interface FileRoutesByTo {
   '/admin/plans': typeof AdminPlansRoute
   '/admin/play-pulse': typeof AdminPlayPulseRoute
   '/admin/progress': typeof AdminProgressRoute
+  '/admin/subscription': typeof AdminSubscriptionRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
   '/org/billing': typeof OrgBillingRoute
@@ -349,6 +365,7 @@ export interface FileRoutesById {
   '/admin/audit': typeof AdminAuditRoute
   '/admin/billing': typeof AdminBillingRoute
   '/admin/children': typeof AdminChildrenRoute
+  '/admin/discounts': typeof AdminDiscountsRoute
   '/admin/educators': typeof AdminEducatorsRoute
   '/admin/homepage': typeof AdminHomepageRoute
   '/admin/members': typeof AdminMembersRoute
@@ -356,6 +373,7 @@ export interface FileRoutesById {
   '/admin/plans': typeof AdminPlansRoute
   '/admin/play-pulse': typeof AdminPlayPulseRoute
   '/admin/progress': typeof AdminProgressRoute
+  '/admin/subscription': typeof AdminSubscriptionRoute
   '/admin/ttp': typeof AdminTtpRoute
   '/auth/microsoft-callback': typeof AuthMicrosoftCallbackRoute
   '/org/billing': typeof OrgBillingRoute
@@ -392,6 +410,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/billing'
     | '/admin/children'
+    | '/admin/discounts'
     | '/admin/educators'
     | '/admin/homepage'
     | '/admin/members'
@@ -399,6 +418,7 @@ export interface FileRouteTypes {
     | '/admin/plans'
     | '/admin/play-pulse'
     | '/admin/progress'
+    | '/admin/subscription'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
     | '/org/billing'
@@ -433,6 +453,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/billing'
     | '/admin/children'
+    | '/admin/discounts'
     | '/admin/educators'
     | '/admin/homepage'
     | '/admin/members'
@@ -440,6 +461,7 @@ export interface FileRouteTypes {
     | '/admin/plans'
     | '/admin/play-pulse'
     | '/admin/progress'
+    | '/admin/subscription'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
     | '/org/billing'
@@ -474,6 +496,7 @@ export interface FileRouteTypes {
     | '/admin/audit'
     | '/admin/billing'
     | '/admin/children'
+    | '/admin/discounts'
     | '/admin/educators'
     | '/admin/homepage'
     | '/admin/members'
@@ -481,6 +504,7 @@ export interface FileRouteTypes {
     | '/admin/plans'
     | '/admin/play-pulse'
     | '/admin/progress'
+    | '/admin/subscription'
     | '/admin/ttp'
     | '/auth/microsoft-callback'
     | '/org/billing'
@@ -516,6 +540,7 @@ export interface RootRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
   AdminBillingRoute: typeof AdminBillingRoute
   AdminChildrenRoute: typeof AdminChildrenRoute
+  AdminDiscountsRoute: typeof AdminDiscountsRoute
   AdminEducatorsRoute: typeof AdminEducatorsRoute
   AdminHomepageRoute: typeof AdminHomepageRoute
   AdminMembersRoute: typeof AdminMembersRoute
@@ -523,6 +548,7 @@ export interface RootRouteChildren {
   AdminPlansRoute: typeof AdminPlansRoute
   AdminPlayPulseRoute: typeof AdminPlayPulseRoute
   AdminProgressRoute: typeof AdminProgressRoute
+  AdminSubscriptionRoute: typeof AdminSubscriptionRoute
   AdminTtpRoute: typeof AdminTtpRoute
   AuthMicrosoftCallbackRoute: typeof AuthMicrosoftCallbackRoute
   OrgBillingRoute: typeof OrgBillingRoute
@@ -686,6 +712,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminChildrenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/discounts': {
+      id: '/admin/discounts'
+      path: '/admin/discounts'
+      fullPath: '/admin/discounts'
+      preLoaderRoute: typeof AdminDiscountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/educators': {
       id: '/admin/educators'
       path: '/admin/educators'
@@ -733,6 +766,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/progress'
       fullPath: '/admin/progress'
       preLoaderRoute: typeof AdminProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/subscription': {
+      id: '/admin/subscription'
+      path: '/admin/subscription'
+      fullPath: '/admin/subscription'
+      preLoaderRoute: typeof AdminSubscriptionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/ttp': {
@@ -836,6 +876,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
   AdminBillingRoute: AdminBillingRoute,
   AdminChildrenRoute: AdminChildrenRoute,
+  AdminDiscountsRoute: AdminDiscountsRoute,
   AdminEducatorsRoute: AdminEducatorsRoute,
   AdminHomepageRoute: AdminHomepageRoute,
   AdminMembersRoute: AdminMembersRoute,
@@ -843,6 +884,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminPlansRoute: AdminPlansRoute,
   AdminPlayPulseRoute: AdminPlayPulseRoute,
   AdminProgressRoute: AdminProgressRoute,
+  AdminSubscriptionRoute: AdminSubscriptionRoute,
   AdminTtpRoute: AdminTtpRoute,
   AuthMicrosoftCallbackRoute: AuthMicrosoftCallbackRoute,
   OrgBillingRoute: OrgBillingRoute,

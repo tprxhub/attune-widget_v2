@@ -1,6 +1,10 @@
 import { apiRequest } from "@/api/client";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, BadgePercent } from "lucide-react";
+import { DISCOUNTS_KEY, listDiscounts } from "@/api/discounts";
 import { useSession } from "@/auth/session";
 import { PRICING_QUERY_KEY, usePricePlans, type PricingCatalog } from "@/api/pricing";
 import {
@@ -92,14 +96,17 @@ function PricePlanFields({
           />
         </label>
       </div>
-      <button
+      <ConfirmButton
         type="button"
         disabled={!removable}
+        confirmationTitle={`Delete the ${plan.label || `plan ${index + 1}`} pricing?`}
+        confirmationMessage="This plan is removed from your draft. Save pricing to take it off the homepage and the Subscription page. Anyone already subscribed keeps their plan."
+        confirmLabel="Delete pricing"
         onClick={onRemove}
         className="mt-3 min-h-10 text-xs font-bold text-coral disabled:opacity-40"
       >
         Remove plan {index + 1}
-      </button>
+      </ConfirmButton>
     </fieldset>
   );
 }
@@ -239,6 +246,33 @@ function PricingEditor() {
           )}
         </div>
       )}
+      <DiscountsLink />
     </section>
+  );
+}
+
+/** Coupons live on their own page; this points there from the prices they apply to. */
+function DiscountsLink() {
+  const discounts = useQuery({ queryKey: DISCOUNTS_KEY, queryFn: listDiscounts, retry: false });
+  const live = (discounts.data ?? []).filter((discount) => discount.status === "active").length;
+  return (
+    <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-coral/40 bg-coral/5 p-4">
+      <BadgePercent className="h-6 w-6 shrink-0 text-coral" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold">Discounts &amp; coupons</p>
+        <p className="text-xs text-navy/65">
+          {discounts.isSuccess
+            ? `${live} live offer${live === 1 ? "" : "s"}. Offer % or AED off these plans, with dates and usage limits.`
+            : "Offer % or AED off these plans, with dates and usage limits."}
+        </p>
+      </div>
+      <Link
+        to="/admin/subscription"
+        search={{ tab: "discounts" }}
+        className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-coral px-4 text-sm font-bold text-white"
+      >
+        Manage discounts <ArrowRight className="h-4 w-4" aria-hidden />
+      </Link>
+    </div>
   );
 }

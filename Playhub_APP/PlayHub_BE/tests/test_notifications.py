@@ -50,7 +50,7 @@ def test_payment_refund_and_failed_refund_each_email_the_family(client, monkeypa
     paid = {
         "id": "cs_notify", "created": int(datetime.now(timezone.utc).timestamp()), "payment_status": "paid",
         "amount_total": 33900, "currency": "aed", "payment_intent": "pi_notify", "customer": "cus_notify",
-        "metadata": {"child_id": child["id"], "plan": "6m"},
+        "metadata": {"child_id": child["id"], "plan": "6m", "plan_amount": "33900", "plan_months": "6", "plan_label": "Play Hub — 6-Month"},
     }
     monkeypatch.setattr(
         "app.api.parse_webhook",

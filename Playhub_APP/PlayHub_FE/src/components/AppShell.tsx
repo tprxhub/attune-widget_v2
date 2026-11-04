@@ -4,6 +4,7 @@ import type { PermissionKey, Session } from "@/lib/types";
 import {
   BadgeCheck,
   Receipt,
+  BadgePercent,
   HeartPulse,
   Building2,
   CalendarCheck,
@@ -151,6 +152,12 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
         label: "Billing",
         short: "Billing",
         icon: Receipt,
+      },
+      role === "super_admin" && {
+        to: "/admin/subscription",
+        label: "Subscription",
+        short: "Plans",
+        icon: BadgePercent,
       },
       allowed("organisations") && {
         to: "/admin/orgs",

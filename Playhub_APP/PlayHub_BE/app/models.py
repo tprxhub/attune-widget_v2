@@ -504,6 +504,8 @@ class Subscription(TimestampMixin, Base):
     child_id: Mapped[str] = mapped_column(ForeignKey("children.id", ondelete="CASCADE"), unique=True, nullable=False)
     status: Mapped[SubscriptionStatus] = mapped_column(Enum(SubscriptionStatus), default=SubscriptionStatus.FREE, nullable=False)
     plan_name: Mapped[Optional[str]] = mapped_column(String(100))
+    # What the last Stripe payment charged, in fils (after any coupon); none for manual grants.
+    amount_paid: Mapped[Optional[int]] = mapped_column(Integer)
     started_on: Mapped[Optional[date]] = mapped_column(Date)
     ends_on: Mapped[Optional[date]] = mapped_column(Date)
     # The last day before the latest renewal; a refund of that renewal falls back to it.
@@ -577,6 +579,52 @@ class SiteContent(TimestampMixin, Base):
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     content: Mapped[dict] = mapped_column(JSON, nullable=False)
     updated_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+
+class Discount(TimestampMixin, Base):
+    """A coupon for family subscriptions, set up by the Super Admin.
+
+    `kind` is "percent" (value 1-90, optionally capped by `max_discount`) or "amount" (value in
+    fils). `plans` lists the month durations it applies to; empty means every plan.
+    """
+    __tablename__ = "discounts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    code: Mapped[str] = mapped_column(String(40), unique=True, index=True, nullable=False)
+    title: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(300))
+    kind: Mapped[str] = mapped_column(String(10), nullable=False)
+    value: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_discount: Mapped[Optional[int]] = mapped_column(Integer)
+    plans: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    starts_on: Mapped[Optional[date]] = mapped_column(Date)
+    ends_on: Mapped[Optional[date]] = mapped_column(Date)
+    max_uses: Mapped[Optional[int]] = mapped_column(Integer)
+    once_per_account: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    new_customers_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Shown under "Available offers"; otherwise it works only for people who know the code.
+    show_in_offers: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_by_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+    redemptions: Mapped[list["DiscountRedemption"]] = relationship(back_populates="discount")
+
+
+class DiscountRedemption(Base):
+    """One paid subscription that used a discount, recorded from the signed Stripe webhook."""
+    __tablename__ = "discount_redemptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    discount_id: Mapped[str] = mapped_column(ForeignKey("discounts.id", ondelete="CASCADE"), index=True, nullable=False)
+    user_id: Mapped[Optional[str]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    child_id: Mapped[Optional[str]] = mapped_column(ForeignKey("children.id", ondelete="SET NULL"))
+    plan: Mapped[str] = mapped_column(String(8), nullable=False)
+    list_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    discount_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    stripe_checkout_session_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    discount: Mapped[Discount] = relationship(back_populates="redemptions")
 
 
 class StripeEvent(Base):

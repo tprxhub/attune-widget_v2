@@ -614,6 +614,8 @@ class SubscriptionRead(APIModel):
 class CheckoutCreate(APIModel):
     child_id: str
     plan: str = Field(pattern=r"^[1-9][0-9]?m$", max_length=3)
+    # A coupon code; the server works out and checks the discount itself.
+    discount_code: str | None = Field(default=None, max_length=60)
 
 
 class CheckoutCreated(APIModel):

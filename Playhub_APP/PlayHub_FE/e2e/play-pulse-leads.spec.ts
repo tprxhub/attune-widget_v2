@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
 const API = "http://127.0.0.1:8765/api/v1";
@@ -156,6 +157,27 @@ test("the result card fits a phone", async ({ page }) => {
     await page.waitForTimeout(1500); // let the result finish fading in
     await page.screenshot({ path: `${SHOTS}/pulse-result-375.png`, fullPage: true });
   }
+});
+
+test("sharing saves an image of the new result card", async ({ page }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "playhub:play-pulse:contact",
+      JSON.stringify({ name: "Share Parent", email: "share@example.com", phone: "+971500000001" }),
+    ),
+  );
+  await takeCheck(page, "Zara");
+  // Without a share sheet (as in this browser) the image downloads instead.
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Share result" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("play-hub-zara-play-pulse.png");
+  const png = readFileSync((await download.path())!);
+  expect(png.subarray(1, 4).toString()).toBe("PNG");
+  expect(png.readUInt32BE(16)).toBe(1080); // width
+  expect(png.readUInt32BE(20)).toBeGreaterThan(1200); // height follows the text
+  if (SHOTS) await download.saveAs(`${SHOTS}/pulse-share.png`);
 });
 
 test("signed-in people skip the form and appear with their role", async ({ page }) => {

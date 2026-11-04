@@ -9,13 +9,20 @@ test("Super Admin publishes up to five subscription plans and image dimensions",
   await page.goto("/admin/homepage");
   await page.getByRole("button", { name: "Image dimensions", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Image dimensions", exact: true })).toBeVisible();
+  await expect(page.locator("#home-section-hero")).toContainText("1080 × 1920 px");
+  await expect(page.locator("#home-section-hero")).toContainText("2400 × 1600 px");
+  // Prices are edited on the Subscription page, which the homepage editor points to.
   await page.getByRole("button", { name: "Subscription pricing", exact: true }).click();
+  await page.getByRole("link", { name: "Open Subscription" }).click();
+  await expect(page).toHaveURL(/\/admin\/subscription$/);
+  await expect(page.getByRole("tab", { name: "Plans & pricing" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   const pricing = page.getByRole("region", { name: "Subscription pricing", exact: true });
   await expect(
     pricing.getByRole("group", { name: "Plan 1", exact: true }).getByLabel("Duration (months)"),
   ).toHaveValue("1");
-  await expect(page.locator("#home-section-hero")).toContainText("1080 × 1920 px");
-  await expect(page.locator("#home-section-hero")).toContainText("2400 × 1600 px");
 
   await pricing.getByRole("button", { name: /Add subscription plan/ }).click();
   const fourth = pricing.getByRole("group", { name: "Plan 4", exact: true });
@@ -46,7 +53,6 @@ test("Super Admin publishes up to five subscription plans and image dimensions",
   await pricing.getByRole("button", { name: "Save pricing", exact: true }).click();
   await expect(pricing.getByRole("status")).toContainText("Pricing saved.");
   await page.reload();
-  await page.getByRole("button", { name: "Subscription pricing", exact: true }).click();
   await expect(
     pricing.getByRole("group", { name: "Plan 4", exact: true }).getByLabel("Total price (AED)"),
   ).toHaveValue("499.5");
@@ -108,8 +114,16 @@ test("Super Admin publishes up to five subscription plans and image dimensions",
     .getByRole("group", { name: "Plan 3", exact: true })
     .getByLabel("Badge text", { exact: true })
     .fill("Best value");
+  // Removing a plan asks first; Cancel keeps it.
   await pricing.getByRole("button", { name: "Remove plan 5", exact: true }).click();
-  await pricing.getByRole("button", { name: "Remove plan 4", exact: true }).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText(/Delete the .* pricing\?/);
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(pricing.getByRole("button", { name: "Remove plan 5", exact: true })).toBeVisible();
+  for (const n of [5, 4]) {
+    await pricing.getByRole("button", { name: `Remove plan ${n}`, exact: true }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete pricing" }).click();
+  }
   await pricing
     .getByRole("group", { name: "Plan 3", exact: true })
     .getByLabel("Show badge", { exact: true })

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 from typing import Annotated
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.database import get_db
 from app.dependencies import require_roles
 from app.models import Role, SiteContent, User
@@ -60,6 +61,19 @@ router = APIRouter(prefix="/api/v1/billing")
 @router.get("/plans", response_model=PricingCatalog)
 def get_pricing(db: Session = Depends(get_db)):
     return load_pricing(db)
+
+
+class BillingStatus(BaseModel):
+    stripe_configured: bool
+    # Set only while testing payments: every checkout then charges this many fils instead of the plan.
+    test_amount: int | None
+
+
+@router.get("/status", response_model=BillingStatus)
+def billing_status(_: User = Depends(require_roles(Role.SUPER_ADMIN))):
+    settings = get_settings()
+    return BillingStatus(stripe_configured=bool(settings.stripe_secret_key),
+                         test_amount=settings.billing_test_amount)
 
 
 @router.put("/plans", response_model=PricingCatalog)

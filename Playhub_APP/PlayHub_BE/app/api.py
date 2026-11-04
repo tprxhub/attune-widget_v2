@@ -16,7 +16,8 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_child_access, require_permission, require_roles
 from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, PlanPublicationStatus, PlayCategory, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
 from app.config import get_settings
-from app.billing import BillingError, create_checkout, create_refund, paid_in_full, parse_webhook, settled_plan
+from app.billing import BillingError, create_checkout, create_refund, paid_in_full, parse_webhook, plan_price, settled_plan
+from app import discounts
 from app.pricing import billing_catalog
 from app.site_content import save_content
 from app.google_identity import GoogleIdentityError, verify_google_credential
@@ -1781,6 +1782,14 @@ def create_billing_checkout(
     catalogue = billing_catalog(db)
     if payload.plan not in catalogue:
         raise HTTPException(status_code=422, detail="This subscription plan is no longer available. Refresh the page to choose a current plan.")
+    discount = None
+    if payload.discount_code and payload.discount_code.strip():
+        charged = plan_price(get_settings(), payload.plan, catalogue)["amount"]
+        try:
+            quote = discounts.quote(db, payload.discount_code, user, payload.plan, charged)
+        except discounts.DiscountError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        discount = {"id": quote.discount.id, "code": quote.discount.code, "amount_off": quote.discount_amount}
     try:
         checkout = create_checkout(
             get_settings(),
@@ -1789,10 +1798,12 @@ def create_billing_checkout(
             child_id=child.id,
             plan=payload.plan,
             catalog=catalogue,
+            discount=discount,
         )
     except BillingError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    audit(db, user.id, "billing.checkout_created", "child", child.id, {"plan": payload.plan})
+    audit(db, user.id, "billing.checkout_created", "child", child.id,
+          {"plan": payload.plan, **({"discount_code": discount["code"]} if discount else {})})
     db.commit()
     return CheckoutCreated(checkout_url=checkout.url)
 
@@ -1931,9 +1942,13 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     subscription.stripe_payment_intent_id = payment_intent_id
     subscription.stripe_customer_id = stripe_field(data, "customer")
     subscription.stripe_refund_id = None
+    subscription.amount_paid = selected["amount"]
     db.add(subscription)
     db.flush()
-    audit(db, None, "billing.payment_completed", "subscription", subscription.id, {"plan": plan})
+    discounts.record_redemption(db, metadata, stripe_field, session_id=session_id,
+                                user_id=stripe_field(metadata, "user_id"), child_id=child.id, plan=plan)
+    audit(db, None, "billing.payment_completed", "subscription", subscription.id,
+          {"plan": plan, **({"discount_code": stripe_field(metadata, "discount_code")} if stripe_field(metadata, "discount_code") else {})})
     db.add(StripeEvent(id=event_id, event_type=event_type))
     db.commit()
     notifications.payment_confirmed(

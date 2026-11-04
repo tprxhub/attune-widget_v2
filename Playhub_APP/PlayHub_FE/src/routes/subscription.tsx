@@ -1,6 +1,15 @@
 import { loadPricingForRoute, usePricePlans } from "@/api/pricing";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { useEffect, useState } from "react";
+import {
+  OFFERS_KEY,
+  checkDiscount,
+  estimateSaving,
+  listOffers,
+  type DiscountQuote,
+} from "@/api/discounts";
+import { OffersPanel, PriceDetails } from "@/features/billing/OffersPanel";
+import { fmtMoney } from "@/lib/money";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Loader2, Lock } from "lucide-react";
@@ -77,8 +86,32 @@ function SubscriptionPage() {
       checkoutResult === "success" && query.state.data?.status !== "active" ? 1500 : false,
   });
 
+  // A coupon is checked by the server for the chosen plan; changing plan checks it again.
+  const [quote, setQuote] = useState<DiscountQuote | null>(null);
+  const [checking, setChecking] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const offers = useQuery({ queryKey: OFFERS_KEY, queryFn: listOffers, retry: false });
+  const applyCode = async (code: string, plan = chosenPlan.duration) => {
+    setChecking(code);
+    setCouponError(null);
+    try {
+      setQuote(await checkDiscount(code, plan));
+    } catch (error) {
+      setQuote(null);
+      setCouponError(error instanceof Error ? error.message : "That code couldn’t be checked.");
+    } finally {
+      setChecking(null);
+    }
+  };
+  const appliedCode = quote?.code;
+  useEffect(() => {
+    if (appliedCode) void applyCode(appliedCode, chosenPlan.duration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chosenPlan.duration]);
+  const price = quote ? fmtMoney(quote.finalAmount / 100) : chosenPlan.price;
+
   const buy = useMutation({
-    mutationFn: () => checkout(childId!, chosenPlan.duration),
+    mutationFn: () => checkout(childId!, chosenPlan.duration, quote?.code),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sub", childId] });
       queryClient.invalidateQueries({ queryKey: ["children", session.personaId] });
@@ -288,13 +321,55 @@ function SubscriptionPage() {
                         </span>
                       )}
                     </span>
-                    <span className="mt-2 block text-3xl font-bold">{p.price}</span>
+                    {isSelected && quote ? (
+                      <span className="mt-2 flex flex-wrap items-baseline gap-x-2">
+                        <span className="text-3xl font-bold">
+                          {fmtMoney(quote.finalAmount / 100)}
+                        </span>
+                        <span className="text-sm font-semibold text-navy/45 line-through">
+                          {p.price}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="mt-2 block text-3xl font-bold">{p.price}</span>
+                    )}
                     <span className="block text-xs font-semibold text-navy/55">{p.per}</span>
                     <span className="mt-3 block text-xs text-navy/70">{p.note}</span>
+                    {(() => {
+                      const best = Math.max(
+                        0,
+                        ...(offers.data ?? []).map((offer) =>
+                          estimateSaving(offer, p.months, p.amount),
+                        ),
+                      );
+                      return best > 0 && !(isSelected && quote) ? (
+                        <span className="mt-3 inline-flex rounded-md bg-[#e6f4ec] px-2 py-1 text-[11px] font-extrabold text-[#1f7a45]">
+                          Save up to {fmtMoney(best / 100)}
+                        </span>
+                      ) : null;
+                    })()}
                   </button>
                 );
               })}
             </div>
+
+            {(!active || canRenew) && (
+              <div className="mt-5">
+                <OffersPanel
+                  offers={offers.data ?? []}
+                  months={chosenPlan.months}
+                  amount={chosenPlan.amount}
+                  applied={quote}
+                  checking={checking}
+                  error={couponError}
+                  onApply={(code) => void applyCode(code)}
+                  onRemove={() => {
+                    setQuote(null);
+                    setCouponError(null);
+                  }}
+                />
+              </div>
+            )}
 
             <div className="ph-card mt-5 p-5">
               <h2 className="text-lg font-bold">What unlocks for {activeChild?.name}</h2>
@@ -307,6 +382,9 @@ function SubscriptionPage() {
                 ))}
               </ul>
 
+              {(!active || canRenew) && (
+                <PriceDetails label={chosenPlan.label} amount={chosenPlan.amount} applied={quote} />
+              )}
               <button
                 type="button"
                 onClick={() => buy.mutate()}
@@ -315,10 +393,10 @@ function SubscriptionPage() {
               >
                 {buy.isPending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
                 {canRenew
-                  ? `Renew ${activeChild?.name} — ${chosenPlan.price}`
+                  ? `Renew ${activeChild?.name} — ${price}`
                   : active
                     ? "Already subscribed"
-                    : `${stage === "ended" ? "Re-subscribe" : "Subscribe"} ${activeChild?.name} — ${chosenPlan.price}`}
+                    : `${stage === "ended" ? "Re-subscribe" : "Subscribe"} ${activeChild?.name} — ${price}`}
               </button>
               <p className="mt-3 inline-flex items-center gap-2 text-xs text-navy/55">
                 <Lock className="h-3.5 w-3.5" aria-hidden /> Secure card payment via Stripe. Cancel

@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.billing import PLAN_CATALOG
+from app.pricing import billing_catalog
 from app import licenses
 from app.models import (
     AccountScope,
@@ -325,6 +325,7 @@ def build_overview(db: Session, user: User, scope: str, audit_condition) -> Over
             if c.subscription.stripe_payment_intent_id and c.subscription.started_on
             and c.subscription.started_on > today - timedelta(days=30)
         ]
+        catalogue = billing_catalog(db)
         overview.billing = BillingSection(
             currency="AED",
             active=len(active),
@@ -337,7 +338,11 @@ def build_overview(db: Session, user: User, scope: str, audit_condition) -> Over
                 for c in families
             ),
             free_families=len(families) - len(active),
-            paid_30d=sum(PLAN_CATALOG.get(s.plan_name or "", {}).get("amount", 0) for s in paid_recently) / 100,
+            # What was actually charged; older subscriptions from before it was kept use today's price.
+            paid_30d=sum(
+                s.amount_paid if s.amount_paid is not None else catalogue.get(s.plan_name or "", {}).get("amount", 0)
+                for s in paid_recently
+            ) / 100,
             by_plan=dict(Counter(c.subscription.plan_name or "manual" for c in active)),
         )
 

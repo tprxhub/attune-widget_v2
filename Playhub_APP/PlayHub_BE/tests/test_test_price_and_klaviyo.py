@@ -22,13 +22,16 @@ def register_family(client, email="tester@example.com"):
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+SAVED = {"6m": {"months": 6, "amount": 33900, "name": "Play Hub — 6-Month"}}
+
+
 def test_test_price_replaces_every_plan_amount_only_while_set():
-    assert plan_price(Settings(), "6m")["amount"] == 33900
-    test = plan_price(Settings(billing_test_amount=200), "6m")
+    assert plan_price(Settings(), "6m", SAVED)["amount"] == 33900
+    test = plan_price(Settings(billing_test_amount=200), "6m", SAVED)
     assert test["amount"] == 200
     assert test["months"] == 6
     assert "test price" in test["name"]
-    assert plan_price(Settings(billing_test_amount=200), "nope") is None
+    assert plan_price(Settings(billing_test_amount=200), "nope", SAVED) is None
 
 
 def test_test_price_below_stripes_minimum_is_rejected():
@@ -52,6 +55,7 @@ def test_checkout_charges_the_test_price(monkeypatch):
         email="family@example.com",
         child_id="child-1",
         plan="3m",
+        catalog={"3m": {"months": 3, "amount": 18900, "name": "Play Hub — 3-Month"}},
     )
     assert captured["line_items"][0]["price_data"]["unit_amount"] == 200
     assert captured["line_items"][0]["price_data"]["currency"] == "aed"
@@ -75,7 +79,7 @@ def test_webhook_activates_a_plan_paid_at_the_test_price(client, monkeypatch):
         "amount_total": 200,
         "currency": "aed",
         "payment_intent": "pi_test_price",
-        "metadata": {"child_id": child["id"], "plan": "3m"},
+        "metadata": {"child_id": child["id"], "plan": "3m", "plan_amount": "200", "plan_months": "3", "plan_label": "Play Hub — 3-Month (test price)"},
     }
     monkeypatch.setattr(
         "app.api.parse_webhook",

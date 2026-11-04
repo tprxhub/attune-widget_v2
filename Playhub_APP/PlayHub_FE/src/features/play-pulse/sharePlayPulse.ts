@@ -1,27 +1,14 @@
-import { drawFace, ring, shareOrDownload, slug } from "@/features/progress/shareSupportMood";
-import { independence } from "@/features/progress/supportMood";
-import { ON_TRACK_COLOR, PULSE_FACE, pulseCheer } from "./pulseCheer";
-import type { PlayPulseDomain } from "./data";
+import { shareOrDownload, slug } from "@/features/progress/shareSupportMood";
+import { DOMAINS, type PlayPulseDomain } from "./data";
+import {
+  DOMAIN_DOT_HEX,
+  DOMAIN_STATUS,
+  PULSE_COLORS as C,
+  SCORE_HEX,
+  TIER_PILL_HEX,
+  resultCopy,
+} from "./resultCopy";
 import { TIER_COPY, type DomainTier, type ScoreTier } from "./scoring";
-
-const NAVY = "#11295B";
-const MUTED = "rgba(17,41,91,0.6)";
-const SUPPORT = "#2459A0";
-
-/** Canvas colours matching the result page's tier styles. */
-const TIER_COLORS: Record<DomainTier, { soft: string; text: string; border: string }> = {
-  ontrack: { soft: "#D6F0E1", text: "#146334", border: "#A9D9BD" },
-  practice: { soft: "#FFE0B0", text: "#9B6208", border: "#EFC478" },
-  help: { soft: "#FDE7E4", text: "#A8291D", border: "#EFB7B1" },
-  unknown: { soft: "#EEF0F4", text: "rgba(17,41,91,0.5)", border: "rgba(17,41,91,0.1)" },
-};
-
-const DOMAIN_COLORS: Record<PlayPulseDomain, string> = {
-  Sensory: "#11295B",
-  Motor: "#DF3B2D",
-  Cognition: "#A76709",
-  Engagement: "#2459A0",
-};
 
 export type PlayPulseShare = {
   childName: string;
@@ -32,6 +19,11 @@ export type PlayPulseShare = {
   domainTiers: Record<PlayPulseDomain, DomainTier>;
   focus: PlayPulseDomain | null;
 };
+
+const W = 1080;
+const PAD = 60; // page around the card
+const INNER = 84; // card edge to text
+const TEXT_W = W - 2 * (PAD + INNER);
 
 /** Wraps `value` onto lines no wider than `width`, using the context's current font. */
 function wrap(ctx: CanvasRenderingContext2D, value: string, width: number) {
@@ -48,142 +40,169 @@ function wrap(ctx: CanvasRenderingContext2D, value: string, width: number) {
   return lines;
 }
 
-/** Draws the Play Pulse result as a 1080×1350 PNG. */
+/**
+ * Draws the Play Pulse result as it looks on the page: the Support Score and its pill, the
+ * summary, the four areas, and the "keep building" footer. 1080 px wide; the height follows the
+ * text, so a long goal name or summary never gets cut off.
+ */
 export async function renderPlayPulseImage(input: PlayPulseShare): Promise<Blob> {
   await document.fonts?.ready;
-  const W = 1080;
-  const H = 1350;
+  const font = getComputedStyle(document.body).fontFamily || "sans-serif";
+  const copy = resultCopy(input.tier, input.childName, input.goalName, input.ageBand);
+
+  // Measure the wrapped text first, so the canvas can be made exactly tall enough.
+  const measure = document.createElement("canvas").getContext("2d")!;
+  measure.font = `400 34px ${font}`;
+  const summary = wrap(measure, copy.summary, TEXT_W);
+  measure.font = `400 31px ${font}`;
+  const body = wrap(measure, copy.body, TEXT_W);
+
+  const top = PAD + 80;
+  const summaryTop = top + 380;
+  const rowsTop = summaryTop + summary.length * 58 + 30;
+  const rowH = 104;
+  const footerTop = rowsTop + 20 + DOMAINS.length * rowH + 20;
+  const footerH = 64 + 52 + body.length * 52 + 40 + 104 + 64;
+  const H = footerTop + footerH + 120;
+
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
-  const font = getComputedStyle(document.body).fontFamily || "sans-serif";
-  const text = (value: string, x: number, y: number, size: number, weight = 700, color = NAVY) => {
+  const spaced = (px: number) => {
+    // Letter spacing where the browser supports it (Chrome, Safari 17+).
+    if ("letterSpacing" in ctx) (ctx as { letterSpacing: string }).letterSpacing = `${px}px`;
+  };
+  const text = (
+    value: string,
+    x: number,
+    y: number,
+    size: number,
+    weight: number,
+    color: string,
+    tracking = 0,
+  ) => {
     ctx.font = `${weight} ${size}px ${font}`;
     ctx.fillStyle = color;
+    spaced(tracking);
     ctx.fillText(value, x, y);
+    spaced(0);
   };
-  const tier = TIER_COLORS[input.tier];
-
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, W, H);
-  const confetti: [number, number, number, string, "dot" | "bar"][] = [
-    [90, 70, 20, "#F2B544", "bar"],
-    [210, 40, 0, "#DF3B2D", "dot"],
-    [880, 130, 0, "#F2B544", "dot"],
-    [990, 60, -20, "#DF3B2D", "bar"],
-    [760, 50, 40, "#6FA05A", "bar"],
-    [330, 120, -35, "#2459A0", "bar"],
-  ];
-  for (const [x, y, rotate, color, shape] of confetti) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate((rotate * Math.PI) / 180);
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.75;
-    ctx.beginPath();
-    if (shape === "dot") ctx.arc(0, 0, 11, 0, Math.PI * 2);
-    else ctx.roundRect(-26, -8, 52, 16, 8);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  const cheer = pulseCheer(
-    input.childName,
-    input.goalName,
-    input.tier,
-    input.domainTiers,
-    input.focus,
-  );
-  ctx.textAlign = "center";
-  // "Play Pulse result" tag.
-  ctx.font = `800 26px ${font}`;
-  const tag = "PLAY PULSE RESULT";
-  const tagWidth = ctx.measureText(tag).width + 56;
-  ctx.fillStyle = "#F2B544";
-  ctx.beginPath();
-  ctx.roundRect(W / 2 - tagWidth / 2, 62, tagWidth, 52, 26);
-  ctx.fill();
-  text(tag, W / 2, 98, 26, 800);
-
-  let size = 66;
-  ctx.font = `800 ${size}px ${font}`;
-  while (ctx.measureText(cheer.headline).width > W - 140 && size > 40) {
-    size -= 2;
+  const pill = (
+    label: string,
+    cx: number,
+    cy: number,
+    size: number,
+    colors: { bg: string; text: string },
+    align: "center" | "right",
+  ) => {
     ctx.font = `800 ${size}px ${font}`;
-  }
-  text(cheer.headline, W / 2, 196, size, 800);
-  ctx.font = `600 30px ${font}`;
-  wrap(ctx, cheer.message, W - 180).forEach((line, i) =>
-    text(line, W / 2, 246 + i * 38, 30, 600, MUTED),
-  );
-
-  // Rings: Support Score outside, areas on track inside, a smiling face in the middle.
-  const cx = W / 2;
-  const cy = 500;
-  ring(ctx, cx, cy, 190, 52, independence(input.supportScore), SUPPORT);
-  ring(ctx, cx, cy, 134, 52, cheer.assessed ? cheer.onTrack / cheer.assessed : 0, ON_TRACK_COLOR);
-  drawFace(ctx, cx, cy, 78, PULSE_FACE[input.tier]);
-
-  // Two figures under the rings.
-  const figures = [
-    { x: W * 0.3, label: "Support Score", value: `${input.supportScore}%`, color: SUPPORT },
-    {
-      x: W * 0.7,
-      label: "Areas on track",
-      value: `${cheer.onTrack} of ${cheer.assessed || 4}`,
-      color: ON_TRACK_COLOR,
-    },
-  ];
-  for (const f of figures) {
-    ctx.font = `700 28px ${font}`;
-    const labelWidth = ctx.measureText(f.label).width;
-    const start = f.x - (labelWidth + 34) / 2;
-    ctx.fillStyle = f.color;
+    spaced(size * 0.16);
+    const width = ctx.measureText(label).width + size * 2.2;
+    spaced(0);
+    const h = size * 2.4;
+    const x = align === "center" ? cx - width / 2 : cx - width;
+    ctx.fillStyle = colors.bg;
     ctx.beginPath();
-    ctx.arc(start + 11, 742, 11, 0, Math.PI * 2);
-    ctx.fill();
-    text(f.label, start + 34 + labelWidth / 2, 752, 28, 700, MUTED);
-    text(f.value, f.x, 815, 58);
-  }
-  text(TIER_COPY[input.tier].label, W * 0.3, 852, 26, 700, tier.text);
-
-  // Four domains, two by two.
-  const cardW = (W - 140 - 24) / 2;
-  const cardH = 124;
-  (Object.keys(input.domainTiers) as PlayPulseDomain[]).forEach((domain, i) => {
-    const x = 70 + (i % 2) * (cardW + 24);
-    const y = 880 + Math.floor(i / 2) * (cardH + 16);
-    const status = TIER_COLORS[input.domainTiers[domain]];
-    ctx.strokeStyle = "rgba(17,41,91,0.1)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.roundRect(x, y, cardW, cardH, 28);
-    ctx.stroke();
-    ctx.fillStyle = DOMAIN_COLORS[domain];
-    ctx.beginPath();
-    ctx.arc(x + 46, y + 44, 14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.textAlign = "left";
-    text(domain, x + 76, y + 56, 32, 800);
-    const badge =
-      input.domainTiers[domain] === "unknown"
-        ? "NOT YET"
-        : TIER_COPY[input.domainTiers[domain]].badge;
-    ctx.font = `800 20px ${font}`;
-    const badgeW = ctx.measureText(badge).width + 32;
-    const bx = x + 76;
-    const by = y + 70;
-    ctx.fillStyle = status.soft;
-    ctx.beginPath();
-    ctx.roundRect(bx, by, badgeW, 44, 22);
+    ctx.roundRect(x, cy - h / 2, width, h, h / 2);
     ctx.fill();
     ctx.textAlign = "center";
-    text(badge, bx + badgeW / 2, by + 30, 20, 800, status.text);
+    text(label, x + width / 2, cy + size * 0.36, size, 800, colors.text, size * 0.16);
+  };
+
+  // Page and card.
+  ctx.fillStyle = "#f5f3ef";
+  ctx.fillRect(0, 0, W, H);
+  const cardX = PAD;
+  const cardW = W - 2 * PAD;
+  const cardBottom = footerTop + footerH;
+  ctx.save();
+  ctx.shadowColor = "rgba(19,41,91,0.12)";
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 18;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.roundRect(cardX, PAD, cardW, cardBottom - PAD, 44);
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(cardX, PAD, cardW, cardBottom - PAD, 44);
+  ctx.clip();
+
+  // Support Score, the percentage and the result pill.
+  ctx.textAlign = "center";
+  text("SUPPORT SCORE", W / 2, top + 6, 26, 700, C.label, 6);
+  ctx.font = `800 190px ${font}`;
+  const number = String(input.supportScore);
+  const numberW = ctx.measureText(number).width;
+  ctx.font = `800 88px ${font}`;
+  const percentW = ctx.measureText("%").width;
+  const start = W / 2 - (numberW + percentW) / 2;
+  ctx.textAlign = "left";
+  text(number, start, top + 200, 190, 800, SCORE_HEX[input.tier]);
+  text("%", start + numberW, top + 112, 88, 800, SCORE_HEX[input.tier]);
+  pill(
+    TIER_COPY[input.tier].label.toUpperCase(),
+    W / 2,
+    top + 268,
+    26,
+    TIER_PILL_HEX[input.tier],
+    "center",
+  );
+
+  // Summary.
+  ctx.textAlign = "left";
+  const left = cardX + INNER;
+  summary.forEach((line, i) => text(line, left, summaryTop + i * 58, 34, 400, C.muted));
+
+  // The four areas.
+  ctx.fillStyle = C.border;
+  ctx.fillRect(cardX, rowsTop, cardW, 2);
+  DOMAINS.forEach((domain, i) => {
+    const mid = rowsTop + 20 + i * rowH + rowH / 2;
+    if (i > 0) {
+      ctx.fillStyle = C.rule;
+      ctx.fillRect(left, mid - rowH / 2, TEXT_W, 2);
+    }
+    ctx.fillStyle = DOMAIN_DOT_HEX[domain];
+    ctx.beginPath();
+    ctx.arc(left + 10, mid - 2, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.textAlign = "left";
+    text(domain.toUpperCase(), left + 44, mid + 12, 34, 700, C.navy, 4);
+    const status = DOMAIN_STATUS[input.domainTiers[domain]];
+    pill(status.label.toUpperCase(), left + TEXT_W, mid, 23, status, "right");
   });
 
-  text("Not a pass/fail score — it shows where to focus next.", W / 2, 1222, 24, 600, MUTED);
-  text("Check yours with Play Pulse on Play Hub · The Toy Pharmacy", W / 2, 1290, 24, 600, MUTED);
+  // Footer: next step and the consult bar.
+  ctx.fillStyle = C.footer;
+  ctx.fillRect(cardX, footerTop, cardW, footerH);
+  ctx.textAlign = "left";
+  text(copy.heading, left, footerTop + 64 + 36, 44, 700, C.navy);
+  body.forEach((line, i) => text(line, left, footerTop + 64 + 52 + 40 + i * 52, 31, 400, C.muted));
+  const barTop = footerTop + 64 + 52 + body.length * 52 + 40;
+  ctx.fillStyle = C.consultEdge;
+  ctx.beginPath();
+  ctx.roundRect(left, barTop + 8, TEXT_W, 96, 24);
+  ctx.fill();
+  ctx.fillStyle = C.consult;
+  ctx.beginPath();
+  ctx.roundRect(left, barTop, TEXT_W, 92, 24);
+  ctx.fill();
+  ctx.textAlign = "center";
+  text("BOOK A PLAY CONSULT", W / 2, barTop + 58, 30, 800, "#ffffff", 5);
+  ctx.restore();
+
+  ctx.textAlign = "center";
+  text(
+    "Check yours with Play Pulse on Play Hub · The Toy Pharmacy",
+    W / 2,
+    H - 52,
+    26,
+    600,
+    C.muted,
+  );
 
   return new Promise((resolve, reject) =>
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("No image"))), "image/png"),

@@ -20,7 +20,6 @@ import {
 } from "@/api/homepage";
 import { apiAssetUrl } from "@/api/client";
 import { Protected } from "@/auth/guards";
-import { SubscriptionPricingEditor } from "@/components/SubscriptionPricingEditor";
 import { ApplicationLogoEditor } from "@/components/ApplicationLogoEditor";
 import { PageHeader } from "@/components/AppShell";
 import { CardSkeleton } from "@/components/Skeletons";
@@ -669,7 +668,26 @@ function HomepageEditor() {
               <ImageDimensionsGuide />
             </div>
             <div id="editor-panel-pricing" hidden={active !== "pricing"}>
-              <SubscriptionPricingEditor />
+              <section
+                aria-labelledby="pricing-moved-heading"
+                className="ph-card flex flex-wrap items-center gap-4 p-5"
+              >
+                <div className="min-w-0 flex-1">
+                  <h2 id="pricing-moved-heading" className="text-lg font-bold">
+                    Subscription pricing
+                  </h2>
+                  <p className="mt-1 text-sm text-navy/65">
+                    Plans, prices, discounts and coupons are managed together on the Subscription
+                    page. Changes there show on the homepage and the Subscription page.
+                  </p>
+                </div>
+                <Link
+                  to="/admin/subscription"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white"
+                >
+                  Open Subscription
+                </Link>
+              </section>
             </div>
             <div hidden={!sections.some((section) => section.id === active)}>
               <p className="text-xs text-navy/55">
