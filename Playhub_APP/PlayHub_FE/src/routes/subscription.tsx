@@ -16,6 +16,7 @@ import { ArrowLeft, Check, Loader2, Lock } from "lucide-react";
 import {
   PLAN_FEATURES,
   checkout,
+  openCheckoutTab,
   daysLeftLabel,
   getSubscription,
   refundSubscription,
@@ -78,12 +79,17 @@ function SubscriptionPage() {
 
   const chosenPlan = plans.find((plan) => plan.duration === selected) ?? plans[0]!;
   const childId = activeChild?.id;
+  // Stripe opens in a new tab; this page waits for the payment to be confirmed.
+  const [payingInTab, setPayingInTab] = useState(false);
   const sub = useQuery({
     queryKey: ["sub", childId],
     queryFn: () => getSubscription(childId!),
     enabled: !!childId,
+    // Keep checking while Stripe confirms, here or in the payment tab opened from here.
     refetchInterval: (query) =>
-      checkoutResult === "success" && query.state.data?.status !== "active" ? 1500 : false,
+      (checkoutResult === "success" || payingInTab) && query.state.data?.status !== "active"
+        ? 3000
+        : false,
   });
 
   // A coupon is checked by the server for the chosen plan; changing plan checks it again.
@@ -111,8 +117,10 @@ function SubscriptionPage() {
   const price = quote ? fmtMoney(quote.finalAmount / 100) : chosenPlan.price;
 
   const buy = useMutation({
-    mutationFn: () => checkout(childId!, chosenPlan.duration, quote?.code),
-    onSuccess: () => {
+    mutationFn: (tab: Window | null) => checkout(childId!, chosenPlan.duration, quote?.code, tab),
+    onError: (_error, tab) => tab?.close(),
+    onSuccess: (inTab) => {
+      if (inTab) setPayingInTab(true);
       queryClient.invalidateQueries({ queryKey: ["sub", childId] });
       queryClient.invalidateQueries({ queryKey: ["children", session.personaId] });
       if (session.tier === "free") queryClient.invalidateQueries();
@@ -195,6 +203,17 @@ function SubscriptionPage() {
               ? "Payment confirmed. The subscription is active."
               : "Payment received. Waiting for secure confirmation from Stripe…"
             : "Checkout was cancelled. No payment was taken."}
+        </p>
+      )}
+
+      {payingInTab && !checkoutResult && (
+        <p
+          role="status"
+          className="mt-5 rounded-2xl bg-blue/10 px-4 py-3 text-sm font-semibold text-blue"
+        >
+          {sub.data?.status === "active"
+            ? "Payment confirmed. The subscription is active."
+            : "Finish paying in the new Stripe tab. This page updates by itself once the payment is confirmed."}
         </p>
       )}
 
@@ -387,7 +406,7 @@ function SubscriptionPage() {
               )}
               <button
                 type="button"
-                onClick={() => buy.mutate()}
+                onClick={() => buy.mutate(openCheckoutTab())}
                 disabled={buy.isPending || !pricing.isSuccess || (active && !canRenew)}
                 className="mt-5 flex min-h-13 w-full items-center justify-center gap-2 rounded-full bg-coral px-6 text-base font-bold text-white disabled:opacity-60"
               >

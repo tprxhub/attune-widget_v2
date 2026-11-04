@@ -77,9 +77,13 @@ test("the Super Admin creates a coupon and a family applies it at checkout", asy
   await expect(page.getByText("You save AED 28.35 on this subscription")).toBeVisible();
   const buy = page.getByRole("button", { name: /Subscribe .* — AED 160\.65/ });
   await expect(buy).toBeVisible();
-  await buy.click();
+  // Stripe opens in a new tab; this page waits for the payment.
+  const [stripeTab] = await Promise.all([page.waitForEvent("popup"), buy.click()]);
   await expect.poll(() => sent).toMatchObject({ plan: "3m", discount_code: "E2ESAVE15" });
-  await page.waitForURL(/checkout=cancelled/); // the (mocked) checkout's return trip
+  await stripeTab.waitForURL(/checkout=cancelled/); // the (mocked) checkout's page
+  await expect(page).toHaveURL(/\/subscription\?plan=3m/);
+  await expect(page.getByText("Finish paying in the new Stripe tab")).toBeVisible();
+  await stripeTab.close();
 
   // Removing the coupon goes back to the full price.
   await page.goto("/subscription?plan=3m");

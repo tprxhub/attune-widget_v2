@@ -71,11 +71,17 @@ function subscriptionFromResponse(childId: string, sub: ApiSubscription): Subscr
 }
 
 /** Starts hosted Stripe Checkout. Only the signed Stripe webhook grants access. */
+/**
+ * Starts hosted Stripe Checkout in `tab` (a new tab the click already opened, so the browser
+ * doesn't block it). Without a usable tab it falls back to this page. Returns true when payment
+ * continues in the new tab.
+ */
 export async function checkout(
   childId: string,
   duration: PlanDuration,
   discountCode?: string | null,
-): Promise<void> {
+  tab?: Window | null,
+): Promise<boolean> {
   const response = await apiRequest<{ checkout_url: string }>("/billing/checkout", {
     method: "POST",
     body: JSON.stringify({
@@ -84,7 +90,24 @@ export async function checkout(
       ...(discountCode ? { discount_code: discountCode } : {}),
     }),
   });
+  if (tab && !tab.closed) {
+    tab.location.href = response.checkout_url;
+    return true;
+  }
   window.location.assign(response.checkout_url);
+  return false;
+}
+
+/** Opens an empty tab straight from a click, for Stripe Checkout to load into once it's ready. */
+export function openCheckoutTab(): Window | null {
+  const tab = window.open("", "_blank");
+  if (tab) {
+    tab.opener = null; // the payment page can't reach back into Play Hub
+    tab.document.title = "Opening secure payment…";
+    tab.document.body.innerHTML =
+      '<p style="font-family:system-ui,sans-serif;padding:2rem;color:#13295b">Opening secure payment…</p>';
+  }
+  return tab;
 }
 
 export async function refundSubscription(childId: string): Promise<Subscription> {

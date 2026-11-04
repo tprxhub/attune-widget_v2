@@ -104,8 +104,12 @@ test("Super Admin publishes up to five subscription plans and image dimensions",
       }),
     });
   });
-  await visitor.getByRole("button", { name: /Subscribe .*AED 499.50/ }).click();
-  await expect(visitor).toHaveURL(/checkout=cancelled/);
+  const [stripeTab] = await Promise.all([
+    visitor.waitForEvent("popup"),
+    visitor.getByRole("button", { name: /Subscribe .*AED 499.50/ }).click(),
+  ]);
+  await stripeTab.waitForURL(/checkout=cancelled/); // Stripe opens in a new tab
+  await expect(visitor).toHaveURL(/\/subscription\?plan=9m/);
   expect(selected).toMatchObject({ plan: "9m" });
   await context.close();
 
