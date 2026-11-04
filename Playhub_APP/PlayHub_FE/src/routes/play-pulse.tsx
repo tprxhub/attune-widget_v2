@@ -41,14 +41,7 @@ import {
   type PlayPulseDomain,
   type PlayPulseGoal,
 } from "@/features/play-pulse/data";
-import {
-  bandLabel,
-  computePlayPulseResult,
-  TIER_COPY,
-  type AnswerValue,
-  type DomainTier,
-  type ScoreTier,
-} from "@/features/play-pulse/scoring";
+import { bandLabel, computePlayPulseResult, type AnswerValue } from "@/features/play-pulse/scoring";
 import { PulseResultCard } from "@/features/play-pulse/PulseResultCard";
 import {
   contactErrors,
@@ -83,7 +76,7 @@ export const Route = createFileRoute("/play-pulse")({
       {
         name: "description",
         content:
-          "A two-minute check-in that shows how much support your member may need for a developmental goal.",
+          "A two-minute check-in that shows how much support your child may need for a developmental goal.",
       },
       { property: "og:title", content: "Play Pulse — Play Hub" },
       {
@@ -103,36 +96,6 @@ const DOMAIN_META: Record<
   Motor: { icon: PersonStanding, color: "text-coral", soft: "bg-coral/10" },
   Cognition: { icon: Brain, color: "text-[#a76709]", soft: "bg-amber/25" },
   Engagement: { icon: MessagesSquare, color: "text-blue", soft: "bg-blue/10" },
-};
-
-const TIER_STYLE: Record<
-  DomainTier,
-  { text: string; soft: string; border: string; score: string }
-> = {
-  ontrack: {
-    text: "text-[#146334]",
-    soft: "bg-[#d6f0e1]",
-    border: "border-[#a9d9bd]",
-    score: "text-[#146334]",
-  },
-  practice: {
-    text: "text-[#9b6208]",
-    soft: "bg-[#ffe0b0]",
-    border: "border-[#efc478]",
-    score: "text-[#a76709]",
-  },
-  help: {
-    text: "text-[#a8291d]",
-    soft: "bg-[#fde7e4]",
-    border: "border-[#efb7b1]",
-    score: "text-[#b32e22]",
-  },
-  unknown: {
-    text: "text-navy/50",
-    soft: "bg-navy/6",
-    border: "border-navy/10",
-    score: "text-navy/50",
-  },
 };
 
 function questionProgress(state: PlayPulseState) {
@@ -267,7 +230,7 @@ function IntroScreen() {
 
       <div className="mt-8">
         <label htmlFor="pulse-child-name" className="eyebrow text-blue">
-          Member’s name
+          Child’s name
         </label>
         <input
           id="pulse-child-name"
@@ -314,7 +277,7 @@ function GoalScreen() {
         What are you working on together right now?
       </h1>
       <p className="mt-3 text-base leading-relaxed font-medium text-blue">
-        Pick the goal closest to what you and {childName || "your member"} are focused on.
+        Pick the goal closest to what you and {childName || "your child"} are focused on.
       </p>
 
       <div className="mt-7 grid gap-3">
@@ -457,7 +420,7 @@ function useFinishedCheck(goal: PlayPulseGoal, band: AgeBandId) {
     const result = computePlayPulseResult(goal, band, answers);
     const tiers = Object.values(result.domainTiers);
     const check: PulseCheck = {
-      childName: childName.trim() || "Your member",
+      childName: childName.trim() || "Your child",
       ageBand: band,
       goalId: goal.id,
       supportScore: result.supportScore,
@@ -526,10 +489,10 @@ function ResultGate({
     <section>
       <Eyebrow>Your Play Pulse is ready</Eyebrow>
       <h1 className="mt-3 text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
-        Your member’s score is ready!
+        Your child’s score is ready!
       </h1>
       <p className="mt-4 text-base leading-relaxed font-medium text-blue">
-        Enter your name, email and phone number to receive your member’s score and personalised
+        Enter your name, email and phone number to receive your child’s score and personalised
         guidance on their next steps. Your details stay private and secure
       </p>
 
@@ -543,7 +506,7 @@ function ResultGate({
             <LockKeyhole className="h-6 w-6" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h2 className="text-2xl font-bold">Show My Member’s Score</h2>
+            <h2 className="text-2xl font-bold">Show My Child’s Score</h2>
             <p className="mt-1 text-sm text-navy/60">All fields are required.</p>
           </div>
         </div>
@@ -613,7 +576,7 @@ function ResultGate({
             </>
           ) : (
             <>
-              Unlock My Member’s Score <ArrowRight className="h-5 w-5" aria-hidden />
+              Unlock My Child’s Score <ArrowRight className="h-5 w-5" aria-hidden />
             </>
           )}
         </button>
@@ -730,7 +693,6 @@ function ResultsScreen({
   };
   useEffect(save, [fingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const copy = resultCopy(result.tier);
   // Play Plans need an account, so a guest is offered a free one instead of the plan link.
   const signedIn = useSession().session.role !== "anonymous";
   const catalog = useQuery({
@@ -752,7 +714,7 @@ function ResultsScreen({
   );
   const matchingPlan = candidates.find((plan) => plan.level === "Starter") ?? candidates[0];
   return (
-    <section>
+    <section className="mx-auto w-full max-w-[39.6rem]">
       <Eyebrow>Play Pulse</Eyebrow>
       <PulseResultCard
         childName={name}
@@ -764,10 +726,39 @@ function ResultsScreen({
         focus={
           result.weakest && result.domainTiers[result.weakest] !== "ontrack" ? result.weakest : null
         }
+        consultUrl={CONSULT_BOOKING_URL}
+        planAction={
+          <>
+            {!signedIn ? (
+              <Link
+                to="/signup"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-navy/15 bg-white px-5 text-center text-sm font-bold text-navy transition hover:border-navy/40"
+              >
+                <Play className="h-4 w-4" aria-hidden /> Start the Play Plan free
+              </Link>
+            ) : matchingPlan ? (
+              <Link
+                to="/plans/$planId"
+                params={{ planId: matchingPlan.id }}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-navy/15 bg-white px-5 text-center text-sm font-bold text-navy transition hover:border-navy/40"
+              >
+                <Play className="h-4 w-4" aria-hidden /> Start Play Plan
+              </Link>
+            ) : (
+              <p className="rounded-xl border border-navy/15 p-4 text-center text-sm text-navy/70">
+                {catalog.isLoading || goals.isLoading
+                  ? "Finding your Play Plan…"
+                  : catalog.isError || goals.isError
+                    ? "Could not load this Play Plan. Please refresh to try again."
+                    : "This Play Plan is coming soon."}
+              </p>
+            )}
+          </>
+        }
       />
 
       {(contact || saveFailed) && (
-        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-navy/55">
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-navy/55">
           {saveFailed ? (
             <>
               <span className="text-coral">This result couldn’t be saved.</span>
@@ -791,83 +782,6 @@ function ResultsScreen({
           )}
         </p>
       )}
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {DOMAINS.map((domain) => {
-          const domainTier = result.domainTiers[domain];
-          const style = TIER_STYLE[domainTier];
-          const Icon = DOMAIN_META[domain].icon;
-          return (
-            <div
-              key={domain}
-              className="flex min-h-20 flex-col items-start justify-center gap-3 rounded-2xl border border-navy/8 bg-white p-4 shadow-[var(--shadow-card)]"
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span
-                  className={cn(
-                    "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
-                    DOMAIN_META[domain].soft,
-                    DOMAIN_META[domain].color,
-                  )}
-                >
-                  <Icon className="h-5 w-5" aria-hidden />
-                </span>
-                <span className="font-bold">{domain}</span>
-              </span>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-extrabold tracking-wide uppercase",
-                  style.soft,
-                  style.text,
-                  style.border,
-                )}
-              >
-                {domainTier === "unknown" ? "Not yet assessed" : TIER_COPY[domainTier].badge}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 overflow-hidden rounded-[28px] bg-navy p-6 text-white shadow-[0_24px_60px_-28px_rgba(0,42,100,.65)] sm:p-8">
-        <p className="eyebrow text-amber">Your next step</p>
-        <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">{copy.heading}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-white/70">{copy.body}</p>
-        <div className="mt-6 grid gap-3">
-          <a
-            href={CONSULT_BOOKING_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-coral px-5 text-sm font-bold text-white transition hover:-translate-y-0.5"
-          >
-            Book a Play Consult <ArrowRight className="h-4 w-4" aria-hidden />
-          </a>
-          {!signedIn ? (
-            <Link
-              to="/signup"
-              className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-center text-sm font-bold text-white transition hover:bg-white/15"
-            >
-              <Play className="h-4 w-4" aria-hidden /> Start the Play Plan free
-            </Link>
-          ) : matchingPlan ? (
-            <Link
-              to="/plans/$planId"
-              params={{ planId: matchingPlan.id }}
-              className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 text-center text-sm font-bold text-white transition hover:bg-white/15"
-            >
-              <Play className="h-4 w-4" aria-hidden /> Start Play Plan
-            </Link>
-          ) : (
-            <p className="rounded-xl border border-white/30 p-4 text-center text-sm text-white/80">
-              {catalog.isLoading || goals.isLoading
-                ? "Finding your Play Plan…"
-                : catalog.isError || goals.isError
-                  ? "Could not load this Play Plan. Please refresh to try again."
-                  : "This Play Plan is coming soon."}
-            </p>
-          )}
-        </div>
-      </div>
 
       <ConfirmButton
         confirmationTitle="Start a new check?"
@@ -975,24 +889,5 @@ function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 function personalize(text: string, childName: string) {
-  return text.replace(/your child/gi, childName.trim() || "your member");
-}
-
-function resultCopy(tier: ScoreTier) {
-  if (tier === "ontrack") {
-    return {
-      heading: "Keep the play going",
-      body: "Try the Play Plan to build on these skills.",
-    };
-  }
-  if (tier === "practice") {
-    return {
-      heading: "A little practice helps",
-      body: "Start the Play Plan, or book a consult for guidance.",
-    };
-  }
-  return {
-    heading: "Get a helping hand",
-    body: "A Play Consult can help you choose where to start.",
-  };
+  return text.replace(/your child/gi, childName.trim() || "your child");
 }

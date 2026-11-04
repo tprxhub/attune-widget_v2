@@ -72,10 +72,10 @@ test("a guest fills the form once, sees the Progress-style result, and is saved"
   await page.setViewportSize({ width: 1440, height: 900 });
   await takeCheck(page, "Noor");
 
-  const form = page.locator("form").filter({ hasText: "Show My Member’s Score" });
+  const form = page.locator("form").filter({ hasText: "Show My Child’s Score" });
   await expect(form).toBeVisible();
   await expect(page.getByRole("button", { name: /Sign in with Google/ })).toHaveCount(0);
-  await form.getByRole("button", { name: /Unlock My Member’s Score/ }).click();
+  await form.getByRole("button", { name: /Unlock My Child’s Score/ }).click();
   await expect(form.getByText("Please enter your name.")).toBeVisible();
   await expect(form.getByText(/valid phone number/)).toBeVisible();
   await expect(form.getByText(/valid email address/)).toBeVisible();
@@ -83,19 +83,31 @@ test("a guest fills the form once, sees the Progress-style result, and is saved"
   await form.getByLabel(/Your name/).fill("Guest Parent");
   await form.getByLabel(/Phone number/).fill("+971 50 765 4321");
   await form.getByLabel(/Email/).fill(email);
-  await form.getByRole("button", { name: /Unlock My Member’s Score/ }).click();
+  await form.getByRole("button", { name: /Unlock My Child’s Score/ }).click();
 
-  await expect(page.getByText("Play Pulse result", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Noor", exact: true })).toBeVisible();
-  await expect(page.getByText(/Celebrating Noor!/)).toBeVisible();
-  await expect(page.getByText(/Independence Score: \d+%/)).toBeVisible();
+  const result = page.getByRole("region", { name: "Play Pulse result" });
+  await expect(result.getByText("Support Score", { exact: true })).toBeVisible();
+  await expect(result.getByText(/^\d+%$/)).toBeVisible();
+  await expect(result).toContainText(/stage, Noor is (showing|just starting)/);
+  // "What is the Support Score?" starts closed and opens on request.
+  const about = result.getByRole("button", { name: "What is the Support Score?" });
+  await expect(about).toHaveAttribute("aria-expanded", "false");
+  await expect(result.getByText(/measures how well your child/)).toHaveCount(0);
+  await about.click();
+  await expect(about).toHaveAttribute("aria-expanded", "true");
+  await expect(result.getByText(/measures how well your child/)).toBeVisible();
+  await expect(result.getByRole("list", { name: "Areas" }).getByRole("listitem")).toHaveCount(4);
+  await expect(result.getByRole("link", { name: "Book a Play Consult" })).toBeVisible();
   await expect(page.getByText("Saved for Guest Parent.")).toBeVisible();
   await expect(page.getByRole("link", { name: /Start the Play Plan free/ })).toHaveAttribute(
     "href",
     "/signup",
   );
   await expect(page.getByText(/Could not load this Play Plan/)).toHaveCount(0);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/pulse-result-1440.png`, fullPage: true });
+  if (SHOTS) {
+    await page.waitForTimeout(1500); // let the result finish fading in
+    await page.screenshot({ path: `${SHOTS}/pulse-result-1440.png`, fullPage: true });
+  }
 
   await expect.poll(async () => (await adminRows(page, email)).length).toBe(1);
   const [row] = await adminRows(page, email);
@@ -105,12 +117,20 @@ test("a guest fills the form once, sees the Progress-style result, and is saved"
   await page.getByRole("button", { name: /Start a new check/ }).click();
   await page.getByRole("button", { name: "Start new check", exact: true }).click();
   await takeCheck(page, "Omar");
-  await expect(page.getByRole("heading", { name: "Omar", exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Play Pulse result" })
+      .getByText(/stage, Omar is (showing|just starting)/),
+  ).toBeVisible();
   await expect.poll(async () => (await adminRows(page, email)).length).toBe(2);
 
   // Revisiting the same result does not save it again.
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Omar", exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Play Pulse result" })
+      .getByText(/stage, Omar is (showing|just starting)/),
+  ).toBeVisible();
   await page.waitForTimeout(500);
   expect((await adminRows(page, email)).length).toBe(2);
 });
@@ -124,11 +144,18 @@ test("the result card fits a phone", async ({ page }) => {
     ),
   );
   await takeCheck(page, "Lina");
-  await expect(page.getByRole("heading", { name: "Lina", exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Play Pulse result" })
+      .getByText(/stage, Lina is (showing|just starting)/),
+  ).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);
-  if (SHOTS) await page.screenshot({ path: `${SHOTS}/pulse-result-375.png`, fullPage: true });
+  if (SHOTS) {
+    await page.waitForTimeout(1500); // let the result finish fading in
+    await page.screenshot({ path: `${SHOTS}/pulse-result-375.png`, fullPage: true });
+  }
 });
 
 test("signed-in people skip the form and appear with their role", async ({ page }) => {
@@ -136,8 +163,12 @@ test("signed-in people skip the form and appear with their role", async ({ page 
   await page.setViewportSize({ width: 1280, height: 900 });
   const before = (await adminRows(page, "parent@playhub.local")).length;
   await takeCheck(page, "Kai");
-  await expect(page.locator("form").filter({ hasText: "Show My Member’s Score" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Kai", exact: true })).toBeVisible();
+  await expect(page.locator("form").filter({ hasText: "Show My Child’s Score" })).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("region", { name: "Play Pulse result" })
+      .getByText(/stage, Kai is (showing|just starting)/),
+  ).toBeVisible();
   await expect
     .poll(async () => (await adminRows(page, "parent@playhub.local")).length)
     .toBe(before + 1);

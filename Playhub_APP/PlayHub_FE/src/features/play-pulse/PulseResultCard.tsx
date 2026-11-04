@@ -1,30 +1,69 @@
-import { useState } from "react";
-import { CalendarClock, Check, Gauge, Loader2, PartyPopper, Share2, Target } from "lucide-react";
-import { SupportScoreInfo } from "@/components/SupportScoreInfo";
-import progressWordmark from "@/assets/progress-play-wordmark.png";
-import { RingMarker } from "@/features/progress/InteractiveProgressRings";
-import { HeartMarker, SmileMarker } from "@/features/progress/RingIcons";
-import { Confetti, FaceShape, Ring } from "@/features/progress/SupportMoodRings";
-import { independence, lightShade } from "@/features/progress/supportMood";
-import { fmtDate } from "@/lib/format";
+import { useState, type ReactNode } from "react";
+import { Check, ChevronDown, Info, Loader2, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PlayPulseDomain } from "./data";
-import { ON_TRACK_COLOR, PULSE_FACE, pulseCheer } from "./pulseCheer";
+import { DOMAINS, type PlayPulseDomain } from "./data";
 import { TIER_COPY, type DomainTier, type ScoreTier } from "./scoring";
 import { sharePlayPulseResult } from "./sharePlayPulse";
 
-const SUPPORT_COLOR = "#2459A0";
-
-const TIER_BADGE: Record<ScoreTier, string> = {
-  ontrack: "bg-[#d6f0e1] text-[#146334]",
-  practice: "bg-[#ffe0b0] text-[#9b6208]",
-  help: "bg-[#fde7e4] text-[#a8291d]",
+/** The big percentage: amber while there is something to practise, as in the design. */
+const SCORE_COLOR: Record<ScoreTier, string> = {
+  ontrack: "text-[#2f8a57]",
+  practice: "text-[#f2b35b]",
+  help: "text-[#cf4a3a]",
 };
 
+const PILL = {
+  good: "bg-[#e6f4ec] text-[#1f7a45]",
+  work: "bg-[#fbe9e6] text-[#c4412f]",
+  muted: "bg-navy/6 text-navy/50",
+};
+
+const TIER_PILL: Record<ScoreTier, string> = {
+  ontrack: PILL.good,
+  practice: PILL.work,
+  help: PILL.work,
+};
+
+const DOMAIN_PILL: Record<DomainTier, { label: string; className: string }> = {
+  ontrack: { label: "On track", className: PILL.good },
+  practice: { label: "Needs work", className: PILL.work },
+  help: { label: "Needs help", className: PILL.work },
+  unknown: { label: "Not assessed", className: PILL.muted },
+};
+
+const DOMAIN_DOT: Record<PlayPulseDomain, string> = {
+  Sensory: "bg-[#13295b]",
+  Motor: "bg-[#3a6db5]",
+  Cognition: "bg-[#cf4a3a]",
+  Engagement: "bg-[#d9a441]",
+};
+
+function resultCopy(tier: ScoreTier, childName: string, goalName: string, ageBand: string) {
+  const goal = `“${goalName}”`;
+  const notAGrade = "This is not a pass/fail score, it just shows you where to focus next.";
+  if (tier === "ontrack") {
+    return {
+      summary: `At the ${ageBand} stage, ${childName} is showing most of the skills that ${goal} calls for. Regular play at home can help build on them. ${notAGrade}`,
+      heading: "Keep the momentum going",
+      body: "Your child is doing well with what this skill calls for. Keep it going with the matching Play Dose — or a Play Consult can suggest ways to stretch them further.",
+    };
+  }
+  if (tier === "practice") {
+    return {
+      summary: `At the ${ageBand} stage, ${childName} is showing some of the skills that ${goal} calls for. Strategic practice in this area at home can help close the gap. ${notAGrade}`,
+      heading: "Let’s keep building together",
+      body: "There’s a bit of a gap between where your child is now and what this skill calls for. A Play Consult can help target it — or start practising today with the matching Play Dose.",
+    };
+  }
+  return {
+    summary: `At the ${ageBand} stage, ${childName} is just starting to show the skills that ${goal} calls for. Strategic practice at home, with the right support, can help close the gap. ${notAGrade}`,
+    heading: "Let’s find the right support",
+    body: "There’s a gap between where your child is now and what this skill calls for. A Play Consult can help you choose where to start — or begin today with the matching Play Dose.",
+  };
+}
+
 /**
- * The Play Pulse result laid out like the Play Hub Summary on Progress: the summary and two
- * figures on the navy panel, and the shareable celebration rings beside it. The outer ring is
- * independence (100% minus the Support Score), the inner ring how many areas are on track.
+ * The Play Pulse result: the Support Score and what it means, the four areas, and the next step.
  */
 export function PulseResultCard({
   childName,
@@ -34,6 +73,8 @@ export function PulseResultCard({
   tier,
   domainTiers,
   focus,
+  consultUrl,
+  planAction,
 }: {
   childName: string;
   goalName: string;
@@ -42,18 +83,15 @@ export function PulseResultCard({
   tier: ScoreTier;
   domainTiers: Record<PlayPulseDomain, DomainTier>;
   focus: PlayPulseDomain | null;
+  consultUrl: string;
+  /** The matching Play Plan (or a free account for a guest), shown under the consult button. */
+  planAction?: ReactNode;
 }) {
   const [shared, setShared] = useState<"idle" | "busy" | "done">("idle");
   const [shareError, setShareError] = useState(false);
-  const cheer = pulseCheer(childName, goalName, tier, domainTiers, focus);
-  const areas = cheer.assessed || 4;
-  const independent = Math.round(100 - supportScore);
-  const next =
-    focus ??
-    (Object.keys(domainTiers) as PlayPulseDomain[]).find(
-      (domain) => domainTiers[domain] === "help" || domainTiers[domain] === "practice",
-    ) ??
-    null;
+  // Closed by default; parents open it when they want the explanation.
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const copy = resultCopy(tier, childName, goalName, ageBand);
 
   const share = async () => {
     setShared("busy");
@@ -77,203 +115,135 @@ export function PulseResultCard({
   };
 
   return (
-    <section className="ph-card mt-4 overflow-hidden bg-navy p-5 text-cream sm:p-6">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <div className="flex min-w-0 flex-col">
-          <p className="eyebrow text-cream/60">Play Pulse result</p>
-          <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3">
-            <span className="grid h-16 w-16 place-items-center rounded-xl bg-white">
-              <svg viewBox="0 0 60 60" className="h-12 w-12" aria-hidden>
-                <FaceShape cx={30} cy={30} r={26} mood={PULSE_FACE[tier]} />
-              </svg>
-            </span>
-            <div className="min-w-0">
-              <h2 className="break-words text-2xl font-bold sm:text-3xl">{childName}</h2>
-              <span
-                className={cn(
-                  "mt-3 inline-flex rounded-xl px-3 py-1.5 text-xs font-extrabold tracking-wide uppercase",
-                  TIER_BADGE[tier],
-                )}
-              >
-                {TIER_COPY[tier].label}
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
-            <p className="text-xs font-bold tracking-wide text-cream/60 uppercase">Goal</p>
-            <p className="mt-2 break-words text-xl font-bold">{goalName}</p>
-            <p className="mt-1 text-sm font-bold text-amber">{ageBand}</p>
-            <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-bold text-cream">
-              <Target className="h-3.5 w-3.5" aria-hidden />
-              {cheer.onTrack} of {areas} areas on track
-            </span>
-          </div>
-          <p className="mt-2 text-sm leading-relaxed text-cream/80">{cheer.message}</p>
-
-          <div className="mt-5 grid gap-3">
-            <MiniStat
-              icon={Gauge}
-              value={`${supportScore}%`}
-              label="Support Score"
-              sub={`${TIER_COPY[tier].label} · lower means less help needed`}
-              info="A lower score is better, meaning your member needs less support."
-            />
-            <MiniStat
-              icon={Target}
-              value={next ?? "All set"}
-              label={next ? "Next focus" : "Every area on track"}
-              sub={next ? `The area to play on first` : "Keep the play going"}
-            />
-          </div>
-          <p className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-cream/60 lg:mt-auto lg:pt-4">
-            <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-            Checked on {fmtDate(localToday())}
+    <>
+      <section
+        aria-label="Play Pulse result"
+        className="mt-3 w-full overflow-hidden rounded-[24px] border border-[#e3e9f4] bg-white shadow-[0_18px_40px_-28px_rgba(19,41,91,.35)]"
+      >
+        <div className="px-[34px] pt-[38px] pb-6">
+          <p className="text-center text-[13px] font-bold tracking-[0.22em] text-[#8c9bb5] uppercase">
+            Support Score
           </p>
-        </div>
+          <p
+            className={cn(
+              "mt-2 text-center text-[74px] leading-none font-extrabold tracking-tight",
+              SCORE_COLOR[tier],
+            )}
+          >
+            {supportScore}
+            <span className="align-top text-[36px]">%</span>
+          </p>
+          <p className="mt-4 text-center">
+            <span
+              className={cn(
+                "inline-flex rounded-full px-4 py-1 text-[13px] font-extrabold tracking-[0.16em] uppercase",
+                TIER_PILL[tier],
+              )}
+            >
+              {TIER_COPY[tier].label}
+            </span>
+          </p>
+          <p className="mt-4 text-base leading-[1.8] text-[#6b7891]">{copy.summary}</p>
 
-        <div className="ph-r-lg relative isolate flex min-w-0 flex-col overflow-hidden bg-white p-4 text-navy sm:p-6">
-          <Confetti />
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="inline-flex w-fit min-w-0 max-w-[calc(100%-3.5rem)] flex-none items-center gap-1.5 break-words rounded-full bg-amber px-3 py-1.5 text-[10px] font-extrabold tracking-[0.12em] uppercase">
-              <PartyPopper className="h-3.5 w-3.5 shrink-0" aria-hidden /> Celebrating {childName}!
-            </p>
+          <div className="mt-4 rounded-xl bg-[#f3f6fc]">
             <button
               type="button"
-              onClick={share}
-              aria-label={shared === "busy" ? "Preparing share image" : "Share result"}
-              title="Share result"
-              disabled={shared === "busy"}
-              className="ph-pill inline-flex h-11 w-11 items-center justify-center bg-coral text-xs font-bold text-white shadow-sm transition hover:bg-coral/90 disabled:opacity-60"
+              aria-expanded={aboutOpen}
+              aria-controls="support-score-about"
+              onClick={() => setAboutOpen((open) => !open)}
+              className="flex w-full items-center gap-1.5 rounded-xl px-4 py-3 text-left text-[15px] font-bold text-navy"
             >
-              {shared === "busy" ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : shared === "done" ? (
-                <Check className="h-4 w-4" aria-hidden />
-              ) : (
-                <Share2 className="h-4 w-4" aria-hidden />
-              )}
+              <Info className="h-4 w-4 shrink-0 text-[#3a6db5]" aria-hidden />
+              <span className="flex-1">What is the Support Score?</span>
+              <ChevronDown
+                className={cn("h-4 w-4 shrink-0 transition-transform", aboutOpen && "rotate-180")}
+                aria-hidden
+              />
             </button>
-          </div>
-
-          <div className="relative mx-auto mt-4 aspect-square w-full max-w-[360px]">
-            <svg
-              viewBox="0 0 160 160"
-              className="h-full w-full"
-              role="img"
-              aria-label={`Independence Score ${independent}%; ${cheer.onTrack} of ${areas} areas on track`}
-            >
-              <Ring
-                radius={70}
-                stroke={12}
-                value={independence(supportScore)}
-                color={SUPPORT_COLOR}
-                track={lightShade(SUPPORT_COLOR)}
-              />
-              <Ring
-                radius={58}
-                stroke={12}
-                value={cheer.onTrack / areas}
-                color={ON_TRACK_COLOR}
-                track={lightShade(ON_TRACK_COLOR)}
-              />
-              {/* Drawn after both rings so neither marker is covered: a red heart at the end of
-                  the blue (independence) ring, a yellow smile at the end of the green one. */}
-              <RingMarker radius={70} value={independence(supportScore)}>
-                <HeartMarker />
-              </RingMarker>
-              <RingMarker radius={58} value={cheer.onTrack / areas}>
-                <SmileMarker />
-              </RingMarker>
-            </svg>
-            <div className="pointer-events-none absolute inset-[25%] flex flex-col items-center justify-center text-center">
-              <p className="text-sm font-bold sm:text-base">Let’s</p>
-              {/* The same "play" wordmark as the Progress page's rings. */}
-              <div className="relative my-1 h-9 w-16 shrink-0 overflow-hidden sm:h-10 sm:w-[4.5rem]">
-                <img
-                  src={progressWordmark}
-                  alt="Play Hub"
-                  className="absolute top-0 left-0 h-16 w-16 max-w-none -translate-y-[19%] object-contain sm:h-[4.5rem] sm:w-[4.5rem]"
-                />
+            {aboutOpen && (
+              <div id="support-score-about" className="px-4 pb-3">
+                <p className="text-sm leading-[1.75] text-navy/75">
+                  The Support Score measures how well your child uses their sensory, motor, and
+                  cognitive skills to interact, play, and navigate everyday activities.
+                </p>
+                <p className="mt-2 text-sm leading-[1.75] text-navy/75">
+                  A higher score indicates greater independence. Our goal is to help your child
+                  build these skills through personalised play plans—so they can become more
+                  confident, capable, and independent individuals.
+                </p>
               </div>
-              <p className="text-sm font-bold sm:text-base">again soon!</p>
-            </div>
+            )}
           </div>
+        </div>
 
-          <ul
-            aria-label="Chart legend"
-            className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-semibold text-navy/70"
+        <ul aria-label="Areas" className="border-t border-[#e3e9f4] px-[34px] py-2">
+          {DOMAINS.map((domain) => {
+            const pill = DOMAIN_PILL[domainTiers[domain]];
+            return (
+              <li
+                key={domain}
+                aria-label={`${domain}: ${pill.label}`}
+                className="flex items-center justify-between gap-4 border-b border-[#edf1f7] py-4 last:border-b-0"
+              >
+                <span className="flex min-w-0 items-center gap-3.5">
+                  <span
+                    className={cn("-mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full", DOMAIN_DOT[domain])}
+                    aria-hidden
+                  />
+                  <span className="text-base leading-none font-bold tracking-[0.12em] text-navy uppercase">
+                    {domain}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-3.5 py-1.5 text-xs leading-none font-extrabold tracking-[0.14em] uppercase",
+                    pill.className,
+                  )}
+                >
+                  {pill.label}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="bg-[#e8eef9] px-[34px] pt-6 pb-[34px]">
+          <h2 className="text-xl font-bold text-navy">{copy.heading}</h2>
+          <p className="mt-2 text-base leading-[1.8] text-[#6b7891]">{copy.body}</p>
+          <a
+            href={consultUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-5 flex min-h-12 items-center justify-center rounded-xl border-b-4 border-[#a3311f] bg-[#cf4a3a] px-5 text-base font-extrabold tracking-[0.16em] text-white uppercase transition hover:brightness-105 active:translate-y-0.5 active:border-b-2"
           >
-            <li className="flex items-center gap-2">
-              <span
-                className="ph-pill h-2.5 w-2.5 shrink-0"
-                style={{ background: SUPPORT_COLOR }}
-                aria-hidden
-              />
-              Independence Score: {independent}%
-              <SupportScoreInfo
-                label="What Independence Score means"
-                description="Shows how independently your member can play and complete activities."
-              />
-            </li>
-            <li className="flex items-center gap-2">
-              <span
-                className="ph-pill h-2.5 w-2.5 shrink-0"
-                style={{ background: ON_TRACK_COLOR }}
-                aria-hidden
-              />
-              Areas on track: {cheer.onTrack} of {areas}
-            </li>
-          </ul>
-          <p className="mt-2 break-words rounded-xl bg-navy/5 px-4 py-3 text-center text-base font-semibold text-navy/75 sm:text-lg">
-            {cheer.headline}
-          </p>
-          {shareError && (
-            <p role="alert" className="mt-3 text-sm text-coral">
-              The image could not be prepared. Please try sharing again.
-            </p>
+            Book a Play Consult
+          </a>
+          {planAction && <div className="mt-2.5 grid">{planAction}</div>}
+        </div>
+      </section>
+
+      <div className="mt-2 flex w-full justify-end">
+        <button
+          type="button"
+          onClick={share}
+          disabled={shared === "busy"}
+          className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-bold text-blue hover:underline disabled:opacity-60"
+        >
+          {shared === "busy" ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : shared === "done" ? (
+            <Check className="h-4 w-4" aria-hidden />
+          ) : (
+            <Share2 className="h-4 w-4" aria-hidden />
           )}
-        </div>
+          {shared === "busy" ? "Preparing…" : "Share result"}
+        </button>
       </div>
-    </section>
+      {shareError && (
+        <p role="alert" className="text-right text-sm text-coral">
+          The image could not be prepared. Please try sharing again.
+        </p>
+      )}
+    </>
   );
-}
-
-function MiniStat({
-  icon: Icon,
-  value,
-  label,
-  sub,
-  info,
-}: {
-  icon: typeof Gauge;
-  value: string;
-  label: string;
-  sub: string;
-  info?: string;
-}) {
-  return (
-    <div className="flex flex-col items-start gap-2.5 rounded-2xl bg-white/[0.07] p-3 ring-1 ring-white/10 sm:flex-row sm:items-center sm:gap-3">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber text-navy">
-        <Icon className="h-5 w-5" aria-hidden />
-      </span>
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <p className="text-2xl leading-none font-bold">{value}</p>
-          <p className="flex items-center gap-1 text-sm font-bold text-cream/85">
-            {label}
-            {info && <SupportScoreInfo description={info} />}
-          </p>
-        </div>
-        <p className="truncate text-[11px] text-cream/55">{sub}</p>
-      </div>
-    </div>
-  );
-}
-
-/** Today's date as YYYY-MM-DD in the visitor's own time zone (toISOString would give UTC). */
-function localToday() {
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
