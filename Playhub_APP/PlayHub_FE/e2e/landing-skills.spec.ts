@@ -21,7 +21,9 @@ test("the skill tiles show each Play Plan's picture and no numbers", async ({ pa
   try {
     await page.goto("/");
     const section = page.locator("#play-plans");
-    const tile = section.getByRole("link").filter({ hasText: "Bilateral Coordination" });
+    // Tiles show each Play Plan by its own name (not its category), with its picture.
+    const tile = section.getByRole("link").filter({ hasText: plan.name });
+    await expect(section).not.toContainText("Bilateral Coordination & Midline Crossing");
     await expect(tile.getByTestId("skill-picture")).toHaveAttribute("src", picture);
     // Every tile has a picture, built-in until its plan has one of its own.
     const pictures = section.getByTestId("skill-picture");

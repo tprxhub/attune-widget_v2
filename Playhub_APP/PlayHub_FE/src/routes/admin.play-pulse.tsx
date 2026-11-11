@@ -7,6 +7,7 @@ import {
   Download,
   FilterX,
   HeartPulse,
+  ListChecks,
   Loader2,
   Search,
 } from "lucide-react";
@@ -23,6 +24,8 @@ import { Select } from "@/components/Select";
 import { CardSkeleton } from "@/components/Skeletons";
 import { AGE_BANDS, DOMAINS, PLAY_PULSE_GOALS } from "@/features/play-pulse/data";
 import { TIER_COPY, type DomainTier, type ScoreTier } from "@/features/play-pulse/scoring";
+import { Sheet } from "@/features/org/BillingSchedule";
+import { pulseResponses } from "@/features/play-pulse/responses";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/play-pulse")({
@@ -287,6 +290,9 @@ function PlayPulseLeadsPage() {
                   <th scope="col" className="px-4 py-3">
                     Areas
                   </th>
+                  <th scope="col" className="px-4 py-3">
+                    Answers
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy/8">
@@ -329,6 +335,7 @@ function FilterField({ label, children }: { label: string; children: ReactNode }
 
 function ResultRow({ row }: { row: PulseResultRow }) {
   const when = fmtWhen(row.createdAt);
+  const [showAnswers, setShowAnswers] = useState(false);
   return (
     <tr className="align-top transition-colors hover:bg-navy/[0.02]">
       <td className="px-4 py-3 whitespace-nowrap">
@@ -404,7 +411,105 @@ function ResultRow({ row }: { row: PulseResultRow }) {
           })}
         </ul>
       </td>
+      <td className="px-4 py-3">
+        <button
+          type="button"
+          onClick={() => setShowAnswers(true)}
+          aria-label={`View ${row.childName}’s answers`}
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-navy/15 px-3 text-xs font-bold whitespace-nowrap hover:border-navy/40"
+        >
+          <ListChecks className="h-3.5 w-3.5" aria-hidden /> View answers
+        </button>
+        {showAnswers && <AnswersModal row={row} onClose={() => setShowAnswers(false)} />}
+      </td>
     </tr>
+  );
+}
+
+/** Every question of the check and the answer chosen, grouped by area. */
+function AnswersModal({ row, onClose }: { row: PulseResultRow; onClose: () => void }) {
+  // Checks saved before the wording was kept are shown with today's wording of the same questions.
+  const responses = row.responses ?? pulseResponses(row.goalId, row.ageBand, row.answers);
+  const rebuilt = !row.responses;
+  return (
+    <Sheet
+      title={`${row.childName}’s answers`}
+      subtitle={`${row.goalName} · ${AGE_LABEL[row.ageBand] ?? row.ageBand} · ${fmtWhen(row.createdAt).day}`}
+      onClose={onClose}
+      wide
+    >
+      <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl bg-navy/[0.04] px-4 py-3 text-sm">
+        <span>
+          Support Score <b>{row.supportScore}%</b>
+        </span>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-0.5 text-[11px] font-extrabold tracking-wide uppercase",
+            TIER_BADGE[row.tier],
+          )}
+        >
+          {TIER_COPY[row.tier].label}
+        </span>
+        <span className="text-navy/60">
+          {row.areasOnTrack} of {row.areasAssessed} areas on track
+        </span>
+        <span className="text-navy/60">· {row.name}</span>
+      </div>
+      {rebuilt && responses.length > 0 && (
+        <p className="mt-3 rounded-xl bg-amber/15 px-4 py-2.5 text-xs text-navy/75">
+          This check was saved before answers were kept in words, so its answers are shown with
+          today’s wording of the same questions.
+        </p>
+      )}
+      {responses.length === 0 ? (
+        <p className="mt-5 text-sm text-navy/60">No answers were saved for this check.</p>
+      ) : (
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {DOMAINS.map((domain) => {
+            const items = responses.filter((response) => response.domain === domain);
+            const tier = row.domainTiers[domain] ?? "unknown";
+            return (
+              <section
+                key={domain}
+                aria-label={domain}
+                className="rounded-2xl border border-navy/10 p-4"
+              >
+                <h3 className="flex items-center justify-between gap-2 text-sm font-bold tracking-wide uppercase">
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={cn("h-2.5 w-2.5 rounded-full", DOMAIN_DOT[tier])}
+                      aria-hidden
+                    />
+                    {domain}
+                  </span>
+                  <span className="text-[11px] font-bold text-navy/55 normal-case">
+                    {tier === "unknown" ? "Not yet assessed" : TIER_COPY[tier].label}
+                  </span>
+                </h3>
+                <ol className="mt-3 grid gap-3">
+                  {items.map((item, index) => (
+                    <li key={index} className="text-sm">
+                      <p className="text-navy/80">
+                        <span className="font-bold text-navy/45">Q{index + 1}.</span>{" "}
+                        {item.question}
+                      </p>
+                      <p
+                        className={cn(
+                          "mt-1.5 inline-flex rounded-lg px-2.5 py-1 text-xs font-bold",
+                          item.answer ? "bg-blue/10 text-blue" : "bg-navy/6 text-navy/50",
+                        )}
+                      >
+                        {item.answer ?? "Skipped"}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            );
+          })}
+        </div>
+      )}
+    </Sheet>
   );
 }
 

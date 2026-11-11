@@ -142,7 +142,7 @@ function CheckInPage() {
         <PageHeader eyebrow="Session logging" title="Daily Check-In" />
         <div className="ph-card p-8 text-center">
           <p className="text-lg font-bold">No member is available</p>
-          <p className="mt-2 text-sm text-navy/65">Enrol a member before logging an Session.</p>
+          <p className="mt-2 text-sm text-navy/65">Enrol a member before logging a Session.</p>
         </div>
       </>
     );

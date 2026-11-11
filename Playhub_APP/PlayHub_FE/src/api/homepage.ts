@@ -378,22 +378,32 @@ export async function uploadHomepageImage(file: File): Promise<string> {
 
 /** The picture a published Play Plan shows, keyed by its name and its category's name. */
 export interface PlanPicture {
+  id: string;
   plan: string;
   category: string;
-  thumbnailUrl: string;
+  description: string;
+  /** Null until one of the plan's levels has a picture. */
+  thumbnailUrl: string | null;
 }
 
 export const PLAN_PICTURES_QUERY_KEY = ["plan-pictures"] as const;
 
-/** Public: the landing page's skill tiles show the same picture as each Play Plan. */
+/** Public: the published Play Plans, in library order, for the landing page's skill tiles. */
 export async function loadPlanPictures(): Promise<PlanPicture[]> {
-  const rows = await apiRequest<{ plan: string; category: string; thumbnail_url: string }[]>(
-    "/site-content/plan-pictures",
-    { authenticated: false },
-  );
+  const rows = await apiRequest<
+    {
+      id?: string;
+      plan: string;
+      category: string;
+      description?: string;
+      thumbnail_url: string | null;
+    }[]
+  >("/site-content/plan-pictures", { authenticated: false });
   return rows.map((row) => ({
+    id: row.id ?? row.plan,
     plan: row.plan,
     category: row.category,
+    description: row.description ?? "",
     thumbnailUrl: row.thumbnail_url,
   }));
 }

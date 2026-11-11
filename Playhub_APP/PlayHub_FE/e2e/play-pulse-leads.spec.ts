@@ -180,6 +180,44 @@ test("sharing saves an image of the new result card", async ({ page }) => {
   if (SHOTS) await download.saveAs(`${SHOTS}/pulse-share.png`);
 });
 
+test("the Super Admin opens a check's questions and answers", async ({ page, browser }) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "playhub:play-pulse:contact",
+      JSON.stringify({
+        name: "Answer Parent",
+        email: "answers@example.com",
+        phone: "+971500000002",
+      }),
+    ),
+  );
+  await takeCheck(page, "Quinn");
+  await expect(
+    page
+      .getByRole("region", { name: "Play Pulse result" })
+      .getByText(/stage, Quinn is (showing|just starting)/),
+  ).toBeVisible();
+  // The wording of every question and the option chosen are saved with the scores.
+  await expect.poll(async () => (await adminRows(page, "answers@example.com")).length).toBe(1);
+
+  const admin = await browser.newPage();
+  await signIn(admin, "admin@playhub.local");
+  await admin.goto("/admin/play-pulse");
+  await admin.getByRole("button", { name: "View Quinn’s answers" }).click();
+  const modal = admin.getByRole("dialog", { name: "Quinn’s answers" });
+  await expect(modal).toContainText("Colour Inside the Lines");
+  for (const area of ["Sensory", "Motor", "Cognition", "Engagement"]) {
+    const section = modal.getByRole("region", { name: area });
+    await expect(section.getByRole("listitem")).toHaveCount(2);
+  }
+  // takeCheck picks each question's first option, so nothing is skipped.
+  await expect(modal.getByText("Skipped", { exact: true })).toHaveCount(0);
+  await expect(modal).not.toContainText("saved before answers were kept");
+  await modal.getByRole("button", { name: "Close" }).click();
+  await expect(modal).toBeHidden();
+  await admin.close();
+});
+
 test("signed-in people skip the form and appear with their role", async ({ page }) => {
   await signIn(page, "parent@playhub.local");
   await page.setViewportSize({ width: 1280, height: 900 });

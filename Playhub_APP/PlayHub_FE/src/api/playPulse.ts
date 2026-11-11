@@ -1,4 +1,5 @@
 import { apiDownload, apiRequest } from "./client";
+import { pulseResponses, type PulseResponse } from "@/features/play-pulse/responses";
 import type { AgeBandId, PlayPulseDomain } from "@/features/play-pulse/data";
 import type { AnswerValue, DomainTier, ScoreTier } from "@/features/play-pulse/scoring";
 
@@ -45,6 +46,8 @@ export async function savePlayPulseResult(
       areas_assessed: check.areasAssessed,
       domain_tiers: check.domainTiers,
       answers: check.answers,
+      // The questions and the options chosen, in words, as the parent saw them.
+      responses: pulseResponses(check.goalId, check.ageBand, check.answers),
       website,
     }),
   });
@@ -69,6 +72,9 @@ export interface PulseResultRow {
   areasOnTrack: number;
   areasAssessed: number;
   domainTiers: Record<PlayPulseDomain, DomainTier>;
+  answers: Partial<Record<PlayPulseDomain, AnswerValue[]>>;
+  /** The questions and answers in words; null for checks saved before they were kept. */
+  responses: PulseResponse[] | null;
 }
 
 export interface PulseResultPage {
@@ -120,6 +126,8 @@ interface ResultRowApi {
   areas_on_track: number;
   areas_assessed: number;
   domain_tiers: Record<PlayPulseDomain, DomainTier>;
+  answers?: Partial<Record<PlayPulseDomain, AnswerValue[]>>;
+  responses?: PulseResponse[] | null;
 }
 
 export async function listPlayPulseResults(
@@ -154,6 +162,8 @@ export async function listPlayPulseResults(
       areasOnTrack: row.areas_on_track,
       areasAssessed: row.areas_assessed,
       domainTiers: row.domain_tiers,
+      answers: row.answers ?? {},
+      responses: row.responses ?? null,
     })),
     total: data.total,
     page: data.page,

@@ -18,7 +18,7 @@ export const Route = createFileRoute("/signup")({
       {
         name: "description",
         content:
-          "Sign up free to browse every Play Plan and try the first Play Dose for your member.",
+          "Sign up free to browse every Play Plan and try the first Play Dose for your child.",
       },
       { property: "og:title", content: "Create a free family account — Play Hub" },
       {
@@ -77,7 +77,7 @@ function SignupPage() {
   const submit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     const next: Record<string, string> = {};
-    if (childName.trim().length < 2) next["childName"] = "Tell us your member's first name.";
+    if (childName.trim().length < 2) next["childName"] = "Tell us your child's first name.";
     const age = Number(childAge);
     if (!childAge || Number.isNaN(age) || age < 1 || age > 12)
       next["childAge"] = "Enter an age between 1 and 12.";
@@ -115,13 +115,13 @@ function SignupPage() {
             Who is this account for?
           </p>
           <p className="mt-1 text-xs text-navy/65">
-            Play Hub accounts sit in the member's name and are run by you, the parent or carer, with
-            your own email. One member per family account.
+            Play Hub accounts sit in the child's name and are run by you, the parent or carer, with
+            your own email. One child per family account.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-[1.6fr_1fr]">
             <div>
               <label htmlFor="childName" className={authLabel}>
-                Member's First Name
+                Child's First Name
               </label>
               <input
                 id="childName"
@@ -138,7 +138,7 @@ function SignupPage() {
             </div>
             <div>
               <label htmlFor="childAge" className={authLabel}>
-                Member's Age
+                Child's Age
               </label>
               <input
                 id="childAge"

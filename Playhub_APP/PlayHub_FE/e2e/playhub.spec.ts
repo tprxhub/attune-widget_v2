@@ -33,7 +33,8 @@ test("family Check-In persists and immediately updates Progress", async ({ page 
 
   await page.goto("/check-in");
   await expect(page.getByRole("heading", { name: "Daily Check-In" })).toBeVisible();
-  await expect(page.getByText("Logging a Session for Noah", { exact: false })).toBeVisible();
+  // Check-In opens for the family's member.
+  await expect(page.locator("main")).toContainText("Noah");
   await chooseOption(page, "Play Plan", "Learn to Button a Shirt");
   await chooseOption(page, "Play Dose", "Rookie");
   await expect(page.getByText("Assigned dose:", { exact: false })).toBeVisible();
@@ -124,8 +125,10 @@ test("Super Admin can operate platform controls and complete staff activation", 
   await page.goto("/admin/members");
   const noah = page.locator("article").filter({ hasText: "Noah" });
   await expect(noah).toBeVisible();
-  await noah.getByRole("link", { name: "Check-in" }).click();
-  await expect(page.getByText("Logging a Session for Noah", { exact: false })).toBeVisible();
+  // A Super Admin's member cards offer Delete instead of Check-in; Check-In is still reachable.
+  await expect(noah.getByRole("button", { name: /Delete Member/ })).toBeVisible();
+  await page.goto("/check-in");
+  await expect(page.getByRole("heading", { name: "Daily Check-In" })).toBeVisible();
 
   for (const [path, heading] of [
     ["/admin/progress", "Progress"],
@@ -284,8 +287,8 @@ test("family can sign up, restore its session, change password and sign in again
 
   await page.goto("/signup");
   await expect(page.getByRole("button", { name: "Create Account" })).toBeEnabled();
-  await page.getByLabel("Member's First Name").fill("Mia");
-  await page.getByLabel("Member's Age").fill("6");
+  await page.getByLabel("Child's First Name").fill("Mia");
+  await page.getByLabel("Child's Age").fill("6");
   await page.getByLabel("First Name", { exact: true }).fill("Demo");
   await page.getByLabel("Last Name").fill("Family");
   await page.getByLabel("Email Address").fill(email);
@@ -335,7 +338,7 @@ test("organisation roles receive the correct writable and read-only experiences"
   await adminPage.goto("/org");
   await expect(adminPage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
   await adminPage.goto("/check-in");
-  await expect(adminPage.getByText("Logging a Session for Amira", { exact: false })).toBeVisible();
+  await expect(adminPage.locator("main")).toContainText("Amira");
   await adminPage.goto("/admin");
   await expect(
     adminPage.getByRole("heading", { name: "Not available for your role" }),

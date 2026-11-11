@@ -146,3 +146,41 @@ def test_export_follows_filters_or_takes_everything_and_is_formula_safe(client, 
     everything = export(scope="all", goal_id="scissors")  # "all" ignores the filters
     assert len(everything) == 3
     assert any(row[1] == "'=HYPERLINK(\"x\")" for row in everything)
+
+
+def responses_for(answers):
+    """What the page sends: each question and the chosen option, in words."""
+    return [
+        {"domain": domain, "question": f"{domain} question {i + 1}?",
+         "answer": None if score == "skipped" else f"Option worth {score}", "score": score}
+        for domain, scores in answers.items() for i, score in enumerate(scores)
+    ]
+
+
+def test_the_answers_are_kept_in_words_and_shown_to_the_super_admin(client, platform_admin):
+    body = check()
+    saved = submit(client, contact=GUEST, responses=responses_for(body["answers"]), **body)
+    assert saved.status_code == 201, saved.text
+    row = client.get("/api/v1/admin/play-pulse/results", headers=platform_admin).json()["items"][0]
+    assert len(row["responses"]) == 8
+    assert row["responses"][0] == {"domain": "Sensory", "question": "Sensory question 1?",
+                                   "answer": "Option worth 15", "score": 15}
+    skipped = next(r for r in row["responses"] if r["score"] == "skipped")
+    assert skipped["domain"] == "Motor" and skipped["answer"] is None
+    # The scores stay alongside, as before.
+    assert row["answers"]["Cognition"] == [90, 90]
+
+    exported = client.get("/api/v1/admin/play-pulse/results/export", headers=platform_admin).text
+    header, first = list(csv.reader(io.StringIO(exported.lstrip("﻿"))))[:2]
+    assert header[-1] == "Answers"
+    assert "Sensory: Sensory question 1? — Option worth 15" in first[-1]
+    assert "Motor: Motor question 2? — Skipped" in first[-1]
+
+
+def test_answers_in_words_must_match_the_scores(client):
+    body = check()
+    wrong = responses_for(body["answers"])
+    wrong[0]["score"] = 90  # the words claim a different answer from the one scored
+    assert submit(client, contact=GUEST, responses=wrong, **body).status_code == 422
+    # A check from an older page, with scores only, is still accepted.
+    assert submit(client, contact=GUEST, **body).status_code == 201

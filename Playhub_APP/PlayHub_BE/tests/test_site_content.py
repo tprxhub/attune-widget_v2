@@ -328,3 +328,17 @@ def test_plan_pictures_are_public_and_use_the_first_level_with_a_thumbnail(clien
     assert client.patch(f"/api/v1/play-plans/{plan['id']}", headers=platform_admin,
                         json={"publication_status": "invisible"}).status_code == 200
     assert not [p for p in client.get("/api/v1/site-content/plan-pictures").json() if p["plan"] == "Picture Plan"]
+
+
+def test_every_published_plan_is_listed_with_its_name_and_description(client, platform_admin):
+    plan = client.post("/api/v1/play-plans", headers=platform_admin, json={
+        "name": "Fix the Pencil Grip Today", "slug": "fix-grip-today", "colour": "blue",
+        "short_description": "Builds a comfortable grip.",
+    }).json()
+    listed = {p["plan"]: p for p in client.get("/api/v1/site-content/plan-pictures").json()}
+    entry = listed["Fix the Pencil Grip Today"]
+    # Shown by the plan's own name and description, even before it has a picture.
+    assert entry["id"] == plan["id"]
+    assert entry["description"] == "Builds a comfortable grip."
+    assert entry["thumbnail_url"] is None
+    assert entry["category"]

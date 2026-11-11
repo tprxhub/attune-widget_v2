@@ -392,6 +392,27 @@ function Landing() {
       FALLBACK_THUMBNAILS[index % FALLBACK_THUMBNAILS.length]!
     );
   };
+  /**
+   * The skill tiles: the published Play Plans by their own names, descriptions and pictures, in
+   * library order. Until they load (or if they can't), the built-in skill areas stand in.
+   */
+  const skills = planPictures.length
+    ? planPictures.map((plan, index) => ({
+        id: plan.id,
+        name: plan.plan,
+        short: plan.plan,
+        blurb: plan.description,
+        picture:
+          apiAssetUrl(plan.thumbnailUrl) ||
+          FALLBACK_THUMBNAILS[index % FALLBACK_THUMBNAILS.length]!,
+      }))
+    : GOALS.map((goal, index) => ({
+        id: goal.id,
+        name: goal.name,
+        short: goal.short,
+        blurb: goal.blurb,
+        picture: pictureFor(goal, index),
+      }));
   const gridColumns =
     home.stories.quotes.length === 1
       ? "md:mx-auto md:max-w-xl md:grid-cols-1"
@@ -542,9 +563,9 @@ function Landing() {
                 to="/plans"
                 className="ph-r-2xl group relative flex min-h-[320px] overflow-hidden bg-amber p-6 text-navy sm:p-8 lg:min-h-full"
               >
-                {GOALS[0] && (
+                {skills[0] && (
                   <img
-                    src={pictureFor(GOALS[0], 0)}
+                    src={skills[0].picture}
                     alt=""
                     aria-hidden
                     loading="lazy"
@@ -564,10 +585,10 @@ function Landing() {
 
                   <div className="mt-auto pt-16">
                     <h3 className="ph-display mt-2 max-w-sm text-3xl leading-tight sm:text-4xl">
-                      {GOALS[0]?.name}
+                      {skills[0]?.name}
                     </h3>
                     <p className="mt-4 max-w-md text-sm leading-relaxed text-navy/70">
-                      {GOALS[0]?.blurb}
+                      {skills[0]?.blurb}
                     </p>
                     <div className="mt-6 flex items-center justify-between gap-4">
                       <div className="flex flex-wrap gap-2">
@@ -589,14 +610,14 @@ function Landing() {
               </Link>
 
               <ul className="grid grid-cols-2 gap-3">
-                {GOALS.slice(1).map((goal, index) => (
+                {skills.slice(1).map((goal) => (
                   <li key={goal.id}>
                     <Link
                       to="/plans"
                       className="ph-r-lg group relative isolate flex h-full min-h-40 flex-col overflow-hidden border border-cream/10 bg-navy p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-cream/25 sm:min-h-44 sm:p-5"
                     >
                       <img
-                        src={pictureFor(goal, index + 1)}
+                        src={goal.picture}
                         alt=""
                         aria-hidden
                         loading="lazy"

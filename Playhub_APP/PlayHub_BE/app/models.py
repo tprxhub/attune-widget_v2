@@ -729,6 +729,9 @@ class PlayPulseResult(Base):
     areas_assessed: Mapped[int] = mapped_column(Integer, nullable=False)
     domain_tiers: Mapped[dict] = mapped_column(JSON, nullable=False)
     answers: Mapped[dict] = mapped_column(JSON, nullable=False)
+    # Each question as it was worded and the answer chosen: [{domain, question, answer, score}].
+    # Empty for checks saved before November 2026, which kept only the scores in `answers`.
+    responses: Mapped[Optional[list]] = mapped_column(JSON)
     # Set here, to the microsecond, so checks taken in the same second still list newest first.
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), server_default=func.now(), index=True,

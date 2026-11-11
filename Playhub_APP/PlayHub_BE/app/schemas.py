@@ -971,7 +971,10 @@ class SiteContentRead(APIModel):
 
 
 class PlanPictureRead(APIModel):
-    """The picture a published Play Plan shows, for the landing page."""
+    """A published Play Plan as the landing page's skill tiles show it: name, description, picture."""
+    id: str
     plan: str
     category: str
-    thumbnail_url: str
+    description: str = ""
+    # The thumbnail of its first level that has one; none when no level has a picture yet.
+    thumbnail_url: str | None = None

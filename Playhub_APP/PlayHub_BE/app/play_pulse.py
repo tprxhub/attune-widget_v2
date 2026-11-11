@@ -83,6 +83,14 @@ class PulseContactIn(BaseModel):
         return value
 
 
+class PulseResponse(BaseModel):
+    """One question as the parent saw it, and the option they chose (None when skipped)."""
+    domain: Literal["Sensory", "Motor", "Cognition", "Engagement"]
+    question: str = Field(min_length=1, max_length=600)
+    answer: str | None = Field(default=None, max_length=300)
+    score: AnswerValue
+
+
 class PulseSubmission(BaseModel):
     contact: PulseContactIn | None = None
     child_name: str = Field(min_length=1, max_length=80)
@@ -94,6 +102,8 @@ class PulseSubmission(BaseModel):
     areas_assessed: int = Field(ge=0, le=4)
     domain_tiers: dict[str, Literal["ontrack", "practice", "help", "unknown"]]
     answers: dict[str, list[AnswerValue]]
+    # The questions and chosen answers in words; optional so an older page can still submit.
+    responses: list[PulseResponse] | None = Field(default=None, max_length=8)
     # Left empty by people; bots that fill every field are quietly ignored.
     website: str = ""
 
@@ -122,6 +132,11 @@ class PulseSubmission(BaseModel):
         on_track = sum(tier == "ontrack" for tier in self.domain_tiers.values())
         if (self.areas_assessed, self.areas_on_track) != (assessed, on_track):
             raise ValueError("Areas on track do not match the domain results.")
+        if self.responses is not None:
+            # The words must describe the same answers that were scored.
+            given = {domain: [r.score for r in self.responses if r.domain == domain] for domain in DOMAINS}
+            if given != {domain: list(self.answers[domain]) for domain in DOMAINS}:
+                raise ValueError("The answers in words do not match the scored answers.")
         return self
 
 
@@ -146,6 +161,8 @@ class PulseResultRow(BaseModel):
     areas_on_track: int
     areas_assessed: int
     domain_tiers: dict[str, str]
+    answers: dict[str, list[AnswerValue]] = Field(default_factory=dict)
+    responses: list[PulseResponse] | None = None
 
 
 class PulseResultPage(BaseModel):
@@ -204,6 +221,7 @@ def submit_result(payload: PulseSubmission, user: User | None = Depends(_optiona
         areas_assessed=payload.areas_assessed,
         domain_tiers={domain: payload.domain_tiers[domain] for domain in DOMAINS},
         answers={domain: payload.answers[domain] for domain in DOMAINS},
+        responses=[response.model_dump() for response in payload.responses] if payload.responses else None,
     )
     db.add(result)
     db.commit()
@@ -275,6 +293,8 @@ def _row(result: PlayPulseResult, user: User | None, contact: PlayPulseContact |
         areas_on_track=result.areas_on_track,
         areas_assessed=result.areas_assessed,
         domain_tiers=result.domain_tiers,
+        answers=result.answers or {},
+        responses=result.responses,
     )
 
 
@@ -318,8 +338,15 @@ def list_results(
 
 EXPORT_COLUMNS = [
     "Submitted (UTC)", "Name", "Email", "Phone", "Source", "Child", "Age band", "Goal",
-    "Support Score (%)", "Result", "Areas on track", *DOMAINS,
+    "Support Score (%)", "Result", "Areas on track", *DOMAINS, "Answers",
 ]
+
+
+def _answers_text(row: PulseResultRow) -> str:
+    """Every question and answer in one cell, for the spreadsheet."""
+    if not row.responses:
+        return ""
+    return " | ".join(f"{r.domain}: {r.question} — {r.answer or 'Skipped'}" for r in row.responses)
 
 
 def _cell(value: object) -> str:
@@ -354,6 +381,7 @@ def export_results(
                 row.child_name, AGE_BANDS.get(row.age_band, row.age_band), row.goal_name,
                 row.support_score, TIERS.get(row.tier, row.tier), f"{row.areas_on_track} of {row.areas_assessed}",
                 *(DOMAIN_TIER_LABELS.get(row.domain_tiers.get(domain, ""), "") for domain in DOMAINS),
+                _answers_text(row),
             )])
             if buffer.tell() > 64_000:
                 yield buffer.getvalue()

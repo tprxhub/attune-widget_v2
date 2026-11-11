@@ -2181,9 +2181,9 @@ def get_homepage_content(db: Session = Depends(get_db)):
 
 @router.get("/site-content/plan-pictures", response_model=list[PlanPictureRead])
 def get_plan_pictures(db: Session = Depends(get_db)):
-    """Public: the picture each published Play Plan shows, for the landing page's skill tiles.
+    """Public: every published Play Plan, in library order, for the landing page's skill tiles.
 
-    A plan's picture is the thumbnail of its first level that has one; plans without any are left out.
+    A plan's picture is the thumbnail of its first level that has one, or none yet.
     """
     plans = db.scalars(
         select(PlayPlan).join(PlayPlan.category)
@@ -2197,8 +2197,11 @@ def get_plan_pictures(db: Session = Depends(get_db)):
             (dose for dose in plan.play_doses if dose.is_active and dose.thumbnail_url),
             key=lambda dose: (LEVEL_ORDER.get(dose.level, 9), dose.sort_order),
         )
-        if doses:
-            pictures.append(PlanPictureRead(plan=plan.name, category=plan.category.name, thumbnail_url=doses[0].thumbnail_url))
+        pictures.append(PlanPictureRead(
+            id=plan.id, plan=plan.name, category=plan.category.name,
+            description=plan.short_description or plan.description or "",
+            thumbnail_url=doses[0].thumbnail_url if doses else None,
+        ))
     return pictures
 
 
