@@ -1,5 +1,8 @@
 import { Link, Navigate } from "@tanstack/react-router";
-import { Lock } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
+import brandPattern from "@/assets/Icon_of_Service/Brand pattern.png";
+import { Logo } from "@/components/brand";
+import { DailyCheckInIcon, PlayPlansIcon, ProgressBrandIcon } from "@/components/brandIcons";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { hasPermission, roleLabel } from "@/lib/roles";
@@ -30,6 +33,96 @@ function Blocked({
       >
         {ctaLabel}
       </Link>
+    </div>
+  );
+}
+
+const INSIDE = [
+  { label: "Play Plans", icon: PlayPlansIcon },
+  { label: "Daily Check-In", icon: DailyCheckInIcon },
+  { label: "Progress", icon: ProgressBrandIcon },
+];
+
+/**
+ * What a signed-out visitor sees on a members-only page: the brand pattern behind a cream card
+ * with log in and sign up, and a glimpse of what's inside.
+ */
+function SignInRequired() {
+  return (
+    <div className="relative isolate flex min-h-screen flex-col overflow-hidden bg-navy">
+      <img
+        src={brandPattern}
+        alt=""
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-20 h-full w-full object-cover opacity-60"
+      />
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-navy/40 via-navy/70 to-navy"
+        aria-hidden
+      />
+
+      <header className="flex items-center justify-between px-5 py-5 sm:px-10">
+        <Link to="/" aria-label="Play Hub home" className="text-cream">
+          <Logo />
+        </Link>
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-cream/80 hover:text-cream"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden /> Back to homepage
+        </Link>
+      </header>
+
+      <main className="flex flex-1 items-center justify-center px-4 pt-4 pb-16">
+        <section
+          aria-labelledby="sign-in-required-title"
+          className="w-full max-w-[440px] rounded-[28px] bg-cream p-7 text-center text-navy shadow-[0_30px_80px_-30px_rgb(0_0_0/0.7)] sm:p-10"
+        >
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-amber text-navy shadow-[0_10px_24px_-12px_rgb(0_0_0/0.45)]">
+            <Lock className="h-7 w-7" aria-hidden />
+          </span>
+          <h1
+            id="sign-in-required-title"
+            className="ph-display mt-6 text-3xl leading-tight sm:text-[2rem]"
+          >
+            Please sign in
+          </h1>
+          <p className="mx-auto mt-3 max-w-xs text-[15px] leading-relaxed text-navy/70">
+            This part of Play Hub is only available once you&apos;re signed in.
+          </p>
+
+          <div className="mt-8 grid gap-3">
+            <Link
+              to="/login"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-navy px-6 text-sm font-bold text-cream transition-colors hover:bg-navy/90"
+            >
+              Log in
+            </Link>
+            <Link
+              to="/signup"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-navy/20 bg-white px-6 text-sm font-bold text-navy transition-colors hover:bg-navy/5"
+            >
+              Create a free account
+            </Link>
+          </div>
+
+          <div className="mt-8 border-t border-navy/10 pt-6">
+            <p className="text-[11px] font-bold tracking-[0.18em] text-navy/45 uppercase">
+              Inside Play Hub
+            </p>
+            <ul className="mt-4 grid grid-cols-3 gap-2">
+              {INSIDE.map(({ label, icon: Icon }) => (
+                <li key={label} className="flex flex-col items-center gap-2">
+                  <span className="grid h-12 w-12 place-items-center rounded-xl bg-navy/[0.06] text-blue">
+                    <Icon className="h-7 w-7" />
+                  </span>
+                  <span className="text-xs font-semibold text-navy/75">{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
@@ -72,16 +165,7 @@ export function Protected({
   }
 
   if (isAnonymous) {
-    return (
-      <AppShellless>
-        <Blocked
-          title="Please sign in"
-          message="This part of Play Hub is only available once you're signed in."
-          ctaTo="/login"
-          ctaLabel="Go to login"
-        />
-      </AppShellless>
-    );
+    return <SignInRequired />;
   }
 
   if (roles && !roles.includes(session.role)) {
@@ -128,8 +212,4 @@ export function Protected({
   }
 
   return <AppShell>{children}</AppShell>;
-}
-
-function AppShellless({ children }: { children: ReactNode }) {
-  return <div className="min-h-screen bg-background px-4 py-10">{children}</div>;
 }
