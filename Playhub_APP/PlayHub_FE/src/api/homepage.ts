@@ -64,7 +64,14 @@ export interface HomepageContent {
     terms: { title: string; body: string };
   };
   journey: { eyebrow: string; title: string; steps: HomeJourneyStep[] };
-  skills: { title: string; description: string; button_label: string; all_plans_label: string };
+  skills: {
+    title: string;
+    description: string;
+    button_label: string;
+    all_plans_label: string;
+    /** The published Play Plan shown large as "Featured focus"; blank means the first one. */
+    featured_plan_id: string;
+  };
   week: {
     eyebrow: string;
     title: string;
@@ -143,6 +150,7 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       "Choose a skill area, then find the right Rookie, Starter or Pro plan for your member.",
     button_label: "Browse Play Plans",
     all_plans_label: "View all Play Plans",
+    featured_plan_id: "",
   },
   week: {
     eyebrow: "The Play Plan week",

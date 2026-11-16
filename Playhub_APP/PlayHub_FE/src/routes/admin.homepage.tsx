@@ -11,7 +11,10 @@ import {
   HOMEPAGE_LIMITS,
   HOMEPAGE_QUERY_KEY,
   loadHomepage,
+  loadPlanPictures,
   MAX_QUOTES,
+  PLAN_PICTURES_QUERY_KEY,
+  type PlanPicture,
   resetHomepage,
   saveHomepage,
   type HomepageContent,
@@ -47,6 +50,8 @@ interface FieldSpec {
   image?: boolean;
   half?: boolean;
   hint?: string;
+  /** A dropdown of these choices instead of a text box; "" is allowed and means the default. */
+  choices?: { value: string; label: string }[];
 }
 
 interface Group {
@@ -89,7 +94,17 @@ const image = (path: Path, label: string, hint: string): FieldSpec =>
 function buildSections(
   content: HomepageContent,
   actions: { addQuote: () => void; removeQuote: (index: number) => void },
+  plans: PlanPicture[] = [],
 ): Section[] {
+  const featured = content.skills.featured_plan_id;
+  const planChoices = [
+    { value: "", label: `First in the library${plans[0] ? ` (${plans[0].plan})` : ""}` },
+    ...plans.map((plan) => ({ value: plan.id, label: plan.plan })),
+    // A plan that was unpublished since it was chosen stays visible so the choice isn't lost silently.
+    ...(featured && !plans.some((plan) => plan.id === featured)
+      ? [{ value: featured, label: "A Play Plan that is no longer published" }]
+      : []),
+  ];
   const levelNames = ["Rookie", "Starter", "Pro"];
   return [
     {
@@ -207,8 +222,8 @@ function buildSections(
     {
       id: "skills",
       title: "Skill areas",
-      blurb: "The dark block introducing the skill areas.",
-      note: "The skill-area cards themselves come from the Play Plan catalogue. Change those in the Plans library.",
+      blurb: "The dark block introducing the Play Plans, and which one is featured.",
+      note: "The Play Plan cards themselves (names, descriptions and pictures) come from the Plans library.",
       groups: [
         {
           fields: [
@@ -216,6 +231,10 @@ function buildSections(
             field(["skills", "description"], "Description", L.paragraph, { multiline: true }),
             field(["skills", "button_label"], "Main button", L.label, { half: true }),
             field(["skills", "all_plans_label"], "“View all” link", L.label, { half: true }),
+            field(["skills", "featured_plan_id"], "Featured focus", 64, {
+              choices: planChoices,
+              hint: "The Play Plan shown large beside the others. Only published Play Plans are listed.",
+            }),
           ],
         },
       ],
@@ -413,6 +432,7 @@ const pathKey = (path: Path) => path.join(".");
 
 /** Mirrors the API's rules so mistakes show up as you type instead of after saving. */
 function fieldError(spec: FieldSpec, value: string): string | null {
+  if (spec.choices) return null;
   const trimmed = value.trim();
   if (spec.image) {
     if (trimmed === "") return null;
@@ -481,7 +501,7 @@ function FieldControl({
         <label htmlFor={id} className="text-xs font-bold text-navy">
           {spec.label}
         </label>
-        {!spec.image && (
+        {!spec.image && !spec.choices && (
           <span
             className={cn(
               "text-[11px] font-semibold tabular-nums",
@@ -492,7 +512,15 @@ function FieldControl({
           </span>
         )}
       </div>
-      {spec.multiline ? (
+      {spec.choices ? (
+        <select {...shared} onChange={(event) => onChange(event.target.value)}>
+          {spec.choices.map((choice) => (
+            <option key={choice.value} value={choice.value}>
+              {choice.label}
+            </option>
+          ))}
+        </select>
+      ) : spec.multiline ? (
         <textarea
           {...shared}
           rows={spec.limit > 10_000 ? 18 : spec.limit > 300 ? 4 : 2}
@@ -558,6 +586,11 @@ function HomepageEditor() {
   const { session } = useSession();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: HOMEPAGE_QUERY_KEY, queryFn: loadHomepage });
+  const { data: planPictures = [] } = useQuery({
+    queryKey: PLAN_PICTURES_QUERY_KEY,
+    queryFn: loadPlanPictures,
+    staleTime: 60_000,
+  });
   const saved = query.data;
   // `edits` only exists while there is something unsaved; until then the saved copy is shown.
   const [edits, setEdits] = useState<HomepageContent | null>(null);
@@ -582,32 +615,36 @@ function HomepageEditor() {
   const sections = useMemo(
     () =>
       draft
-        ? buildSections(draft, {
-            addQuote: () =>
-              setEdits((current) => {
-                const base = current ?? draft;
-                return {
-                  ...base,
-                  stories: {
-                    ...base.stories,
-                    quotes: [...base.stories.quotes, { quote: "", name: "", role: "" }],
-                  },
-                };
-              }),
-            removeQuote: (index) =>
-              setEdits((current) => {
-                const base = current ?? draft;
-                return {
-                  ...base,
-                  stories: {
-                    ...base.stories,
-                    quotes: base.stories.quotes.filter((_, at) => at !== index),
-                  },
-                };
-              }),
-          })
+        ? buildSections(
+            draft,
+            {
+              addQuote: () =>
+                setEdits((current) => {
+                  const base = current ?? draft;
+                  return {
+                    ...base,
+                    stories: {
+                      ...base.stories,
+                      quotes: [...base.stories.quotes, { quote: "", name: "", role: "" }],
+                    },
+                  };
+                }),
+              removeQuote: (index) =>
+                setEdits((current) => {
+                  const base = current ?? draft;
+                  return {
+                    ...base,
+                    stories: {
+                      ...base.stories,
+                      quotes: base.stories.quotes.filter((_, at) => at !== index),
+                    },
+                  };
+                }),
+            },
+            planPictures,
+          )
         : [],
-    [draft],
+    [draft, planPictures],
   );
 
   const errors = useMemo(() => {

@@ -384,3 +384,14 @@ def test_invalid_progress_chart_copy_is_rejected(client, platform_admin, overrid
     payload = homepage()
     payload["progress"] = progress_copy(**overrides)
     assert client.put(URL, headers=platform_admin, json=payload).status_code == 422
+
+
+def test_the_featured_play_plan_is_saved_and_optional(client, platform_admin):
+    payload = homepage()
+    payload["skills"]["featured_plan_id"] = "plan-123"
+    assert client.put(URL, headers=platform_admin, json=payload).status_code == 200
+    assert client.get(URL).json()["content"]["skills"]["featured_plan_id"] == "plan-123"
+    payload["skills"]["featured_plan_id"] = ""
+    assert client.put(URL, headers=platform_admin, json=payload).status_code == 200
+    payload["skills"]["featured_plan_id"] = "x" * 65
+    assert client.put(URL, headers=platform_admin, json=payload).status_code == 422

@@ -878,6 +878,8 @@ class HomeSkills(HomeContentModel):
     description: Paragraph
     button_label: Label
     all_plans_label: Label
+    # The published Play Plan shown large as "Featured focus"; blank means the first in the library.
+    featured_plan_id: _copy(64, allow_blank=True) = ""
 
 
 class HomeWeekStep(HomeContentModel):

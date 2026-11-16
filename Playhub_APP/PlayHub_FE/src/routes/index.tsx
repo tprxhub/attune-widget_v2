@@ -21,6 +21,7 @@ import { ProgressChart } from "@/features/progress/LazyProgressChart";
 import { SAMPLE_PLANS, sampleProgressPoints } from "@/features/progress/sampleProgress";
 import { LEVELS, type Goal } from "@/lib/types";
 import { useSession } from "@/auth/session";
+import { cn } from "@/lib/utils";
 import heroKids from "@/assets/hero-kids-playing.jpg";
 import kidsHands from "@/assets/kids-hands-beads.jpg";
 import playTweezers from "@/assets/play-tweezers.jpg";
@@ -111,6 +112,76 @@ function SampleProgress({ copy }: { copy: HomepageContent["progress"] }) {
         />
       </div>
     </div>
+  );
+}
+
+interface SkillTile {
+  id: string;
+  name: string;
+  short: string;
+  blurb: string;
+  picture: string;
+}
+
+/**
+ * A Play Plan card in the skills library: its picture in full colour, then its name and
+ * description. "stacked" puts the picture on top from small screens up (side by side on phones);
+ * "row" is always side by side, for the extra plans under the main grid.
+ */
+function SkillCard({
+  skill,
+  layout = "stacked",
+}: {
+  skill: SkillTile;
+  layout?: "stacked" | "row";
+}) {
+  const stacked = layout === "stacked";
+  return (
+    <Link
+      to="/plans"
+      className={cn(
+        "ph-r-xl group flex h-full overflow-hidden border border-cream/12 bg-cream/[0.06] transition-all duration-300 hover:-translate-y-0.5 hover:border-cream/30 hover:bg-cream/[0.1]",
+        stacked ? "flex-row sm:flex-col" : "flex-row",
+      )}
+    >
+      <div
+        className={cn(
+          "relative shrink-0 overflow-hidden bg-blue/30",
+          stacked ? "aspect-square w-28 sm:aspect-[4/3] sm:w-full" : "aspect-square w-28 sm:w-32",
+        )}
+      >
+        <img
+          src={skill.picture}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          decoding="async"
+          data-testid="skill-picture"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+        />
+      </div>
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 items-start justify-between gap-3 p-4",
+          stacked && "sm:p-5",
+        )}
+      >
+        <div className="min-w-0">
+          <h3 className={cn("ph-display text-lg leading-snug text-cream", stacked && "sm:text-xl")}>
+            {skill.short}
+          </h3>
+          {skill.blurb && (
+            <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-cream/65">
+              {skill.blurb}
+            </p>
+          )}
+        </div>
+        <ArrowUpRight
+          className="mt-1 h-4 w-4 shrink-0 text-cream/40 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-amber"
+          aria-hidden
+        />
+      </div>
+    </Link>
   );
 }
 
@@ -407,6 +478,9 @@ function Landing() {
         blurb: goal.blurb,
         picture: pictureFor(goal, index),
       }));
+  // The Super Admin's chosen "Featured focus" Play Plan, else the first; the rest follow in order.
+  const featured = skills.find((skill) => skill.id === home.skills.featured_plan_id) ?? skills[0];
+  const others = skills.filter((skill) => skill !== featured);
   const gridColumns =
     home.stories.quotes.length === 1
       ? "md:mx-auto md:max-w-xl md:grid-cols-1"
@@ -552,44 +626,42 @@ function Landing() {
               </div>
             </div>
 
-            <div className="mt-8 grid gap-4 lg:grid-cols-[0.82fr_1.18fr]">
-              <Link
-                to="/plans"
-                className="ph-r-2xl group relative flex min-h-[320px] overflow-hidden bg-amber p-6 text-navy sm:p-8 lg:min-h-full"
-              >
-                {skills[0] && (
-                  <img
-                    src={skills[0].picture}
-                    alt=""
-                    aria-hidden
-                    loading="lazy"
-                    decoding="async"
-                    data-testid="skill-picture"
-                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                )}
-                <div
-                  className="pointer-events-none absolute inset-0 bg-gradient-to-t from-amber via-amber/70 to-transparent"
-                  aria-hidden
-                />
-                <div className="relative z-10 flex w-full flex-col">
-                  <span className="ph-pill self-start bg-cream/85 px-3 py-1 text-[11px] font-bold tracking-[0.16em] text-navy/70 uppercase">
-                    Featured focus
-                  </span>
-
-                  <div className="mt-auto pt-16">
-                    <h3 className="ph-display mt-2 max-w-sm text-3xl leading-tight sm:text-4xl">
-                      {skills[0]?.name}
+            <div className="mt-10 grid gap-5 lg:grid-cols-12">
+              {featured && (
+                <Link
+                  to="/plans"
+                  data-testid="featured-plan"
+                  className="ph-r-2xl group flex flex-col overflow-hidden bg-cream text-navy shadow-[0_24px_60px_-28px_rgb(0_0_0/0.6)] lg:col-span-5"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden bg-amber/30 lg:aspect-auto lg:min-h-[340px] lg:flex-1">
+                    <img
+                      src={featured.picture}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      decoding="async"
+                      data-testid="skill-picture"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    />
+                    <span className="ph-pill absolute top-4 left-4 bg-cream/95 px-3 py-1.5 text-[11px] font-bold tracking-[0.16em] text-navy/75 uppercase shadow-sm">
+                      Featured focus
+                    </span>
+                  </div>
+                  <div className="p-6 sm:p-7">
+                    <h3 className="ph-display text-3xl leading-tight sm:text-[2.1rem]">
+                      {featured.name}
                     </h3>
-                    <p className="mt-4 max-w-md text-sm leading-relaxed text-navy/70">
-                      {skills[0]?.blurb}
-                    </p>
-                    <div className="mt-6 flex items-center justify-between gap-4">
+                    {featured.blurb && (
+                      <p className="mt-3 line-clamp-3 max-w-md text-[15px] leading-relaxed text-navy/70">
+                        {featured.blurb}
+                      </p>
+                    )}
+                    <div className="mt-5 flex items-center justify-between gap-4">
                       <div className="flex flex-wrap gap-2">
                         {LEVELS.map((level) => (
                           <span
                             key={level}
-                            className="ph-pill border border-navy/20 bg-cream/25 px-3 py-1.5 text-[11px] font-bold"
+                            className="ph-pill border border-navy/15 bg-white px-3 py-1.5 text-xs font-bold"
                           >
                             {level}
                           </span>
@@ -600,48 +672,32 @@ function Landing() {
                       </span>
                     </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              )}
 
-              <ul className="grid grid-cols-2 gap-3">
-                {skills.slice(1).map((goal) => (
+              <ul className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:col-span-7">
+                {others.slice(0, 4).map((goal) => (
                   <li key={goal.id}>
-                    <Link
-                      to="/plans"
-                      className="ph-r-lg group relative isolate flex h-full min-h-40 flex-col overflow-hidden border border-cream/10 bg-navy p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-cream/25 sm:min-h-44 sm:p-5"
-                    >
-                      <img
-                        src={goal.picture}
-                        alt=""
-                        aria-hidden
-                        loading="lazy"
-                        decoding="async"
-                        data-testid="skill-picture"
-                        className="absolute inset-0 -z-10 h-full w-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-105"
-                      />
-                      <div
-                        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-navy via-navy/75 to-navy/10"
-                        aria-hidden
-                      />
-                      <div className="mt-auto flex items-end justify-between gap-4 pt-6">
-                        <div>
-                          <h3 className="ph-display text-xl leading-snug text-cream">
-                            {goal.short}
-                          </h3>
-                          <p className="mt-2 hidden line-clamp-2 text-xs leading-relaxed text-cream/70 sm:block">
-                            {goal.blurb}
-                          </p>
-                        </div>
-                        <ArrowUpRight
-                          className="mb-0.5 h-4 w-4 shrink-0 text-cream/35 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-amber"
-                          aria-hidden
-                        />
-                      </div>
-                    </Link>
+                    <SkillCard skill={goal} />
                   </li>
                 ))}
               </ul>
             </div>
+
+            {others.length > 4 && (
+              <ul
+                className={cn(
+                  "mt-5 grid gap-5 sm:grid-cols-2",
+                  others.length - 4 >= 3 && "lg:grid-cols-3",
+                )}
+              >
+                {others.slice(4).map((goal) => (
+                  <li key={goal.id}>
+                    <SkillCard skill={goal} layout="row" />
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="mt-6 flex justify-end border-t border-cream/15 pt-6">
               <Link
