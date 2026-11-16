@@ -1,3 +1,4 @@
+import { AskAttuneIcon } from "@/components/brandIcons";
 import { sessionDayStreak } from "@/features/progress/sessionStreak";
 import { SessionEditStamp } from "@/components/SessionEditStamp";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -38,7 +39,6 @@ import { cn } from "@/lib/utils";
 import { printReport } from "@/lib/print-report";
 import { playPlanName } from "@/lib/planNames";
 import { ProgressIcon } from "@/components/ProgressIcon";
-import attuneIcon from "@/assets/Icon_of_Service/Attune_icon.png";
 
 export const Route = createFileRoute("/progress")({
   head: () => ({
@@ -462,12 +462,7 @@ export function ProgressPage() {
         }}
         className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-coral px-4 text-sm font-bold text-white hover:bg-coral/90"
       >
-        <img
-          src={attuneIcon}
-          alt=""
-          aria-hidden
-          className="h-6 w-6 scale-125 object-contain mix-blend-screen brightness-150 grayscale invert"
-        />
+        <AskAttuneIcon className="h-6 w-6" />
         Ask Attune
       </Link>
     </section>

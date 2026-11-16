@@ -908,6 +908,20 @@ class HomeLevels(HomeContentModel):
     descriptions: list[Paragraph] = Field(min_length=3, max_length=3)
 
 
+class HomeProgressPoint(HomeContentModel):
+    title: Label
+    body: Paragraph
+
+
+class HomeProgress(HomeContentModel):
+    """The sample Progress chart: its heading, the three points beside it and the sample badge."""
+    eyebrow: Label
+    title: Heading
+    title_highlight: Heading
+    sample_label: Label
+    points: list[HomeProgressPoint] = Field(min_length=3, max_length=3)
+
+
 class HomeQuote(HomeContentModel):
     quote: Quote
     name: Label
@@ -957,6 +971,8 @@ class HomepageContent(HomeContentModel):
     journey: HomeJourney
     skills: HomeSkills
     week: HomeWeek
+    # Optional so copy saved before this section existed still validates; blank means built-in text.
+    progress: HomeProgress | None = None
     levels: HomeLevels
     stories: HomeStories
     families: HomeAudience

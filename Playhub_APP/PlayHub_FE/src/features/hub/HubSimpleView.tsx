@@ -2,14 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, ImagePlus, Minus, Plus, RotateCcw } from "lucide-react";
 import { useState, type DragEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { Logo } from "@/components/brand";
-import { SERVICE_ICON_IMAGES } from "@/components/serviceIcons";
 import { roleLabel } from "@/lib/roles";
 import type { Session } from "@/lib/types";
 import type { HubCardSetting, LaunchItem } from "./hubTiles";
 import { hubLaunchItemId } from "./hubTiles";
 import { shrinkImage } from "./shrinkImage";
 import { useHubCardDrag } from "./useHubCardDrag";
-import portrait from "@/assets/kids-hands-beads.jpg";
+import portrait from "@/assets/hub-profile-default.jpg";
 
 export function HubSimpleView({
   session,
@@ -195,7 +194,6 @@ export function HubSimpleView({
 
         {tiles.map((item, index) => {
           const Icon = item.icon;
-          const serviceImage = SERVICE_ICON_IMAGES.get(Icon);
           const id = hubLaunchItemId(item);
           return (
             <div
@@ -213,16 +211,7 @@ export function HubSimpleView({
                 }}
               >
                 <span className="hub-simple-icon" data-icon={item.label} aria-hidden>
-                  {serviceImage && item.label === "Ask Attune" ? (
-                    <img className="hub-simple-attune-image" src={serviceImage} alt="" />
-                  ) : serviceImage ? (
-                    <span
-                      className="hub-simple-icon-image"
-                      style={{ maskImage: `url("${serviceImage}")` }}
-                    />
-                  ) : (
-                    <Icon strokeWidth={1.75} />
-                  )}
+                  <Icon strokeWidth={1.75} />
                 </span>
                 <span>{item.label}</span>
               </Link>

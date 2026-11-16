@@ -10,22 +10,16 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import {
-  BarChart3,
   BookOpen,
   Building2,
-  CalendarCheck,
   ClipboardList,
   CreditCard,
   BadgeCheck,
   HeartHandshake,
   HeartPulse,
   Home,
-  FolderClosed,
   Rows3,
   ShieldCheck,
-  Sparkles,
-  Users,
-  UserRound,
   Plus,
   Grid2x2,
 } from "lucide-react";
@@ -33,6 +27,14 @@ import { listRecentCheckIns } from "@/api/attempts";
 import { listPlans } from "@/api/plans";
 import { useCapabilities, useSession } from "@/auth/session";
 import { Logo } from "@/components/brand";
+import {
+  AccountIcon,
+  AskAttuneIcon,
+  DailyCheckInIcon,
+  MembersIcon,
+  PlayPlansIcon,
+} from "@/components/brandIcons";
+import { ProgressIcon } from "@/components/ProgressIcon";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { HubAppsMenu } from "@/features/hub/HubAppsMenu";
 import { HubAccountMenu, HubCreateMenu } from "@/features/hub/HubHeaderMenus";
@@ -89,7 +91,7 @@ function platformLaunchItems(session: Session): LaunchItem[] {
         label: "Members",
         detail: "Find and manage profiles",
         to: "/admin/members",
-        icon: Users,
+        icon: MembersIcon,
         accent: "from-amber-300 to-orange-400",
       },
     ],
@@ -99,7 +101,7 @@ function platformLaunchItems(session: Session): LaunchItem[] {
         label: "Ask Attune",
         detail: "Guidance for your next step",
         to: "/attune",
-        icon: Sparkles,
+        icon: AskAttuneIcon,
         accent: "from-pink-300 to-rose-500",
       },
     ],
@@ -109,7 +111,7 @@ function platformLaunchItems(session: Session): LaunchItem[] {
         label: "Progress",
         detail: "Trends and support insights",
         to: "/admin/progress",
-        icon: BarChart3,
+        icon: ProgressIcon,
         accent: "from-emerald-300 to-teal-500",
       },
     ],
@@ -119,7 +121,7 @@ function platformLaunchItems(session: Session): LaunchItem[] {
         label: "Play Plans",
         detail: "Browse and manage plans",
         to: "/plans",
-        icon: FolderClosed,
+        icon: PlayPlansIcon,
         accent: "from-sky-300 to-blue-500",
       },
     ],
@@ -183,7 +185,7 @@ function platformLaunchItems(session: Session): LaunchItem[] {
         label: "Daily Check-In",
         detail: "Review logged sessions",
         to: "/check-in",
-        icon: CalendarCheck,
+        icon: DailyCheckInIcon,
         accent: "from-amber-300 to-orange-400",
       },
       {
@@ -204,7 +206,7 @@ function platformLaunchItems(session: Session): LaunchItem[] {
         label: "Account",
         detail: "Profile and preferences",
         to: "/account",
-        icon: UserRound,
+        icon: AccountIcon,
         accent: "from-sky-300 to-cyan-500",
       },
     );
@@ -226,7 +228,7 @@ function accountLaunchItems(session: Session): LaunchItem[] {
       label: "Play Plans",
       detail: "Choose a goal and start playing",
       to: "/plans",
-      icon: FolderClosed,
+      icon: PlayPlansIcon,
       accent: "from-sky-300 to-blue-500",
     },
   ];
@@ -235,7 +237,7 @@ function accountLaunchItems(session: Session): LaunchItem[] {
       label: "Daily Check-In",
       detail: "Log a play session",
       to: "/check-in",
-      icon: CalendarCheck,
+      icon: DailyCheckInIcon,
       accent: "from-amber-300 to-orange-400",
     });
   }
@@ -244,14 +246,14 @@ function accountLaunchItems(session: Session): LaunchItem[] {
       label: "Progress",
       detail: "See skills grow over time",
       to: "/progress",
-      icon: BarChart3,
+      icon: ProgressIcon,
       accent: "from-emerald-300 to-teal-500",
     },
     {
       label: "Ask Attune",
       detail: "Get help with your next step",
       to: "/attune",
-      icon: Sparkles,
+      icon: AskAttuneIcon,
       accent: "from-pink-300 to-rose-500",
     },
   );
@@ -260,7 +262,7 @@ function accountLaunchItems(session: Session): LaunchItem[] {
       label: "Members",
       detail: "View members in your setting",
       to: "/org",
-      icon: Users,
+      icon: MembersIcon,
       accent: "from-sky-300 to-blue-500",
     });
   }
@@ -286,7 +288,7 @@ function accountLaunchItems(session: Session): LaunchItem[] {
     label: "Account",
     detail: "Profile and preferences",
     to: "/account",
-    icon: UserRound,
+    icon: AccountIcon,
     accent: "from-sky-300 to-cyan-500",
   });
   return items;

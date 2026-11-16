@@ -342,3 +342,45 @@ def test_every_published_plan_is_listed_with_its_name_and_description(client, pl
     assert entry["description"] == "Builds a comfortable grip."
     assert entry["thumbnail_url"] is None
     assert entry["category"]
+
+
+def progress_copy(**overrides):
+    return {
+        "eyebrow": "See the progress",
+        "title": "Every Play Dose, in one",
+        "title_highlight": "honest chart",
+        "sample_label": "Example only · sample data, not a real child",
+        "points": [
+            {"title": "Within a Play Plan", "body": "Each point is a finished Play Dose."},
+            {"title": "Within a Play Dose", "body": "Day 1 to Day 5 and the Real-Life Try."},
+            {"title": "A clear next step", "body": "Every finished dose ends with a next step."},
+        ],
+        **overrides,
+    }
+
+
+def test_progress_chart_copy_is_saved_and_public(client, platform_admin):
+    payload = homepage()
+    payload["progress"] = progress_copy()
+    assert client.put(URL, headers=platform_admin, json=payload).status_code == 200
+    assert client.get(URL).json()["content"]["progress"] == payload["progress"]
+
+
+def test_copy_saved_without_the_progress_section_still_saves(client, platform_admin):
+    assert client.put(URL, headers=platform_admin, json=homepage()).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"title": "   "},
+        {"eyebrow": "x" * 81},
+        {"points": progress_copy()["points"][:2]},
+        {"points": progress_copy()["points"] + [{"title": "Fourth", "body": "Too many."}]},
+        {"extra": "not allowed"},
+    ],
+)
+def test_invalid_progress_chart_copy_is_rejected(client, platform_admin, overrides):
+    payload = homepage()
+    payload["progress"] = progress_copy(**overrides)
+    assert client.put(URL, headers=platform_admin, json=payload).status_code == 422

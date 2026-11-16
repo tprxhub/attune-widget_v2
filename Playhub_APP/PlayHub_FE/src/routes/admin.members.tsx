@@ -1,3 +1,4 @@
+import { DailyCheckInIcon } from "@/components/brandIcons";
 import { usePricePlans } from "@/api/pricing";
 import { AddSupporterModal } from "@/features/org/ModeratorInviteModal";
 import { memberEmailLabel } from "@/lib/memberEmail";
@@ -6,7 +7,6 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CalendarCheck,
   CheckCircle2,
   CreditCard,
   Loader2,
@@ -395,7 +395,7 @@ function AdminChildren() {
                     onClick={() => setActiveChildId(child.id)}
                     className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-full bg-navy text-xs font-bold text-cream hover:bg-blue"
                   >
-                    <CalendarCheck className="h-3.5 w-3.5" aria-hidden /> Check-in
+                    <DailyCheckInIcon className="h-3.5 w-3.5" aria-hidden /> Check-in
                   </Link>
                 )}
               </div>

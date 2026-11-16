@@ -1,3 +1,4 @@
+import { DailyCheckInIcon } from "@/components/brandIcons";
 import { useMemo, useState, type ReactNode } from "react";
 import { memberEmailLabel } from "@/lib/memberEmail";
 import { Link } from "@tanstack/react-router";
@@ -6,7 +7,6 @@ import {
   Activity,
   ArrowLeft,
   ArrowUpRight,
-  CalendarCheck,
   ChevronDown,
   HeartHandshake,
   Plus,
@@ -108,7 +108,7 @@ export function SchoolDashboard() {
         to="/check-in"
         className="inline-flex min-h-11 items-center gap-2 rounded-full border border-navy/15 px-4 text-sm font-bold hover:border-navy/40"
       >
-        <CalendarCheck className="h-4 w-4" aria-hidden /> Daily Check-In
+        <DailyCheckInIcon className="h-4 w-4" aria-hidden /> Daily Check-In
       </Link>
       <Link
         to="/org/enroll"

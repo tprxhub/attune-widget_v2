@@ -1,11 +1,12 @@
 import { type LucideIcon } from "lucide-react";
 import { DashboardIcon } from "@/components/DashboardIcon";
-import { SERVICE_ICON_IMAGES, isDashboardIcon } from "@/components/serviceIcons";
+import { isBrandIcon } from "@/components/brandIcons";
+import { isDashboardIcon } from "@/components/serviceIcons";
 
 /**
  * The launcher's glossy icon tile, shared by app shortcuts and card headers. Every tile is white:
- * the core services use their illustrated icons, and the rest a navy icon with a soft blue fill, so
- * the whole set reads as one family.
+ * the core services use the Play Hub brand icons in brand navy, and the rest a navy icon with a soft
+ * blue fill, so the whole set reads as one family.
  */
 export function HubAppIcon({
   icon: Icon,
@@ -16,7 +17,6 @@ export function HubAppIcon({
   accent?: string;
   small?: boolean;
 }) {
-  const serviceImage = SERVICE_ICON_IMAGES.get(Icon);
   return (
     <span
       aria-hidden
@@ -24,8 +24,8 @@ export function HubAppIcon({
         "hub-app-icon " + accent + (small ? " hub-app-icon-small" : "") + " hub-app-icon-service"
       }
     >
-      {serviceImage ? (
-        <img src={serviceImage} alt="" className="hub-service-icon-image" />
+      {isBrandIcon(Icon) ? (
+        <Icon className="hub-icon-symbol hub-icon-brand" />
       ) : isDashboardIcon(Icon) ? (
         <DashboardIcon className="hub-icon-symbol hub-icon-dashboard" />
       ) : (

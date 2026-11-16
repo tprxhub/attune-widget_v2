@@ -6,9 +6,8 @@ import { LEVEL_GUIDANCE } from "@/api/domain";
 import { Protected } from "@/auth/guards";
 import { PageHeader } from "@/components/AppShell";
 import { PlayPlanCard } from "@/components/PlayPlanCard";
+import { GoalIcon } from "@/components/icons";
 import { ListSkeleton } from "@/components/Skeletons";
-import { TOKEN_BG } from "@/components/brand";
-import { cn } from "@/lib/utils";
 import { Gift, Lock } from "lucide-react";
 import { ChooseFreePlanDialog, FreePlanBanner } from "@/features/plans/freePlan";
 import { useFreePlan } from "@/features/plans/useFreePlan";
@@ -75,13 +74,12 @@ function PlansPage() {
           return (
             <section key={category.id} className="mt-8 first:mt-4">
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={cn(
-                      "h-2.5 w-2.5 rounded-[3px]",
-                      TOKEN_BG[category.plans[0]?.color ?? "blue"],
-                    )}
-                    aria-hidden
+                <div className="flex items-center gap-3">
+                  <GoalIcon
+                    goalId={category.plans.length === 1 ? category.plans[0]!.id : category.id}
+                    goalName={category.plans[0]?.name}
+                    categoryName={category.name}
+                    className="h-9 w-9 shrink-0 text-blue"
                   />
                   <h2 className="text-lg font-bold">{category.name}</h2>
                 </div>

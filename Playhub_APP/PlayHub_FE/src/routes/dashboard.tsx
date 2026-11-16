@@ -1,6 +1,7 @@
+import { DailyCheckInIcon } from "@/components/brandIcons";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, CalendarCheck, PlayCircle, Crown } from "lucide-react";
+import { ArrowRight, PlayCircle, Crown } from "lucide-react";
 import { listAttempts } from "@/api/attempts";
 import { goalById, planById } from "@/api/domain";
 import { entryStates, listPlans, nextEntry } from "@/api/plans";
@@ -128,7 +129,7 @@ function ChildDashboard() {
               to="/check-in"
               className="inline-flex min-h-11 items-center gap-2 rounded-full border border-navy/15 px-4 text-sm font-bold hover:border-navy/40"
             >
-              <CalendarCheck className="h-4 w-4" aria-hidden /> Daily Check-In
+              <DailyCheckInIcon className="h-4 w-4" aria-hidden /> Daily Check-In
             </Link>
           ) : null
         }

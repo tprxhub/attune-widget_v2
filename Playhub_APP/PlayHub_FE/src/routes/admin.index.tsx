@@ -1,9 +1,10 @@
+import { AskAttuneIcon, MembersIcon } from "@/components/brandIcons";
+import { ProgressIcon } from "@/components/ProgressIcon";
 import { useState, type ReactNode } from "react";
 import { AttuneInsightsCard } from "@/features/attune/AttuneInsightsCard";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Activity,
   AlertTriangle,
   ArrowDownRight,
   ArrowRight,
@@ -16,9 +17,7 @@ import {
   LayoutPanelTop,
   Lock,
   ShieldCheck,
-  Users,
   type LucideIcon,
-  Sparkles,
   KeyRound,
 } from "lucide-react";
 import { getAdminOverview, type AdminOverview, type OverviewArea } from "@/api/admin";
@@ -57,14 +56,14 @@ const AREAS: { key: OverviewArea; label: string; to: string; icon: LucideIcon; h
     key: "children",
     label: "Members",
     to: "/admin/members",
-    icon: Users,
+    icon: MembersIcon,
     hint: "Profiles, plans and Moderators",
   },
   {
     key: "progress",
     label: "Progress",
     to: "/admin/progress",
-    icon: Activity,
+    icon: ProgressIcon,
     hint: "Sessions and Play Dose results",
   },
   {
@@ -227,14 +226,14 @@ function ExploreTabs({ data }: { data: AdminOverview }) {
     tabs.push({
       id: "progress",
       title: "Progress",
-      icon: Activity,
+      icon: ProgressIcon,
       content: <ProgressCard progress={data.progress} />,
     });
   if (data.children)
     tabs.push({
       id: "children",
       title: "Members",
-      icon: Users,
+      icon: MembersIcon,
       content: <ChildrenCard children={data.children} />,
     });
   if (data.organisations)
@@ -274,7 +273,7 @@ function ExploreTabs({ data }: { data: AdminOverview }) {
     tabs.push({
       id: "attune",
       title: "Attune",
-      icon: Sparkles,
+      icon: AskAttuneIcon,
       content: <AttuneInsightsCard />,
     });
   const active = tabs.some((tab) => tab.id === selected) ? selected : tabs[0]?.id;
@@ -493,7 +492,7 @@ function KeyFigures({ data, compact = false }: { data: AdminOverview; compact?: 
       label: "Members",
       value: data.children.total,
       hint: `${data.children.new_30d} new in the last 30 days`,
-      icon: Users,
+      icon: MembersIcon,
       tone: "bg-blue/12 text-blue",
     });
   if (data.children)
@@ -511,7 +510,7 @@ function KeyFigures({ data, compact = false }: { data: AdminOverview; compact?: 
       label: "Sessions (30 days)",
       value: data.progress.sessions_30d,
       hint: <Trend now={data.progress.sessions_30d} before={data.progress.sessions_prev_30d} />,
-      icon: Activity,
+      icon: ProgressIcon,
       tone: "bg-coral/12 text-coral",
     });
   if (data.billing)

@@ -131,8 +131,13 @@ function PlanWeek() {
           />
           <div className="relative">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-navy">
-              <GoalIcon goalId={data.goalId} goalName={goal?.name} className="h-3.5 w-3.5" /> Play
-              Plan
+              <GoalIcon
+                goalId={data.goalId}
+                goalName={goal?.name}
+                categoryName={goal?.categoryName}
+                className="h-3.5 w-3.5"
+              />{" "}
+              Play Plan
             </span>
             <h1 className="mt-2.5 text-2xl font-bold text-white sm:text-3xl">
               {data.title}{" "}

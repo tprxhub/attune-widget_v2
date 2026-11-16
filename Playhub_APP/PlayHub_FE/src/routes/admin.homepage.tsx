@@ -126,8 +126,8 @@ function buildSections(
     },
     {
       id: "auth-images",
-      title: "Login, signup & password images",
-      blurb: "Separate photographs beside the login, signup and password forms on large screens.",
+      title: "Login & signup images",
+      blurb: "Separate photographs beside the login and signup forms on large screens.",
       groups: [
         {
           fields: [
@@ -141,9 +141,20 @@ function buildSections(
               "Signup image",
               "Leave blank to keep the built-in signup photo.",
             ),
+          ],
+        },
+      ],
+    },
+    {
+      id: "password-image",
+      title: "Forgot password page",
+      blurb: "The photograph on the left of the Forgot password and Reset password pages.",
+      groups: [
+        {
+          fields: [
             image(
               ["auth", "password_image_url"],
-              "Password pages image",
+              "Left-side picture",
               "Shown on Forgot password and Reset password. Leave blank to keep the built-in photo.",
             ),
           ],
@@ -248,6 +259,36 @@ function buildSections(
               hint: "Keep it short, like 5 or 1.",
             }),
             field(["week", "stats", index, "label"], "What it counts", L.label, { half: true }),
+          ],
+        })),
+      ],
+    },
+    {
+      id: "progress",
+      title: "Progress chart",
+      blurb: "The “See the progress” heading, the three points beside it and the sample badge.",
+      note: "The chart itself shows built-in sample data, so visitors see what parents get.",
+      groups: [
+        {
+          fields: [
+            field(["progress", "eyebrow"], "Small heading", L.label, { half: true }),
+            field(["progress", "sample_label"], "Sample badge", L.label, {
+              half: true,
+              hint: "The pill above the chart saying it isn’t real data.",
+            }),
+            field(["progress", "title"], "Heading, first part", L.heading),
+            field(["progress", "title_highlight"], "Heading, highlighted part", L.heading, {
+              hint: "Shown in coral italics after the first part.",
+            }),
+          ],
+        },
+        ...content.progress.points.map((_, index): Group => ({
+          title: `Point ${index + 1}`,
+          fields: [
+            field(["progress", "points", index, "title"], "Title", L.label),
+            field(["progress", "points", index, "body"], "Description", L.paragraph, {
+              multiline: true,
+            }),
           ],
         })),
       ],

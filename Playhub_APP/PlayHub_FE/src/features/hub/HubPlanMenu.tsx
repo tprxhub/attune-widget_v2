@@ -1,11 +1,12 @@
+import { PlayPlansIcon } from "@/components/brandIcons";
 import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Ellipsis, FileText, FolderClosed } from "lucide-react";
+import { ArrowRight, Ellipsis, FileText } from "lucide-react";
 import type { Level } from "@/lib/types";
 import { HubPopover } from "./HubPopover";
 
 const VIEWS = [
-  { value: "all", label: "All Play Plans", icon: FolderClosed },
+  { value: "all", label: "All Play Plans", icon: PlayPlansIcon },
   { value: "Rookie", label: "Rookie dose", icon: FileText },
   { value: "Starter", label: "Starter dose", icon: FileText },
   { value: "Pro", label: "Pro dose", icon: FileText },

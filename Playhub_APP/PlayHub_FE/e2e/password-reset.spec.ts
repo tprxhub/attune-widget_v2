@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { snapshotHomepage } from "./support/homepageSnapshot";
 import { signIn } from "./support/signIn";
 
 test("a signed-out user can ask for a reset link from the login page", async ({ page }) => {
@@ -28,13 +29,13 @@ test("the password pages show the picture chosen in the homepage editor", async 
   const art = () => page.getByAltText("A member playing with colourful wooden toys");
   await page.setViewportSize({ width: 1280, height: 800 });
   await signIn(page, "admin@playhub.local");
+  const restore = await snapshotHomepage(page);
   await page.goto("/admin/homepage");
   await page
     .getByRole("navigation", { name: "Editor sections" })
-    .getByRole("button", { name: "Login, signup & password images", exact: true })
+    .getByRole("button", { name: "Forgot password page", exact: true })
     .click();
-  const field = page.getByLabel("Password pages image", { exact: true });
-  const original = await field.inputValue();
+  const field = page.getByLabel("Left-side picture", { exact: true });
   await field.fill(picture);
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByRole("status")).not.toContainText("unsaved changes");
@@ -44,13 +45,6 @@ test("the password pages show the picture chosen in the homepage editor", async 
     await page.goto("/reset-password?token=not-a-real-token-but-long-enough");
     await expect(art()).toHaveAttribute("src", picture);
   } finally {
-    await page.goto("/admin/homepage");
-    await page
-      .getByRole("navigation", { name: "Editor sections" })
-      .getByRole("button", { name: "Login, signup & password images", exact: true })
-      .click();
-    await page.getByLabel("Password pages image", { exact: true }).fill(original);
-    await page.getByRole("button", { name: "Save changes", exact: true }).click();
-    await expect(page.getByRole("status")).not.toContainText("unsaved changes");
+    await restore();
   }
 });

@@ -7,7 +7,8 @@ import { policyToText } from "@/features/policies/policyText";
 /**
  * Editable copy for the public home page. The shape matches the API (`HomepageContent` in
  * PlayHub_BE/app/schemas.py) and is fixed because the page layout depends on it: three journey
- * steps, four week steps, four stats, three level descriptions, one to six stories.
+ * steps, four week steps, four stats, three level descriptions, three
+ * progress-chart points, one to six stories.
  */
 export interface HomeHero {
   eyebrow: string;
@@ -36,6 +37,11 @@ export interface HomeWeekStep {
 export interface HomeStat {
   value: string;
   label: string;
+}
+
+export interface HomeProgressPoint {
+  title: string;
+  body: string;
 }
 
 export interface HomeQuote {
@@ -68,6 +74,14 @@ export interface HomepageContent {
     image_url: string;
     steps: HomeWeekStep[];
     stats: HomeStat[];
+  };
+  /** The sample Progress chart: heading, the three points beside it and the sample badge. */
+  progress: {
+    eyebrow: string;
+    title: string;
+    title_highlight: string;
+    sample_label: string;
+    points: HomeProgressPoint[];
   };
   levels: { eyebrow: string; title: string; descriptions: string[] };
   stories: { title: string; subtitle: string; quotes: HomeQuote[] };
@@ -165,6 +179,26 @@ export const DEFAULT_HOMEPAGE_CONTENT: HomepageContent = {
       { value: "5", label: "guided skill-building Activities" },
       { value: "1", label: "Real Life Try in an everyday moment" },
       { value: "1", label: "Level-Up Prompt for what comes next" },
+    ],
+  },
+  progress: {
+    eyebrow: "See the progress",
+    title: "Every Play Dose, in one",
+    title_highlight: "honest chart",
+    sample_label: "Example only · sample data, not a real member",
+    points: [
+      {
+        title: "Within a Play Plan",
+        body: "Each point is a finished Play Dose. Lower means less help was needed.",
+      },
+      {
+        title: "Within a Play Dose",
+        body: "Day 1 to Day 5 and the Real-Life Try, with how much help each day took.",
+      },
+      {
+        title: "A clear next step",
+        body: "Every finished dose ends with what we’re seeing and what to do next.",
+      },
     ],
   },
   levels: {

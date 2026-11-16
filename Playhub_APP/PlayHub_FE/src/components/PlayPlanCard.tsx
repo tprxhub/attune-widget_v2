@@ -3,7 +3,6 @@ import { ArrowRight, Gift, Lock } from "lucide-react";
 import type { FreeAccess } from "@/features/plans/useFreePlan";
 import type { Goal, PlayPlan } from "@/lib/types";
 import { LevelDots } from "@/components/brand";
-import { GoalIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { DEFAULT_PLAN_THUMBNAIL, PLAN_THUMBNAILS } from "@/features/plans/planThumbnails";
 
@@ -93,10 +92,6 @@ export function PlayPlanCard({
             <Lock className="h-3.5 w-3.5" aria-hidden /> Subscribers
           </span>
         )}
-
-        <span className="relative mt-auto grid h-9 w-9 place-items-center self-end bg-white shadow-lg ph-r-md transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-          <GoalIcon goalId={goal.id} goalName={goal.name} className="h-5 w-5 text-navy" />
-        </span>
       </span>
 
       <span className="block px-4 pt-6 pb-4">

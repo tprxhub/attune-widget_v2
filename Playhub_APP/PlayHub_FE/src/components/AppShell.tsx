@@ -7,18 +7,13 @@ import {
   BadgePercent,
   HeartPulse,
   Building2,
-  CalendarCheck,
   ClipboardList,
   HeartHandshake,
   Home,
-  LayoutGrid,
   LayoutPanelTop,
   SlidersHorizontal,
-  Sparkles,
   ShieldCheck,
   UserPlus,
-  UserRound,
-  Users,
   Menu,
   Search,
   CornerDownLeft,
@@ -38,35 +33,21 @@ import { AccountMenu } from "./AccountMenu";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { DashboardIcon } from "./DashboardIcon";
 import { ProgressIcon } from "./ProgressIcon";
-import attuneIcon from "@/assets/Icon_of_Service/Attune_icon.png";
+import {
+  AccountIcon,
+  AskAttuneIcon,
+  DailyCheckInIcon,
+  MembersIcon,
+  PlayPlansIcon,
+} from "./brandIcons";
 import { ModalPortal } from "./ModalPortal";
 import { QueryStatusBoundary } from "./QueryStatusBoundary";
 import { SignOutButton } from "./SignOutButton";
 import { useNavigationPreferences } from "@/lib/navigation-preferences";
 
-/** A navigation icon; Ask Attune uses its own artwork (navy on white), lightened on dark rows. */
-function NavIcon({
-  icon: Icon,
-  className,
-  onDark = false,
-}: {
-  icon: NavItem["icon"];
-  className: string;
-  onDark?: boolean;
-}) {
-  if (Icon !== Sparkles) return <Icon className={className} aria-hidden />;
-  return (
-    <img
-      src={attuneIcon}
-      alt=""
-      aria-hidden
-      className={cn(
-        className,
-        "scale-125 object-contain",
-        onDark ? "mix-blend-screen grayscale invert" : "mix-blend-multiply",
-      )}
-    />
-  );
+/** A navigation icon. Core services use the Play Hub brand icons, which draw in the text colour. */
+function NavIcon({ icon: Icon, className }: { icon: NavItem["icon"]; className: string }) {
+  return <Icon className={className} aria-hidden />;
 }
 
 interface NavItem {
@@ -81,8 +62,13 @@ interface NavItem {
  * Billing / Subscription is an individual-account concept — organisations never see it.
  */
 function navFor(role: string, accountType: string, permissions: PermissionKey[] = []): NavItem[] {
-  const account: NavItem = { to: "/account", label: "Account", short: "Account", icon: UserRound };
-  const plans: NavItem = { to: "/plans", label: "Play Plans", short: "Plans", icon: LayoutGrid };
+  const account: NavItem = {
+    to: "/account",
+    label: "Account",
+    short: "Account",
+    icon: AccountIcon,
+  };
+  const plans: NavItem = { to: "/plans", label: "Play Plans", short: "Plans", icon: PlayPlansIcon };
   const progress: NavItem = {
     to: "/progress",
     label: "Progress",
@@ -93,9 +79,14 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
     to: "/check-in",
     label: "Daily Check-In",
     short: "Log",
-    icon: CalendarCheck,
+    icon: DailyCheckInIcon,
   };
-  const attune: NavItem = { to: "/attune", label: "Ask Attune", short: "Attune", icon: Sparkles };
+  const attune: NavItem = {
+    to: "/attune",
+    label: "Ask Attune",
+    short: "Attune",
+    icon: AskAttuneIcon,
+  };
 
   if (role === "super_admin" || role === "ttp_employee") {
     // A TTP employee sees only the pages that were ticked for them.
@@ -106,7 +97,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
         to: "/admin/members",
         label: "Members",
         short: "Members",
-        icon: Users,
+        icon: MembersIcon,
       },
       role === "super_admin" && checkIn,
       allowed("children") && attune,
@@ -190,7 +181,7 @@ function navFor(role: string, accountType: string, permissions: PermissionKey[] 
       checkIn,
       progress,
       attune,
-      { to: "/org", label: "Members", short: "Members", icon: Users },
+      { to: "/org", label: "Members", short: "Members", icon: MembersIcon },
       ...(role === "educator"
         ? [
             {
@@ -288,11 +279,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   : "text-white/70 hover:bg-white/10 hover:text-white",
               )}
             >
-              <NavIcon
-                icon={item.icon}
-                className="h-4.5 w-4.5 shrink-0"
-                onDark={!isActive(item.to)}
-              />
+              <NavIcon icon={item.icon} className="h-4.5 w-4.5 shrink-0" />
               <span className="truncate">{item.label}</span>
             </Link>
           ))}
@@ -379,7 +366,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       isActive(item.to) ? "bg-amber text-navy" : "text-white/70 hover:bg-white/10",
                     )}
                   >
-                    <NavIcon icon={item.icon} className="h-4 w-4" onDark={!isActive(item.to)} />
+                    <NavIcon icon={item.icon} className="h-4 w-4" />
                     {item.label}
                   </Link>
                 </li>

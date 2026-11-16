@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { UserRound, LayoutGrid } from "lucide-react";
+import { AccountIcon, PlayPlansIcon } from "@/components/brandIcons";
 import { ProgressIcon } from "@/components/ProgressIcon";
 import { CustomizeIcon } from "./CustomizeIcon";
 import { HubPopover } from "./HubPopover";
@@ -20,9 +20,9 @@ export function HubAppsMenu({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const more = [
-    { label: "Your Play Plans", to: paths.plans, Icon: LayoutGrid },
+    { label: "Your Play Plans", to: paths.plans, Icon: PlayPlansIcon },
     { label: "Your Progress", to: paths.progress, Icon: ProgressIcon },
-    { label: "Account", to: "/account", Icon: UserRound },
+    { label: "Account", to: "/account", Icon: AccountIcon },
   ];
   return (
     <>

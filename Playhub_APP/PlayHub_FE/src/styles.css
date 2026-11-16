@@ -53,10 +53,10 @@
 :root {
   --radius: 8px;
 
-  --navy: oklch(0.2994 0.1118 258.19);
+  --navy: oklch(0.2977 0.0981 258.09); /* brand navy #072b5d */
   --coral: oklch(0.5988 0.2028 29.34);
-  --amber: oklch(0.8239 0.1402 69.95);
-  --blue: oklch(0.4875 0.1294 252.21);
+  --amber: oklch(0.8456 0.1319 74.52); /* brand amber #ffbf62 */
+  --blue: oklch(0.437 0.1163 251.75); /* brand blue #14538f */
   --cream: oklch(0.9655 0.0055 70);
 
   --background: var(--cream);
@@ -196,93 +196,245 @@
     color: color-mix(in oklab, var(--color-navy) 82%, transparent);
     overflow-wrap: anywhere;
   }
-  .ph-rich > * + * { margin-top: 0.6em; }
-  .ph-rich h2, .ph-rich h3, .ph-rich h4 { color: var(--color-navy); font-weight: 700; line-height: 1.3; }
-  .ph-rich h2 { font-size: 1.125rem; margin-top: 1.1em; }
-  .ph-rich h3 { font-size: 1rem; margin-top: 1em; }
-  .ph-rich h4 { font-size: 0.8125rem; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1em; }
-  .ph-rich > :first-child { margin-top: 0; }
-  .ph-rich strong, .ph-rich b { color: var(--color-navy); font-weight: 700; }
-  .ph-rich ul { list-style: disc; padding-left: 1.4em; }
-  .ph-rich ol { list-style: decimal; padding-left: 1.5em; }
-  .ph-rich li + li { margin-top: 0.3em; }
-  .ph-rich li > ul, .ph-rich li > ol { margin-top: 0.3em; }
-  .ph-rich li::marker { color: var(--color-blue); font-weight: 700; }
-  .ph-rich blockquote { border-left: 3px solid var(--color-amber); padding-left: 0.9em; color: color-mix(in oklab, var(--color-navy) 70%, transparent); }
-  .ph-rich a { color: var(--color-blue); text-decoration: underline; text-underline-offset: 3px; }
-  .ph-rich p:empty { min-height: 1em; }
-  .ph-rich .ProseMirror { outline: none; min-height: 9rem; }
-  .ph-rich .ProseMirror > * + * { margin-top: 0.6em; }
+  .ph-rich > * + * {
+    margin-top: 0.6em;
+  }
+  .ph-rich h2,
+  .ph-rich h3,
+  .ph-rich h4 {
+    color: var(--color-navy);
+    font-weight: 700;
+    line-height: 1.3;
+  }
+  .ph-rich h2 {
+    font-size: 1.125rem;
+    margin-top: 1.1em;
+  }
+  .ph-rich h3 {
+    font-size: 1rem;
+    margin-top: 1em;
+  }
+  .ph-rich h4 {
+    font-size: 0.8125rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 1em;
+  }
+  .ph-rich > :first-child {
+    margin-top: 0;
+  }
+  .ph-rich strong,
+  .ph-rich b {
+    color: var(--color-navy);
+    font-weight: 700;
+  }
+  .ph-rich ul {
+    list-style: disc;
+    padding-left: 1.4em;
+  }
+  .ph-rich ol {
+    list-style: decimal;
+    padding-left: 1.5em;
+  }
+  .ph-rich li + li {
+    margin-top: 0.3em;
+  }
+  .ph-rich li > ul,
+  .ph-rich li > ol {
+    margin-top: 0.3em;
+  }
+  .ph-rich li::marker {
+    color: var(--color-blue);
+    font-weight: 700;
+  }
+  .ph-rich blockquote {
+    border-left: 3px solid var(--color-amber);
+    padding-left: 0.9em;
+    color: color-mix(in oklab, var(--color-navy) 70%, transparent);
+  }
+  .ph-rich a {
+    color: var(--color-blue);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .ph-rich p:empty {
+    min-height: 1em;
+  }
+  .ph-rich .ProseMirror {
+    outline: none;
+    min-height: 9rem;
+  }
+  .ph-rich .ProseMirror > * + * {
+    margin-top: 0.6em;
+  }
 }
 
 /* Play Pulse heart and heartbeat line. */
 @keyframes ph-pulse-loop {
-  0%, 10% { stroke-dashoffset: 1; }
-  45%, 55% { stroke-dashoffset: 0; }
-  90%, 100% { stroke-dashoffset: -1; }
+  0%,
+  10% {
+    stroke-dashoffset: 1;
+  }
+  45%,
+  55% {
+    stroke-dashoffset: 0;
+  }
+  90%,
+  100% {
+    stroke-dashoffset: -1;
+  }
 }
-.ph-pulse-loop { animation: ph-pulse-loop 3s ease-in-out both; }
+.ph-pulse-loop {
+  animation: ph-pulse-loop 3s ease-in-out both;
+}
 
 @keyframes ph-pulse-travel {
-  from { stroke-dasharray: 0.12 1.2; stroke-dashoffset: 0.12; opacity: 1; }
-  85% { opacity: 1; }
-  to { stroke-dasharray: 0.12 1.2; stroke-dashoffset: -0.95; opacity: 0; }
+  from {
+    stroke-dasharray: 0.12 1.2;
+    stroke-dashoffset: 0.12;
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    stroke-dasharray: 0.12 1.2;
+    stroke-dashoffset: -0.95;
+    opacity: 0;
+  }
 }
-.ph-pulse-travel { animation: ph-pulse-travel 750ms cubic-bezier(.45,0,.2,1) forwards; }
+.ph-pulse-travel {
+  animation: ph-pulse-travel 750ms cubic-bezier(0.45, 0, 0.2, 1) forwards;
+}
 
 @keyframes ph-pulse-shimmer {
-  from { stroke-dashoffset: 0.06; }
-  to { stroke-dashoffset: var(--ph-pulse-end, -1); }
+  from {
+    stroke-dashoffset: 0.06;
+  }
+  to {
+    stroke-dashoffset: var(--ph-pulse-end, -1);
+  }
 }
-.ph-pulse-shimmer { animation: ph-pulse-shimmer 2.6s ease-in-out infinite; }
+.ph-pulse-shimmer {
+  animation: ph-pulse-shimmer 2.6s ease-in-out infinite;
+}
 
 /* Keep the heart filled to the proportion of answered Play Pulse questions. */
 .ph-heart-progress {
   transform-box: fill-box;
-  transition: transform 650ms cubic-bezier(.22,1,.36,1);
+  transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 @media (prefers-reduced-motion: reduce) {
-  .ph-heart-progress { transition: none; }
+  .ph-heart-progress {
+    transition: none;
+  }
 }
 
 /* "Lub-dub": a strong beat followed by a softer one, then rest. */
 @keyframes ph-heart-rest {
-  0%, 100% { transform: scale(1); }
-  12% { transform: scale(1.09); }
-  22% { transform: scale(0.98); }
-  32% { transform: scale(1.05); }
-  46% { transform: scale(1); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  12% {
+    transform: scale(1.09);
+  }
+  22% {
+    transform: scale(0.98);
+  }
+  32% {
+    transform: scale(1.05);
+  }
+  46% {
+    transform: scale(1);
+  }
 }
-.ph-heart-rest { animation: ph-heart-rest 1.6s ease-in-out infinite; transform-origin: 50% 60%; }
+.ph-heart-rest {
+  animation: ph-heart-rest 1.6s ease-in-out infinite;
+  transform-origin: 50% 60%;
+}
 
 @keyframes ph-heart-beat {
-  0% { transform: scale(1); }
-  18% { transform: scale(1.26); }
-  34% { transform: scale(0.94); }
-  52% { transform: scale(1.14); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  18% {
+    transform: scale(1.26);
+  }
+  34% {
+    transform: scale(0.94);
+  }
+  52% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
-.ph-heart-beat { animation: ph-heart-beat 650ms cubic-bezier(.3,1.4,.5,1); transform-origin: 50% 60%; }
+.ph-heart-beat {
+  animation: ph-heart-beat 650ms cubic-bezier(0.3, 1.4, 0.5, 1);
+  transform-origin: 50% 60%;
+}
 
 @keyframes ph-heart-ring {
-  from { transform: scale(0.7); opacity: 0.9; }
-  to { transform: scale(1.9); opacity: 0; }
+  from {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
 }
-.ph-heart-ring { animation: ph-heart-ring 800ms ease-out forwards; pointer-events: none; }
+.ph-heart-ring {
+  animation: ph-heart-ring 800ms ease-out forwards;
+  pointer-events: none;
+}
 
 @keyframes ph-heart-glow {
-  0%, 100% { opacity: 0.35; transform: scale(0.9); }
-  50% { opacity: 0.8; transform: scale(1.15); }
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.15);
+  }
 }
-.ph-heart-glow { animation: ph-heart-glow 1.8s ease-in-out infinite; pointer-events: none; }
+.ph-heart-glow {
+  animation: ph-heart-glow 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
 
-@keyframes ph-heart-wave { from { transform: translateX(0); } to { transform: translateX(var(--ph-wave, 12px)); } }
-.ph-heart-wave { animation: ph-heart-wave 1.8s linear infinite; }
-.ph-heart-wave-slow { animation: ph-heart-wave 3.2s linear infinite reverse; opacity: 0.75; }
+@keyframes ph-heart-wave {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(var(--ph-wave, 12px));
+  }
+}
+.ph-heart-wave {
+  animation: ph-heart-wave 1.8s linear infinite;
+}
+.ph-heart-wave-slow {
+  animation: ph-heart-wave 3.2s linear infinite reverse;
+  opacity: 0.75;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .ph-pulse-loop, .ph-pulse-travel, .ph-pulse-shimmer, .ph-heart-rest, .ph-heart-beat, .ph-heart-ring,
-  .ph-heart-glow, .ph-heart-wave, .ph-heart-wave-slow { animation: none; }
+  .ph-pulse-loop,
+  .ph-pulse-travel,
+  .ph-pulse-shimmer,
+  .ph-heart-rest,
+  .ph-heart-beat,
+  .ph-heart-ring,
+  .ph-heart-glow,
+  .ph-heart-wave,
+  .ph-heart-wave-slow {
+    animation: none;
+  }
 }
 
 /* Attune: the mascot floats on welcome screens and bobs while it thinks. */
@@ -293,14 +445,29 @@
   animation: attune-bob 0.9s ease-in-out infinite;
 }
 @keyframes attune-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 @keyframes attune-bob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-2px) rotate(-4deg); }
-  75% { transform: translateY(-2px) rotate(4deg); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-2px) rotate(-4deg);
+  }
+  75% {
+    transform: translateY(-2px) rotate(4deg);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .attune-float, .attune-bob { animation: none; }
+  .attune-float,
+  .attune-bob {
+    animation: none;
+  }
 }

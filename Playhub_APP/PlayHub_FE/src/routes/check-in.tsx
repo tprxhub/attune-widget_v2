@@ -1,3 +1,4 @@
+import { DailyCheckInIcon } from "@/components/brandIcons";
 import { SessionEditStamp } from "@/components/SessionEditStamp";
 import { AttuneStruggleLink } from "@/features/attune/AttuneStruggleLink";
 import { playPlanName } from "@/lib/planNames";
@@ -5,7 +6,6 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CalendarCheck,
   CheckCircle2,
   ChevronDown,
   Flame,
@@ -198,7 +198,7 @@ function CheckInPage() {
             <section className="ph-card p-5">
               <div className="rounded-2xl bg-navy p-4 text-cream">
                 <p className="flex items-center gap-2 text-xs font-bold tracking-wide text-cream/70 uppercase">
-                  <CalendarCheck className="h-4 w-4" aria-hidden /> Logging a session for
+                  <DailyCheckInIcon className="h-4 w-4" aria-hidden /> Logging a session for
                 </p>
                 <h2 className="mt-1 break-words text-2xl font-bold sm:text-3xl">
                   {activeChild.name}

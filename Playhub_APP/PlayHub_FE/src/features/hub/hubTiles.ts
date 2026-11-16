@@ -1,11 +1,6 @@
-import {
-  BarChart3,
-  CalendarCheck,
-  Layers,
-  FolderClosed,
-  Sparkles,
-  type LucideIcon,
-} from "lucide-react";
+import { AskAttuneIcon, DailyCheckInIcon, PlayPlansIcon } from "@/components/brandIcons";
+import { ProgressIcon } from "@/components/ProgressIcon";
+import { Layers, type LucideIcon } from "lucide-react";
 
 export interface LaunchItem {
   label: string;
@@ -107,7 +102,7 @@ export function hubTileOptions(
       title: "Play Plans",
       detail: "Activities",
       to: paths.plans,
-      icon: FolderClosed,
+      icon: PlayPlansIcon,
       accent: "from-sky-300 to-blue-500",
       width: "wide",
     },
@@ -117,7 +112,7 @@ export function hubTileOptions(
       title: "Daily Check-In",
       detail: "Recent check-ins",
       to: "/check-in",
-      icon: CalendarCheck,
+      icon: DailyCheckInIcon,
       accent: "from-amber-300 to-orange-400",
       width: "narrow",
     },
@@ -127,7 +122,7 @@ export function hubTileOptions(
       title: "Progress",
       detail: "Recent activity",
       to: paths.progress,
-      icon: BarChart3,
+      icon: ProgressIcon,
       accent: "from-emerald-300 to-teal-500",
       width: "narrow",
     },
@@ -137,7 +132,7 @@ export function hubTileOptions(
       title: "Ask Attune",
       detail: "Your next step",
       to: "/attune",
-      icon: Sparkles,
+      icon: AskAttuneIcon,
       accent: "from-pink-300 to-rose-500",
       width: "wide",
     },

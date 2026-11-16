@@ -9,7 +9,7 @@ import { GOALS } from "@/api/domain";
 import { loadPricingForRoute } from "@/api/pricing";
 import { apiAssetUrl } from "@/api/client";
 import { loadHomepageForRoute, useHomepageContent } from "@/features/homepage/useHomepageContent";
-import { loadPlanPictures, PLAN_PICTURES_QUERY_KEY } from "@/api/homepage";
+import { loadPlanPictures, PLAN_PICTURES_QUERY_KEY, type HomepageContent } from "@/api/homepage";
 import { FALLBACK_THUMBNAILS, PLAN_THUMBNAILS } from "@/features/plans/planThumbnails";
 import mobileWallpaper from "@/assets/home-mobile-wallpaper.jpg";
 import { Logo } from "@/components/brand";
@@ -75,39 +75,33 @@ const JOURNEY_IMAGES = [kidsHands, playTweezers, parentPencil];
 const LEVEL_STEPS = ["\u22121", "0", "+1"];
 
 /** The real Progress chart with a made-up child's journey, so visitors see what parents get. */
-function SampleProgress() {
+function SampleProgress({ copy }: { copy: HomepageContent["progress"] }) {
   const points = useMemo(() => sampleProgressPoints(), []);
   return (
     <div className="mt-14 px-5 sm:px-0" aria-labelledby="sample-progress-title">
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
         <div>
-          <Eyebrow>See the progress</Eyebrow>
+          <Eyebrow>{copy.eyebrow}</Eyebrow>
           <h3
             id="sample-progress-title"
             className="ph-display mt-4 max-w-xl text-3xl leading-tight text-navy sm:text-4xl"
           >
-            Every Play Dose, in one <span className="text-coral italic">honest chart</span>
+            {copy.title} <span className="text-coral italic">{copy.title_highlight}</span>
           </h3>
         </div>
         <ul className="grid gap-3 text-sm leading-relaxed text-navy/70 sm:grid-cols-3">
-          <li>
-            <span className="block font-bold text-navy">Within a Play Plan</span>
-            Each point is a finished Play Dose. Lower means less help was needed.
-          </li>
-          <li>
-            <span className="block font-bold text-navy">Within a Play Dose</span>
-            Day 1 to Day 5 and the Real-Life Try, with how much help each day took.
-          </li>
-          <li>
-            <span className="block font-bold text-navy">A clear next step</span>
-            Every finished dose ends with what we’re seeing and what to do next.
-          </li>
+          {copy.points.map((point, index) => (
+            <li key={index}>
+              <span className="block font-bold text-navy">{point.title}</span>
+              {point.body}
+            </li>
+          ))}
         </ul>
       </div>
 
       <div className="ph-r-xl relative mt-8 bg-card p-4 shadow-card sm:p-6">
         <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber/25 px-3 py-1 text-xs font-bold text-navy">
-          Example only · sample data, not a real member
+          {copy.sample_label}
         </p>
         <ProgressChart
           points={points}
@@ -738,7 +732,7 @@ function Landing() {
             ))}
           </dl>
 
-          <SampleProgress />
+          <SampleProgress copy={home.progress} />
         </section>
 
         {/* ── Levels ── */}

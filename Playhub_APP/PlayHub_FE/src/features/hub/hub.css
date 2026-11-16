@@ -271,11 +271,10 @@
   filter: none;
 }
 
-.hub-service-icon-image {
-  width: 82%;
-  height: 82%;
-  object-fit: contain;
-  mix-blend-mode: multiply;
+/* Play Hub brand icons: solid brand navy on the white tile. */
+.hub-app-icon-service .hub-icon-brand {
+  color: #072b5d;
+  filter: none;
 }
 
 .hub-icon-symbol {
@@ -2254,31 +2253,10 @@
   flex-shrink: 0;
   place-items: center;
 }
-.hub-simple-icon svg,
-.hub-simple-icon-image,
-.hub-simple-attune-image {
+.hub-simple-icon svg {
   display: block;
   width: 102px;
   height: 102px;
-}
-.hub-simple-attune-image {
-  filter: invert(1);
-  mix-blend-mode: screen;
-}
-/* The artwork is navy on white: keep the navy lines on cream tiles, light lines on dark ones. */
-.hub-simple-tile[data-tone="cream"] .hub-simple-attune-image {
-  filter: none;
-  mix-blend-mode: multiply;
-}
-.hub-simple-icon[data-icon="Play Plans"] .hub-simple-icon-image {
-  /* The thin line art reads smaller than the other icons at the same size. */
-  transform: scale(1.2);
-}
-.hub-simple-icon-image {
-  background: currentColor;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
 }
 .hub-simple-shortcut {
   display: flex;
@@ -2411,9 +2389,7 @@
     width: 76px;
     height: 76px;
   }
-  .hub-simple-icon svg,
-  .hub-simple-icon-image,
-  .hub-simple-attune-image {
+  .hub-simple-icon svg {
     width: 70px;
     height: 70px;
   }

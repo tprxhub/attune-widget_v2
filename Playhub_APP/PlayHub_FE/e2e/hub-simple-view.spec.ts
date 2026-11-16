@@ -333,9 +333,10 @@ test("Ask Attune keeps a visible icon when dragged onto a cream tile", async ({ 
   await page.mouse.up();
   await expect(first).toHaveAttribute("data-simple-destination", "/attune");
   await expect(attune).toHaveAttribute("data-tone", "cream");
-  const image = attune.locator(".hub-simple-attune-image");
-  await expect(image).toHaveCSS("mix-blend-mode", "multiply");
-  await expect(image).toHaveCSS("filter", "none");
+  // The brand icon is drawn in the tile's own colour: navy on cream.
+  const icon = attune.locator('svg[data-brand-icon="ask-attune"]');
+  const tileColour = await attune.evaluate((element) => getComputedStyle(element).color);
+  await expect(icon).toHaveCSS("color", tileColour);
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await attune.screenshot({ path: "../../output/hub-design/simple-attune-cream.png" });
 });
