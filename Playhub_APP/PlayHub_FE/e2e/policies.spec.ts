@@ -27,7 +27,11 @@ test("policy pages are reachable directly", async ({ page }) => {
 
 test("sign up opens the terms in a dialog, and I agree ticks the box", async ({ page }) => {
   await page.goto("/signup");
-  await expect(page.getByRole("button", { name: "Create Account" })).toBeEnabled();
+  await page.getByLabel("Email Address").fill("terms.check@playhub.local");
+  await page.getByRole("button", { name: "Get started" }).click();
+  await page.getByLabel("Verification code").fill("246810");
+  await page.getByRole("button", { name: "Verify email" }).click();
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
   const checkbox = page.getByRole("checkbox");
   await page.getByRole("button", { name: "Terms & Condition" }).click();
   const dialog = page.getByRole("dialog", { name: "Terms of service" });

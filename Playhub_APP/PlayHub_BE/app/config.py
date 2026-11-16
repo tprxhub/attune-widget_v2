@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     microsoft_client_id: str | None = None
     # Outgoing email (password reset). With no SMTP host, emails are logged instead of sent.
     smtp_host: str | None = None
+    # Browser tests only: every signup code is this value. Ignored unless ENVIRONMENT=test.
+    signup_test_code: str | None = None
     smtp_port: int = 587
     smtp_username: str | None = None
     smtp_password: str | None = None

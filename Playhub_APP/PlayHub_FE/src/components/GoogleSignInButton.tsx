@@ -26,9 +26,12 @@ const SCRIPT_ID = "google-identity-services";
 export function GoogleSignInButton({
   onCredential,
   disabled,
+  signUp = false,
 }: {
   onCredential: (credential: string) => void;
   disabled?: boolean | undefined;
+  /** Says "Sign up with Google" instead of "Sign in with Google". */
+  signUp?: boolean | undefined;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const callback = useRef(onCredential);
@@ -50,7 +53,7 @@ export function GoogleSignInButton({
         theme: "outline",
         size: "large",
         shape: "pill",
-        text: "signin_with",
+        text: signUp ? "signup_with" : "signin_with",
         width: Math.min(container.current.clientWidth || 360, 400),
       });
     };
@@ -70,7 +73,7 @@ export function GoogleSignInButton({
     script.addEventListener("load", render);
     script.addEventListener("error", () => setLoadError(true), { once: true });
     return () => script?.removeEventListener("load", render);
-  }, [clientId, disabled]);
+  }, [clientId, disabled, signUp]);
 
   if (!clientId) {
     return <p className="text-center text-xs text-navy/50">Google sign-in is not configured.</p>;

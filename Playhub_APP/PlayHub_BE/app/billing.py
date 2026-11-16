@@ -42,16 +42,25 @@ class CheckoutResult:
     url: str
 
 
-def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: str, plan: str, catalog: dict,
-                    discount: dict | None = None) -> CheckoutResult:
+def create_checkout(settings: Settings, *, user_id: str | None, email: str, child_id: str | None, plan: str,
+                    catalog: dict, discount: dict | None = None) -> CheckoutResult:
     """`discount` (id, code, amount_off) lowers the price charged; the webhook checks the paid amount
-    against the price frozen in the metadata, so it carries the discounted amount."""
+    against the price frozen in the metadata, so it carries the discounted amount.
+
+    Without a child it is a signup purchase: paid before the account exists, for the verified email,
+    and Stripe returns the visitor to signup to finish their details."""
     if not settings.stripe_secret_key or not settings.stripe_webhook_secret:
         raise BillingError("Stripe payments are not configured")
     selected = plan_price(settings, plan, catalog)
     if selected is None:
         raise BillingError("Unknown plan")
-    metadata = {"child_id": child_id, "plan": plan, "user_id": user_id}
+    signup = child_id is None
+    metadata = {"kind": "signup", "signup_email": email, "plan": plan} if signup else {
+        "child_id": child_id, "plan": plan, "user_id": user_id}
+    base = settings.frontend_base_url.rstrip("/")
+    success_url = (f"{base}/signup?session_id={{CHECKOUT_SESSION_ID}}" if signup
+                   else f"{base}/subscription?checkout=success&session_id={{CHECKOUT_SESSION_ID}}")
+    cancel_url = f"{base}/signup?checkout=cancelled" if signup else f"{base}/subscription?checkout=cancelled"
     if discount:
         list_amount = selected["amount"]
         selected = {**selected, "amount": list_amount - discount["amount_off"],
@@ -66,9 +75,9 @@ def create_checkout(settings: Settings, *, user_id: str, email: str, child_id: s
             api_key=settings.stripe_secret_key,
             mode="payment",
             customer_email=email,
-            client_reference_id=child_id,
-            success_url=f"{settings.frontend_base_url.rstrip('/')}/subscription?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{settings.frontend_base_url.rstrip('/')}/subscription?checkout=cancelled",
+            **({} if signup else {"client_reference_id": child_id}),
+            success_url=success_url,
+            cancel_url=cancel_url,
             line_items=[{
                 "quantity": 1,
                 "price_data": {

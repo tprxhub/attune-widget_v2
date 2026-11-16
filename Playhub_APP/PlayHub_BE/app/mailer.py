@@ -65,6 +65,12 @@ def _send_with_klaviyo(message: OutgoingEmail, key: str, metric: str) -> None:
         logger.exception("Could not send email to %s through Klaviyo", message.to)
 
 
+def delivery_configured() -> bool:
+    """Whether this server can actually send email (Klaviyo or SMTP), rather than only log it."""
+    settings = get_settings()
+    return bool(settings.klaviyo_private_key or settings.smtp_host)
+
+
 def send_email(message: OutgoingEmail) -> None:
     settings = get_settings()
     if message.to.lower().endswith(".local"):

@@ -285,16 +285,32 @@ test("family can sign up, restore its session, change password and sign in again
   const email = "browser.family@playhub.local";
   const nextPassword = "DemoReady456!";
 
+  // Signup goes one step at a time: email, account, child, then a plan.
   await page.goto("/signup");
-  await expect(page.getByRole("button", { name: "Create Account" })).toBeEnabled();
-  await page.getByLabel("Child's First Name").fill("Mia");
-  await page.getByLabel("Child's Age").fill("6");
+  await page.getByLabel("Email Address").fill(email);
+  await page.getByRole("button", { name: "Get started" }).click();
+  // The browser-test server's signup code (SIGNUP_TEST_CODE).
+  await page.getByLabel("Verification code").fill("246810");
+  await page.getByRole("button", { name: "Verify email" }).click();
+  await expect(page.getByText("Step 2 of 4")).toBeVisible();
+  await expect(page.getByText(email)).toBeVisible();
   await page.getByLabel("First Name", { exact: true }).fill("Demo");
   await page.getByLabel("Last Name").fill("Family");
-  await page.getByLabel("Email Address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Please accept the Terms & Conditions.")).toBeVisible();
   await page.getByRole("checkbox").check({ force: true });
-  await page.getByRole("button", { name: "Create Account" }).click();
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Step 3 of 4")).toBeVisible();
+  await page.getByLabel("Child's First Name").fill("Mia");
+  await page.getByRole("button", { name: "6", exact: true }).click();
+  await page.getByRole("button", { name: "Create account" }).click();
+  await expect(page.getByText("Step 4 of 4")).toBeVisible();
+  await expect(page.getByText("Mia's account is ready.")).toBeVisible();
+  // The recommended paid plan starts selected; choosing Free goes straight in.
+  await expect(page.getByRole("button", { name: /Continue to payment/ })).toBeVisible();
+  await page.getByRole("radio", { name: /^Free/ }).click();
+  await page.getByRole("button", { name: "Start free" }).click();
   await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);
   // The simple Hub doesn't list children; the Dashboard shows the new child.
   await page.goto("/dashboard");

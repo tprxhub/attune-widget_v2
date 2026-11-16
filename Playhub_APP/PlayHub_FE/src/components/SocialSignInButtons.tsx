@@ -146,11 +146,15 @@ export function SocialSignInButtons({
   onCredential,
   onError,
   disabled,
+  signUp = false,
 }: {
   onCredential: (credential: SocialCredential) => void;
   onError?: (message: string) => void;
   disabled?: boolean;
+  /** On the signup page the buttons say "Sign up with …". */
+  signUp?: boolean;
 }) {
+  const verb = signUp ? "Sign up" : "Sign in";
   const [busy, setBusy] = useState<SocialProvider | null>(null);
 
   const run = async (provider: SocialProvider, start: () => Promise<SocialCredential>) => {
@@ -173,13 +177,14 @@ export function SocialSignInButtons({
         <GoogleSignInButton
           onCredential={(credential) => onCredential({ provider: "google", credential })}
           disabled={disabled || busy !== null}
+          signUp={signUp}
         />
       )}
       {APPLE_CLIENT_ID && (
         <button
           type="button"
-          aria-label="Sign in with Apple"
-          title="Sign in with Apple"
+          aria-label={`${verb} with Apple`}
+          title={`${verb} with Apple`}
           onClick={() => run("apple", signInWithApple)}
           disabled={disabled || busy !== null}
           className={`${socialButton} bg-black text-white hover:bg-black/85`}
@@ -189,14 +194,14 @@ export function SocialSignInButtons({
           ) : (
             <AppleLogo />
           )}
-          Sign in with Apple
+          {verb} with Apple
         </button>
       )}
       {MICROSOFT_CLIENT_ID && (
         <button
           type="button"
-          aria-label="Sign in with Microsoft"
-          title="Sign in with Microsoft"
+          aria-label={`${verb} with Microsoft`}
+          title={`${verb} with Microsoft`}
           onClick={() => run("microsoft", signInWithMicrosoft)}
           disabled={disabled || busy !== null}
           className="ph-pill relative flex h-10 w-full max-w-[400px] items-center justify-center border border-[#dadce0] bg-white px-10 text-sm text-[#3c4043] transition hover:bg-[#f8faff] disabled:pointer-events-none disabled:opacity-50"
@@ -216,7 +221,7 @@ export function SocialSignInButtons({
               <MicrosoftLogo />
             )}
           </span>
-          Sign in with Microsoft
+          {verb} with Microsoft
         </button>
       )}
     </div>

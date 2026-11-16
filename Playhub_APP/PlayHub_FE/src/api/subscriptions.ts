@@ -98,6 +98,34 @@ export async function checkout(
   return false;
 }
 
+export interface SignupPaymentStatus {
+  status: "pending" | "paid" | "claimed";
+  email: string;
+  plan: string;
+  plan_label: string | null;
+  amount_paid: number | null;
+  /** Only once paid: lets the visitor finish signing up without another code. */
+  email_token?: string;
+}
+
+/** Pay before the account exists, for an email just verified with a signup code. */
+export async function startSignupCheckout(emailToken: string, plan: PlanDuration): Promise<string> {
+  const { checkout_url } = await apiRequest<{ checkout_url: string }>("/billing/signup-checkout", {
+    method: "POST",
+    authenticated: false,
+    body: JSON.stringify({ email_token: emailToken, plan }),
+  });
+  return checkout_url;
+}
+
+/** Where a signup payment is, for the page Stripe returns to. */
+export function getSignupPayment(sessionId: string) {
+  return apiRequest<SignupPaymentStatus>(
+    `/billing/signup-checkout/${encodeURIComponent(sessionId)}`,
+    { authenticated: false },
+  );
+}
+
 /** Opens an empty tab straight from a click, for Stripe Checkout to load into once it's ready. */
 export function openCheckoutTab(): Window | null {
   const tab = window.open("", "_blank");

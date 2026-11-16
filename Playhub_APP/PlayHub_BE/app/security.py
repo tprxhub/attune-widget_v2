@@ -48,6 +48,45 @@ def create_access_token(user_id: str) -> str:
     )
 
 
+SIGNUP_TOKEN_MINUTES = 30
+
+
+def create_signup_token(email: str) -> str:
+    """Proof, for a short while, that this email's signup code was entered correctly."""
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    return jwt.encode(
+        {
+            "sub": email,
+            "purpose": "signup-email",
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+            "jti": str(uuid4()),
+            "iat": now,
+            "exp": now + timedelta(minutes=SIGNUP_TOKEN_MINUTES),
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+
+
+def decode_signup_token(token: str) -> str | None:
+    """The verified email, or None when the token is missing, wrong, expired or for something else."""
+    try:
+        settings = get_settings()
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=["HS256"],
+            audience=settings.jwt_audience,
+            issuer=settings.jwt_issuer,
+            options={"require": ["sub", "iat", "exp", "iss", "aud", "jti", "purpose"]},
+        )
+    except jwt.PyJWTError:
+        return None
+    return payload.get("sub") if payload.get("purpose") == "signup-email" else None
+
+
 def decode_access_token(token: str) -> str | None:
     try:
         settings = get_settings()
@@ -59,6 +98,9 @@ def decode_access_token(token: str) -> str | None:
             issuer=settings.jwt_issuer,
             options={"require": ["sub", "iat", "exp", "iss", "aud", "jti"]},
         )
+        # A signup-email token is signed with the same key but never signs anyone in.
+        if "purpose" in payload:
+            return None
         return payload.get("sub")
     except jwt.PyJWTError:
         return None

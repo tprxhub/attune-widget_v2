@@ -70,7 +70,8 @@ export function PricingSection({ signedIn }: { signedIn: boolean }) {
               </p>
               <Link
                 to={buyTo}
-                search={{ plan: signedIn ? plan.duration : undefined }}
+                // Signed out: pay first, then set up the account (signup carries the plan).
+                search={{ plan: plan.duration }}
                 className={cn(
                   "ph-pill mt-auto inline-flex min-h-11 items-center justify-center px-5 text-sm font-semibold",
                   best

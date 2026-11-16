@@ -16,6 +16,8 @@ export STORAGE_LOCAL_ROOT="$E2E_UPLOAD_DIR"
 export ENVIRONMENT="test"
 export JWT_SECRET="e2e-secret-that-is-long-enough-for-hs256"
 export ENABLE_TEST_PERSONAS="true"
+# Every signup code is this in browser tests (honoured only with ENVIRONMENT=test).
+export SIGNUP_TEST_CODE="246810"
 export CORS_ORIGINS="http://127.0.0.1:4174"
 # Browser tests never call a real (paid) AI provider, whatever a developer's .env holds.
 export OPENAI_API_KEY=""

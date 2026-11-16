@@ -476,12 +476,36 @@ export async function registerFamilyWithProvider(input: {
   return token;
 }
 
+/** Signup step one: email a 6-digit code to the address. */
+export async function sendSignupCode(email: string) {
+  // `dev_code` only comes from a development server that has no email provider set up.
+  return apiRequest<{ detail: string; expires_in_minutes: number; dev_code?: string }>(
+    "/auth/signup/send-code",
+    {
+      method: "POST",
+      authenticated: false,
+      body: JSON.stringify({ email }),
+    },
+  );
+}
+
+/** Signup step two: a right code returns the token that creating the account needs. */
+export async function verifySignupCode(email: string, code: string) {
+  const { email_token } = await apiRequest<{ email_token: string }>("/auth/signup/verify-code", {
+    method: "POST",
+    authenticated: false,
+    body: JSON.stringify({ email, code }),
+  });
+  return email_token;
+}
+
 export async function registerFamily(input: {
   email: string;
   password: string;
   guardianName: string;
   childName: string;
   childDateOfBirth?: string;
+  emailToken: string;
 }) {
   const token = await apiRequest<ApiToken>("/auth/register-family", {
     method: "POST",
@@ -492,6 +516,7 @@ export async function registerFamily(input: {
       guardian_name: input.guardianName,
       child_name: input.childName,
       child_date_of_birth: input.childDateOfBirth ?? null,
+      email_token: input.emailToken,
     }),
   });
   setAccessToken(token.access_token);

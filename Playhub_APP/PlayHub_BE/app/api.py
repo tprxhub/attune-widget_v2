@@ -3,6 +3,8 @@ from __future__ import annotations
 import calendar
 from dataclasses import asdict
 import hashlib
+import hmac
+import secrets
 from datetime import date, datetime, timedelta, timezone
 
 import logging
@@ -14,7 +16,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_child_access, require_permission, require_roles
-from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, PlanPublicationStatus, PlayCategory, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
+from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, SignupEmailCode, SignupPayment, PlanPublicationStatus, PlayCategory, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
 from app.config import get_settings
 from app.billing import BillingError, create_checkout, create_refund, paid_in_full, parse_webhook, plan_price, settled_plan
 from app import discounts
@@ -38,12 +40,12 @@ from app.schemas import (
     AccountDeletion, LoginRequest, MemberDeletion, OrganisationCreate, OrganisationDeletion, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
     PlayDoseUpdate, DoseContentUpdate, OrderUpdate, PlayCategoryCreate, PlayCategoryRead, PlayCategoryUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
     SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, PlanPictureRead, SiteContentRead,
-    ModeratorInvitationUpdate,
+    ModeratorInvitationUpdate, SignupCodeCheck, SignupCodeRequest, SignupCheckoutCreate,
 )
-from app.security import create_access_token, hash_password, verify_password
+from app.security import create_access_token, create_signup_token, decode_signup_token, hash_password, verify_password
 from app.services import PROGRESS_LOAD, assigned_plan_id, audit, progress_summary
 from app import notifications
-from app.mailer import OutgoingEmail, send_email
+from app.mailer import OutgoingEmail, delivery_configured, send_email
 from app.storage import StorageService, StorageUnavailable, UploadRejected, get_storage
 
 router = APIRouter(prefix="/api/v1")
@@ -414,11 +416,15 @@ def social_register_family(provider: Provider, payload: SocialFamilyRegistration
     )
     db.add(child)
     db.flush()
-    db.add(Subscription(child_id=child.id, status=SubscriptionStatus.FREE))
+    subscription = Subscription(child_id=child.id, status=SubscriptionStatus.FREE)
+    db.add(subscription)
+    claimed = claim_signup_payment(db, user, child, subscription)
     audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id, "via": provider})
     db.commit()
     notifications.welcome(user, child.name)
     notifications.alert_family_signup(db, user, child.name)
+    if claimed:
+        notify_signup_payment(db, user, child, subscription, claimed)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -442,9 +448,174 @@ def microsoft_register_family(payload: SocialFamilyRegistration, db: Session = D
     return social_register_family("microsoft", payload, db)
 
 
+def claim_signup_payment(db: Session, user: User, child: Child, subscription: Subscription) -> SignupPayment | None:
+    """A plan paid for during signup with this (verified) email becomes this child's subscription."""
+    payment = db.scalar(
+        select(SignupPayment)
+        .where(SignupPayment.email == user.email, SignupPayment.status == "paid")
+        .order_by(SignupPayment.created_at)
+    )
+    if not payment or not payment.paid_on or not payment.months:
+        return None
+    subscription.status = SubscriptionStatus.ACTIVE
+    subscription.plan_name = payment.plan
+    subscription.started_on = payment.paid_on
+    subscription.ends_on = add_months(payment.paid_on, payment.months)
+    subscription.previous_ends_on = None
+    subscription.stripe_checkout_session_id = payment.stripe_checkout_session_id
+    subscription.stripe_payment_intent_id = payment.stripe_payment_intent_id
+    subscription.stripe_customer_id = payment.stripe_customer_id
+    subscription.stripe_refund_id = None
+    subscription.amount_paid = payment.amount_paid
+    payment.status = "claimed"
+    payment.claimed_child_id = child.id
+    payment.claimed_at = datetime.now(timezone.utc)
+    db.flush()
+    audit(db, user.id, "billing.signup_payment_claimed", "subscription", subscription.id, {"plan": payment.plan})
+    return payment
+
+
+def notify_signup_payment(db: Session, user: User, child: Child, subscription: Subscription, payment: SignupPayment) -> None:
+    label, amount = payment.plan_label or payment.plan, payment.amount_paid or 0
+    notifications.payment_confirmed(user, child.name, label, amount, subscription.ends_on, False)
+    notifications.alert_payment(db, user, child.name, label, amount, subscription.ends_on, False)
+
+
+@router.post("/billing/signup-checkout", response_model=CheckoutCreated, status_code=201)
+def create_signup_checkout(payload: SignupCheckoutCreate, db: Session = Depends(get_db)):
+    """Pay before the account exists: for an email just verified with a signup code. Stripe returns
+    the visitor to signup, and the account they then create takes over the plan."""
+    email = decode_signup_token(payload.email_token)
+    if not email:
+        raise HTTPException(status_code=403, detail="Please verify your email with the code we sent first.")
+    if db.scalar(select(User).where(User.email == email)):
+        raise HTTPException(status_code=409, detail="Email is already registered")
+    catalogue = billing_catalog(db)
+    if payload.plan not in catalogue:
+        raise HTTPException(status_code=422, detail="This subscription plan is no longer available. Refresh the page to choose a current plan.")
+    try:
+        checkout = create_checkout(get_settings(), user_id=None, email=email, child_id=None,
+                                   plan=payload.plan, catalog=catalogue)
+    except BillingError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    db.add(SignupPayment(email=email, plan=payload.plan, stripe_checkout_session_id=checkout.id))
+    audit(db, None, "billing.signup_checkout_created", "signup_payment", checkout.id, {"plan": payload.plan})
+    db.commit()
+    return CheckoutCreated(checkout_url=checkout.url)
+
+
+@router.get("/billing/signup-checkout/{session_id}")
+def signup_checkout_status(session_id: str, db: Session = Depends(get_db)):
+    """Where a signup payment is, for the page Stripe returns to. Once paid it also returns a fresh
+    email token, so the visitor can finish signing up without another code."""
+    payment = db.scalar(select(SignupPayment).where(SignupPayment.stripe_checkout_session_id == session_id))
+    if not payment:
+        raise HTTPException(status_code=404, detail="We couldn't find that payment.")
+    reply = {"status": payment.status, "email": payment.email, "plan": payment.plan,
+             "plan_label": payment.plan_label, "amount_paid": payment.amount_paid}
+    if payment.status == "paid":
+        reply["email_token"] = create_signup_token(payment.email)
+    return reply
+
+
+SIGNUP_CODE_TTL = timedelta(minutes=10)
+SIGNUP_CODE_ATTEMPTS = 5
+SIGNUP_CODES_PER_HOUR = 5
+SIGNUP_CODE_WRONG = "That code isn't right. Check the email and try again."
+SIGNUP_CODE_STALE = "This code has expired or was replaced. Send a new code."
+
+
+def _signup_code_hash(email: str, code: str) -> str:
+    # Keyed, so a leaked table can't be reversed by trying all million codes.
+    key = get_settings().jwt_secret.encode()
+    return hmac.new(key, f"{email}:{code}".encode(), hashlib.sha256).hexdigest()
+
+
+def _new_signup_code() -> str:
+    settings = get_settings()
+    if settings.environment == "test" and settings.signup_test_code:
+        return settings.signup_test_code
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _aware(moment: datetime) -> datetime:
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+@router.post("/auth/signup/send-code", status_code=status.HTTP_202_ACCEPTED)
+def send_signup_code(payload: SignupCodeRequest, db: Session = Depends(get_db)):
+    """Step one of signup: email a 6-digit code to prove the address is theirs. A new code replaces
+    any earlier one, and only a few can be sent an hour."""
+    if db.scalar(select(User).where(User.email == payload.email)):
+        raise HTTPException(status_code=409, detail="Email is already registered")
+    now = datetime.now(timezone.utc)
+    recent = db.scalar(
+        select(func.count(SignupEmailCode.id)).where(
+            SignupEmailCode.email == payload.email, SignupEmailCode.created_at >= now - timedelta(hours=1)
+        )
+    ) or 0
+    if recent >= SIGNUP_CODES_PER_HOUR:
+        raise HTTPException(status_code=429, detail="Too many codes sent. Please wait a while and try again.")
+    for old in db.scalars(
+        select(SignupEmailCode).where(SignupEmailCode.email == payload.email, SignupEmailCode.used_at.is_(None))
+    ):
+        old.used_at = now
+    code = _new_signup_code()
+    db.add(SignupEmailCode(
+        email=payload.email, code_hash=_signup_code_hash(payload.email, code),
+        expires_at=now + SIGNUP_CODE_TTL, created_at=now,
+    ))
+    db.commit()
+    send_email(
+        OutgoingEmail(
+            to=payload.email,
+            subject=f"Your Play Hub code: {code}",
+            text=(
+                "Welcome to Play Hub!\n\n"
+                f"Your code to finish creating your account is: {code}\n\n"
+                "It works for 10 minutes. If you didn't try to sign up, you can ignore this email.\n\n"
+                "The Play Hub team"
+            ),
+        )
+    )
+    reply = {"detail": "We've emailed you a 6-digit code.", "expires_in_minutes": int(SIGNUP_CODE_TTL.total_seconds() // 60)}
+    # A development server with no email provider can't send it, so it shows the code instead.
+    # Never in production, which always emails it.
+    if not delivery_configured() and get_settings().environment.lower() != "production":
+        reply["dev_code"] = code
+    return reply
+
+
+@router.post("/auth/signup/verify-code")
+def verify_signup_code(payload: SignupCodeCheck, db: Session = Depends(get_db)):
+    """Step two: check the code. A right code returns a short-lived token that signup requires."""
+    row = db.scalar(
+        select(SignupEmailCode)
+        .where(SignupEmailCode.email == payload.email, SignupEmailCode.used_at.is_(None))
+        .order_by(SignupEmailCode.created_at.desc())
+    )
+    now = datetime.now(timezone.utc)
+    if not row or _aware(row.expires_at) < now or row.attempts >= SIGNUP_CODE_ATTEMPTS:
+        raise HTTPException(status_code=410, detail=SIGNUP_CODE_STALE)
+    if not hmac.compare_digest(row.code_hash, _signup_code_hash(payload.email, payload.code)):
+        row.attempts += 1
+        if row.attempts >= SIGNUP_CODE_ATTEMPTS:
+            row.used_at = now
+            db.commit()
+            raise HTTPException(status_code=410, detail="Too many wrong tries. Send a new code.")
+        db.commit()
+        raise HTTPException(status_code=422, detail=SIGNUP_CODE_WRONG)
+    row.used_at = now
+    db.commit()
+    return {"email_token": create_signup_token(payload.email)}
+
+
 @router.post("/auth/register-family", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register_family(payload: FamilyRegistration, db: Session = Depends(get_db)):
-    """Create the family administrator, their child, and a free subscription atomically."""
+    """Create the family administrator, their child, and a free subscription atomically. The email
+    must have been verified with a signup code first."""
+    if decode_signup_token(payload.email_token) != payload.email:
+        raise HTTPException(status_code=403, detail="Please verify your email with the code we sent before creating your account.")
     if db.scalar(select(User).where(User.email == payload.email)):
         raise HTTPException(status_code=409, detail="Email is already registered")
     first_dose = default_starter_dose(db)
@@ -469,11 +640,15 @@ def register_family(payload: FamilyRegistration, db: Session = Depends(get_db)):
     )
     db.add(child)
     db.flush()
-    db.add(Subscription(child_id=child.id, status=SubscriptionStatus.FREE))
+    subscription = Subscription(child_id=child.id, status=SubscriptionStatus.FREE)
+    db.add(subscription)
+    claimed = claim_signup_payment(db, user, child, subscription)
     audit(db, user.id, "family.registered", "user", user.id, {"child_id": child.id})
     db.commit()
     notifications.welcome(user, child.name)
     notifications.alert_family_signup(db, user, child.name)
+    if claimed:
+        notify_signup_payment(db, user, child, subscription, claimed)
     return Token(access_token=create_access_token(user.id))
 
 
@@ -1907,6 +2082,8 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     if stripe_field(data, "payment_status") != "paid":
         return {"received": True}
     metadata = stripe_field(data, "metadata", {}) or {}
+    if stripe_field(metadata, "kind") == "signup":
+        return settle_signup_payment(db, event_id, event_type, data, metadata)
     child_id = stripe_field(metadata, "child_id")
     plan = stripe_field(metadata, "plan")
     selected = settled_plan(get_settings(), data, stripe_field)
@@ -1957,6 +2134,50 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     notifications.alert_payment(
         db, child.owner, child.name, selected["name"], selected["amount"], subscription.ends_on, renewing_from is not None
     )
+    return {"received": True}
+
+
+def settle_signup_payment(db: Session, event_id: str, event_type: str, data, metadata) -> dict:
+    """A signup purchase was paid. The account doesn't exist yet, so the payment waits ("paid") for
+    the account created with its email; if that account already exists, it is applied straight away."""
+    selected = settled_plan(get_settings(), data, stripe_field)
+    session_id = stripe_field(data, "id")
+    payment_intent_id = stripe_field(data, "payment_intent")
+    email = UserCreate.normalise_email(str(stripe_field(metadata, "signup_email") or "x@invalid"))
+    if not selected or not session_id or not payment_intent_id:
+        raise HTTPException(status_code=422, detail="Stripe metadata does not match a purchase")
+    if not paid_in_full(data, selected, stripe_field):
+        raise HTTPException(status_code=422, detail="Stripe payment amount does not match the selected plan")
+    payment = db.scalar(select(SignupPayment).where(SignupPayment.stripe_checkout_session_id == session_id))
+    if payment is None:
+        payment = SignupPayment(email=email, plan=stripe_field(metadata, "plan"), stripe_checkout_session_id=session_id)
+        db.add(payment)
+    if payment.status in {"paid", "claimed"}:
+        return {"received": True}
+    payment.status = "paid"
+    payment.stripe_payment_intent_id = payment_intent_id
+    payment.stripe_customer_id = stripe_field(data, "customer")
+    payment.amount_paid = selected["amount"]
+    payment.months = selected["months"]
+    payment.plan_label = selected["name"]
+    payment.paid_on = datetime.fromtimestamp(
+        int(stripe_field(data, "created", datetime.now(timezone.utc).timestamp())), tz=timezone.utc
+    ).date()
+    db.flush()
+    audit(db, None, "billing.signup_payment_completed", "signup_payment", payment.id, {"plan": payment.plan})
+    # The account may already exist (finished while Stripe was still confirming): apply it now.
+    owner = db.scalar(select(User).where(User.email == payment.email))
+    child = next((c for c in db.scalars(select(Child).where(
+        Child.owner_id == owner.id, Child.account_scope == AccountScope.INDIVIDUAL)).all()), None) if owner else None
+    claimed = None
+    if child:
+        subscription = child.subscription or Subscription(child_id=child.id)
+        db.add(subscription)
+        claimed = claim_signup_payment(db, owner, child, subscription)
+    db.add(StripeEvent(id=event_id, event_type=event_type))
+    db.commit()
+    if claimed and child and owner:
+        notify_signup_payment(db, owner, child, child.subscription, claimed)
     return {"received": True}
 
 

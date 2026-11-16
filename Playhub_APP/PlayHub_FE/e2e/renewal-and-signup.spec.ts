@@ -30,7 +30,7 @@ test("sign up buttons open the sign up page, and signed-in people skip log in an
   await page.goto("/");
   await page.getByRole("link", { name: "Sign up free" }).first().click();
   await expect(page).toHaveURL(/\/signup$/);
-  await expect(page.getByRole("button", { name: "Create Account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Get started" })).toBeVisible();
 
   await login(page, "parent@playhub.local");
   await page.goto("/login");

@@ -38,9 +38,24 @@ def database():
     app.dependency_overrides.clear()
 
 
+class PlayHubTestClient(TestClient):
+    """Family signups need a verified-email token. Tests that aren't about verification get one
+    added for them; a test that passes `email_token` itself (even blank) is left alone."""
+
+    def post(self, url, *args, **kwargs):
+        body = kwargs.get("json")
+        if str(url).endswith("/auth/register-family") and isinstance(body, dict) and "email_token" not in body:
+            from app.schemas import UserCreate
+            from app.security import create_signup_token
+
+            email = UserCreate.normalise_email(str(body.get("email", "")))
+            kwargs["json"] = {**body, "email_token": create_signup_token(email)}
+        return super().post(url, *args, **kwargs)
+
+
 @pytest.fixture
 def client():
-    with TestClient(app) as test_client:
+    with PlayHubTestClient(app) as test_client:
         yield test_client
 
 

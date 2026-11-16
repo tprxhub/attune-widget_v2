@@ -81,6 +81,8 @@ class FamilyRegistration(APIModel):
     guardian_name: str = Field(min_length=1, max_length=120)
     child_name: str = Field(min_length=1, max_length=120)
     child_date_of_birth: date | None = None
+    # From /auth/signup/verify-code: proves the email's signup code was entered.
+    email_token: str = Field(default="", max_length=2048)
 
     @field_validator("email")
     @classmethod
@@ -93,6 +95,19 @@ class FamilyRegistration(APIModel):
         if value and value > date.today():
             raise ValueError("Child date of birth cannot be in the future")
         return value
+
+
+class SignupCodeRequest(APIModel):
+    email: str = Field(min_length=3, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, value: str) -> str:
+        return UserCreate.normalise_email(value)
+
+
+class SignupCodeCheck(SignupCodeRequest):
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class UserCreate(APIModel):
@@ -616,6 +631,12 @@ class CheckoutCreate(APIModel):
     plan: str = Field(pattern=r"^[1-9][0-9]?m$", max_length=3)
     # A coupon code; the server works out and checks the discount itself.
     discount_code: str | None = Field(default=None, max_length=60)
+
+
+class SignupCheckoutCreate(APIModel):
+    """Paying during signup, before the account exists: for the email the token proves."""
+    email_token: str = Field(min_length=1, max_length=2048)
+    plan: str = Field(pattern=r"^[1-9][0-9]?m$", max_length=3)
 
 
 class CheckoutCreated(APIModel):

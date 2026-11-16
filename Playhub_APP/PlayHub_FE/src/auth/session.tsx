@@ -34,6 +34,8 @@ export interface FamilySignupInput {
   guardianName: string;
   email: string;
   password: string;
+  /** From verifying the emailed signup code. */
+  emailToken: string;
 }
 
 async function loadSession() {
@@ -170,6 +172,7 @@ export function useSession(): SessionContextValue {
         guardianName: input.guardianName,
         childName: input.childName,
         childDateOfBirth: birth.toISOString().slice(0, 10),
+        emailToken: input.emailToken,
       });
       invalidatePlanCatalog();
       const next = await loadSession();

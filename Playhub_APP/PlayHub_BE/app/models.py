@@ -649,6 +649,43 @@ class PasswordResetToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class SignupEmailCode(Base):
+    """A 6-digit code emailed to prove someone owns the address they're signing up with. Only a
+    keyed hash of the code is stored; a code expires, allows a few tries, and a newer one replaces it."""
+
+    __tablename__ = "signup_email_codes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class SignupPayment(Base):
+    """A plan paid for during signup, before the account exists. Stripe confirms it ("paid"); the
+    family account created later with the same verified email takes it over ("claimed")."""
+
+    __tablename__ = "signup_payments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    email: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
+    plan: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    stripe_checkout_session_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    stripe_payment_intent_id: Mapped[Optional[str]] = mapped_column(String(255))
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(255))
+    amount_paid: Mapped[Optional[int]] = mapped_column(Integer)
+    months: Mapped[Optional[int]] = mapped_column(Integer)
+    plan_label: Mapped[Optional[str]] = mapped_column(String(200))
+    paid_on: Mapped[Optional[date]] = mapped_column(Date)
+    claimed_child_id: Mapped[Optional[str]] = mapped_column(ForeignKey("children.id", ondelete="SET NULL"))
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class AttuneConversation(TimestampMixin, Base):
     """One chat with Attune, the AI play assistant, optionally about a child."""
 
