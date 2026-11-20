@@ -28,6 +28,7 @@ import {
   listOrgs,
   listStaff,
   listActiveStaff,
+  setAccountActive,
 } from "@/api/admin";
 import { getProgressForChildren } from "@/api/progress";
 import { clearMemberEmail, saveMemberEmail } from "@/api/org";
@@ -280,7 +281,21 @@ function AdminChildren() {
                     {progressFor(child.id) && (
                       <StatusBadge status={progressFor(child.id)!.status} size="sm" />
                     )}
+                    {child.deactivated && (
+                      <span className="inline-flex items-center rounded-full bg-coral/12 px-2 py-0.5 text-[11px] font-bold text-coral">
+                        Deactivated
+                      </span>
+                    )}
                   </div>
+                  {child.deactivated && (
+                    <AccountDeactivatedNote
+                      child={child}
+                      canReactivate={session.role === "super_admin"}
+                      onReactivated={() =>
+                        void queryClient.invalidateQueries({ queryKey: ["children"] })
+                      }
+                    />
+                  )}
                   <p className="truncate text-xs text-navy/55">
                     Age {child.age} ·{" "}
                     {child.accountType === "b2b"
@@ -1123,5 +1138,44 @@ function SubscriptionModal({
         </button>
       </div>
     </Shell>
+  );
+}
+
+/** On a member card: the family login is deactivated, when and by whom, with a way back for Super Admins. */
+function AccountDeactivatedNote({
+  child,
+  canReactivate,
+  onReactivated,
+}: {
+  child: Child;
+  canReactivate: boolean;
+  onReactivated: () => void;
+}) {
+  const reactivate = useMutation({
+    mutationFn: () => setAccountActive(child.ownerUserId, true),
+    onSuccess: onReactivated,
+  });
+  const info = child.deactivated!;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-coral">
+      <span>
+        {info.bySelf ? "Deactivated by the family" : "Deactivated by an admin"}
+        {info.at ? ` on ${fmtDate(info.at)}` : ""}
+      </span>
+      {canReactivate && (
+        <ConfirmButton
+          confirmationTitle="Reactivate this account?"
+          confirmationMessage={`${child.name}'s family can sign in again, and their Moderators get access back.`}
+          confirmLabel="Reactivate"
+          type="button"
+          onClick={() => reactivate.mutate()}
+          disabled={reactivate.isPending}
+          className="rounded-full border border-coral/30 px-2.5 py-0.5 font-bold text-coral hover:bg-coral/10"
+        >
+          Reactivate
+        </ConfirmButton>
+      )}
+      {reactivate.isError && <span role="alert">Couldn&apos;t reactivate. Try again.</span>}
+    </div>
   );
 }

@@ -47,6 +47,16 @@ test("choosing a plan: verify the email, pay, then set up the account", async ({
   await expect(page.getByText("Step 2 of 4")).toBeVisible();
   // The plan chosen on the pricing section is selected; it can still be changed.
   await expect(page.getByRole("radio", { checked: true })).toContainText("3-Month");
+  // Signup lists what a paid plan includes in its own short words.
+  for (const line of [
+    "Activities for the week",
+    "Log Sessions",
+    "Progress charts",
+    "Invite a Moderator",
+    "Attune, your 24/7 play partner",
+  ])
+    await expect(page.getByText(line, { exact: true })).toBeVisible();
+  await expect(page.getByText("Every activity video, unblurred")).toHaveCount(0);
   await page.getByRole("button", { name: /^Pay AED 189 securely/ }).click();
 
   await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
@@ -107,4 +117,55 @@ test("without Stripe set up, paying explains itself", async ({ page }) => {
   await verifyEmail(page, `nostripe.${Date.now()}@example.com`);
   await page.getByRole("button", { name: /^Pay .* securely/ }).click();
   await expect(page.getByRole("alert")).toContainText("Stripe payments are not configured");
+});
+
+test("paying first: longest plan first and selected, and a coupon lowers the price", async ({
+  page,
+}) => {
+  const API = "http://127.0.0.1:8765/api/v1";
+  const login = await page.request.post(`${API}/auth/login`, {
+    data: { email: "admin@playhub.local", password: "ChangeMe123!" },
+  });
+  const headers = { Authorization: `Bearer ${(await login.json()).access_token}` };
+  const created = await page.request.post(`${API}/billing/discounts`, {
+    headers,
+    data: {
+      code: "E2ESIGNUP10",
+      title: "Ten off",
+      description: "",
+      kind: "percent",
+      value: 10,
+      plans: [],
+      once_per_account: true,
+    },
+  });
+  const couponId = (await created.json()).id as string;
+  let sent: { plan?: string; discount_code?: string } | null = null;
+  await page.route("**/api/v1/billing/signup-checkout", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ status: 201, json: { checkout_url: "/signup?checkout=cancelled" } });
+  });
+  try {
+    await page.goto("/signup?plan=99m"); // an unknown plan falls back to the longest
+    await verifyEmail(page, `coupon.${Date.now()}@example.com`);
+    const plans = page.getByRole("radio");
+    const months = (await plans.allTextContents()).map((text) =>
+      Number(text.match(/(\d+)-Month/)?.[1]),
+    );
+    expect(months).toEqual([...months].sort((a, b) => b - a));
+    await expect(plans.first()).toHaveAttribute("aria-checked", "true");
+
+    const offers = page.getByRole("region", { name: /Offers & coupons/ });
+    await offers.getByLabel("Coupon code").fill("NOTREAL");
+    await offers.getByRole("button", { name: "Apply", exact: true }).click();
+    await expect(offers.getByRole("alert")).toContainText("isn’t valid");
+    await offers.getByLabel("Coupon code").fill("e2esignup10");
+    await offers.getByRole("button", { name: "Apply", exact: true }).click();
+    await expect(offers).toContainText("E2ESIGNUP10 applied");
+    await expect(page.getByText("Coupon (E2ESIGNUP10)")).toBeVisible();
+    await page.getByRole("button", { name: /^Pay AED .* securely/ }).click();
+    await expect.poll(() => sent?.discount_code).toBe("E2ESIGNUP10");
+  } finally {
+    await page.request.delete(`${API}/billing/discounts/${couponId}`, { headers });
+  }
 });

@@ -251,6 +251,10 @@ export interface ApiChild {
   organisation_id: string | null;
   owner_id: string | null;
   owner_email: string | null;
+  /** The family login's own status (false once deactivated, by its owner or an admin). */
+  owner_active?: boolean;
+  owner_deactivated_at?: string | null;
+  owner_deactivated_by_self?: boolean;
   invited_member_email?: string | null;
   admin_id: string | null;
   moderator_id: string | null;
@@ -423,11 +427,12 @@ export async function refreshAccessToken() {
   setAccessToken(token.access_token);
 }
 
-export async function login(email: string, password: string) {
+/** `reactivate` switches an account its owner deactivated back on while signing in. */
+export async function login(email: string, password: string, reactivate = false) {
   const token = await apiRequest<ApiToken>("/auth/login", {
     method: "POST",
     authenticated: false,
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, reactivate }),
   });
   setAccessToken(token.access_token);
   return token;
@@ -441,14 +446,15 @@ export async function loginWithProvider(
   credential: string,
   name?: string,
   password?: string,
+  reactivate = false,
 ) {
   const token = await apiRequest<ApiToken>(`/auth/${provider}`, {
     method: "POST",
     authenticated: false,
     body: JSON.stringify(
       provider === "google"
-        ? { credential }
-        : { credential, name: name ?? null, password: password ?? null },
+        ? { credential, reactivate }
+        : { credential, name: name ?? null, password: password ?? null, reactivate },
     ),
   });
   setAccessToken(token.access_token);

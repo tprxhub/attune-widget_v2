@@ -308,7 +308,7 @@ test("family can sign up, restore its session, change password and sign in again
   await expect(page.getByText("Step 4 of 4")).toBeVisible();
   await expect(page.getByText("Mia's account is ready.")).toBeVisible();
   // The recommended paid plan starts selected; choosing Free goes straight in.
-  await expect(page.getByRole("button", { name: /Continue to payment/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Pay AED .* securely/ })).toBeVisible();
   await page.getByRole("radio", { name: /^Free/ }).click();
   await page.getByRole("button", { name: "Start free" }).click();
   await expect(page).toHaveURL(/\/hub(?:[/?#]|$)/);

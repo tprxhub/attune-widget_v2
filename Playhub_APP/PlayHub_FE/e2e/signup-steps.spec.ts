@@ -63,7 +63,7 @@ test("signup verifies the email with a code, then account, child and a paid plan
     });
   });
   await expect(page.getByRole("radio", { checked: true })).not.toContainText("Free");
-  await page.getByRole("button", { name: /Continue to payment/ }).click();
+  await page.getByRole("button", { name: /^Pay AED .* securely/ }).click();
   await expect.poll(() => sent?.child_id).toBeTruthy();
   expect(sent!.plan).toMatch(/^\d+m$/);
   await expect(page).toHaveURL(/\/subscription\?checkout=cancelled/);

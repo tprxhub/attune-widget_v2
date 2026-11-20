@@ -75,7 +75,7 @@ test("the Super Admin creates a coupon and a family applies it at checkout", asy
   await expect(offers).toContainText("E2ESAVE15 applied");
   await expect(page.getByText("Coupon (E2ESAVE15)")).toBeVisible();
   await expect(page.getByText("You save AED 28.35 on this subscription")).toBeVisible();
-  const buy = page.getByRole("button", { name: /Subscribe .* — AED 160\.65/ });
+  const buy = page.getByRole("button", { name: /^Subscribe — AED 160\.65/ });
   await expect(buy).toBeVisible();
   // Stripe opens in a new tab; this page waits for the payment.
   const [stripeTab] = await Promise.all([page.waitForEvent("popup"), buy.click()]);

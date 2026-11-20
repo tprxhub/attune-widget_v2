@@ -45,6 +45,7 @@ import { Protected } from "@/auth/guards";
 import { useSession } from "@/auth/session";
 import { PageHeader } from "@/components/AppShell";
 import { ModalPortal } from "@/components/ModalPortal";
+import { DeactivateAccount } from "@/features/account/DeactivateAccount";
 import { PROFILE_STICKERS, ProfileAvatar } from "@/components/ProfileAvatar";
 import { CardSkeleton } from "@/components/Skeletons";
 import { fmtDate } from "@/lib/format";
@@ -524,6 +525,7 @@ function AccountPage() {
                     </span>
                   </span>
                 </button>
+                {session.accountType === "b2c" && <DeactivateAccount />}
               </div>
             </section>
             {session.role === "educator" && session.accountType === "b2b" && (

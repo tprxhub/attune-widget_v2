@@ -49,6 +49,9 @@ def require_permission(*keys: str, roles: tuple[Role, ...] = ()) -> Callable:
 def require_child_access(child: Child, user: User) -> None:
     if user.can("children", "progress"):
         return
+    if child.owner is not None and not child.owner.is_active and child.owner_id != user.id:
+        # A deactivated family is closed to its Moderators too, until it is reactivated.
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This family account is deactivated")
     if child.organisation_id and child.organisation_id == user.organisation_id:
         if user.role == Role.ADMIN or user.id in child.moderator_ids or child.owner_id == user.id:
             return

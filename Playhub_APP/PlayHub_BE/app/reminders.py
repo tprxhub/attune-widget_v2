@@ -36,6 +36,8 @@ def send_subscription_notices(db: Session, today: date | None = None) -> int:
     for sub in rows:
         days_left = (sub.ends_on - today).days
         owner = sub.child.owner if sub.child else None
+        if owner is not None and not owner.is_active:
+            continue  # a deactivated account gets no emails; it is reminded once reactivated
         if days_left < 0:
             if sub.ended_notice_for != sub.ends_on:
                 notifications.subscription_ended(owner, sub.child.name, sub.ends_on)

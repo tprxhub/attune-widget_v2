@@ -3,6 +3,16 @@ import { apiRequest, getApiChildren, type ApiSubscription } from "./client";
 import { mapSubscription } from "./mappers";
 
 /** What a paid plan unlocks for a child; shown on the Subscription page and the home page. */
+/** What a paid plan unlocks, in short: signup and the Subscription page. */
+export const PLAN_HIGHLIGHTS = [
+  "Activities for the week",
+  "Log Sessions",
+  "Progress charts",
+  "Invite a Moderator",
+  "Attune, your 24/7 play partner",
+];
+
+/** The fuller list, on the public Pricing section. */
 export const PLAN_FEATURES = [
   "All five Activities, the Real Life Try and Level-Up Prompt",
   "Every activity video, unblurred",
@@ -109,11 +119,19 @@ export interface SignupPaymentStatus {
 }
 
 /** Pay before the account exists, for an email just verified with a signup code. */
-export async function startSignupCheckout(emailToken: string, plan: PlanDuration): Promise<string> {
+export async function startSignupCheckout(
+  emailToken: string,
+  plan: PlanDuration,
+  discountCode?: string | null,
+): Promise<string> {
   const { checkout_url } = await apiRequest<{ checkout_url: string }>("/billing/signup-checkout", {
     method: "POST",
     authenticated: false,
-    body: JSON.stringify({ email_token: emailToken, plan }),
+    body: JSON.stringify({
+      email_token: emailToken,
+      plan,
+      ...(discountCode ? { discount_code: discountCode } : {}),
+    }),
   });
   return checkout_url;
 }

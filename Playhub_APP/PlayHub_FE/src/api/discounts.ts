@@ -151,6 +151,32 @@ export async function listOffers() {
   return (await apiRequest<ApiOffer[]>("/billing/offers")).map(toOffer);
 }
 
+/** While paying before the account exists: the verified email stands in for the account. */
+export async function checkSignupDiscount(
+  emailToken: string,
+  code: string,
+  plan: string,
+): Promise<DiscountQuote> {
+  const row = await apiRequest<{
+    code: string;
+    title: string;
+    list_amount: number;
+    discount_amount: number;
+    final_amount: number;
+  }>("/billing/discounts/check-signup", {
+    method: "POST",
+    authenticated: false,
+    body: JSON.stringify({ email_token: emailToken, code, plan }),
+  });
+  return {
+    code: row.code,
+    title: row.title,
+    listAmount: row.list_amount,
+    discountAmount: row.discount_amount,
+    finalAmount: row.final_amount,
+  };
+}
+
 export async function checkDiscount(code: string, plan: string): Promise<DiscountQuote> {
   const row = await apiRequest<{
     code: string;

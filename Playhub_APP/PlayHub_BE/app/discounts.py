@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_roles
+from app.security import decode_signup_token
 from app.models import Child, Discount, DiscountRedemption, Role, Subscription, User
 from app.pricing import billing_catalog
 from app.services import audit
@@ -72,7 +73,9 @@ def amount_off(discount: Discount, list_amount: int) -> int:
     return max(0, min(off, list_amount - MIN_CHARGE))
 
 
-def check_usable(db: Session, discount: Discount, user: User, plan: str, today: date | None = None) -> None:
+def check_usable(db: Session, discount: Discount, user: User | None, plan: str, today: date | None = None) -> None:
+    """`user` is None while signing up (paying before the account exists): a brand-new email has no
+    past uses or payments, so the per-account rules are met."""
     today = today or date.today()
     if not discount.is_active:
         raise DiscountError("This code isn’t active right now.")
@@ -86,13 +89,15 @@ def check_usable(db: Session, discount: Discount, user: User, plan: str, today: 
         raise DiscountError(f"This code works on the {names} plan{'s' if len(discount.plans) > 1 else ''} only.")
     if discount.max_uses is not None and _uses(db, discount) >= discount.max_uses:
         raise DiscountError("This offer has been fully used.")
+    if user is None:
+        return
     if discount.once_per_account and _uses(db, discount, user):
         raise DiscountError("You’ve already used this code.")
     if discount.new_customers_only and _has_paid_before(db, user):
         raise DiscountError("This offer is for a first subscription only.")
 
 
-def quote(db: Session, code: str, user: User, plan: str, list_amount: int) -> Quote:
+def quote(db: Session, code: str, user: User | None, plan: str, list_amount: int) -> Quote:
     discount = db.scalar(select(Discount).where(Discount.code == normalise_code(code)))
     if discount is None:
         raise DiscountError("That code isn’t valid. Check it and try again.")
@@ -193,6 +198,11 @@ class DiscountCheck(BaseModel):
     plan: str = Field(pattern=r"^[1-9][0-9]?m$", max_length=3)
 
 
+class SignupDiscountCheck(DiscountCheck):
+    """While signing up, before the account exists: the verified email stands in for the account."""
+    email_token: str = Field(min_length=1, max_length=2048)
+
+
 class DiscountQuote(BaseModel):
     code: str
     title: str
@@ -262,6 +272,14 @@ def check_discount(payload: DiscountCheck, user: User = Depends(get_current_user
                          discount_amount=result.discount_amount, final_amount=result.final_amount)
 
 
+@router.post("/discounts/check-signup", response_model=DiscountQuote)
+def check_signup_discount(payload: SignupDiscountCheck, db: Session = Depends(get_db)):
+    """What a code would take off a plan for someone paying before their account exists."""
+    if not decode_signup_token(payload.email_token):
+        raise HTTPException(status_code=403, detail="Please verify your email with the code we sent first.")
+    return check_discount(DiscountCheck(code=payload.code, plan=payload.plan), None, db)
+
+
 @router.get("/discounts", response_model=list[DiscountRead])
 def list_discounts(_: User = Depends(super_admin), db: Session = Depends(get_db)):
     rows = db.scalars(select(Discount).order_by(Discount.created_at.desc())).all()
@@ -318,7 +336,7 @@ def delete_discount(discount_id: str, actor: User = Depends(super_admin), db: Se
     db.commit()
 
 
-def record_redemption(db: Session, metadata, field, *, session_id: str, user_id: str | None, child_id: str,
+def record_redemption(db: Session, metadata, field, *, session_id: str, user_id: str | None, child_id: str | None,
                       plan: str) -> None:
     """Called from the Stripe webhook once a discounted payment is confirmed."""
     discount_id = field(metadata, "discount_id")

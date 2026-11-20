@@ -111,13 +111,18 @@ function SessionPersistence() {
 
 interface SessionContextValue {
   session: ReturnType<typeof selectSession>;
-  signIn: (email: string, password: string) => Promise<ReturnType<typeof selectSession>>;
+  signIn: (
+    email: string,
+    password: string,
+    reactivate?: boolean,
+  ) => Promise<ReturnType<typeof selectSession>>;
   /** Google, Apple or Microsoft; `name` is the one Apple shares with the browser on first sign-in. */
   signInWithProvider: (
     provider: SocialProvider,
     credential: string,
     name?: string,
     password?: string,
+    reactivate?: boolean,
   ) => Promise<ReturnType<typeof selectSession>>;
   registerWithProvider: (input: {
     provider: SocialProvider;
@@ -151,8 +156,8 @@ export function useSession(): SessionContextValue {
   }, [dispatch, queryClient]);
 
   const signIn = useCallback(
-    async (email: string, password: string) => {
-      await login(email, password);
+    async (email: string, password: string, reactivate = false) => {
+      await login(email, password, reactivate);
       invalidatePlanCatalog();
       const next = await loadSession();
       queryClient.clear();
@@ -184,8 +189,14 @@ export function useSession(): SessionContextValue {
   );
 
   const signInWithProvider = useCallback(
-    async (provider: SocialProvider, credential: string, name?: string, password?: string) => {
-      await loginWithProvider(provider, credential, name, password);
+    async (
+      provider: SocialProvider,
+      credential: string,
+      name?: string,
+      password?: string,
+      reactivate = false,
+    ) => {
+      await loginWithProvider(provider, credential, name, password, reactivate);
       invalidatePlanCatalog();
       const next = await loadSession();
       queryClient.clear();

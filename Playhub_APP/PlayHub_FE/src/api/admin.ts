@@ -355,6 +355,14 @@ export async function createTtpEmployee(input: {
   return ttpResult(invitation);
 }
 
+/** Super Admin: switch an account back on (or off). */
+export async function setAccountActive(userId: string, active: boolean) {
+  return apiRequest<ApiUser>(`/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ is_active: active }),
+  });
+}
+
 /** Super Admin: correct someone's name or sign-in email. */
 export async function updateAccountDetails(userId: string, input: { name: string; email: string }) {
   return apiRequest<ApiUser>(`/users/${userId}`, {

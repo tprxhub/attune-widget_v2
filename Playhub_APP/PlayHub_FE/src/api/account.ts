@@ -118,3 +118,22 @@ export async function resetPassword(token: string, newPassword: string) {
   });
   return res.detail;
 }
+
+/**
+ * Switch your own account off; nothing is deleted. Confirmed with the password, or with `confirm`
+ * for an account that signs in with Google, Apple or Microsoft and has no password.
+ */
+export async function deactivateMyAccount(input: {
+  password?: string | undefined;
+  confirm?: boolean;
+  reason?: string | undefined;
+}) {
+  return apiRequest<{ detail: string }>("/auth/me/deactivate", {
+    method: "POST",
+    body: JSON.stringify({
+      password: input.password || null,
+      confirm: Boolean(input.confirm),
+      reason: input.reason?.trim() || null,
+    }),
+  });
+}

@@ -30,10 +30,13 @@ class Token(APIModel):
 class LoginRequest(APIModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=256)
+    # True to switch an account its owner deactivated back on while signing in.
+    reactivate: bool = False
 
 
 class GoogleLoginRequest(APIModel):
     credential: str = Field(min_length=100, max_length=10000)
+    reactivate: bool = False
 
 
 class GoogleFamilyRegistration(GoogleLoginRequest):
@@ -46,6 +49,7 @@ class SocialLoginRequest(APIModel):
     credential: str = Field(min_length=100, max_length=10000)
     name: str | None = Field(default=None, max_length=120)
     password: str | None = Field(default=None, min_length=8, max_length=256)
+    reactivate: bool = False
 
 
 class SocialFamilyRegistration(SocialLoginRequest):
@@ -97,6 +101,14 @@ class FamilyRegistration(APIModel):
         return value
 
 
+class AccountDeactivation(APIModel):
+    """Confirmed with the password; an account that signs in with Google, Apple or Microsoft (and so
+    has no password of its own) ticks `confirm` instead."""
+    password: str | None = Field(default=None, max_length=256)
+    confirm: bool = False
+    reason: str | None = Field(default=None, max_length=500)
+
+
 class SignupCodeRequest(APIModel):
     email: str = Field(min_length=3, max_length=255)
 
@@ -137,6 +149,8 @@ class UserRead(APIModel):
     account_scope: AccountScope
     organisation_id: str | None
     is_active: bool
+    deactivated_at: datetime | None = None
+    deactivated_by_self: bool = False
     created_at: datetime
     permissions: list[str] = Field(default_factory=list)
     # Super Admins only: whether they receive account emails and platform alerts.
@@ -637,6 +651,7 @@ class SignupCheckoutCreate(APIModel):
     """Paying during signup, before the account exists: for the email the token proves."""
     email_token: str = Field(min_length=1, max_length=2048)
     plan: str = Field(pattern=r"^[1-9][0-9]?m$", max_length=3)
+    discount_code: str | None = Field(default=None, max_length=60)
 
 
 class CheckoutCreated(APIModel):
@@ -667,6 +682,10 @@ class ChildRead(APIModel):
     plan_started_at: date | None
     notes: str | None
     is_active: bool
+    # The family login's own status: False once it is deactivated (by its owner or an admin).
+    owner_active: bool = True
+    owner_deactivated_at: datetime | None = None
+    owner_deactivated_by_self: bool = False
     subscription: SubscriptionRead | None = None
 
 

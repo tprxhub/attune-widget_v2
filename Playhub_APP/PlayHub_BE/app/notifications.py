@@ -174,6 +174,16 @@ def subscription_ended(owner: User | None, child_name: str, ended_on: date) -> N
     )
 
 
+def self_deactivated(user: User) -> None:
+    _send(
+        _inbox(user),
+        "Your Play Hub account is deactivated",
+        f"Hi {user.display_name},",
+        "You deactivated your Play Hub account. Everything is kept: your child's Play Plans, Sessions and progress.",
+        f"Changed your mind? Log in and choose Reactivate: {_link('/login')}",
+    )
+
+
 def account_status(user: User, active: bool) -> None:
     if active:
         _send(

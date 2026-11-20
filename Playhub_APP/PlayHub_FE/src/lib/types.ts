@@ -158,6 +158,8 @@ export interface Child {
   colorToken: "coral" | "blue" | "amber";
   note?: string | undefined;
   subscription?: Subscription | undefined;
+  /** Set when the family login is deactivated: when, and whether the family did it themselves. */
+  deactivated?: { at: string | null; bySelf: boolean } | undefined;
 }
 
 export interface Attempt {

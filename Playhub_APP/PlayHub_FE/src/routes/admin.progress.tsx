@@ -7,10 +7,16 @@ import {
   Building2,
   ChevronDown,
   Download,
+  LineChart,
   Search,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
+import { listGoals } from "@/api/plans";
+import { ModalPortal } from "@/components/ModalPortal";
+import { ProgressChart } from "@/features/progress/LazyProgressChart";
+import { playPlanName } from "@/lib/planNames";
 import {
   listPlatformProgress,
   progressCsv,
@@ -229,7 +235,7 @@ function AdminProgress() {
         }
       />
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+      <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
         <Tile
           icon={Users}
           label="Members"
@@ -354,7 +360,7 @@ function Tile({
   tone?: "navy" | "blue" | "coral";
 }) {
   return (
-    <div className="ph-card flex items-center gap-3 p-3.5 sm:gap-4 sm:p-4">
+    <div className="ph-card flex min-w-0 items-center gap-3 p-3 sm:gap-4 sm:p-4">
       <span
         className={cn(
           "hidden h-11 w-11 shrink-0 place-items-center rounded-xl sm:grid",
@@ -364,7 +370,9 @@ function Tile({
         <Icon className="h-5 w-5" aria-hidden />
       </span>
       <div className="min-w-0">
-        <p className="text-[11px] font-bold tracking-wide text-navy/50 uppercase">{label}</p>
+        <p className="text-[10px] leading-tight font-bold tracking-wide text-navy/50 uppercase sm:text-[11px]">
+          {label}
+        </p>
         <p
           className={cn(
             "text-2xl leading-tight font-bold",
@@ -373,7 +381,7 @@ function Tile({
         >
           {value}
         </p>
-        <p className="text-[11px] font-semibold text-navy/45">{sub}</p>
+        <p className="hidden text-[11px] font-semibold text-navy/45 sm:block">{sub}</p>
       </div>
     </div>
   );
@@ -510,11 +518,12 @@ function ChildRow({
         onClick={onToggle}
         aria-expanded={open}
         className={cn(
-          "flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3.5 text-left transition-colors hover:bg-navy/3",
+          // Phones: name and Details on top, the status below, then the plan summary.
+          "grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-4 py-3.5 text-left transition-colors hover:bg-navy/3 sm:px-5",
           COLUMNS,
         )}
       >
-        <span className="flex min-w-0 flex-1 items-center gap-3 lg:flex-none">
+        <span className="flex min-w-0 items-center gap-3">
           <ChildProgressIcon childId={child.id} />
           <span className="min-w-0">
             <span className="block truncate text-sm font-bold text-navy">{child.name}</span>
@@ -526,7 +535,7 @@ function ChildRow({
 
         <span className="hidden min-w-0 truncate text-sm text-navy/75 lg:block">{planTitle}</span>
 
-        <span className="min-w-0 space-y-1">
+        <span className="order-3 col-span-2 min-w-0 space-y-1 lg:order-none lg:col-span-1">
           <StatusPill row={row} />
           {reasons.length > 0 && (
             <span className="block text-xs text-coral">
@@ -552,7 +561,7 @@ function ChildRow({
           {seen.text}
         </span>
 
-        <span className="inline-flex items-center gap-1 text-xs font-bold text-blue">
+        <span className="order-2 inline-flex items-center gap-1 justify-self-end text-xs font-bold text-blue lg:order-none lg:justify-self-auto">
           {open ? "Close" : "Details"}
           <ChevronDown
             className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")}
@@ -560,7 +569,7 @@ function ChildRow({
           />
         </span>
 
-        <span className="basis-full text-xs text-navy/55 lg:hidden">
+        <span className="order-4 col-span-2 text-xs text-navy/55 lg:hidden">
           {planTitle} · {report.totalSessions} sessions · {seen.text.toLowerCase()}
         </span>
       </button>
@@ -577,7 +586,10 @@ function ChildDetail({ row }: { row: AdminProgressRow }) {
   if (report.fastTrackOffered) notes.push("Ready to try the Real-Life skill early");
   for (const reason of attentionReasons(row)) notes.push(reason);
 
+  const [graphOpen, setGraphOpen] = useState(false);
   const facts: Array<[string, string]> = [
+    // Every session, then how many came through Daily Check-In (the rest were logged from a Play Plan).
+    ["Sessions logged", String(report.totalSessions)],
     ["Daily check-ins", String(report.checkInCount)],
     ["Activities done", String(report.activitiesCompleted)],
     ["On this plan since", fmtDate(child.planStartedAt)],
@@ -586,6 +598,13 @@ function ChildDetail({ row }: { row: AdminProgressRow }) {
   return (
     <div className="border-t border-navy/8 bg-navy/3 p-4">
       <div className="space-y-4 rounded-2xl bg-card p-4 sm:p-5">
+        <button
+          type="button"
+          onClick={() => setGraphOpen(true)}
+          className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-navy px-4 text-sm font-bold text-cream hover:bg-navy/90 sm:float-right sm:ml-4 sm:w-auto"
+        >
+          <LineChart className="h-4 w-4" aria-hidden /> View progress graph
+        </button>
         <div>
           <p className="eyebrow text-blue">Latest Play Dose</p>
           <p className="mt-1 text-sm font-semibold text-navy">
@@ -622,6 +641,66 @@ function ChildDetail({ row }: { row: AdminProgressRow }) {
           ))}
         </dl>
       </div>
+      {graphOpen && <ProgressGraphModal row={row} onClose={() => setGraphOpen(false)} />}
     </div>
+  );
+}
+
+/** One member's Progress graph in a pop-up: the same chart families see on their Progress page. */
+function ProgressGraphModal({ row, onClose }: { row: AdminProgressRow; onClose: () => void }) {
+  const { child, report } = row;
+  const goals = useQuery({ queryKey: ["goals"], queryFn: () => listGoals() });
+  const plans = useMemo(
+    () => (goals.data ?? []).map((goal) => ({ id: goal.id, title: playPlanName(goal) })),
+    [goals.data],
+  );
+  return (
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-navy/45 p-2 backdrop-blur-sm sm:items-center sm:p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`graph-${child.id}`}
+        onClick={(event) => event.target === event.currentTarget && onClose()}
+        onKeyDown={(event) => event.key === "Escape" && onClose()}
+      >
+        <div className="my-auto w-full max-w-5xl min-w-0 rounded-3xl bg-card p-4 shadow-[0_28px_70px_-20px_rgba(15,42,74,0.5)] sm:p-6">
+          <div className="flex items-start gap-3">
+            <ChildProgressIcon childId={child.id} />
+            <div className="min-w-0 flex-1">
+              <h2 id={`graph-${child.id}`} className="text-lg leading-tight font-bold">
+                {child.name}&apos;s progress
+              </h2>
+              <p className="text-xs text-navy/60">
+                {row.planTitle} · {report.totalSessions} sessions
+                {row.org ? ` · ${row.org.name}` : ""}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              autoFocus
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-navy/55 hover:bg-navy/6 hover:text-navy"
+            >
+              <X className="h-4.5 w-4.5" aria-hidden />
+            </button>
+          </div>
+          <div className="mt-4 min-w-0">
+            {report.points.length === 0 ? (
+              <p className="rounded-2xl bg-navy/5 p-6 text-center text-sm text-navy/65">
+                No sessions logged yet, so there is nothing to chart.
+              </p>
+            ) : (
+              <ProgressChart
+                points={report.points}
+                plans={plans}
+                currentPlanId={report.currentPlanId}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
   );
 }

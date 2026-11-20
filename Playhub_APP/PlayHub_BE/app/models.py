@@ -232,6 +232,10 @@ class User(TimestampMixin, Base):
     account_scope: Mapped[AccountScope] = mapped_column(Enum(AccountScope), nullable=False)
     organisation_id: Mapped[Optional[str]] = mapped_column(ForeignKey("organisations.id", ondelete="SET NULL"), index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # When the account was switched off, and whether its owner did it (they can then reactivate it
+    # by signing in) or an administrator did (only an administrator can turn it back on).
+    deactivated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    deactivated_by_self: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
     # Only used by TTP employees: the PERMISSION_KEYS they may use.
     permissions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     # Super Admins only: also receive the standard account emails and the platform alerts
@@ -423,6 +427,18 @@ class Child(TimestampMixin, Base):
     @property
     def owner_email(self) -> str | None:
         return self.owner.email if self.owner else None
+
+    @property
+    def owner_active(self) -> bool:
+        return self.owner.is_active if self.owner else True
+
+    @property
+    def owner_deactivated_at(self) -> datetime | None:
+        return self.owner.deactivated_at if self.owner and not self.owner.is_active else None
+
+    @property
+    def owner_deactivated_by_self(self) -> bool:
+        return bool(self.owner and not self.owner.is_active and self.owner.deactivated_by_self)
 
     @property
     def invited_member_email(self) -> str | None:

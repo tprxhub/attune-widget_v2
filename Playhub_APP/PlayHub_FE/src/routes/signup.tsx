@@ -22,11 +22,22 @@ import {
   type SocialCredential,
 } from "@/components/SocialSignInButtons";
 import { PolicyModal } from "@/features/policies/PolicyModal";
+import { OffersPanel, PriceDetails } from "@/features/billing/OffersPanel";
+import {
+  checkDiscount,
+  checkSignupDiscount,
+  listOffers,
+  OFFERS_KEY,
+  type DiscountQuote,
+  type Offer,
+} from "@/api/discounts";
+import { fmtMoney } from "@/lib/money";
+import { useQuery } from "@tanstack/react-query";
 import { displayPricePlan, loadPricingForRoute, usePricePlans } from "@/api/pricing";
 import {
   checkout,
   getSignupPayment,
-  PLAN_FEATURES,
+  PLAN_HIGHLIGHTS,
   startSignupCheckout,
 } from "@/api/subscriptions";
 import type { PlanDuration } from "@/lib/types";
@@ -384,12 +395,12 @@ function SignupPage() {
     plan: null,
   }[step] as Step | null;
 
-  const startPayment = async (plan: string) => {
+  const startPayment = async (plan: string, coupon: string | null) => {
     setPending(true);
     setErrors({});
     setNotice(null);
     try {
-      const url = await startSignupCheckout(emailToken, plan as PlanDuration);
+      const url = await startSignupCheckout(emailToken, plan as PlanDuration, coupon);
       savePayFirst({ email: email.trim(), emailToken, plan });
       window.location.assign(url);
     } catch (reason) {
@@ -477,10 +488,11 @@ function SignupPage() {
           headingRef={heading}
           stepLabel={stepLabel}
           email={email.trim()}
+          emailToken={emailToken}
           initialPlan={chosenPlan}
           pending={pending}
           notice={notice}
-          onPay={(plan) => void startPayment(plan)}
+          onPay={(plan, coupon) => void startPayment(plan, coupon)}
           onStartFree={() => {
             setPayFirst(false);
             savePayFirst(null);
@@ -497,12 +509,8 @@ function SignupPage() {
             tabIndex={-1}
             className="text-3xl leading-[1.05] font-bold tracking-tight text-navy outline-none sm:text-4xl"
           >
-            Small doses of play, real skill change.
+            Sign Up
           </h1>
-          <p className="mt-3 text-[15px] leading-relaxed text-navy/70">
-            Ready to start? Enter your email to create a free family account. Browse every Play Plan
-            and try a Play Dose free.
-          </p>
           <form onSubmit={submitEmail} noValidate className="mt-6">
             <label htmlFor="email" className={authLabel}>
               Email Address
@@ -754,9 +762,7 @@ function SignupPage() {
 
       {step === "child" && (
         <>
-          <StepHeading ref={heading} eyebrow={stepLabel} title="Who are we playing with?">
-            Play Hub builds each week around one child. Tell us a little about them.
-          </StepHeading>
+          <StepHeading ref={heading} eyebrow={stepLabel} title="What's your child's name?" />
           <form onSubmit={submitChild} noValidate className="mt-6 space-y-5">
             <div>
               <label htmlFor="childName" className={authLabel}>
@@ -796,10 +802,6 @@ function SignupPage() {
               </div>
               <FieldError message={errors["childAge"]} />
             </fieldset>
-            <p className="rounded-2xl bg-navy/5 px-4 py-3 text-xs leading-relaxed text-navy/65">
-              The account sits in your child&apos;s name and is run by you, the parent or carer. One
-              child per family account.
-            </p>
             <button type="submit" disabled={busy} className={authButton}>
               {pending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
               Create account
@@ -830,11 +832,142 @@ function SignupPage() {
   );
 }
 
+/**
+ * The plan picker both plan steps share: longest plan first and selected, Free last (when offered),
+ * the coupon box and price details for a paid plan, then the button.
+ */
+function PlanChooser({
+  initialPlan,
+  includeFree,
+  offers,
+  checkCoupon,
+  pending,
+  onContinue,
+}: {
+  initialPlan?: string | undefined;
+  includeFree: boolean;
+  offers: Offer[];
+  checkCoupon: (code: string, plan: string) => Promise<DiscountQuote>;
+  pending: boolean;
+  /** `plan` is null for Free. */
+  onContinue: (plan: string | null, couponCode: string | null) => void;
+}) {
+  const pricing = usePricePlans();
+  const plans = pricing.plans.map(displayPricePlan).sort((a, b) => b.months - a.months);
+  const [choice, setChoice] = useState<string | undefined>(initialPlan);
+  // Until something is chosen: the plan from the pricing section, else the longest one.
+  const chosenId = plans.some((plan) => plan.duration === choice)
+    ? choice
+    : choice === FREE && includeFree
+      ? FREE
+      : plans[0]?.duration;
+  const chosen = plans.find((plan) => plan.duration === chosenId);
+  const [quote, setQuote] = useState<DiscountQuote | null>(null);
+  const [checking, setChecking] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  const applyCode = async (code: string, plan: string) => {
+    setChecking(code);
+    setCouponError(null);
+    try {
+      setQuote(await checkCoupon(code, plan));
+    } catch (reason) {
+      setQuote(null);
+      setCouponError(reason instanceof Error ? reason.message : "That code couldn't be checked.");
+    } finally {
+      setChecking(null);
+    }
+  };
+  const select = (plan: string) => {
+    setChoice(plan);
+    // A coupon is priced per plan: check it again for the new one (Free has none).
+    if (quote && plan !== FREE) void applyCode(quote.code, plan);
+    if (plan === FREE) setQuote(null);
+  };
+  const total = chosen ? (quote ? fmtMoney(quote.finalAmount / 100) : chosen.price) : null;
+
+  return (
+    <>
+      <div role="radiogroup" aria-label="Plans" className="mt-6 grid gap-3">
+        {plans.map((plan) => (
+          <PlanOption
+            key={plan.duration}
+            selected={chosenId === plan.duration}
+            onSelect={() => select(plan.duration)}
+            title={plan.label}
+            price={plan.price}
+            detail={plan.per}
+            badge={plan.featured ? plan.badge_text || "Best value" : undefined}
+          />
+        ))}
+        {includeFree && (
+          <PlanOption
+            selected={chosenId === FREE}
+            onSelect={() => select(FREE)}
+            title="Free"
+            price="AED 0"
+            detail="Browse every Play Plan and try a Play Dose"
+          />
+        )}
+      </div>
+
+      {chosen && (
+        <>
+          <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
+            {PLAN_HIGHLIGHTS.map((line) => (
+              <li key={line} className="flex items-start gap-2 text-sm text-navy/75">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden />
+                {line}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6">
+            <OffersPanel
+              offers={offers}
+              months={chosen.months}
+              amount={chosen.amount}
+              applied={quote}
+              checking={checking}
+              error={couponError}
+              onApply={(code) => void applyCode(code, chosen.duration)}
+              onRemove={() => {
+                setQuote(null);
+                setCouponError(null);
+              }}
+            />
+          </div>
+          <PriceDetails label={chosen.label} amount={chosen.amount} applied={quote} />
+        </>
+      )}
+
+      <button
+        type="button"
+        onClick={() => onContinue(chosen?.duration ?? null, chosen ? (quote?.code ?? null) : null)}
+        disabled={pending || checking !== null}
+        className={cn(authButton, "mt-6")}
+      >
+        {pending ? (
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+        ) : (
+          chosen && <Lock className="h-4 w-4" aria-hidden />
+        )}
+        {chosen ? `Pay ${total} securely` : "Start free"}
+      </button>
+      <p className="mt-3 text-center text-xs text-navy/55">
+        {chosen
+          ? "Secure payment by Stripe. One payment, no auto-renewal."
+          : "You can upgrade any time from Subscription."}
+      </p>
+    </>
+  );
+}
+
 /** Pay first (from the pricing section): confirm or change the paid plan, then go to Stripe. */
 function PayStep({
   headingRef,
   stepLabel,
   email,
+  emailToken,
   initialPlan,
   pending,
   notice,
@@ -844,20 +977,13 @@ function PayStep({
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   stepLabel: string;
   email: string;
+  emailToken: string;
   initialPlan: string | undefined;
   pending: boolean;
   notice: string | null;
-  onPay: (plan: string) => void;
+  onPay: (plan: string, couponCode: string | null) => void;
   onStartFree: () => void;
 }) {
-  const pricing = usePricePlans();
-  const plans = pricing.plans.map(displayPricePlan);
-  const recommended = plans.find((plan) => plan.featured) ?? plans[0];
-  const [choice, setChoice] = useState<string | undefined>(
-    plans.some((plan) => plan.duration === initialPlan) ? initialPlan : recommended?.duration,
-  );
-  const chosen = plans.find((plan) => plan.duration === choice) ?? recommended;
-
   return (
     <>
       <StepHeading ref={headingRef} eyebrow={stepLabel} title="Confirm your plan">
@@ -869,43 +995,14 @@ function PayStep({
           {notice}
         </p>
       )}
-      <div role="radiogroup" aria-label="Plans" className="mt-6 grid gap-3">
-        {plans.map((plan) => (
-          <PlanOption
-            key={plan.duration}
-            selected={chosen?.duration === plan.duration}
-            onSelect={() => setChoice(plan.duration)}
-            title={plan.label}
-            price={plan.price}
-            detail={plan.per}
-            badge={plan === recommended ? plan.badge_text || "Recommended" : undefined}
-          />
-        ))}
-      </div>
-      <ul className="mt-5 grid gap-2">
-        {PLAN_FEATURES.map((line) => (
-          <li key={line} className="flex gap-2 text-sm text-navy/75">
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden />
-            {line}
-          </li>
-        ))}
-      </ul>
-      <button
-        type="button"
-        disabled={pending || !chosen}
-        onClick={() => chosen && onPay(chosen.duration)}
-        className={cn(authButton, "mt-6")}
-      >
-        {pending ? (
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-        ) : (
-          <Lock className="h-4 w-4" aria-hidden />
-        )}
-        {chosen ? `Pay ${chosen.price} securely` : "Pay securely"}
-      </button>
-      <p className="mt-3 text-center text-xs text-navy/55">
-        Secure payment by Stripe. One payment, no auto-renewal.
-      </p>
+      <PlanChooser
+        initialPlan={initialPlan}
+        includeFree={false}
+        offers={[]}
+        checkCoupon={(code, plan) => checkSignupDiscount(emailToken, code, plan)}
+        pending={pending}
+        onContinue={(plan, coupon) => plan && onPay(plan, coupon)}
+      />
       <p className="mt-5 text-center text-sm text-navy/70">
         Not ready to pay?{" "}
         <button
@@ -921,7 +1018,7 @@ function PayStep({
   );
 }
 
-/** Step 3: pick Free or a paid plan; the recommended plan starts selected. */
+/** The last step of normal signup: the account exists, so pick Free or pay for a plan. */
 function PlanStep({
   headingRef,
   childName,
@@ -932,27 +1029,24 @@ function PlanStep({
   childId: string | null;
 }) {
   const navigate = useNavigate();
-  const pricing = usePricePlans();
-  const plans = pricing.plans.map(displayPricePlan);
-  const recommended = plans.find((plan) => plan.featured) ?? plans[0];
-  const [choice, setChoice] = useState<string>(recommended?.duration ?? FREE);
+  // Signed in by now, so the offers this family can use are listed like on Subscription.
+  const offers = useQuery({ queryKey: OFFERS_KEY, queryFn: listOffers, retry: false });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const chosen = plans.find((plan) => plan.duration === choice);
 
-  const submit = async () => {
+  const submit = async (plan: string | null, coupon: string | null) => {
     setError(null);
-    if (!chosen) {
+    if (!plan) {
       await navigate({ to: "/hub" });
       return;
     }
     if (!childId) {
-      await navigate({ to: "/subscription", search: { plan: chosen.duration } as never });
+      await navigate({ to: "/subscription", search: { plan } as never });
       return;
     }
     setPending(true);
     try {
-      await checkout(childId, chosen.duration as PlanDuration);
+      await checkout(childId, plan as PlanDuration, coupon);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to open payment.");
       setPending(false);
@@ -965,53 +1059,13 @@ function PlanStep({
         {childName ? `${childName}'s account is ready. ` : "Your account is ready. "}
         Start free, or unlock the full week of guided play.
       </StepHeading>
-
-      <div role="radiogroup" aria-label="Plans" className="mt-6 grid gap-3">
-        {plans.map((plan) => (
-          <PlanOption
-            key={plan.duration}
-            selected={choice === plan.duration}
-            onSelect={() => setChoice(plan.duration)}
-            title={plan.label}
-            price={plan.price}
-            detail={plan.per}
-            badge={plan === recommended ? plan.badge_text || "Recommended" : undefined}
-          />
-        ))}
-        <PlanOption
-          selected={choice === FREE}
-          onSelect={() => setChoice(FREE)}
-          title="Free"
-          price="AED 0"
-          detail="Browse every Play Plan and try a Play Dose"
-        />
-      </div>
-
-      {chosen && (
-        <ul className="mt-5 grid gap-2">
-          {PLAN_FEATURES.map((line) => (
-            <li key={line} className="flex gap-2 text-sm text-navy/75">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden />
-              {line}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <button
-        type="button"
-        onClick={() => void submit()}
-        disabled={pending}
-        className={cn(authButton, "mt-6")}
-      >
-        {pending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
-        {chosen ? `Continue to payment — ${chosen.price}` : "Start free"}
-      </button>
-      <p className="mt-3 text-center text-xs text-navy/55">
-        {chosen
-          ? "Secure payment by Stripe. Have a coupon? Add it from Subscription later."
-          : "You can upgrade any time from Subscription."}
-      </p>
+      <PlanChooser
+        includeFree
+        offers={offers.data ?? []}
+        checkCoupon={checkDiscount}
+        pending={pending}
+        onContinue={(plan, coupon) => void submit(plan, coupon)}
+      />
       {error && (
         <p
           role="alert"
@@ -1084,7 +1138,7 @@ function StepHeading({
   ref: React.Ref<HTMLHeadingElement>;
   eyebrow: string;
   title: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <>
@@ -1096,7 +1150,7 @@ function StepHeading({
       >
         {title}
       </h1>
-      <p className="mt-2 text-[15px] leading-relaxed text-navy/70">{children}</p>
+      {children && <p className="mt-2 text-[15px] leading-relaxed text-navy/70">{children}</p>}
     </>
   );
 }

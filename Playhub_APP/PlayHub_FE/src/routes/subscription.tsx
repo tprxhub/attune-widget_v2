@@ -14,7 +14,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Loader2, Lock } from "lucide-react";
 import {
-  PLAN_FEATURES,
+  PLAN_HIGHLIGHTS,
   checkout,
   openCheckoutTab,
   daysLeftLabel,
@@ -393,7 +393,7 @@ function SubscriptionPage() {
             <div className="ph-card mt-5 p-5">
               <h2 className="text-lg font-bold">What unlocks for {activeChild?.name}</h2>
               <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                {PLAN_FEATURES.map((line) => (
+                {PLAN_HIGHLIGHTS.map((line) => (
                   <li key={line} className="flex gap-2 text-sm text-navy/75">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue" aria-hidden />
                     {line}
@@ -412,14 +412,13 @@ function SubscriptionPage() {
               >
                 {buy.isPending && <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
                 {canRenew
-                  ? `Renew ${activeChild?.name} — ${price}`
+                  ? `Renew — ${price}`
                   : active
                     ? "Already subscribed"
-                    : `${stage === "ended" ? "Re-subscribe" : "Subscribe"} ${activeChild?.name} — ${price}`}
+                    : `${stage === "ended" ? "Re-subscribe" : "Subscribe"} — ${price}`}
               </button>
               <p className="mt-3 inline-flex items-center gap-2 text-xs text-navy/55">
-                <Lock className="h-3.5 w-3.5" aria-hidden /> Secure card payment via Stripe. Cancel
-                within 7 days for a full refund.
+                <Lock className="h-3.5 w-3.5" aria-hidden /> Secure card payment via Stripe.
               </p>
             </div>
           </section>

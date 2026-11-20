@@ -87,9 +87,6 @@ function SignInRequired() {
           >
             Please sign in
           </h1>
-          <p className="mx-auto mt-3 max-w-xs text-[15px] leading-relaxed text-navy/70">
-            This part of Play Hub is only available once you&apos;re signed in.
-          </p>
 
           <div className="mt-8 grid gap-3">
             <Link

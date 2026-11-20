@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_child_access, require_permission, require_roles
-from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, SignupEmailCode, SignupPayment, PlanPublicationStatus, PlayCategory, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
+from app.models import AUDIT_CATEGORIES, AUDIT_CATEGORY_PREFIXES, AccountScope, Activity, Attempt, AuditEvent, Child, Invitation, InvitationStatus, Organisation, PasswordResetToken, PlanLevel, SignupEmailCode, SignupPayment, DiscountRedemption, PlanPublicationStatus, PlayCategory, PlayDose, PlayPlan, Role, SiteContent, StripeEvent, Subscription, SubscriptionStatus, User, VideoSourceType
 from app.config import get_settings
 from app.billing import BillingError, create_checkout, create_refund, paid_in_full, parse_webhook, plan_price, settled_plan
 from app import discounts
@@ -40,7 +40,7 @@ from app.schemas import (
     AccountDeletion, LoginRequest, MemberDeletion, OrganisationCreate, OrganisationDeletion, OrganisationRead, OrganisationUpdate, PasswordChange, PasswordForgot, PasswordReset, PlayDoseCreate, PlayDoseRead,
     PlayDoseUpdate, DoseContentUpdate, OrderUpdate, PlayCategoryCreate, PlayCategoryRead, PlayCategoryUpdate, PlayPlanCreate, PlayPlanRead, PlayPlanUpdate, ProgressSummary, SubscriptionRead,
     SubscriptionUpsert, Token, UserCreate, UserRead, UserUpdate, PersonaRead, HomepageContent, PlanPictureRead, SiteContentRead,
-    ModeratorInvitationUpdate, SignupCodeCheck, SignupCodeRequest, SignupCheckoutCreate,
+    ModeratorInvitationUpdate, AccountDeactivation, SignupCodeCheck, SignupCodeRequest, SignupCheckoutCreate,
 )
 from app.security import create_access_token, create_signup_token, decode_signup_token, hash_password, verify_password
 from app.services import PROGRESS_LOAD, assigned_plan_id, audit, progress_summary
@@ -235,14 +235,61 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     return commit(db, User(**payload.model_dump(exclude={"password"}), password_hash=hash_password(payload.password)))
 
 
-@router.post("/auth/login", response_model=Token)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
-    if not user or not user.is_active or not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+ACCOUNT_DEACTIVATED = "This account is deactivated. Reactivate it to sign in again."
+
+
+def admit(db: Session, user: User, reactivate: bool) -> Token:
+    """The last check of every sign-in. An account its owner deactivated answers 423 until they ask
+    to reactivate it; one an administrator switched off stays closed."""
+    if not user.is_active:
+        if not user.deactivated_by_self:
+            raise HTTPException(status_code=401, detail="Account is unavailable")
+        if not reactivate:
+            raise HTTPException(status_code=423, detail=ACCOUNT_DEACTIVATED)
+        user.is_active = True
+        user.deactivated_at = None
+        user.deactivated_by_self = False
+        audit(db, user.id, "user.reactivated", "user", user.id, {"by": "self"})
+        db.commit()
+        notifications.account_status(user, True)
     if user.organisation_id and (not user.organisation or not user.organisation.is_active):
         raise HTTPException(status_code=403, detail="Organisation is suspended")
     return Token(access_token=create_access_token(user.id))
+
+
+@router.post("/auth/login", response_model=Token)
+def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if not user.is_active and not user.deactivated_by_self:
+        # Switched off by an administrator: say no more than for a wrong password.
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    return admit(db, user, payload.reactivate)
+
+
+@router.post("/auth/me/deactivate", status_code=status.HTTP_200_OK)
+def deactivate_own_account(payload: AccountDeactivation, user: User = Depends(get_current_user),
+                           db: Session = Depends(get_db)):
+    """Switch your own account off without deleting anything. Signing in again offers to reactivate it."""
+    if user.role in {Role.SUPER_ADMIN, Role.TTP_EMPLOYEE}:
+        raise HTTPException(status_code=403, detail="Platform accounts are managed by a Super Admin.")
+    if user.account_scope != AccountScope.INDIVIDUAL:
+        raise HTTPException(status_code=403, detail="Your organisation manages this account. Ask its Admin to deactivate it.")
+    social = bool(user.google_subject or getattr(user, "apple_subject", None) or getattr(user, "microsoft_subject", None))
+    if payload.password:
+        if not verify_password(payload.password, user.password_hash):
+            raise HTTPException(status_code=422, detail="That password isn't right.")
+    elif not (social and payload.confirm):
+        raise HTTPException(status_code=422, detail="Enter your password to deactivate your account.")
+    user.is_active = False
+    user.deactivated_at = datetime.now(timezone.utc)
+    user.deactivated_by_self = True
+    audit(db, user.id, "user.deactivated", "user", user.id,
+          {"by": "self", **({"reason": payload.reason.strip()} if payload.reason and payload.reason.strip() else {})})
+    db.commit()
+    notifications.self_deactivated(user)
+    return {"detail": "Your account is deactivated."}
 
 
 @router.post("/auth/refresh", response_model=Token)
@@ -276,11 +323,7 @@ def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
         user.google_subject = identity.subject
         audit(db, user.id, "user.google_linked", "user", user.id)
         db.commit()
-    if not user.is_active:
-        raise HTTPException(status_code=401, detail="Account is unavailable")
-    if user.organisation_id and (not user.organisation or not user.organisation.is_active):
-        raise HTTPException(status_code=403, detail="Organisation is suspended")
-    return Token(access_token=create_access_token(user.id))
+    return admit(db, user, payload.reactivate)
 
 
 @router.post("/auth/google/register-family", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -376,11 +419,7 @@ def social_login(provider: Provider, payload: SocialLoginRequest, db: Session) -
         setattr(user, attr, identity.subject)
         audit(db, user.id, f"user.{provider}_linked", "user", user.id)
         db.commit()
-    if not user.is_active:
-        raise HTTPException(status_code=401, detail="Account is unavailable")
-    if user.organisation_id and (not user.organisation or not user.organisation.is_active):
-        raise HTTPException(status_code=403, detail="Organisation is suspended")
-    return Token(access_token=create_access_token(user.id))
+    return admit(db, user, payload.reactivate)
 
 
 def social_register_family(provider: Provider, payload: SocialFamilyRegistration, db: Session) -> Token:
@@ -469,6 +508,10 @@ def claim_signup_payment(db: Session, user: User, child: Child, subscription: Su
     subscription.amount_paid = payment.amount_paid
     payment.status = "claimed"
     payment.claimed_child_id = child.id
+    # A coupon used while paying counts against this account from now on.
+    for redemption in db.scalars(select(DiscountRedemption).where(
+            DiscountRedemption.stripe_checkout_session_id == payment.stripe_checkout_session_id)):
+        redemption.user_id, redemption.child_id = user.id, child.id
     payment.claimed_at = datetime.now(timezone.utc)
     db.flush()
     audit(db, user.id, "billing.signup_payment_claimed", "subscription", subscription.id, {"plan": payment.plan})
@@ -493,13 +536,22 @@ def create_signup_checkout(payload: SignupCheckoutCreate, db: Session = Depends(
     catalogue = billing_catalog(db)
     if payload.plan not in catalogue:
         raise HTTPException(status_code=422, detail="This subscription plan is no longer available. Refresh the page to choose a current plan.")
+    discount = None
+    if payload.discount_code and payload.discount_code.strip():
+        charged = plan_price(get_settings(), payload.plan, catalogue)["amount"]
+        try:
+            quote = discounts.quote(db, payload.discount_code, None, payload.plan, charged)
+        except discounts.DiscountError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        discount = {"id": quote.discount.id, "code": quote.discount.code, "amount_off": quote.discount_amount}
     try:
         checkout = create_checkout(get_settings(), user_id=None, email=email, child_id=None,
-                                   plan=payload.plan, catalog=catalogue)
+                                   plan=payload.plan, catalog=catalogue, discount=discount)
     except BillingError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     db.add(SignupPayment(email=email, plan=payload.plan, stripe_checkout_session_id=checkout.id))
-    audit(db, None, "billing.signup_checkout_created", "signup_payment", checkout.id, {"plan": payload.plan})
+    audit(db, None, "billing.signup_checkout_created", "signup_payment", checkout.id,
+          {"plan": payload.plan, **({"discount_code": discount["code"]} if discount else {})})
     db.commit()
     return CheckoutCreated(checkout_url=checkout.url)
 
@@ -875,6 +927,10 @@ def update_user(user_id: str, payload: UserUpdate, actor: User = Depends(require
         licenses.ensure_available(db, target.organisation, "moderators")
         licenses.ensure_admin_moderator_capacity(db, actor)
     for key, value in payload.model_dump(exclude_unset=True).items(): setattr(target, key, value)
+    if target.is_active != was_active:
+        # An administrator switching an account off (or back on) takes over from its owner.
+        target.deactivated_at = None if target.is_active else datetime.now(timezone.utc)
+        target.deactivated_by_self = False
     audit(db, actor.id, "user.updated", "user", target.id, {"fields": sorted(payload.model_dump(exclude_unset=True))})
     target = commit(db, target)
     if target.is_active != was_active:
@@ -2163,6 +2219,9 @@ def settle_signup_payment(db: Session, event_id: str, event_type: str, data, met
     payment.paid_on = datetime.fromtimestamp(
         int(stripe_field(data, "created", datetime.now(timezone.utc).timestamp())), tz=timezone.utc
     ).date()
+    db.flush()
+    discounts.record_redemption(db, metadata, stripe_field, session_id=session_id, user_id=None, child_id=None,
+                                plan=payment.plan)
     db.flush()
     audit(db, None, "billing.signup_payment_completed", "signup_payment", payment.id, {"plan": payment.plan})
     # The account may already exist (finished while Stripe was still confirming): apply it now.

@@ -15,6 +15,10 @@ import { ApiError, apiAssetUrl } from "@/api/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): { deactivated?: boolean | undefined } => ({
+    deactivated:
+      search["deactivated"] === true || search["deactivated"] === "true" ? true : undefined,
+  }),
   loader: ({ context }) => loadHomepageForRoute(context.queryClient),
   head: () => ({
     meta: [
@@ -48,6 +52,11 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const { deactivated } = Route.useSearch();
+  // Signed in to an account its owner deactivated: offer to switch it back on.
+  const [reactivating, setReactivating] = useState<
+    { kind: "password" } | { kind: "social"; social: SocialCredential } | null
+  >(null);
   const [mounted, setMounted] = useState(false);
   const { signIn, signInWithProvider, registerWithProvider, hydrated } = useSession();
   // A first-time Google, Apple or Microsoft sign-in waiting for the child's details.
@@ -79,7 +88,30 @@ function LoginPage() {
       }
       await navigate({ to: "/hub" });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to sign in.");
+      if (reason instanceof ApiError && reason.status === 423) {
+        setReactivating({ kind: "password" });
+      } else {
+        setError(reason instanceof Error ? reason.message : "Unable to sign in.");
+      }
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const reactivate = async () => {
+    if (!reactivating) return;
+    setPending(true);
+    setError(null);
+    try {
+      if (reactivating.kind === "password") {
+        await signIn(email.trim(), password, true);
+      } else {
+        const { provider, credential, name } = reactivating.social;
+        await signInWithProvider(provider, credential, name, undefined, true);
+      }
+      await navigate({ to: "/hub" });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to reactivate your account.");
     } finally {
       setPending(false);
     }
@@ -94,7 +126,9 @@ function LoginPage() {
       await signInWithProvider(social.provider, social.credential, social.name);
       await navigate({ to: "/hub" });
     } catch (reason) {
-      if (reason instanceof ApiError && reason.status === 404) {
+      if (reason instanceof ApiError && reason.status === 423) {
+        setReactivating({ kind: "social", social });
+      } else if (reason instanceof ApiError && reason.status === 404) {
         // First time with this account: ask for the child's details, then create the family account.
         setNewSocial(social);
       } else if (
@@ -146,6 +180,45 @@ function LoginPage() {
           Create an account
         </Link>
       </p>
+
+      {deactivated && !reactivating && (
+        <p role="status" className="mt-5 rounded-2xl bg-blue/10 px-4 py-3 text-sm text-navy">
+          Your account is deactivated and nothing was deleted. Log in any time to reactivate it.
+        </p>
+      )}
+      {reactivating && (
+        <div
+          role="alertdialog"
+          aria-labelledby="reactivate-title"
+          className="mt-5 rounded-2xl border border-amber bg-amber/15 p-4"
+        >
+          <p id="reactivate-title" className="text-base font-bold text-navy">
+            This account is deactivated
+          </p>
+          <p className="mt-1 text-sm text-navy/75">
+            Everything is still here. Reactivate it to sign in and carry on where you left off.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void reactivate()}
+              disabled={pending}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-cream disabled:opacity-60"
+            >
+              {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              Reactivate and log in
+            </button>
+            <button
+              type="button"
+              onClick={() => setReactivating(null)}
+              disabled={pending}
+              className="min-h-11 rounded-full px-4 text-sm font-bold text-navy/70 hover:text-navy"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
 
       <div
         className="mt-7 grid grid-cols-2 gap-2 rounded-full bg-navy/6 p-1"

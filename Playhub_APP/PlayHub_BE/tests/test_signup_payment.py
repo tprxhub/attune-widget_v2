@@ -143,3 +143,54 @@ def test_the_stripe_session_for_a_signup_returns_to_signup(monkeypatch):
     assert "client_reference_id" not in sent
     assert sent["metadata"]["kind"] == "signup" and sent["metadata"]["signup_email"] == EMAIL
     assert sent["customer_email"] == EMAIL
+
+
+def test_a_coupon_works_while_paying_first_and_counts_for_the_new_account(client, platform_admin, monkeypatch):
+    from tests.test_discounts import discount
+
+    assert client.post(f"{API}/billing/discounts", headers=platform_admin,
+                       json=discount(code="first20", kind="percent", value=20)).status_code == 201
+    token = create_signup_token(EMAIL)
+    check = client.post(f"{API}/billing/discounts/check-signup",
+                        json={"email_token": token, "code": "first20", "plan": "6m"})
+    assert check.status_code == 200
+    assert check.json()["final_amount"] == 33900 - 6780
+    # Without a verified email the check is refused; a wrong code explains itself.
+    assert client.post(f"{API}/billing/discounts/check-signup",
+                       json={"email_token": "x", "code": "first20", "plan": "6m"}).status_code == 403
+    assert client.post(f"{API}/billing/discounts/check-signup",
+                       json={"email_token": token, "code": "nope", "plan": "6m"}).status_code == 422
+
+    calls = {}
+
+    def fake(*_, **kwargs):
+        calls.update(kwargs)
+        return CheckoutResult("cs_signup_1", "https://checkout.stripe.test/signup")
+
+    monkeypatch.setattr("app.api.create_checkout", fake)
+    started = client.post(f"{API}/billing/signup-checkout",
+                          json={"email_token": token, "plan": "6m", "discount_code": "first20"})
+    assert started.status_code == 201
+    assert calls["discount"]["code"] == "FIRST20" and calls["discount"]["amount_off"] == 6780
+
+    # Stripe charged the discounted amount; the webhook carries the discount in the metadata.
+    paid = {
+        "id": "cs_signup_1", "created": int(datetime.now(timezone.utc).timestamp()),
+        "payment_status": "paid", "amount_total": 27120, "currency": "aed",
+        "payment_intent": "pi_signup_1", "customer": "cus_signup_1",
+        "metadata": {"kind": "signup", "signup_email": EMAIL, "plan": "6m", "plan_amount": "27120",
+                     "plan_months": "6", "plan_label": "Play Hub — 6-Month (FIRST20)",
+                     "discount_id": calls["discount"]["id"], "discount_code": "FIRST20",
+                     "list_amount": "33900", "discount_amount": "6780"},
+    }
+    monkeypatch.setattr("app.api.parse_webhook",
+                        lambda *_: {"id": "evt_c", "type": "checkout.session.completed", "data": {"object": paid}})
+    assert client.post(f"{API}/billing/webhook", content=b"e", headers={"stripe-signature": "s"}).status_code == 200
+    created = register(client, status(client).json()["email_token"])
+    family = {"Authorization": f"Bearer {created.json()['access_token']}"}
+    assert client.get(f"{API}/children", headers=family).json()[0]["subscription"]["status"] == "active"
+    # The coupon is now used by this account (it was once per account).
+    again = client.post(f"{API}/billing/discounts/check", headers=family, json={"code": "first20", "plan": "6m"})
+    assert again.status_code == 422 and "already used" in again.json()["detail"]
+    listed = {row["code"]: row for row in client.get(f"{API}/billing/discounts", headers=platform_admin).json()}
+    assert listed["FIRST20"]["uses"] == 1

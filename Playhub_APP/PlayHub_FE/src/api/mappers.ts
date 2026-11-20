@@ -89,6 +89,13 @@ export function mapChild(child: ApiChild): Child {
     colorToken: token === "coral" || token === "amber" ? token : "blue",
     note: child.notes ?? undefined,
     subscription: mapSubscription(child),
+    deactivated:
+      child.owner_active === false
+        ? {
+            at: child.owner_deactivated_at ?? null,
+            bySelf: Boolean(child.owner_deactivated_by_self),
+          }
+        : undefined,
   };
 }
 
