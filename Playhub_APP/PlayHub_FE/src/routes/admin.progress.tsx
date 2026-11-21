@@ -91,6 +91,11 @@ function lastSeen(date: string | null) {
 }
 
 /** Why a child is in the "needs attention" list; empty when nothing is wrong. */
+/** The latest check-in of any kind: Daily Check-In or a session logged from a Play Plan. */
+function lastCheckInOf({ report }: AdminProgressRow) {
+  return report.latestSessionDate ?? report.lastCheckIn ?? null;
+}
+
 function attentionReasons({ report }: AdminProgressRow) {
   const reasons: string[] = [];
   if (report.status === "needs_check_in") reasons.push("Play Consult suggested");
@@ -183,7 +188,7 @@ function AdminProgress() {
                   ? attentionReasons(row).length > 0
                   : status === "notstarted"
                     ? row.report.totalSessions === 0
-                    : Boolean(row.report.lastCheckIn && daysSince(row.report.lastCheckIn) < 14),
+                    : Boolean(lastCheckInOf(row) && daysSince(lastCheckInOf(row)!) < 14),
               ),
             }))
             .filter((g) => g.rows.length > 0),
@@ -242,7 +247,7 @@ function AdminProgress() {
           value={String(rows.length)}
           sub={`${scoped.length} ${scoped.length === 1 ? "account" : "accounts"}`}
         />
-        <Tile icon={Activity} label="Sessions" value={String(totals.sessions)} sub="all time" />
+        <Tile icon={Activity} label="Check-ins" value={String(totals.sessions)} sub="all time" />
         <Tile
           icon={AlertTriangle}
           label="Need attention"
@@ -267,9 +272,8 @@ function AdminProgress() {
                 [
                   "active",
                   "Active in 14 days",
-                  rows.filter(
-                    (row) => row.report.lastCheckIn && daysSince(row.report.lastCheckIn) < 14,
-                  ).length,
+                  rows.filter((row) => lastCheckInOf(row) && daysSince(lastCheckInOf(row)!) < 14)
+                    .length,
                 ],
                 [
                   "notstarted",
@@ -453,7 +457,7 @@ function GroupCard({
           <dl className="hidden text-right sm:flex">
             <div>
               <dt className="text-[10px] font-bold tracking-wide text-navy/45 uppercase">
-                Sessions
+                Check-ins
               </dt>
               <dd className="text-sm font-bold">{stats.sessions}</dd>
             </div>
@@ -508,7 +512,7 @@ function ChildRow({
   onToggle: () => void;
 }) {
   const { child, report, planTitle } = row;
-  const seen = lastSeen(report.lastCheckIn);
+  const seen = lastSeen(report.latestSessionDate ?? report.lastCheckIn);
   const reasons = attentionReasons(row);
 
   return (
@@ -528,7 +532,7 @@ function ChildRow({
           <span className="min-w-0">
             <span className="block truncate text-sm font-bold text-navy">{child.name}</span>
             <span className="block text-xs text-navy/50">
-              {child.age} yrs · {report.totalSessions} sessions
+              {child.age} yrs · {report.totalSessions} check-ins
             </span>
           </span>
         </span>
@@ -570,7 +574,7 @@ function ChildRow({
         </span>
 
         <span className="order-4 col-span-2 text-xs text-navy/55 lg:hidden">
-          {planTitle} · {report.totalSessions} sessions · {seen.text.toLowerCase()}
+          {planTitle} · {report.totalSessions} check-ins · last {seen.text.toLowerCase()}
         </span>
       </button>
 
@@ -588,9 +592,8 @@ function ChildDetail({ row }: { row: AdminProgressRow }) {
 
   const [graphOpen, setGraphOpen] = useState(false);
   const facts: Array<[string, string]> = [
-    // Every session, then how many came through Daily Check-In (the rest were logged from a Play Plan).
-    ["Sessions logged", String(report.totalSessions)],
-    ["Daily check-ins", String(report.checkInCount)],
+    // Every logged session is a check-in, whether logged from Daily Check-In or a Play Plan.
+    ["Check-ins", String(report.totalSessions)],
     ["Activities done", String(report.activitiesCompleted)],
     ["On this plan since", fmtDate(child.planStartedAt)],
   ];
@@ -672,7 +675,7 @@ function ProgressGraphModal({ row, onClose }: { row: AdminProgressRow; onClose: 
                 {child.name}&apos;s progress
               </h2>
               <p className="text-xs text-navy/60">
-                {row.planTitle} · {report.totalSessions} sessions
+                {row.planTitle} · {report.totalSessions} check-ins
                 {row.org ? ` · ${row.org.name}` : ""}
               </p>
             </div>
@@ -689,7 +692,7 @@ function ProgressGraphModal({ row, onClose }: { row: AdminProgressRow; onClose: 
           <div className="mt-4 min-w-0">
             {report.points.length === 0 ? (
               <p className="rounded-2xl bg-navy/5 p-6 text-center text-sm text-navy/65">
-                No sessions logged yet, so there is nothing to chart.
+                No check-ins yet, so there is nothing to chart.
               </p>
             ) : (
               <ProgressChart

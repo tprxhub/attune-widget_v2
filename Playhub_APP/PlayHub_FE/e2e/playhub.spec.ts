@@ -854,7 +854,7 @@ test("Super Admin gets a scannable progress overview with filters and details", 
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
   // One-line facts up top, and no retired GAS wording anywhere.
-  for (const label of ["Members", "Sessions", "Need attention"]) {
+  for (const label of ["Members", "Check-ins", "Need attention"]) {
     await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
   }
   await expect(page.getByText("Support Score", { exact: true })).toHaveCount(0);
@@ -878,7 +878,10 @@ test("Super Admin gets a scannable progress overview with filters and details", 
   // A row opens to the facts that are not already in the row, without exposing Support Score.
   await rows.first().getByRole("button").first().click();
   await expect(page.getByText("Latest Play Dose", { exact: true })).toBeVisible();
-  await expect(page.getByText("Daily check-ins")).toBeVisible();
+  // One count: every logged session is a check-in.
+  await expect(page.getByText("Check-ins", { exact: true }).last()).toBeVisible();
+  await expect(page.getByText("Daily check-ins")).toHaveCount(0);
+  await expect(page.getByText("Sessions logged")).toHaveCount(0);
 });
 
 test("Progress shows an empty state, not an endless skeleton, when the account has no members", async ({

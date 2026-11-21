@@ -6,9 +6,10 @@ test("Super Admin opens a member's progress graph from the Progress page", async
   await page.goto("/admin/progress");
   const row = page.locator("li[id^=child-] > button").filter({ hasText: "Maya" });
   await row.click();
-  // The details add up: every session, and how many came through Daily Check-In.
+  // One count of check-ins, whatever page they were logged from.
   const details = page.locator("li[id^=child-]").filter({ hasText: "Maya" });
-  await expect(details.getByText("Sessions logged")).toBeVisible();
+  await expect(details.getByText("Check-ins", { exact: true })).toBeVisible();
+  await expect(details.getByText("Daily check-ins")).toHaveCount(0);
   await details.getByRole("button", { name: "View progress graph" }).click();
   const dialog = page.getByRole("dialog", { name: "Maya's progress" });
   await expect(dialog).toBeVisible();

@@ -121,7 +121,7 @@ export function progressCsv(groups: AdminProgressGroup[]): string {
     "Age",
     "Play Plan",
     "Status",
-    "Sessions",
+    "Check-ins",
     "Activities Completed",
     "Avg Mood",
     "Last check-in",
@@ -140,7 +140,7 @@ export function progressCsv(groups: AdminProgressGroup[]): string {
           report.totalSessions,
           report.activitiesCompleted,
           report.totalSessions ? report.averageMood : "",
-          report.lastCheckIn ?? "",
+          report.latestSessionDate ?? report.lastCheckIn ?? "",
         ]
           .map(csvCell)
           .join(","),
